@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  /* 青がかった灰色の背景・青テーマ（カードや入力欄は白） */
+  --background: #e6ebf2;
+  --foreground: #1e293b;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", Meiryo, sans-serif;
+}

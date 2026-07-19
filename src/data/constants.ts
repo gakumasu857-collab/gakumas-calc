@@ -1,0 +1,168 @@
+/**
+ * ゲーム内の名称・キーの定数定義（ユーザー提供のconstがベース）。
+ *
+ * 方針: コード内ではキー(英語)で扱い、表示・CSVの照合では日本語ラベルを使う。
+ * CSVのラベル表記ゆれは ABILITY_LABEL_ALIASES と normalizeLabel() で吸収する。
+ */
+
+// プラン
+export const PlanName = {
+  free: "フリー",
+  sense: "センス",
+  logic: "ロジック",
+  anomaly: "アノマリー",
+} as const satisfies Record<string, string>;
+export type Plan = keyof typeof PlanName;
+
+// 効果
+export const EFFECT_NAMES = {
+  positive: "好調",
+  focus: "集中",
+  charm: "好印象",
+  vitality: "やる気",
+  charge: "温存",
+  aggressive: "強気",
+  burst: "全力",
+} as const satisfies Record<string, string>;
+export type EffectName = keyof typeof EFFECT_NAMES;
+
+// レアリティ（CSVの「配布SSR」は EventSSR として扱う）
+export const RARITY_NAMES = {
+  R: "R",
+  SR: "SR",
+  SSR: "SSR",
+  EventSSR: "イベントSSR",
+} as const satisfies Record<string, string>;
+export type Rarity = keyof typeof RARITY_NAMES;
+
+/** CSV上のレアリティ表記 → キー */
+export const RARITY_ALIASES: Record<string, Rarity> = {
+  R: "R",
+  SR: "SR",
+  SSR: "SSR",
+  配布SSR: "EventSSR",
+  イベントSSR: "EventSSR",
+  EventSSR: "EventSSR",
+};
+
+// アイドル
+export const IDLE_NAMES = {
+  hanami_saki: "花海 咲季",
+  tsukimura_temari: "月村 手毬",
+  hujita_kotone: "藤田 ことね",
+  amaya_tsubame: "雨谷 燕",
+  arimura_mao: "有村 麻央",
+  katsuragi_lilja: "葛城 リーリヤ",
+  kuramoto_china: "倉本 千奈",
+  shiun_sumika: "紫雲 清夏",
+  shinosawa_hiro: "篠澤 広",
+  himesaki_rinami: "姫﨑 莉波",
+  hanami_ume: "花海 佑芽",
+  hataya_misuzu: "秦谷 美鈴",
+  juo_sena: "十王 星南",
+} as const satisfies Record<string, string>;
+export type IdleName = keyof typeof IDLE_NAMES;
+
+// サポカのタイプ
+export const CARD_TYPE_NAMES = {
+  vocal: "Vocal",
+  dance: "Dance",
+  visual: "Visual",
+  assist: "アシスト",
+} as const satisfies Record<string, string>;
+export type CardType = keyof typeof CARD_TYPE_NAMES;
+
+// アビリティ
+// 注: 元のconstでは charge/aggressive のラベルが EFFECT_NAMES と逆だったため、
+//     charge=温存 / aggressive=強気 に統一した。
+export const ABILITY_NAMES = {
+  lesson: "レッスン",
+  sp_lesson: "SPレッスン",
+  normal_lesson: "通常レッスン",
+  skill_ac: "スキル獲得",
+  A_skill_ac: "Aスキル獲得",
+  M_skill_ac: "Mスキル獲得",
+  positive_skill_ac: "好調スキル獲得",
+  focus_skill_ac: "集中スキル獲得",
+  charm_skill_ac: "好印象スキル獲得",
+  vitality_skill_ac: "やる気スキル獲得",
+  charge_skill_ac: "温存スキル獲得",
+  aggressive_skill_ac: "強気スキル獲得",
+  burst_skill_ac: "全力スキル獲得",
+  barrier_skill_ac: "元気スキル獲得",
+  SSR_skill_ac: "SSRスキル獲得",
+  skill_enhance: "スキル強化",
+  A_skill_enhance: "Aスキル強化",
+  M_skill_enhance: "Mスキル強化",
+  skill_del: "スキル削除",
+  A_skill_del_ut3: "Aスキル削除(3回まで)",
+  M_skill_del_ut3: "Mスキル削除(3回まで)",
+  skill_del_ut4: "スキル削除(4回まで)",
+  change_ut3: "チェンジ(3回まで)",
+  study: "授業・営業",
+  date: "お出かけ",
+  date_ut2: "お出かけ(2回まで)",
+  meeting: "相談",
+  meeting_ut2: "相談(2回まで)",
+  supply: "活動支給・差し入れ",
+  supply_ut2: "活動支給・差し入れ(2回まで)",
+  rest: "休む",
+  extra_lecture_ut3: "特別指導(3回まで)",
+  drink_exchange: "Pドリンク交換",
+  drink_get: "Pドリンク獲得",
+  custom_ut6: "カスタマイズ(6回まで)",
+  SP_lesson_20s_ut4: "20枚以上SPレッスン(4回まで)",
+  p_item_get_ut6: "Pアイテム獲得(6回まで)",
+  charm_8plus_ut4: "好印象8枚以上(4回まで)",
+  up_SP_lesson_rate: "SPレッスン率アップ",
+  stage_finish_ut2: "試験終了時(2回まで)",
+  stage_finish: "試験・オーディション",
+  initial: "初期値",
+  bonus: "パラメータボーナス",
+  param_event: "パラメータイベント",
+  p_point: "Pポイント",
+  p_point_rate_type_sp: "タイプSPレッスンPポイント率",
+  p_point_rate_lesson: "レッスンPポイント率",
+  recovery_sp: "SPレッスン回復",
+  recovery_type_sp: "タイプSPレッスン回復",
+  recovery_stage_finish: "試験終了時回復",
+  nothing: "なし",
+} as const satisfies Record<string, string>;
+export type AbilityName = keyof typeof ABILITY_NAMES;
+
+/**
+ * CSV/スプレッドシート側の表記ゆれ → キー。
+ * ABILITY_NAMES のラベルと完全一致しない書き方はここに追記していく。
+ */
+const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
+  "SPレッスン率": "up_SP_lesson_rate",
+  何もなし: "nothing",
+  体力なし: "nothing",
+  "試験終了時": "stage_finish_ut2",
+};
+
+/** ラベルの正規化: 全角括弧→半角、空白除去。照合はこの形で行う */
+function normalizeLabel(label: string): string {
+  return label
+    .replace(/（/g, "(")
+    .replace(/）/g, ")")
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+// 正規化済みラベル → キー の逆引きテーブルを構築
+const LABEL_TO_KEY = new Map<string, AbilityName>();
+for (const [key, label] of Object.entries(ABILITY_NAMES)) {
+  LABEL_TO_KEY.set(normalizeLabel(label), key as AbilityName);
+}
+for (const [label, key] of Object.entries(ABILITY_LABEL_ALIASES)) {
+  LABEL_TO_KEY.set(normalizeLabel(label), key);
+}
+
+/**
+ * 日本語ラベルからアビリティキーを引く。
+ * 未知のラベルは undefined（呼び出し側で raw のまま保持して警告する）。
+ */
+export function abilityKeyFromLabel(label: string): AbilityName | undefined {
+  return LABEL_TO_KEY.get(normalizeLabel(label));
+}

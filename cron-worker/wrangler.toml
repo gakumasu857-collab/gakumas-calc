@@ -1,0 +1,13 @@
+name = "master-sync-cron"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[triggers]
+# 5分ごとに同期を起動。間隔を変えたいときはここを編集する
+# （例: "*/30 * * * *" = 30分ごと、"0 * * * *" = 1時間ごと）。
+crons = ["*/5 * * * *"]
+
+# SYNC_ENDPOINT / SYNC_SECRET は secret として設定する（実値はここに書かない）:
+#   cd cron-worker
+#   npx wrangler secret put SYNC_ENDPOINT   # 例: https://<プロジェクト>.pages.dev/api/sync
+#   npx wrangler secret put SYNC_SECRET     # Pages 側の SYNC_SECRET と同じ値

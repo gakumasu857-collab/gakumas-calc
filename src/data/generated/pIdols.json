@@ -1,0 +1,4596 @@
+{
+ "masters": [
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/y4Kr0zhnMf.png",
+   "idol": "花海咲季",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海咲季学園生活",
+   "growthTag": "花海咲季R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/29c422a14ea14fb6.jpg",
+   "idol": "花海咲季",
+   "cardName": "初声",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海咲季初声",
+   "growthTag": "花海咲季初声"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/nvxtfogG05.png",
+   "idol": "花海咲季",
+   "cardName": "わたしが一番！",
+   "rarity": "SR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海咲季わたしが一番！",
+   "growthTag": "花海咲季SR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/8gEAvLRXKA.png",
+   "idol": "花海咲季",
+   "cardName": "Fighting My Way",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海咲季Fighting My Way",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/xBhoU4tHwZ.png",
+   "idol": "花海咲季",
+   "cardName": "Boom Boom Pow",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海咲季Boom Boom Pow",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/7e5530d9ada37bcd.jpg",
+   "idol": "花海咲季",
+   "cardName": "冠菊",
+   "rarity": "配布SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海咲季冠菊",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/1f423e1ab35d38c5.jpg",
+   "idol": "花海咲季",
+   "cardName": "古今東西ちょちょいのちょい",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "花海咲季古今東西ちょちょいのちょい",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/643ad5905bb38ef2.png",
+   "idol": "花海咲季",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海咲季Campus mode!!",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/074d96950cf64b76.png",
+   "idol": "花海咲季",
+   "cardName": "桜フォトグラフ",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "花海咲季桜フォトグラフ",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/729ae467e6e4d967.png",
+   "idol": "花海咲季",
+   "cardName": "雨上がりのアイリス",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海咲季雨上がりのアイリス",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/f0b27501d09a76c9.jpeg",
+   "idol": "花海咲季",
+   "cardName": "がむしゃらに行こう！",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "花海咲季がむしゃらに行こう！",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/0dea0e8eaa13728f.png",
+   "idol": "花海咲季",
+   "cardName": "Wildest Flower",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海咲季Wildest Flower",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/f01489c3ea618aff.png",
+   "idol": "花海咲季",
+   "cardName": "GO MY WAY!!",
+   "rarity": "配布SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海咲季GO MY WAY!!",
+   "growthTag": "花海咲季SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/vHuXUf3Dsq.png",
+   "idol": "月村手毬",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "月村手毬学園生活",
+   "growthTag": "月村手毬R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/5fbc6827738b5615.jpg",
+   "idol": "月村手毬",
+   "cardName": "初声",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "月村手毬初声",
+   "growthTag": "月村手毬初声"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/zegXR48HC3.png",
+   "idol": "月村手毬",
+   "cardName": "一匹狼",
+   "rarity": "SR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "月村手毬一匹狼",
+   "growthTag": "月村手毬SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/Uh7O8wK4fI.png",
+   "idol": "月村手毬",
+   "cardName": "Luna say maybe",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "月村手毬Luna say maybe",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/r2pf8Ow0MV.png",
+   "idol": "月村手毬",
+   "cardName": "アイヴイ",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "月村手毬アイヴイ",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/7b82df1563de1890.jpg",
+   "idol": "月村手毬",
+   "cardName": "仮装狂騒曲",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "月村手毬仮装狂騒曲",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/6b632fb7efc27ae0.png",
+   "idol": "月村手毬",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "月村手毬Campus mode!!",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/FZ5Yorxat0.png",
+   "idol": "月村手毬",
+   "cardName": "雪解けに",
+   "rarity": "配布SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "月村手毬雪解けに",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/f45e4b228bac1ffd.png",
+   "idol": "月村手毬",
+   "cardName": "雨上がりのアイリス",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "月村手毬雨上がりのアイリス",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/f0f64855a675d4b5.jpg",
+   "idol": "月村手毬",
+   "cardName": "がむしゃらに行こう！",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "月村手毬がむしゃらに行こう！",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/4ea492dc11a8a475.png",
+   "idol": "月村手毬",
+   "cardName": "一体いつから",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "月村手毬一体いつから",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/3f5753d0633b106c.png",
+   "idol": "月村手毬",
+   "cardName": "ガラクタロード",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "月村手毬ガラクタロード",
+   "growthTag": "月村手毬SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/0E2VrTfzRg.png",
+   "idol": "藤田ことね",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "藤田ことね学園生活",
+   "growthTag": "藤田ことねR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/c11ff897094e25fc.jpg",
+   "idol": "藤田ことね",
+   "cardName": "初声",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "藤田ことね初声",
+   "growthTag": "藤田ことね初声"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/oxsVUrq6cs.png",
+   "idol": "藤田ことね",
+   "cardName": "カワイイ♡はじめました",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "藤田ことねカワイイ♡はじめました",
+   "growthTag": "藤田ことねSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/TNbMZWa5wJ.png",
+   "idol": "藤田ことね",
+   "cardName": "世界一可愛い私",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "藤田ことね世界一可愛い私",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/colNswEkVL.png",
+   "idol": "藤田ことね",
+   "cardName": "Yellow Big Bang！",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "藤田ことねYellow Big Bang！",
+   "growthTag": "藤田ことねYellow Big Bang！"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/MWNs3yKtkd.png",
+   "idol": "藤田ことね",
+   "cardName": "冠菊",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "藤田ことね冠菊",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/7452f4be7cc51d06.png",
+   "idol": "藤田ことね",
+   "cardName": "White Night! White Wish!",
+   "rarity": "配布SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "藤田ことねWhite Night! White Wish!",
+   "growthTag": "藤田ことねWhite Night! White Wish!"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/b83d37cf00a818b9.png",
+   "idol": "藤田ことね",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "藤田ことねCampus mode!!",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/af583e66641b59db.png",
+   "idol": "藤田ことね",
+   "cardName": "雨上がりのアイリス",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "藤田ことね雨上がりのアイリス",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/74d6ad897f41b904.png",
+   "idol": "藤田ことね",
+   "cardName": "自己肯定感爆上げ↑↑しゅきしゅきソング",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "藤田ことね自己肯定感爆上げ↑↑しゅきしゅきソング",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/72cc506f49553618.jpeg",
+   "idol": "藤田ことね",
+   "cardName": "がむしゃらに行こう！",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "藤田ことねがむしゃらに行こう！",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/d5cd8a8b820743ca.png",
+   "idol": "藤田ことね",
+   "cardName": "GO MY WAY!!",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "藤田ことねGO MY WAY!!",
+   "growthTag": "藤田ことねSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/a02710b7b70ef7b4.png",
+   "idol": "雨谷燕",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "雨谷燕学園生活",
+   "growthTag": "雨谷燕R"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/ca372e8bde72bfce.png",
+   "idol": "雨谷燕",
+   "cardName": "初志貫徹",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "雨谷燕初志貫徹",
+   "growthTag": "雨谷燕SR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/e889171768057122.png",
+   "idol": "雨谷燕",
+   "cardName": "理論武装して",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "雨谷燕理論武装して",
+   "growthTag": "雨谷燕SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/7db3710c67b0f1d6.png",
+   "idol": "雨谷燕",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "雨谷燕Campus mode!!",
+   "growthTag": "雨谷燕SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/2JgB2HYbMf.png",
+   "idol": "有村麻央",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "有村麻央学園生活",
+   "growthTag": "有村麻央R"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/6005071d686db6d1.jpg",
+   "idol": "有村麻央",
+   "cardName": "初恋",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "有村麻央初恋",
+   "growthTag": "有村麻央初恋"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/JBFp8Bj0pJ.png",
+   "idol": "有村麻央",
+   "cardName": "はじまりはカッコよく",
+   "rarity": "SR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "有村麻央はじまりはカッコよく",
+   "growthTag": "有村麻央SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/Nq50R04CYN.png",
+   "idol": "有村麻央",
+   "cardName": "Fluorite",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "有村麻央Fluorite",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/WybgCXsvSX.png",
+   "idol": "有村麻央",
+   "cardName": "キミとセミブルー",
+   "rarity": "配布SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "有村麻央キミとセミブルー",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/e9ae79acaee87dcd.jpg",
+   "idol": "有村麻央",
+   "cardName": "Feel Jewel Dream",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "有村麻央Feel Jewel Dream",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/3d44f911ff03b8c5.png",
+   "idol": "有村麻央",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "有村麻央Campus mode!!",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/i0Yo20RLaq.png",
+   "idol": "有村麻央",
+   "cardName": "雪解けに",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "有村麻央雪解けに",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/49ee367debbcb68d.jpg",
+   "idol": "有村麻央",
+   "cardName": "ミラクルナナウ(ﾟ∀ﾟ)！",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "有村麻央ミラクルナナウ(ﾟ∀ﾟ)！",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/6e234a46e43bafb4.jpg",
+   "idol": "有村麻央",
+   "cardName": "見て",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "有村麻央見て",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/6ff836f78399a859.png",
+   "idol": "有村麻央",
+   "cardName": "SUGAR FRAVOR",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "有村麻央SUGAR FRAVOR",
+   "growthTag": "有村麻央SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/3WaqRwSJPH.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "葛城リーリヤ学園生活",
+   "growthTag": "葛城リーリヤR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/65f5b69ecdc17531.jpg",
+   "idol": "葛城リーリヤ",
+   "cardName": "初心",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "葛城リーリヤ初心",
+   "growthTag": "葛城リーリヤ初心"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/2FPfNSmqmi.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "一つ踏み出した先に",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "葛城リーリヤ一つ踏み出した先に",
+   "growthTag": "葛城リーリヤSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/osuqVYHgxe.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "白線",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "葛城リーリヤ白線",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/iiG9eaN6JE.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "冠菊",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "葛城リーリヤ冠菊",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/91810258c5554f86.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "White Night! White Wish!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "葛城リーリヤWhite Night! White Wish!",
+   "growthTag": "葛城リーリヤWhite Night! White Wish!"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/149ae46d85e48a72.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "葛城リーリヤCampus mode!!",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/kbfhWSpjfp.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "極光",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "葛城リーリヤ極光",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/5ecb97abff988722.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "桜フォトグラフ",
+   "rarity": "配布SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "葛城リーリヤ桜フォトグラフ",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/f5c564c966ad111d.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "Howling over the World",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "葛城リーリヤHowling over the World",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/4cc25f742ec24986.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "Atmosphere",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "葛城リーリヤAtmosphere",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/6563a8cf84413539.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "ときめきエモーション",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "葛城リーリヤときめきエモーション",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/3c7d1441ebe4431d.png",
+   "idol": "葛城リーリヤ",
+   "cardName": "ガラクタロード",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "葛城リーリヤガラクタロード",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/N8Pv4TUt7j.png",
+   "idol": "倉本千奈",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "倉本千奈学園生活",
+   "growthTag": "倉本千奈R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/7bb17d25c7811496.jpg",
+   "idol": "倉本千奈",
+   "cardName": "初心",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "倉本千奈初心",
+   "growthTag": "倉本千奈初心"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/SFqG6IPD66.png",
+   "idol": "倉本千奈",
+   "cardName": "胸を張って一歩ずつ",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "倉本千奈胸を張って一歩ずつ",
+   "growthTag": "倉本千奈SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/zypP3XStfN.png",
+   "idol": "倉本千奈",
+   "cardName": "Wonder Scale",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "倉本千奈Wonder Scale",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/2TBkURreYS.png",
+   "idol": "倉本千奈",
+   "cardName": "日々、発見的ステップ！",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "倉本千奈日々、発見的ステップ！",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/335d768109e2068e.jpg",
+   "idol": "倉本千奈",
+   "cardName": "ようこそ初星温泉",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "倉本千奈ようこそ初星温泉",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/6ba92d156ab5ed7b.jpg",
+   "idol": "倉本千奈",
+   "cardName": "仮装狂騒曲",
+   "rarity": "配布SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "倉本千奈仮装狂騒曲",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/aaa0ec0cc4f70ae6.png",
+   "idol": "倉本千奈",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "倉本千奈Campus mode!!",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/7xwNusu09J.png",
+   "idol": "倉本千奈",
+   "cardName": "雪解けに",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "倉本千奈雪解けに",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/b855ef477508afa4.png",
+   "idol": "倉本千奈",
+   "cardName": "Howling over the World",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "倉本千奈Howling over the World",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/f0ffaeaedbf3ef42.jpg",
+   "idol": "倉本千奈",
+   "cardName": "空と約束",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "倉本千奈空と約束",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/b64c68743a1eb31c.png",
+   "idol": "倉本千奈",
+   "cardName": "みちなるひろがる",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "倉本千奈みちなるひろがる",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/MTW5J00h4l.png",
+   "idol": "紫雲清夏",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "紫雲清夏学園生活",
+   "growthTag": "紫雲清夏R"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/81288c96e8583508.jpg",
+   "idol": "紫雲清夏",
+   "cardName": "初恋",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "紫雲清夏初恋",
+   "growthTag": "紫雲清夏初恋"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/Kcttv3VmTb.png",
+   "idol": "紫雲清夏",
+   "cardName": "夢へのリスタート",
+   "rarity": "SR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "紫雲清夏夢へのリスタート",
+   "growthTag": "紫雲清夏SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/REJ6HlSMKW.png",
+   "idol": "紫雲清夏",
+   "cardName": "Tame-Lie-One-Step",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "紫雲清夏Tame-Lie-One-Step",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/1oLwk5hwse.png",
+   "idol": "紫雲清夏",
+   "cardName": "キミとセミブルー",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "紫雲清夏キミとセミブルー",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/0cbc3f056069c74d.png",
+   "idol": "紫雲清夏",
+   "cardName": "カクシタワタシ",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "紫雲清夏カクシタワタシ",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/7e197bd325f68da1.png",
+   "idol": "紫雲清夏",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "紫雲清夏Campus mode!!",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/6FLW4pYXGK.png",
+   "idol": "紫雲清夏",
+   "cardName": "桜フォトグラフ",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "紫雲清夏桜フォトグラフ",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/080b80683e47f7fe.png",
+   "idol": "紫雲清夏",
+   "cardName": "Love&Joy",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "紫雲清夏Love&Joy",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/dde93812e0a0bd0d.jpg",
+   "idol": "紫雲清夏",
+   "cardName": "ミラクルナナウ(ﾟ∀ﾟ)！",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "紫雲清夏ミラクルナナウ(ﾟ∀ﾟ)！",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/82ccca2c509093ef.png",
+   "idol": "紫雲清夏",
+   "cardName": "ときめきエモーション",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "紫雲清夏ときめきエモーション",
+   "growthTag": "紫雲清夏SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/FROxdk5ty3.png",
+   "idol": "篠澤広",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "篠澤広学園生活",
+   "growthTag": "篠澤広R"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/f9c997179c11973a.jpg",
+   "idol": "篠澤広",
+   "cardName": "初恋",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "篠澤広初恋",
+   "growthTag": "篠澤広初恋"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/vfRz_ikQrW.png",
+   "idol": "篠澤広",
+   "cardName": "一番向いてないこと",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "篠澤広一番向いてないこと",
+   "growthTag": "篠澤広SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/XVMnp1dlZH.png",
+   "idol": "篠澤広",
+   "cardName": "光景",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "篠澤広光景",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/7oYthglJF3.png",
+   "idol": "篠澤広",
+   "cardName": "コントラスト",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "篠澤広コントラスト",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/2c7ebebef6c6f819.jpg",
+   "idol": "篠澤広",
+   "cardName": "仮装狂騒曲",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "篠澤広仮装狂騒曲",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/750673b766df4b95.png",
+   "idol": "篠澤広",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "篠澤広Campus mode!!",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/5db48b379735dad0.png",
+   "idol": "篠澤広",
+   "cardName": "ハッピーミルフィーユ",
+   "rarity": "配布SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "篠澤広ハッピーミルフィーユ",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/016a88dea38a16d8.png",
+   "idol": "篠澤広",
+   "cardName": "サンフェーデッド",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "篠澤広サンフェーデッド",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/4bacd64df15a3ab4.jpg",
+   "idol": "篠澤広",
+   "cardName": "ミラクルナナウ(ﾟ∀ﾟ)！",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "篠澤広ミラクルナナウ(ﾟ∀ﾟ)！",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/3bf22e8eaa0e37d2.png",
+   "idol": "篠澤広",
+   "cardName": "みちなるひろがる",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "篠澤広みちなるひろがる",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/d7a891ffb611acb9.png",
+   "idol": "篠澤広",
+   "cardName": "ガラクタロード",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "篠澤広ガラクタロード",
+   "growthTag": "篠澤広SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/359a7846d59b8dee.jpg",
+   "idol": "十王星南",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "十王星南学園生活",
+   "growthTag": "十王星南R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/84b0f01a5a63db0f.png",
+   "idol": "十王星南",
+   "cardName": "初陣",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "十王星南初陣",
+   "growthTag": "十王星南初陣"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/2e43eff493293ec4.jpg",
+   "idol": "十王星南",
+   "cardName": "一番星",
+   "rarity": "SR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "十王星南一番星",
+   "growthTag": "十王星南SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/57eb31c0033044b0.jpg",
+   "idol": "十王星南",
+   "cardName": "小さな野望",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "十王星南小さな野望",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/87bc9dd6fce1ac5e.png",
+   "idol": "十王星南",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "十王星南Campus mode!!",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/9cfb9d49da756191.png",
+   "idol": "十王星南",
+   "cardName": "ハッピーミルフィーユ",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "十王星南ハッピーミルフィーユ",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/7e29405ccfd9baca.png",
+   "idol": "十王星南",
+   "cardName": "Our Chant",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "十王星南Our Chant",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/56086ea3c47ffc36.png",
+   "idol": "十王星南",
+   "cardName": "Star-mine",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "十王星南Star-mine",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/6b542e1296c388ea.png",
+   "idol": "十王星南",
+   "cardName": "赤裸々",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "十王星南赤裸々",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/9162f5416c75893d.png",
+   "idol": "十王星南",
+   "cardName": "ENDLESS DANCE",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "十王星南ENDLESS DANCE",
+   "growthTag": "十王星南SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/83db1025047cbf8f.png",
+   "idol": "秦谷美鈴",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "秦谷美鈴学園生活",
+   "growthTag": "秦谷美鈴R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/4f6476cf487eca52.png",
+   "idol": "秦谷美鈴",
+   "cardName": "初陣",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "秦谷美鈴初陣",
+   "growthTag": "秦谷美鈴初陣"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/ac49664b6bbe532e.png",
+   "idol": "秦谷美鈴",
+   "cardName": "ゆっくり、一歩ずつ",
+   "rarity": "SR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "秦谷美鈴ゆっくり、一歩ずつ",
+   "growthTag": "秦谷美鈴SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/a8f775d6f9f1d2ea.png",
+   "idol": "秦谷美鈴",
+   "cardName": "ツキノカメ",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "秦谷美鈴ツキノカメ",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/de559dca49c17683.png",
+   "idol": "秦谷美鈴",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "秦谷美鈴Campus mode!!",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/ece40d24eebbb0e9.png",
+   "idol": "秦谷美鈴",
+   "cardName": "Star-mine",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "秦谷美鈴Star-mine",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/4960be1fb09c8877.png",
+   "idol": "秦谷美鈴",
+   "cardName": "Suparlative",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "秦谷美鈴Suparlative",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/40e6d716ef26a255.png",
+   "idol": "秦谷美鈴",
+   "cardName": "ENDLESS DANCE",
+   "rarity": "配布SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "秦谷美鈴ENDLESS DANCE",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/b986d7246d30b40f.jpeg",
+   "idol": "秦谷美鈴",
+   "cardName": "VEIL",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "秦谷美鈴VEIL",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/BD0YTHdt8m.png",
+   "idol": "花海佑芽",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海佑芽学園生活",
+   "growthTag": "花海佑芽R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/5da1587bbcda032f.png",
+   "idol": "花海佑芽",
+   "cardName": "初陣",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海佑芽初陣",
+   "growthTag": "花海佑芽初陣"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/Xqy_pe9rMp.png",
+   "idol": "花海佑芽",
+   "cardName": "アイドル、はじめっ！",
+   "rarity": "SR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海佑芽アイドル、はじめっ！",
+   "growthTag": "花海佑芽SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/iDAPMVkTpF.png",
+   "idol": "花海佑芽",
+   "cardName": "The Rolling Riceball",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海佑芽The Rolling Riceball",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/8603cd869cc77b0e.png",
+   "idol": "花海佑芽",
+   "cardName": "White Night! White Wish!",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "花海佑芽White Night! White Wish!",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/73f48f2ae09fd166.png",
+   "idol": "花海佑芽",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "花海佑芽Campus mode!!",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/673608e227467752.png",
+   "idol": "花海佑芽",
+   "cardName": "Star-mine",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海佑芽Star-mine",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/6e70ceb33e86284a.png",
+   "idol": "花海佑芽",
+   "cardName": "グースーピー",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "花海佑芽グースーピー",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/91ae8b6752c229bf.png",
+   "idol": "花海佑芽",
+   "cardName": "ENDLESS DANCE",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "花海佑芽ENDLESS DANCE",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/04b154c7b1a855dc.png",
+   "idol": "花海佑芽",
+   "cardName": "真っ白いページと水彩の主人公",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海佑芽真っ白いページと水彩の主人公",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/01c2a5c579d6fff3.png",
+   "idol": "花海佑芽",
+   "cardName": "GO MY WAY!!",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "花海佑芽GO MY WAY!!",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/T0wxtB3T0S.png",
+   "idol": "姫﨑莉波",
+   "cardName": "学園生活",
+   "rarity": "R",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "姫﨑莉波学園生活",
+   "growthTag": "姫﨑莉波R"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/1afd04b2f84ba101.jpg",
+   "idol": "姫﨑莉波",
+   "cardName": "初心",
+   "rarity": "R",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "姫﨑莉波初心",
+   "growthTag": "姫﨑莉波初心"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/HHeyOKr02l.png",
+   "idol": "姫﨑莉波",
+   "cardName": "『私らしさ』のはじまり",
+   "rarity": "SR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "姫﨑莉波『私らしさ』のはじまり",
+   "growthTag": "姫﨑莉波SR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/R7boBS5VWl.png",
+   "idol": "姫﨑莉波",
+   "cardName": "clumsy trick",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "姫﨑莉波clumsy trick",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image01.seesaawiki.jp/g/u/gakumasu/tyUzTGkhJO.png",
+   "idol": "姫﨑莉波",
+   "cardName": "キミとセミブルー",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "姫﨑莉波キミとセミブルー",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/55cc7e3a6b54b459.jpg",
+   "idol": "姫﨑莉波",
+   "cardName": "ようこそ初星温泉",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "姫﨑莉波ようこそ初星温泉",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/a5ea241e77b291fe.jpg",
+   "idol": "姫﨑莉波",
+   "cardName": "L.U.V",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "姫﨑莉波L.U.V",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/43fe0ae5897401a3.png",
+   "idol": "姫﨑莉波",
+   "cardName": "Campus mode!!",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "姫﨑莉波Campus mode!!",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/9d73d2f0dda063c9.png",
+   "idol": "姫﨑莉波",
+   "cardName": "ハッピーミルフィーユ",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "姫﨑莉波ハッピーミルフィーユ",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/28895529591288f3.png",
+   "idol": "姫﨑莉波",
+   "cardName": "Howling over the World",
+   "rarity": "配布SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "姫﨑莉波Howling over the World",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/416387a87cd5d3b7.jpg",
+   "idol": "姫﨑莉波",
+   "cardName": "36℃ U･B･U",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "姫﨑莉波36℃ U･B･U",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/e613463bf5059db6.png",
+   "idol": "姫﨑莉波",
+   "cardName": "ガラクタロード",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "姫﨑莉波ガラクタロード",
+   "growthTag": "姫﨑莉波SSR"
+  },
+  {
+   "url": "https://image02.seesaawiki.jp/g/u/gakumasu/7c92b44c5451a566.png",
+   "idol": "姫﨑莉波",
+   "cardName": "SUGAR FRAVOR",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "姫﨑莉波SUGAR FRAVOR",
+   "growthTag": "姫﨑莉波SSR"
+  }
+ ],
+ "growth": {
+  "花海咲季R": {
+   "base": [
+    32,
+    65,
+    65,
+    70,
+    15.5,
+    15.5,
+    18.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海咲季初声": {
+   "base": [
+    32,
+    65,
+    65,
+    70,
+    15.5,
+    15.5,
+    18.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海咲季SR": {
+   "base": [
+    32,
+    70,
+    70,
+    75,
+    16.5,
+    16.5,
+    18.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    2,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海咲季SSR": {
+   "base": [
+    32,
+    75,
+    75,
+    80,
+    16.5,
+    16.5,
+    20.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "月村手毬R": {
+   "base": [
+    32,
+    85,
+    65,
+    45,
+    26,
+    21.5,
+    9.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "月村手毬初声": {
+   "base": [
+    32,
+    85,
+    65,
+    45,
+    26,
+    21.5,
+    9.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "月村手毬SR": {
+   "base": [
+    32,
+    90,
+    70,
+    50,
+    27,
+    21.5,
+    10.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    3,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "月村手毬SSR": {
+   "base": [
+    32,
+    95,
+    75,
+    55,
+    27,
+    22.5,
+    11.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことねR": {
+   "base": [
+    31,
+    55,
+    55,
+    85,
+    6,
+    23.5,
+    21.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことね初声": {
+   "base": [
+    31,
+    55,
+    55,
+    85,
+    6,
+    23.5,
+    21.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことねSR": {
+   "base": [
+    31,
+    60,
+    60,
+    90,
+    7,
+    23.5,
+    22.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことねSSR": {
+   "base": [
+    31,
+    65,
+    65,
+    95,
+    8,
+    24.5,
+    22.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことねYellow Big Bang！": {
+   "base": [
+    31,
+    65,
+    65,
+    95,
+    8,
+    24.5,
+    22.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    5,
+    0,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "藤田ことねWhite Night! White Wish!": {
+   "base": [
+    35,
+    65,
+    65,
+    95,
+    8,
+    24.5,
+    22.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "雨谷燕R": {
+   "base": [
+    31,
+    80,
+    105,
+    75,
+    15,
+    18,
+    11
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    4,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "雨谷燕SR": {
+   "base": [
+    31,
+    85,
+    110,
+    75,
+    16,
+    19,
+    12
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    4,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "雨谷燕SSR": {
+   "base": [
+    31,
+    90,
+    115,
+    85,
+    17,
+    20,
+    13
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    4,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "有村麻央R": {
+   "base": [
+    31,
+    90,
+    55,
+    80,
+    21,
+    9,
+    24
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "有村麻央初恋": {
+   "base": [
+    31,
+    90,
+    55,
+    80,
+    21,
+    9,
+    24
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    5
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "有村麻央SR": {
+   "base": [
+    31,
+    95,
+    60,
+    85,
+    22,
+    10,
+    24
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "有村麻央SSR": {
+   "base": [
+    31,
+    100,
+    65,
+    90,
+    23,
+    11,
+    24
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    5
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "葛城リーリヤR": {
+   "base": [
+    28,
+    65,
+    70,
+    90,
+    16,
+    23,
+    19
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "葛城リーリヤ初心": {
+   "base": [
+    28,
+    65,
+    70,
+    90,
+    16,
+    23,
+    19
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "葛城リーリヤSR": {
+   "base": [
+    28,
+    70,
+    75,
+    95,
+    17,
+    23,
+    20
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "葛城リーリヤSSR": {
+   "base": [
+    28,
+    75,
+    80,
+    100,
+    18,
+    23,
+    21
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "葛城リーリヤWhite Night! White Wish!": {
+   "base": [
+    25,
+    80,
+    85,
+    105,
+    18,
+    23,
+    21
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "倉本千奈R": {
+   "base": [
+    26,
+    65,
+    95,
+    105,
+    12,
+    24,
+    18.5
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "倉本千奈初心": {
+   "base": [
+    26,
+    65,
+    95,
+    105,
+    12,
+    24,
+    18.5
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "倉本千奈SR": {
+   "base": [
+    26,
+    70,
+    100,
+    110,
+    13,
+    24,
+    19.5
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "倉本千奈SSR": {
+   "base": [
+    26,
+    75,
+    105,
+    115,
+    13,
+    24,
+    21.5
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "紫雲清夏R": {
+   "base": [
+    30,
+    70,
+    80,
+    60,
+    10,
+    25,
+    22
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "紫雲清夏初恋": {
+   "base": [
+    30,
+    70,
+    80,
+    60,
+    10,
+    25,
+    22
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "紫雲清夏SR": {
+   "base": [
+    30,
+    75,
+    85,
+    65,
+    11,
+    25,
+    23
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "紫雲清夏SSR": {
+   "base": [
+    30,
+    80,
+    90,
+    70,
+    12,
+    25,
+    24
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    5,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "篠澤広R": {
+   "base": [
+    25,
+    100,
+    95,
+    65,
+    24,
+    16.5,
+    11
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    2,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "篠澤広初恋": {
+   "base": [
+    25,
+    100,
+    95,
+    65,
+    24,
+    16.5,
+    11
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    5,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "篠澤広SR": {
+   "base": [
+    25,
+    105,
+    100,
+    70,
+    25,
+    18.5,
+    12
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    3,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "篠澤広SSR": {
+   "base": [
+    25,
+    110,
+    105,
+    75,
+    25,
+    19.5,
+    13
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    5,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "十王星南R": {
+   "base": [
+    31,
+    130,
+    80,
+    95,
+    13,
+    6,
+    18.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    4
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "十王星南初陣": {
+   "base": [
+    31,
+    130,
+    80,
+    95,
+    13,
+    6,
+    18.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    4
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "十王星南SR": {
+   "base": [
+    31,
+    140,
+    90,
+    105,
+    14,
+    7,
+    19.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    4
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "十王星南SSR": {
+   "base": [
+    31,
+    150,
+    100,
+    115,
+    15,
+    8,
+    20.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    4
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "秦谷美鈴R": {
+   "base": [
+    27,
+    65,
+    95,
+    110,
+    25,
+    11,
+    18
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    4,
+    0,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "秦谷美鈴初陣": {
+   "base": [
+    27,
+    65,
+    95,
+    110,
+    25,
+    11,
+    18
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    4,
+    0,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "秦谷美鈴SR": {
+   "base": [
+    27,
+    70,
+    100,
+    115,
+    26,
+    12,
+    19
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    4,
+    0,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "秦谷美鈴SSR": {
+   "base": [
+    27,
+    75,
+    105,
+    120,
+    27,
+    13,
+    20
+   ],
+   "kunren1": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    20,
+    20,
+    20,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    4,
+    0,
+    2
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海佑芽R": {
+   "base": [
+    30,
+    55,
+    60,
+    65,
+    19,
+    22,
+    13
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    2,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海佑芽初陣": {
+   "base": [
+    30,
+    55,
+    60,
+    65,
+    19,
+    22,
+    13
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海佑芽SR": {
+   "base": [
+    30,
+    60,
+    65,
+    70,
+    19,
+    23,
+    14
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    2,
+    3,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "花海佑芽SSR": {
+   "base": [
+    30,
+    65,
+    70,
+    75,
+    20,
+    23,
+    15
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    5,
+    0
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "姫﨑莉波R": {
+   "base": [
+    30,
+    50,
+    85,
+    90,
+    11,
+    19.5,
+    25.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "姫﨑莉波初心": {
+   "base": [
+    30,
+    50,
+    85,
+    90,
+    11,
+    19.5,
+    25.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    5
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "姫﨑莉波SR": {
+   "base": [
+    30,
+    55,
+    90,
+    95,
+    12,
+    20.5,
+    25.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    3
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "姫﨑莉波SSR": {
+   "base": [
+    30,
+    60,
+    95,
+    100,
+    13,
+    21.5,
+    25.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    5
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  "姫﨑莉波LUV": {
+   "base": [
+    30,
+    55,
+    90,
+    95,
+    13,
+    21.5,
+    25.5
+   ],
+   "kunren1": [
+    0,
+    10,
+    10,
+    10,
+    0,
+    0,
+    0
+   ],
+   "kunren4": [
+    0,
+    15,
+    15,
+    15,
+    0,
+    0,
+    0
+   ],
+   "kunren5": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "kaika3": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    5
+   ],
+   "kaika4": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ },
+ "idolRanks": {
+  "花海咲季": {
+   "vocal": 3,
+   "dance": 2,
+   "visual": 1,
+   "tag": "バランス"
+  },
+  "月村手毬": {
+   "vocal": 1,
+   "dance": 2,
+   "visual": 3,
+   "tag": "特化"
+  },
+  "藤田ことね": {
+   "vocal": 3,
+   "dance": 1,
+   "visual": 2,
+   "tag": "特化"
+  },
+  "雨谷燕": {
+   "vocal": 2,
+   "dance": 1,
+   "visual": 3,
+   "tag": "特化"
+  },
+  "有村麻央": {
+   "vocal": 1,
+   "dance": 3,
+   "visual": 2,
+   "tag": "特化"
+  },
+  "葛城リーリヤ": {
+   "vocal": 3,
+   "dance": 2,
+   "visual": 1,
+   "tag": "バランス"
+  },
+  "倉本千奈": {
+   "vocal": 3,
+   "dance": 1,
+   "visual": 2,
+   "tag": "特化"
+  },
+  "紫雲清夏": {
+   "vocal": 3,
+   "dance": 1,
+   "visual": 2,
+   "tag": "特化"
+  },
+  "篠澤広": {
+   "vocal": 1,
+   "dance": 2,
+   "visual": 3,
+   "tag": "バランス"
+  },
+  "十王星南": {
+   "vocal": 2,
+   "dance": 3,
+   "visual": 1,
+   "tag": "バランス"
+  },
+  "秦谷美鈴": {
+   "vocal": 1,
+   "dance": 3,
+   "visual": 2,
+   "tag": "特化"
+  },
+  "花海佑芽": {
+   "vocal": 2,
+   "dance": 1,
+   "visual": 3,
+   "tag": "バランス"
+  },
+  "姫﨑莉波": {
+   "vocal": 3,
+   "dance": 2,
+   "visual": 1,
+   "tag": "バランス"
+  }
+ }
+}
