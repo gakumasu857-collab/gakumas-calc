@@ -1,0 +1,27 @@
+name = "gakumas-calc"
+main = "worker/index.js"
+compatibility_date = "2025-09-01"
+
+# SPA（Vite の dist/）を配信。/api/* は Worker が先に処理する。
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+not_found_handling = "single-page-application"
+
+# マスタ配信ストア（非公開バケット。バインド経由でのみ読む）
+[[r2_buckets]]
+binding = "MASTER_BUCKET"
+bucket_name = "gakumas-master"
+
+# 定期同期（5分ごと。間隔はここを編集）
+[triggers]
+crons = ["*/5 * * * *"]
+
+# 秘密でない設定。SHEET_ID はURLに出る値、SHEET_TABS は同期するタブ名。
+[vars]
+SHEET_ID = "1Hcl8izrBVL82XF4nGd2vi3QeONhDqYGZXom_7p-29Ow"
+SHEET_TABS = "supMaster,abilityValues,pidleName,pidleStatus,idleTypes,abilityCountsHIF,abilityCountsNIA,abilityCountsHajime,abilityEvolutions"
+
+# 秘密（wrangler secret put で設定。ここには書かない）:
+#   GS_CLIENT_EMAIL / GS_PRIVATE_KEY / SYNC_SECRET

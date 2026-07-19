@@ -1,122 +1,105 @@
 # 学マス計算ツール
 
-Vite + React の SPA（Cloudflare Pages でホスティング）。
-このリポジトリには、マスタデータを Google スプレッドシートから Cloudflare R2 へ同期して
-サイトに配信する仕組みが含まれる。以下はその仕組みのドキュメント。
+Vite + React + React Router + Tailwind v4 の SPA。
+Cloudflare Workers 1つで **SPA配信 + マスタ配信API + スプシ→R2同期(cron)** をまかなう。
 
-## 全体像
+- 本番: https://gakumas-calc.gakumasu857.workers.dev
+- 計算ロジックはすべてブラウザ側（localStorage + `src/lib/`）。Worker はマスタ配信専用。
+
+## マスタ配信のしくみ
+
+編集は Google スプレッドシート（非公開）だけで行い、フロントは絶対にスプシを直接読まない。
+スプシ → R2 に JSON を同期し、フロントは Worker 経由の JSON だけを読む。
 
 ```
-[Google スプレッドシート]  ←編集はここだけ（非公開）
-        │  Sheets API (values:batchGet / サービスアカウント認証)
+[Google スプレッドシート]（非公開・編集用）
+        │  Sheets API values:batchGet（サービスアカウント認証）
         ▼
-[Pages Functions /api/sync]  ←POST + x-sync-token で保護
+[Worker: scheduled(cron) / POST /api/sync]  ← 5分ごと自動 + 手動トリガー
         │  タブごとに JSON 化して put
         ▼
-[R2 バケット (非公開)]  master/<タブ名>.json + master/_index.json
-        │  バインディング経由で get（r2.dev は使わない）
+[R2 バケット gakumas-master（非公開）]  master/<タブ>.json + master/_index.json
+        │  バインド経由で get（r2.dev は使わない）
         ▼
-[Pages Functions /api/master]  ←Cache-Control: max-age=300
-        │
+[Worker: GET /api/master(?name=xxx)]  Cache-Control: max-age=300
         ▼
-[React (useMaster フック)]
-
-[Cron Worker (master-sync-cron)] ──5分ごとに /api/sync を POST──▶ 同期起動
+[React（src/useMaster.js）]
 ```
 
-- スプレッドシートは編集専用。フロントは絶対にスプシを直接読まない。
-- R2 を選んだ理由: 全ユーザー共通の参照データを丸ごと配るだけ（実質ファイル配信）で、
-  絞り込み・結合・行更新・RLS などの DB 機能が不要。D1 の行数制限や
-  Supabase の「7日無活動で一時停止」とも無縁。R2 は egress 無料。
-- R2 バケットは非公開のまま、Functions のバインディング経由でのみ読む
-  （r2.dev の本番レート制限を回避、独自ドメイン不要）。
+R2 を使う理由: 全ユーザー共通の参照データを丸ごと配るだけ（実質ファイル配信）で、
+絞り込み・結合・行更新・RLS などの DB 機能が不要。D1 の行数制限や
+Supabase の「7日無活動で一時停止」とも無縁。R2 は egress 無料。
 
-## ファイル構成
+## 構成
 
 ```
-functions/
-  _lib/google-auth.js   サービスアカウントで access_token 取得（Web Crypto で RS256 署名）
-  _lib/sync.js          スプシ → R2 同期の本体（batchGet → JSON 化 → put）
-  api/master.js         GET  /api/master(?name=xxx)  フロント向け読み取り
-  api/sync.js           POST /api/sync               保護された同期トリガー
-cron-worker/
-  src/index.js          Cron から /api/sync を叩く別 Worker
-  wrangler.toml         Cron 設定（5分ごと）
+worker/
+  index.js          Worker本体: SPA配信 + /api/master + /api/sync + cron(scheduled)
+  lib/google-auth.js サービスアカウントで access_token 取得（Web Crypto で RS256 自前署名）
+  lib/sync.js        スプシ → R2 同期（batchGet → JSON化 → put、空タブは上書きしない）
+wrangler.toml       Worker設定（R2バインド・cron・assets・vars）
 src/
-  useMaster.js          useMaster(name) / useMasterIndex() React フック
+  useMaster.js      useMaster(name) / useMasterIndex() フック
+  ...               計算ツール本体
 ```
 
-## セットアップ手順
+## API
 
-### 1. Google 側（サービスアカウント）
+| メソッド・パス | 内容 |
+|---|---|
+| `GET /api/master` | 利用可能タブ一覧 `{tabs, updatedAt}` |
+| `GET /api/master?name=xxx` | タブ `xxx` のオブジェクト配列（`^[A-Za-z0-9_-]+$` 検証・max-age=300） |
+| `POST /api/sync` | `x-sync-token: <SYNC_SECRET>` 一致で同期実行 |
+| その他のGET | SPA（`dist/`。未マッチは index.html） |
 
-1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（無料）。
-2. 「API とサービス」→「ライブラリ」で **Google Sheets API を有効化**。
-3. 「認証情報」→「サービスアカウント」を作成 → キー（JSON）を発行してダウンロード。
-4. JSON 内の `client_email` と `private_key` を後述の環境変数に使う。
-5. **対象スプレッドシートをサービスアカウントのメールアドレスに「閲覧者」で共有する。**
-   ここを忘れると Sheets API が 403 になる（最頻のハマりどころ）。
+JSON は各タブの先頭行をキーにしたオブジェクト配列。数値は数値のまま
+（`valueRenderOption=UNFORMATTED_VALUE`）。空ヘッダー列は出力せず、全セル空の行は捨てる。
 
-### 2. R2 バケット
+## デプロイ / 再デプロイ
 
-1. Cloudflare ダッシュボード → R2 → バケット作成（例: `gakumas-master`）。
-2. **公開設定はしない**（r2.dev ドメインも独自ドメインも繋がない）。
-
-### 3. Cloudflare Pages
-
-1. このリポジトリを Pages に接続（ビルド: `npm run build`、出力: `dist`）。
-   `functions/` ディレクトリは自動で Pages Functions として認識される。
-2. 「設定」→「バインディング」で R2 バケットをバインドする:
-   - 変数名: `MASTER_BUCKET` / バケット: 手順2で作ったもの
-3. 「設定」→「環境変数」で以下を設定（Production。秘密のものは Secret として）:
-
-| 変数名 | 内容 | 例 |
-|---|---|---|
-| `SHEET_ID` | スプシの ID（URL の `/d/` と `/edit` の間） | `1Hcl8izr...` |
-| `SHEET_TABS` | 同期するタブ名（カンマ区切り） | `supMaster,abilityValues,pidleName,pidleStatus,idleTypes,abilityCountsHIF,abilityCountsNIA,abilityCountsHajime,abilityEvolutions` |
-| `GS_CLIENT_EMAIL` | サービスアカウントのメール | `xxx@yyy.iam.gserviceaccount.com` |
-| `GS_PRIVATE_KEY` | サービスアカウントの秘密鍵（PEM 全文・Secret） | `-----BEGIN PRIVATE KEY-----\n...` |
-| `SYNC_SECRET` | 同期トリガー保護用の任意の長い文字列（Secret） | ランダム文字列 |
-
-   `GS_PRIVATE_KEY` は改行が `\n` という文字列のまま貼り付けても動く
-   （コード側で実改行に戻している）。
-
-### 4. Cron Worker
+前提: Cloudflare に `wrangler login` 済み、R2 バケット `gakumas-master` 作成済み。
 
 ```bash
-cd cron-worker
-npx wrangler secret put SYNC_ENDPOINT   # https://<プロジェクト>.pages.dev/api/sync
-npx wrangler secret put SYNC_SECRET     # Pages 側と同じ値
-npx wrangler deploy
+npm run build            # dist/ を生成（wrangler.toml の [assets] が配信）
+npx wrangler deploy      # Worker をデプロイ（R2バインド・cron・assets 込み）
 ```
 
-デフォルトは5分ごと。間隔は `cron-worker/wrangler.toml` の `crons` を編集する。
+秘密は一度だけ設定（値は入力・ここには残さない）:
+
+```bash
+npx wrangler secret put GS_CLIENT_EMAIL   # サービスアカウントのメール
+npx wrangler secret put GS_PRIVATE_KEY    # サービスアカウントの秘密鍵(PEM全文)
+npx wrangler secret put SYNC_SECRET       # /api/sync 保護用の任意の長い文字列
+```
+
+秘密でない `SHEET_ID` / `SHEET_TABS` は `wrangler.toml` の `[vars]` にある。
+同期するタブを増減するときは `SHEET_TABS` を編集する。
+
+### 必要な設定値
+
+| 名前 | 種別 | 内容 |
+|---|---|---|
+| `SHEET_ID` | vars | スプシID（URLの `/d/` と `/edit` の間） |
+| `SHEET_TABS` | vars | 同期するタブ名のカンマ区切り |
+| `GS_CLIENT_EMAIL` | secret | サービスアカウントのメール |
+| `GS_PRIVATE_KEY` | secret | サービスアカウントの秘密鍵(PEM)。`\n` 文字列のままでも可 |
+| `SYNC_SECRET` | secret | `/api/sync` 保護用トークン |
+| `MASTER_BUCKET` | R2バインド | バケット `gakumas-master` |
 
 ## 動作確認
 
 ```bash
-# 1. 手動で同期を起動（初回はこれで R2 に JSON が入る）
-curl -X POST -H "x-sync-token: <SYNC_SECRET>" https://<プロジェクト>.pages.dev/api/sync
+# 手動で同期（初回や即時反映したいとき）
+curl -X POST -H "x-sync-token: <SYNC_SECRET>" https://gakumas-calc.gakumasu857.workers.dev/api/sync
 # → {"synced":[{"tab":"supMaster","rows":193},...],"skipped":[],...}
 
-# 2. 一覧を確認
-curl https://<プロジェクト>.pages.dev/api/master
-# → {"tabs":["supMaster",...],"updatedAt":"..."}
-
-# 3. 個別マスタを確認
-curl "https://<プロジェクト>.pages.dev/api/master?name=supMaster"
-
-# 4. Cron Worker の手動起動（fetch ハンドラ）
-curl https://master-sync-cron.<アカウント>.workers.dev/
+curl https://gakumas-calc.gakumasu857.workers.dev/api/master
+curl "https://gakumas-calc.gakumasu857.workers.dev/api/master?name=supMaster"
 ```
 
-ローカル確認は `wrangler pages dev` を使う（**`npm run dev`（vite）では
-Pages Functions が動かない**ので /api/... は 404 になる）:
-
-```bash
-npm run build
-npx wrangler pages dev dist --r2 MASTER_BUCKET   # 環境変数は --binding で渡す
-```
+ローカルは `npx wrangler dev`（R2/cron/secret 込みで Worker を再現）。
+secret は `.dev.vars`（gitignore 済み）に `KEY=値` で書く。`.dev.vars.example` を参照。
+※ `npm run dev`（vite）は SPA だけで `/api/*` は動かない。
 
 ## フロントでの使用例
 
@@ -127,41 +110,23 @@ function SupportCardList() {
   const { data, loading, error } = useMaster("supMaster");
   if (loading) return <p>読み込み中…</p>;
   if (error) return <p>取得に失敗: {String(error)}</p>;
-  return (
-    <ul>
-      {data.map((row) => (
-        <li key={row.id}>{row.name}（{row.rarity}）</li>
-      ))}
-    </ul>
-  );
-}
-
-function MasterList() {
-  const { data } = useMasterIndex();
-  return <p>利用可能: {data?.tabs.join(", ")}（更新 {data?.updatedAt}）</p>;
+  return <ul>{data.map((row) => <li key={row.id}>{row.name}（{row.rarity}）</li>)}</ul>;
 }
 ```
 
-JSON の形式: 各タブの先頭行がキーになったオブジェクト配列。
-数値セルは数値のまま入る（`valueRenderOption=UNFORMATTED_VALUE`）。
-空のヘッダー列は出力されず、全セル空の行はスキップされる。
+※ 現状フロントはビルド時同梱の `src/data/generated/*.json` を使っている。
+`/api/master`（R2由来）へ切り替えるのは今後の作業。
 
 ## 無料枠の要点
 
-- **Pages Functions**: 10万リクエスト/日。`/api/master` は max-age=300 の
-  キャッシュが効くので実リクエストはさらに少ない。
-- **R2**: ストレージ 10GB・Class A 100万回/月・Class B 1000万回/月。
-  マスタ JSON 数個の put/get では誤差レベル。**egress は無料**。
-- **Workers (Cron)**: 10万リクエスト/日・Cron Trigger は追加課金なし。
-  5分ごと = 288回/日で余裕。
-- **Sheets API**: 読み取り 300回/分/プロジェクト。batchGet で全タブ1回なので
-  5分ごとでも 288回/日と余裕。
+- **Workers**: 10万リクエスト/日、Cron Trigger 追加課金なし。5分ごと=288回/日で余裕。
+  `/api/master` は max-age=300 でキャッシュも効く。
+- **R2**: 10GB・Class A 100万/月・Class B 1000万/月。JSON数個の put/get は誤差。egress 無料。
+- **Sheets API**: 読み取り 300回/分。batchGet で全タブ1回なので余裕。
 
-## ハマりどころ（再掲）
+## ハマりどころ
 
-- `GS_PRIVATE_KEY` の改行: `\n` が文字列のまま入っても動くようにしてあるが、
-  PEM のヘッダー/フッターごと全文を貼ること。
-- サービスアカウントにスプシを共有し忘れると 403。
-- R2 バケットは公開しない（バインディング経由でのみ読む）。
-- 同期が失敗したタブは R2 を上書きしない（正常データ保護）。失敗が続くときは
-  `/api/sync` のレスポンスの `skipped` を確認する。
+- サービスアカウントにスプシを「閲覧者」で共有し忘れると Sheets API が 403。
+- `GS_PRIVATE_KEY` は PEM ヘッダー/フッターごと全文。改行が `\n` 文字列でも動く。
+- R2 バケットは公開しない（バインド経由でのみ読む）。
+- 同期に失敗したタブは R2 を上書きしない（正常データ保護）。`/api/sync` の `skipped` で確認。

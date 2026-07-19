@@ -1,0 +1,5 @@
+# ローカル `wrangler dev` 用の secret。これをコピーして `.dev.vars` を作る（.dev.vars は gitignore 済み）。
+# 本番の secret は `wrangler secret put` で別途設定する（この例ファイルとは無関係）。
+GS_CLIENT_EMAIL=sheets-reader@your-project.iam.gserviceaccount.com
+GS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+SYNC_SECRET=ローカル確認用の任意文字列
