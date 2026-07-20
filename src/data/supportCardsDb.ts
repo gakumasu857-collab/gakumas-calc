@@ -23,6 +23,23 @@ export type AbilitySlot =
   | { key: AbilityName }
   | { raw: string };
 
+/** 前イベで発動する1アクション（発動する内容と強さ）。value=0 は回数指定なしのフラグ（獲得スキルの種別など） */
+export type PreEventAction = { label: string; value: number };
+
+/** 前イベの詳細（トリガー・強さ・発動する内容）。データベース表示や計算内訳で使う */
+export type PreEventInfo = {
+  /** 種別: アイテム / スキル / 何もなし（= preEventType と同じ） */
+  kind: string;
+  /** 発動トリガー（＝発動回数の参照キー）。例: VisualSPレッスン / スキル強化 / 初期値 */
+  trigger: string;
+  /** 最大発動回数（9999=実質無制限） */
+  maxActivations: number;
+  /** パラメータ上昇値（前イベ=Pアイテムのパラメ獲得。0なら無し） */
+  param: number;
+  /** 発動する内容（スキル獲得・強化・削除・チェンジ・ドリンク・回復・Pポイント等） */
+  actions: PreEventAction[];
+};
+
 export type SupportCardData = {
   /** CSVのid列。空なら名前から生成（名前が変わらない限り安定） */
   id: string;
@@ -42,6 +59,8 @@ export type SupportCardData = {
   /** 前イベ（アイテム/スキル）・後イベ（強化/チェンジ/体力回復等） */
   preEventType: string;
   postEventType: string;
+  /** 前イベの構造化詳細（トリガー・強さ・発動内容） */
+  preEvent: PreEventInfo;
   /** 上記以外の列すべて（列名→値）。新列は自動的にここへ入る */
   extras: Record<string, string>;
 };
@@ -114,6 +133,47 @@ function toAbilitySlot(label: string): AbilitySlot | null {
   return { raw: label };
 }
 
+/** 前イベで発動する数値アクションの表示順（extras の日本語キー） */
+const PRE_EVENT_ACTION_KEYS = [
+  "スキル獲得",
+  "スキル強化",
+  "Aスキル強化",
+  "Mスキル強化",
+  "スキル削除",
+  "Aスキル削除（3回まで）",
+  "Mスキル削除（3回まで）",
+  "チェンジ（3回まで）",
+  "ドリンク獲得",
+  "体力回復",
+  "アイテムPポ",
+] as const;
+/** extras の「アイテムPポ」だけ表示名を Pポイント に読み替える */
+const PRE_EVENT_ACTION_LABEL: Record<string, string> = { アイテムPポ: "Pポイント" };
+
+/**
+ * 前イベの構造化詳細を extras から組み立てる。
+ * トリガー・最大発動回数・パラメータ・発動する内容（スキル獲得の種別＋数値アクション）をまとめる。
+ */
+function buildPreEvent(kind: string, extras: Record<string, string>): PreEventInfo {
+  const n = (k: string) => numOf(extras[k]);
+  const actions: PreEventAction[] = [];
+  for (const key of PRE_EVENT_ACTION_KEYS) {
+    const v = n(key);
+    if (v > 0) actions.push({ label: PRE_EVENT_ACTION_LABEL[key] ?? key, value: v });
+  }
+  // 獲得スキルの分類フラグ（Mスキル獲得 等）は種別タグとして value=0 で並べる
+  for (const label of Object.values(SKILL_FLAG_MAP)) {
+    if (extras[label] === "TRUE") actions.push({ label, value: 0 });
+  }
+  return {
+    kind,
+    trigger: extras["前イベ発動参照回数"] ?? "",
+    maxActivations: n("最大発動回数"),
+    param: n("パラメータ上昇値"),
+    actions,
+  };
+}
+
 const numOf = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -184,6 +244,7 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
     plan: str(row[COL.plan]),
     preEventType,
     postEventType,
+    preEvent: buildPreEvent(preEventType, extras),
     extras,
   };
 }

@@ -76,6 +76,30 @@ function abilityLabel(card: SupportCardData, index: number): string {
   return "key" in slot ? ABILITY_NAMES[slot.key] : slot.raw;
 }
 
+/** 前イベ詳細の表示用（トリガー・最大回数・発動内容）。無しは「—」 */
+function preEventDetail(card: SupportCardData): {
+  trigger: string;
+  max: string;
+  content: string;
+} {
+  const pe = card.preEvent;
+  const parts: string[] = [];
+  if (pe.param > 0) parts.push(`パラメ+${pe.param}`);
+  for (const a of pe.actions) {
+    parts.push(a.value > 0 ? `${a.label}${a.value}` : a.label);
+  }
+  return {
+    trigger: pe.trigger || "—",
+    max:
+      pe.maxActivations <= 0
+        ? "—"
+        : pe.maxActivations >= 9999
+          ? "∞"
+          : String(pe.maxActivations),
+    content: parts.length ? parts.join("・") : "—",
+  };
+}
+
 function SupportInfoTable() {
   const [rarityFilter, setRarityFilter] = useState("すべて");
   const [typeFilter, setTypeFilter] = useState("すべて");
@@ -132,6 +156,9 @@ function SupportInfoTable() {
               <th className={TH}>役割</th>
               <th className={TH}>属性結合</th>
               <th className={TH}>前イベ</th>
+              <th className={TH}>トリガー</th>
+              <th className={TH}>最大回数</th>
+              <th className={TH}>発動内容</th>
               <th className={TH}>後イベ</th>
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <th key={n} className={TH}>
@@ -143,6 +170,7 @@ function SupportInfoTable() {
           <tbody>
             {visible.map((card) => {
               const url = imageUrl(IMAGE_BY_ID.get(card.id) ?? card.imageUrl);
+              const pre = preEventDetail(card);
               return (
                 <tr key={card.id} className="bg-white">
                   <td className={TD_STICKY} title={card.name}>
@@ -187,6 +215,19 @@ function SupportInfoTable() {
                     {card.extras["属性"] ?? "—"}
                   </td>
                   <td className={`${TD} text-slate-600`}>{card.preEventType}</td>
+                  <td
+                    className={`${TD} max-w-32 truncate text-left text-slate-500`}
+                    title={pre.trigger}
+                  >
+                    {pre.trigger}
+                  </td>
+                  <td className={`${TD} text-slate-600`}>{pre.max}</td>
+                  <td
+                    className={`${TD} max-w-52 truncate text-left text-slate-600`}
+                    title={pre.content}
+                  >
+                    {pre.content}
+                  </td>
                   <td className={`${TD} text-slate-600`}>{card.postEventType}</td>
                   {[0, 1, 2, 3, 4, 5].map((i) => (
                     <td

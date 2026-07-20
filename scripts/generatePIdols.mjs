@@ -11,27 +11,17 @@
  * }
  *
  * 現行スプシは3タブとも tidy（1行=1レコード）。旧 sheet-source/hif.xlsx のセル番地
- * パースは廃止。画像URLは pidleName に列が無いため、版管理された scripts/idolImages.json
- * （名前カード名 → 画像URL）から引く。新アイドルは同ファイルに1行足すか、空のままでよい
- * （空なら画像なしで動く）。自分の前回出力には依存しない＝ゼロから再生成しても画像が消えない。
+ * パースは廃止。画像は今後まとめて R2 に上げる予定のため、ここでは url を空の仮置きにする
+ * （表示側 imageUrl() は空なら何も出さない）。R2 反映時は url をR2内のファイル名にするか、
+ * サポカ同様の名前一致カタログで解決する。
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchTab, num } from "./_sheet.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outPath = resolve(root, "src/data/generated/pIdols.json");
-const imagesPath = resolve(root, "scripts/idolImages.json");
-
-// 画像URL（seesaawiki）を key で引く。ソースは版管理された idolImages.json。
-const prevUrlByKey = new Map();
-try {
-  const images = JSON.parse(readFileSync(imagesPath, "utf8"));
-  for (const [key, url] of Object.entries(images)) if (key && url) prevUrlByKey.set(key, url);
-} catch {
-  /* 画像マップが無ければ全 url 空（画像なしで動作） */
-}
 
 const [pidleName, pidleStatus, idleTypes] = await Promise.all([
   fetchTab("pidleName"),
@@ -41,7 +31,7 @@ const [pidleName, pidleStatus, idleTypes] = await Promise.all([
 
 // ---- masters ----
 const masters = pidleName.map((r) => ({
-  url: prevUrlByKey.get(r["名前カード名"]) ?? "",
+  url: "", // 画像は今後R2へ。ここは仮置きの空文字（表示側で非表示）。
   idol: r["名前"] ?? "",
   cardName: r["カード名"] ?? "",
   rarity: r["レアリティ"] ?? "",
@@ -95,9 +85,6 @@ for (const r of idleTypes) {
 }
 
 writeFileSync(outPath, JSON.stringify({ masters, growth, idolRanks }, null, 1), "utf8");
-const noUrl = masters.filter((m) => !m.url);
 console.log(
-  `✓ masters ${masters.length}件 / growth ${Object.keys(growth).length}タグ / idolRanks ${Object.keys(idolRanks).length}人` +
-    (noUrl.length ? `（画像未設定 ${noUrl.length}件: idolImages.json に追加可）` : ""),
+  `✓ masters ${masters.length}件 / growth ${Object.keys(growth).length}タグ / idolRanks ${Object.keys(idolRanks).length}人（画像はR2待ちの仮置き=空）`,
 );
-if (noUrl.length) console.warn("  画像なし:", noUrl.map((m) => m.key).join(", "));

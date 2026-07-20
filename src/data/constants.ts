@@ -158,6 +158,11 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   "試験終了時": "stage_finish_ut2",
   // supMaster で英語キーのまま残っているセルの受け皿（本来スプシ側で「差し入れ時回復」に直す）
   recovery_supply: "recovery_supply",
+  // 発動回数タブ(abilityCountsHIF/NIA)は旧名のままの行があるので受ける
+  // （abilityValues/supMaster は改名済み。将来スプシ側で統一するのが本筋）
+  "Pドリンク獲得": "drink_get",
+  "Pドリンク交換": "drink_exchange",
+  "好印象8枚以上(4回まで)": "charm_8plus_ut4", // NIAタブは旧名（HIFは新名「〜スキル獲得〜」）
 };
 
 /** ラベルの正規化: 全角括弧→半角、空白除去。照合はこの形で行う */
