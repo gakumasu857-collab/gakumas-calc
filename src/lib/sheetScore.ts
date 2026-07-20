@@ -33,9 +33,12 @@ const PERF = (perfData as { perf: Record<string, PerfEntry> }).perf;
 
 // アビリティ性能のキーはシート表記のレアリティ（EventSSRではなく配布SSR）
 const PERF_RARITY: Record<string, string> = { EventSSR: "配布SSR" };
-/** アビリティ性能を「レアリティ×アビリティ名」で引く */
+/** アビリティ名を正規化（全角括弧→半角・空白除去）。perf生成側と揃える */
+const normAbi = (s: string): string =>
+  s.replace(/（/g, "(").replace(/）/g, ")").replace(/\s+/g, "");
+/** アビリティ性能を「レアリティ×アビリティ名」で引く（括弧表記ゆれに非依存） */
 function perfOf(rarity: string, abiName: string): PerfEntry | undefined {
-  return PERF[`${PERF_RARITY[rarity] ?? rarity}${abiName}`];
+  return PERF[`${PERF_RARITY[rarity] ?? rarity}${normAbi(abiName)}`];
 }
 
 /** 回数変更なしアビリティの固定回数（"auto"はスケジュール自動集計） */
@@ -227,7 +230,7 @@ const NUMERIC_ACTION_KEYS = [
   "Aスキル削除（3回まで）",
   "Mスキル削除（3回まで）",
   "チェンジ（3回まで）",
-  "Pドリンク獲得",
+  "ドリンク獲得",
   "体力回復",
 ];
 
@@ -531,7 +534,9 @@ export function sheetScore(
     const tier = tiers[slotIndex]?.[tsuki]; // 0..4 (Ⅰ..Ⅴ)
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
-    if (!perf) return null;
+    // perf 未登録のアビリティ（新規の非スコア系など）はその枠を0として飛ばす
+    // （カード全体を無得点にしない）。
+    if (!perf) continue;
     const value = perf.tiers[tier];
 
     if (abiName === "パラメータボーナス") {
@@ -618,7 +623,11 @@ export function sheetScoreBreakdown(
     const tier = tiers[slotIndex]?.[tsuki];
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
-    if (!perf) return null;
+    // perf 未登録は非スコア扱い（0）でその枠を飛ばす（sheetScore と同じ扱い）
+    if (!perf) {
+      items.push({ ...base, tier: null, kind: "none", value: null, points: 0 });
+      continue;
+    }
     const value = perf.tiers[tier];
 
     if (abiName === "パラメータボーナス") {

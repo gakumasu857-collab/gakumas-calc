@@ -49,18 +49,59 @@ export type SupportCardData = {
 /** 変換時に見つかった未知のアビリティラベル（データ整備の手掛かり用） */
 export const UNKNOWN_ABILITY_LABELS = new Set<string>();
 
-// CSVの主要列名（スプレッドシート側の列名を変えたらここだけ直す）
+// 現行スプシ supMaster の英語列名（列名を変えたらここだけ直す）
 const COL = {
-  id: "id",
-  name: "サポカ名称",
-  imageUrl: "サポカ画像URL",
-  rarity: "レアリティ",
-  cardType: "タイプ",
-  abilityPrefix: "アビリティ", // アビリティ1〜6
-  plan: "使用制限",
-  preEvent: "前イベ",
-  postEvent: "後イベ",
+  name: "name",
+  rarity: "rarity",
+  cardType: "type",
+  abilityPrefix: "ability", // ability1〜6（値は日本語のまま）
+  plan: "plan",
 } as const;
+
+/** サポカのタイプ（英語）→ アプリ内の表記 */
+const CARD_TYPE_JP: Record<string, string> = {
+  Vocal: "Vocal",
+  Dance: "Dance",
+  Visual: "Visual",
+  Assist: "アシスト",
+};
+
+/** スキル獲得の分類（英語 *_ac 列 → sheetScore が読むフラグキー。0/1→TRUE/FALSE） */
+const SKILL_FLAG_MAP: Record<string, string> = {
+  A_skill_ac: "Aスキル獲得",
+  M_skill_ac: "Mスキル獲得",
+  positive_skill_ac: "好調スキル獲得",
+  focus_skill_ac: "集中スキル獲得",
+  charm_skill_ac: "好印象スキル獲得",
+  vitality_skill_ac: "やる気スキル獲得",
+  charge_skill_ac: "温存スキル獲得",
+  aggressive_skill_ac: "強気スキル獲得",
+  burst_skill_ac: "全力スキル獲得",
+  barrier_skill_ac: "元気スキル獲得",
+  SSR_skill_ac: "SSRスキル獲得",
+};
+
+/** 前イベの数値アクション（英語列 → sheetScore が読むキー。括弧は全角＝sheetScore準拠） */
+const NUMERIC_ACTION_MAP: Record<string, string> = {
+  skill_enhance: "スキル強化",
+  A_skill_enhance: "Aスキル強化",
+  M_skill_enhance: "Mスキル強化",
+  skill_del: "スキル削除",
+  A_skill_del_ut3: "Aスキル削除（3回まで）",
+  M_skill_del_ut3: "Mスキル削除（3回まで）",
+  change_ut3: "チェンジ（3回まで）",
+  drink_get: "ドリンク獲得",
+  recovery: "体力回復",
+};
+
+/** 後イベ（later_event の値 → アプリの後イベ語彙） */
+const LATER_EVENT_MAP: Record<string, string> = {
+  スキル強化: "強化",
+  チェンジ: "チェンジ",
+  trouble_delete: "トラブル削除",
+  スキル削除: "トラブル削除",
+  Pポイント: "Pポイント",
+};
 
 /** 「何もなし」系の空欄扱いにするラベル */
 const EMPTY_LABELS = new Set(["", "何もなし", "なし", "-"]);
@@ -73,49 +114,83 @@ function toAbilitySlot(label: string): AbilitySlot | null {
   return { raw: label };
 }
 
-function convert(row: Record<string, string>): SupportCardData | null {
-  const name = row[COL.name]?.trim() ?? "";
+const numOf = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+/** JSON値（string|number|null）を文字列に正規化して trim */
+const str = (v: unknown): string =>
+  v == null ? "" : (typeof v === "string" ? v : String(v)).trim();
+
+function convert(row: Record<string, unknown>): SupportCardData | null {
+  const name = str(row[COL.name]);
   // 名前のない行やシート用のダミー行（固定用）はスキップ
   if (!name || name === "固定用") return null;
 
   // 6枠を位置そのままで保持（何もなし/空欄は null）
   const abilities: (AbilitySlot | null)[] = Array.from({ length: 6 }, (_, i) =>
-    toAbilitySlot(row[`${COL.abilityPrefix}${i + 1}`] ?? ""),
+    toAbilitySlot(str(row[`${COL.abilityPrefix}${i + 1}`])),
   );
 
-  const knownCols = new Set<string>([
-    COL.id,
-    COL.name,
-    COL.imageUrl,
-    COL.rarity,
-    COL.cardType,
-    COL.plan,
-    COL.preEvent,
-    COL.postEvent,
-    ...Array.from({ length: 6 }, (_, i) => `${COL.abilityPrefix}${i + 1}`),
-  ]);
+  const isSkill = numOf(row.is_skill) > 0;
+  const isItem = numOf(row.p_item_get_ut3) > 0;
+  const param = numOf(row.param);
+
+  // sheetScore が読む extras を「アプリが期待する日本語キー」で組み立てる
+  // （sheetScore 側は無改修＝ここで英語→日本語・0/1→TRUE/FALSE を吸収）。
   const extras: Record<string, string> = {};
-  for (const [col, value] of Object.entries(row)) {
-    if (!knownCols.has(col) && value !== "") extras[col] = value;
+  const setNum = (key: string, v: number) => {
+    if (v > 0) extras[key] = String(v);
+  };
+
+  // 前イベ=Pアイテムでのパラメータ獲得（param>0 のカードが対象）
+  if (param > 0) {
+    extras["パラメPアイテム"] = "TRUE";
+    extras["パラメータ上昇値"] = String(param);
   }
+  // 前イベの発動回数。スキル前イベは supMaster が max/triggered_by 空なので
+  // 旧挙動（max=1・参照=初期値で1回発動）を補完する。
+  if (isSkill) {
+    extras["最大発動回数"] = "1";
+    extras["前イベ発動参照回数"] = "初期値";
+  } else {
+    setNum("最大発動回数", numOf(row.max));
+    if (str(row.triggered_by)) extras["前イベ発動参照回数"] = str(row.triggered_by);
+  }
+  // スキル獲得（総数）＋分類フラグ
+  setNum("スキル獲得", numOf(row.skill_ac));
+  for (const [col, key] of Object.entries(SKILL_FLAG_MAP)) {
+    if (numOf(row[col]) > 0) extras[key] = "TRUE";
+  }
+  // 前イベの数値アクション（強化・削除・チェンジ・ドリンク・回復）
+  for (const [col, key] of Object.entries(NUMERIC_ACTION_MAP)) {
+    setNum(key, numOf(row[col]));
+  }
+  // 表示・互換用
+  if (row.is_sp !== undefined) extras["枠"] = numOf(row.is_sp) > 0 ? "SP枠" : "ステ枠";
+  if (str(row.attribute)) extras["属性"] = str(row.attribute).replace("Assist", "アシスト");
+  setNum("アイテムPポ", numOf(row.p_point));
+
+  const preEventType = isSkill ? "スキル" : isItem ? "アイテム" : "何もなし";
+  const postEventType = LATER_EVENT_MAP[str(row.later_event)] ?? "何もなし";
 
   return {
-    id: row[COL.id]?.trim() || `card:${name}`,
+    id: `card:${name}`, // 保存キーは名前ベースを維持（所持データ等の互換のため）
     name,
-    rarity: RARITY_ALIASES[row[COL.rarity]?.trim() ?? ""] ?? "SSR",
-    cardType: (row[COL.cardType]?.trim() as CardType | string) || "",
+    rarity: RARITY_ALIASES[str(row[COL.rarity])] ?? "SSR",
+    cardType: CARD_TYPE_JP[str(row[COL.cardType])] ?? "",
     abilities,
-    imageUrl: row[COL.imageUrl]?.trim() ?? "",
-    plan: row[COL.plan]?.trim() ?? "",
-    preEventType: row[COL.preEvent]?.trim() ?? "",
-    postEventType: row[COL.postEvent]?.trim() ?? "",
+    imageUrl: "", // supMaster に画像URL列は無い（カタログが R2 名前一致で解決）
+    plan: str(row[COL.plan]),
+    preEventType,
+    postEventType,
     extras,
   };
 }
 
 /** CSV由来のサポカ全件（gen:cards 未実行のうちは空配列） */
 export const SUPPORT_CARD_DB: SupportCardData[] = (
-  rawRows as Record<string, string>[]
+  rawRows as unknown as Record<string, unknown>[]
 )
   .map(convert)
   .filter((c): c is SupportCardData => c !== null);

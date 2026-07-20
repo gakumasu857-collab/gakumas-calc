@@ -108,12 +108,15 @@ export const ABILITY_NAMES = {
   supply_ut2: "活動支給・差し入れ(2回まで)",
   rest: "休む",
   extra_lecture_ut3: "特別指導(3回まで)",
-  drink_exchange: "Pドリンク交換",
-  drink_get: "Pドリンク獲得",
+  // ↓現行スプシでリネームされたので追従（旧: Pドリンク獲得/Pドリンク交換/好印象8枚以上(4回まで)）。
+  // 発動回数セット(abilityCounts)はこのキーで回数を持つため、ラベルを現行名に合わせないと
+  // カード側の現行ラベルから回数が引けず加点0になる（＝ドリンク採点が切れる）。
+  drink_exchange: "ドリンク交換",
+  drink_get: "ドリンク獲得",
   custom_ut6: "カスタマイズ(6回まで)",
   SP_lesson_20s_ut4: "20枚以上SPレッスン(4回まで)",
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
-  charm_8plus_ut4: "好印象8枚以上(4回まで)",
+  charm_8plus_ut4: "好印象8枚以上スキル獲得(4回まで)",
   up_SP_lesson_rate: "SPレッスン率アップ",
   stage_finish_ut2: "試験終了時(2回まで)",
   stage_finish: "試験・オーディション",
@@ -126,6 +129,20 @@ export const ABILITY_NAMES = {
   recovery_sp: "SPレッスン回復",
   recovery_type_sp: "タイプSPレッスン回復",
   recovery_stage_finish: "試験終了時回復",
+  // 現行スプシ(abilityValues)にあるが従来コード化していなかった非スコア寄りアビリティ。
+  // スコアはrawラベル経由でperfに一致して計算済み（ここは表示・dev警告解消・アビリティ一覧の
+  // 完全化のための登録で点数は不変）。回復・率・Pポイント系は発動回数0に解決＝非スコア。
+  // ラベルは半角括弧（照合はnormalizeLabelで全角/半角・空白を吸収）。
+  lesson_support_rate: "レッスンサポート率",
+  all_sp_lesson_rate_14: "全SPレッスン率(14%)",
+  all_sp_lesson_rate_28: "全SPレッスン率(28%)",
+  meeting_drink_discount: "相談ドリンク割引",
+  p_point_event: "Pポイントイベント",
+  recovery_type_sp_lesson: "タイプSPレッスン時回復",
+  recovery_sp_lesson: "SPレッスン時回復",
+  recovery_supply: "差し入れ時回復",
+  recovery_event: "回復イベント",
+  max_hp_up: "最大体力上昇",
   nothing: "なし",
 } as const satisfies Record<string, string>;
 export type AbilityName = keyof typeof ABILITY_NAMES;
@@ -139,6 +156,8 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   何もなし: "nothing",
   体力なし: "nothing",
   "試験終了時": "stage_finish_ut2",
+  // supMaster で英語キーのまま残っているセルの受け皿（本来スプシ側で「差し入れ時回復」に直す）
+  recovery_supply: "recovery_supply",
 };
 
 /** ラベルの正規化: 全角括弧→半角、空白除去。照合はこの形で行う */

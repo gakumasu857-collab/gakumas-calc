@@ -11,6 +11,7 @@
  * （凸で何段階目が解放されるか）に依存するため、ここでは持たない。
  */
 
+import abilityPerf from "./generated/abilityPerf.json";
 import type { AbilityName, Rarity } from "./constants";
 
 /** Ⅰ〜Ⅴの値。null = そのティアなし */
@@ -150,29 +151,6 @@ export function abilityValue(
  * SLOT_TIER[レアリティ][枠番号0〜5][凸数0〜4] = ティアindex。
  * （ユーザー提供の表より。Rは未提供のため未定義＝スコア計算対象外）
  */
-export const SLOT_TIER: Partial<Record<Rarity, number[][]>> = {
-  SSR: [
-    [0, 1, 2, 3, 4], // アビリティ1: Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ
-    [1, 1, 2, 2, 2], // アビリティ2: Ⅱ Ⅱ Ⅲ Ⅲ Ⅲ
-    [1, 1, 2, 2, 2], // アビリティ3
-    [1, 1, 1, 2, 2], // アビリティ4: Ⅱ Ⅱ Ⅱ Ⅲ Ⅲ
-    [1, 1, 1, 1, 2], // アビリティ5: Ⅱ Ⅱ Ⅱ Ⅱ Ⅲ
-    [0, 1, 1, 1, 2], // アビリティ6: Ⅰ Ⅱ Ⅱ Ⅱ Ⅲ
-  ],
-  EventSSR: [
-    [0, 1, 2, 3, 4], // アビリティ1
-    [0, 0, 1, 1, 1], // アビリティ2: Ⅰ Ⅰ Ⅱ Ⅱ Ⅱ
-    [0, 0, 1, 1, 1], // アビリティ3
-    [0, 0, 0, 0, 1], // アビリティ4: Ⅰ Ⅰ Ⅰ Ⅰ Ⅱ
-    [0, 0, 0, 1, 1], // アビリティ5: Ⅰ Ⅰ Ⅰ Ⅱ Ⅱ
-    [0, 1, 1, 1, 2], // アビリティ6: Ⅰ Ⅱ Ⅱ Ⅱ Ⅲ
-  ],
-  SR: [
-    [0, 1, 2, 3, 4], // アビリティ1
-    [0, 0, 1, 1, 1], // アビリティ2
-    [0, 0, 1, 1, 1], // アビリティ3
-    [0, 0, 0, 0, 1], // アビリティ4
-    [0, 0, 0, 1, 1], // アビリティ5
-    [0, 0, 1, 1, 2], // アビリティ6: Ⅰ Ⅰ Ⅱ Ⅱ Ⅲ
-  ],
-};
+// 現行スプシの abilityEvolutions から生成（gen:perf）。凸→ティアindex。Rは無し＝非スコア。
+export const SLOT_TIER: Partial<Record<Rarity, number[][]>> =
+  abilityPerf.slotTier as Partial<Record<Rarity, number[][]>>;
