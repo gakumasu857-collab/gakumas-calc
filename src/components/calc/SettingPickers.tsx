@@ -335,7 +335,7 @@ export function IdolPickerModal({
                 onPick(m.idol, m.cardName);
                 onClose();
               }}
-              title={`${m.cardName}（${m.rarity}）`}
+              title={`${m.cardName}（${m.rarity}）${m.skillName ? `\n固有スキル: ${m.skillName}` : ""}`}
               className={`flex flex-col items-center gap-1 rounded-lg border-2 p-1.5 text-center transition ${
                 selected
                   ? "border-blue-600 bg-blue-50"

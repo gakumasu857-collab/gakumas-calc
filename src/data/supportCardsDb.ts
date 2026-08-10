@@ -61,6 +61,8 @@ export type SupportCardData = {
   postEventType: string;
   /** 前イベの構造化詳細（トリガー・強さ・発動内容） */
   preEvent: PreEventInfo;
+  /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
+  searchWords: string[];
   /** 上記以外の列すべて（列名→値）。新列は自動的にここへ入る */
   extras: Record<string, string>;
 };
@@ -245,6 +247,10 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
     preEventType,
     postEventType,
     preEvent: buildPreEvent(preEventType, extras),
+    searchWords: str(row.Search_word)
+      .split(/[,、]/)
+      .map((w) => w.trim())
+      .filter(Boolean),
     extras,
   };
 }

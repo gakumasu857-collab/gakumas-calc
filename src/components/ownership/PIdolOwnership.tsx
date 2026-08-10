@@ -232,7 +232,7 @@ function PIdolItem({
     <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5">
       <div
         className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-slate-100 ring-1 ring-black/5"
-        title={`${master.cardName}（${master.idol}／${master.rarity}／${master.plan}）`}
+        title={`${master.cardName}（${master.idol}／${master.rarity}／${master.plan}）${master.skillName ? `\n固有スキル: ${master.skillName}` : ""}`}
       >
         {url ? (
           <img

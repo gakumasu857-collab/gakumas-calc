@@ -2,11 +2,18 @@ name = "gakumas-calc"
 main = "worker/index.js"
 compatibility_date = "2025-09-01"
 
-# SPA（Vite の dist/）を配信。/api/* は Worker が先に処理する。
+# 本番の独自ドメイン（workers.dev のURLは無効化済み・こちらに一本化）
+routes = [
+  { pattern = "hoppepan.com", custom_domain = true },
+  { pattern = "www.hoppepan.com", custom_domain = true },
+]
+
+# SPA（Vite の dist/）を配信。/api/* だけ Worker が先に処理し、
+# 静的アセットは Worker を起動せず直接配信（無料枠10万req/日を消費しない）。
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-run_worker_first = true
+run_worker_first = ["/api/*"]
 not_found_handling = "single-page-application"
 
 # マスタ配信ストア（非公開バケット。バインド経由でのみ読む）

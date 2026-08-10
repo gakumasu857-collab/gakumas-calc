@@ -34,6 +34,7 @@ const masters = pidleName.map((r) => ({
   url: "", // 画像は今後R2へ。ここは仮置きの空文字（表示側で非表示）。
   idol: r["名前"] ?? "",
   cardName: r["カード名"] ?? "",
+  skillName: r["固有スキル名"] ?? "",
   rarity: r["レアリティ"] ?? "",
   plan: r["プラン"] ?? "",
   effect: r["おすすめ効果"] ?? "",

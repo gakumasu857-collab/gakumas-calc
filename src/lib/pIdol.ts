@@ -11,6 +11,8 @@ export type PIdolMaster = {
   url: string;
   idol: string;
   cardName: string;
+  /** アイドル固有スキルの名前（スプシ 固有スキル名 列。旧データは空文字） */
+  skillName: string;
   rarity: string;
   plan: string;
   effect: string;

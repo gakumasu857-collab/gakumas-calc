@@ -127,24 +127,50 @@ export function preEventMaxLabel(card: SupportCardData): string {
   return max >= 9999 ? "∞" : String(max);
 }
 
+/** 属性（タイプ）→ シート内部ロールのラベル（Vo=メイン1 / Da=メイン2 / Vi=サブの固定対応） */
+const TRIGGER_ATTR_LABEL: Record<string, string> = {
+  Vocal: SHEET_ROLE_LABELS.main1,
+  Dance: SHEET_ROLE_LABELS.main2,
+  Visual: SHEET_ROLE_LABELS.sub,
+};
+const TRIGGER_LESSON_RE = /^(Vocal|Dance|Visual)(SPレッスン|通常レッスン|レッスン)$/;
+const GENERIC_LESSON_KEYS = new Set(["レッスン", "SPレッスン", "通常レッスン"]);
+
+/**
+ * 前イベトリガーの参照回数を解決する。
+ * - 「VocalSPレッスン」等の属性指定 → その属性（固定対応ロール）の踏み回数
+ * - 「SPレッスン」等の属性なし → 全属性の合算（属性関係なしトリガー）
+ * - それ以外（相談・スキル強化・初期値等）→ そのままのキーで参照
+ */
+export function resolveTriggerCount(
+  refKey: string,
+  ctx: SheetScoreContext,
+): number {
+  const m = refKey.match(TRIGGER_LESSON_RE);
+  if (m) return ctx.counts(TRIGGER_ATTR_LABEL[m[1]] + m[2]);
+  if (GENERIC_LESSON_KEYS.has(refKey)) {
+    return Object.values(TRIGGER_ATTR_LABEL).reduce(
+      (sum, label) => sum + ctx.counts(label + refKey),
+      0,
+    );
+  }
+  return ctx.counts(refKey);
+}
+
 /**
  * 前イベ（Pアイテム/スキル）の発動回数の自動計算。
  * min(最大発動回数, 参照回数キーの回数)（Pアイテム!E列 MIN(...) の移植）。
- * 参照回数キーが「レッスン」「SPレッスン」等の場合はそのカードのロールの回数を参照する。
+ * 参照回数キーの解決は resolveTriggerCount を参照。
  */
 export function preEventAutoActivations(
   card: SupportCardData,
-  role: SheetRole,
+  _role: SheetRole,
   ctx: SheetScoreContext,
 ): number {
   const max = preEventMax(card);
   if (max <= 0) return 0;
   const refKey = card.extras["前イベ発動参照回数"] ?? "初期値";
-  const key =
-    refKey === "レッスン" || refKey === "SPレッスン" || refKey === "通常レッスン"
-      ? SHEET_ROLE_LABELS[role] + refKey
-      : refKey;
-  return Math.min(max, ctx.counts(key));
+  return Math.min(max, resolveTriggerCount(refKey, ctx));
 }
 
 /**
