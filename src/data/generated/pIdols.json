@@ -420,47 +420,47 @@
   },
   {
    "url": "",
-   "idol": "雨谷燕",
+   "idol": "雨夜燕",
    "cardName": "学園生活",
    "skillName": "プライドの塊",
    "rarity": "R",
    "plan": "アノマリー",
    "effect": "強気",
-   "key": "雨谷燕学園生活",
-   "growthTag": "雨谷燕R"
+   "key": "雨夜燕学園生活",
+   "growthTag": "雨夜燕R"
   },
   {
    "url": "",
-   "idol": "雨谷燕",
+   "idol": "雨夜燕",
    "cardName": "初志貫徹",
    "skillName": "紫電一閃",
    "rarity": "SR",
    "plan": "ロジック",
    "effect": "好印象",
-   "key": "雨谷燕初志貫徹",
-   "growthTag": "雨谷燕SR"
+   "key": "雨夜燕初志貫徹",
+   "growthTag": "雨夜燕SR"
   },
   {
    "url": "",
-   "idol": "雨谷燕",
+   "idol": "雨夜燕",
    "cardName": "理論武装して",
    "skillName": "私は、決して",
    "rarity": "SSR",
    "plan": "ロジック",
    "effect": "やる気",
-   "key": "雨谷燕理論武装して",
-   "growthTag": "雨谷燕SSR"
+   "key": "雨夜燕理論武装して",
+   "growthTag": "雨夜燕SSR"
   },
   {
    "url": "",
-   "idol": "雨谷燕",
+   "idol": "雨夜燕",
    "cardName": "Campus mode!!",
    "skillName": "ダークヒーローの誕生",
    "rarity": "SSR",
    "plan": "センス",
    "effect": "好調",
-   "key": "雨谷燕Campus mode!!",
-   "growthTag": "雨谷燕SSR"
+   "key": "雨夜燕Campus mode!!",
+   "growthTag": "雨夜燕SSR"
   },
   {
    "url": "",
@@ -471,7 +471,7 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "雨夜燕クライアイ",
-   "growthTag": "雨谷燕SSR"
+   "growthTag": "雨夜燕SSR"
   },
   {
    "url": "",
@@ -2381,7 +2381,7 @@
     0
    ]
   },
-  "雨谷燕R": {
+  "雨夜燕R": {
    "base": [
     31,
     80,
@@ -2437,7 +2437,7 @@
     0
    ]
   },
-  "雨谷燕SR": {
+  "雨夜燕SR": {
    "base": [
     31,
     85,
@@ -2493,7 +2493,7 @@
     0
    ]
   },
-  "雨谷燕SSR": {
+  "雨夜燕SSR": {
    "base": [
     31,
     90,
@@ -4697,7 +4697,7 @@
    "visual": 2,
    "tag": "特化"
   },
-  "雨谷燕": {
+  "雨夜燕": {
    "vocal": 2,
    "dance": 1,
    "visual": 3,

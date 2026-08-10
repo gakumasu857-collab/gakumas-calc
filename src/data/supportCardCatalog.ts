@@ -1,12 +1,11 @@
 /**
  * サポカ所持状況ページ用の統合カタログ。
  *
- * CSV由来のサポカDB（レアリティ/タイプ/アビリティを持つ）を正とし、
- * 画像はR2にあるもの（カード名一致）を優先、無ければCSVの画像URLを使う。
- * → 最新カードはCSVに行を足すだけで表示され、R2に画像を上げれば自動で切り替わる。
+ * スプシ由来のサポカDB（レアリティ/タイプ/アビリティを持つ）を正とし、
+ * 画像は R2 バケット（gakumas-image）のフラットな「<カード名>.webp」で解決する。
+ * → 最新カードはスプシに行を足し、同名の webp を R2 に上げれば表示される。
  */
 import { ABILITY_NAMES, type AbilityName, type Rarity } from "./constants";
-import { SUPPORT_CARDS } from "./supportCards";
 import { SUPPORT_CARD_DB } from "./supportCardsDb";
 
 export type CatalogCard = {
@@ -23,14 +22,11 @@ export type CatalogCard = {
   abilityKeys: AbilityName[];
 };
 
-/** カード名 → R2画像キー（既存のR2一覧から） */
-const R2_IMAGE_BY_NAME = new Map(SUPPORT_CARDS.map((c) => [c.name, c.image]));
-
 export const SUPPORT_CATALOG: CatalogCard[] = SUPPORT_CARD_DB.map((card) => ({
   id: card.id,
   name: card.name,
   rarity: card.rarity,
-  image: R2_IMAGE_BY_NAME.get(card.name) ?? card.imageUrl,
+  image: `${card.name}.webp`,
   cardType: card.cardType,
   plan: card.plan,
   abilityKeys: card.abilities

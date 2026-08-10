@@ -83,8 +83,32 @@ export function examScoresFromRatio(
   return { vocal: parts[0], dance: parts[1], visual: parts[2] };
 }
 
-const sameExamScores = (a: ExamScores, b: ExamScores) =>
+export const sameExamScores = (a: ExamScores, b: ExamScores) =>
   a.vocal === b.vocal && a.dance === b.dance && a.visual === b.visual;
+
+/**
+ * 仕上げ用の細かい分配候補（整数比 a+b+c ≤ 7 の全組・既約のみ）。
+ * 広域探索では EXAM_RATIOS（粗い格子）で足り、上限3200ちょうどへ寄せる
+ * 「あと数十点」の詰めはこちらで行う（refineExams）。約60通り。
+ */
+export const EXAM_RATIOS_FINE: [number, number, number][] = (() => {
+  const gcd2 = (a: number, b: number): number => (b === 0 ? a : gcd2(b, a % b));
+  const seen = new Set<string>();
+  const out: [number, number, number][] = [];
+  for (let a = 0; a <= 7; a++) {
+    for (let b = 0; b <= 7 - a; b++) {
+      for (let c = 0; c <= 7 - a - b; c++) {
+        if (a + b + c === 0) continue;
+        const g = gcd2(a, gcd2(b, c));
+        const key = `${a / g},${b / g},${c / g}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push([a / g, b / g, c / g]);
+      }
+    }
+  }
+  return out;
+})();
 
 /** 選抜スコアを3タイプ均等に配る（探索の初期値。合計はスター上限ちょうど） */
 export function examScoresUniform(i: number): ExamScores {

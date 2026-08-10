@@ -52,10 +52,13 @@ import {
 } from "./formation";
 import { calcMemoryTotals, resolveParaboMemory } from "./memoryTotals";
 import type { Memory } from "./memoryTypes";
-import { annealStepping } from "./optimize/anneal";
+import { annealStepping, climbStepping } from "./optimize/anneal";
 import {
   buildSeeds,
+  EXAM_RATIOS_FINE,
+  examScoresFromRatio,
   examScoresUniform,
+  sameExamScores,
   uniformStepping,
   type Stepping,
 } from "./optimize/stepping";
@@ -93,6 +96,12 @@ const SA_STARTS = 6;
 const MAX_ROUNDS = 2;
 /** 全体の探索時間の上限（約5秒。超えたら新しい起点・ラウンドを始めない） */
 const TIME_BUDGET_MS = 4800;
+/**
+ * 広域探索（9起点＋踏み方の詰め直し）に使う時間の割合。
+ * 残りは仕上げの相互詰め直し（選抜細分配⇄編成⇄踏み方）と
+ * 余り時間の焼きなましリスタートに確保する。
+ */
+const MAIN_PHASE_RATIO = 0.72;
 
 const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
 
@@ -236,7 +245,9 @@ export function runFullOptimize(
 ): AutoOptimizeResult | null {
   const t0 = performance.now();
   const engine = new OptimizeEngine(input);
-  engine.deadline = t0 + TIME_BUDGET_MS;
+  const finalDeadline = t0 + TIME_BUDGET_MS;
+  // 広域探索は時間の一部で切り上げ、残りを仕上げの詰め直しに確保する
+  engine.deadline = t0 + TIME_BUDGET_MS * MAIN_PHASE_RATIO;
 
   // 「踏み方⇄編成」の交互反復を、初期値非依存の固定9起点から回す。
   // 各起点で焼きなまし法により局所解を脱出する（乱数はシード非固定）。
@@ -263,6 +274,11 @@ export function runFullOptimize(
     best.stepping = polished.stepping;
     best.score = polished.score;
   }
+
+  // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り」を
+  // 収束するまで相互に詰め、まだ余れば焼きなましリスタートで局所解の脱出を試みる。
+  engine.deadline = finalDeadline;
+  best = engine.refineLoop(best);
 
   // ---- イベント予算の離散割り当て ----
   // 探索中は比例配分の近似で評価していたが、最終結果では「どのカードのイベントを
@@ -306,10 +322,16 @@ export function optimizeSteppingForSlots(
   input: AutoOptimizeInput,
   slots: SelectedSlot[],
 ): (SteppingResult & { cappedSum: number }) | null {
+  const t0 = performance.now();
   const engine = new OptimizeEngine(input);
-  engine.deadline = performance.now() + TIME_BUDGET_MS;
-  const best = engine.optimizeStepping(slots);
+  const finalDeadline = t0 + TIME_BUDGET_MS;
+  engine.deadline = t0 + TIME_BUDGET_MS * 0.9;
+  let best = engine.optimizeStepping(slots);
   if (!best) return null;
+  // 仕上げ: 選抜スコアの細分配（上限ちょうどへの寄せ）
+  engine.deadline = finalDeadline;
+  const fine = engine.refineExams(slots, best.stepping, best.score);
+  if (fine && fine.score > best.score) best = fine;
   const ectx = engine.buildEctx(best.stepping);
   const { cappedSum } = engine.preciseObjective(slots, ectx);
   return { ...engine.toSteppingResult(best.stepping), cappedSum };
@@ -333,6 +355,11 @@ class OptimizeEngine {
   private fudaBase = 0;
   /** 最低ステータス条件（審査基準の高いタイプから優先して満たす） */
   private minStatCond?: MinStatCondition;
+  /** パラボ追従メモリーの展開結果キャッシュ（割当は高々6通り） */
+  private memCache = new Map<
+    string,
+    { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> }
+  >();
 
   constructor(private input: AutoOptimizeInput) {
     const req = input.minStats;
@@ -516,6 +543,142 @@ class OptimizeEngine {
     return best;
   }
 
+  /**
+   * 選抜スコアの細分配（HIFのみ）。
+   * 広域探索の粗い分配格子では拾えない「上限3200ちょうどへの寄せ」を、
+   * 細かい整数比（EXAM_RATIOS_FINE）の座標降下で詰める。
+   */
+  refineExams(
+    slots: SelectedSlot[],
+    start: Stepping,
+    startScore: number,
+  ): { stepping: Stepping; score: number } | null {
+    if (start.kind !== "hif") return null;
+    const evalOf = (s: Stepping) =>
+      this.preciseObjective(slots, this.buildEctx(s)).obj;
+    let current = start;
+    let score = startScore;
+    for (let pass = 0; pass < 4; pass++) {
+      let improved = false;
+      for (let i = 0; i < current.examScores.length; i++) {
+        if (performance.now() > this.deadline)
+          return { stepping: current, score };
+        for (const ratio of EXAM_RATIOS_FINE) {
+          const e = examScoresFromRatio(i, ratio);
+          if (sameExamScores(e, current.examScores[i])) continue;
+          const trial: Stepping = {
+            ...current,
+            examScores: current.examScores.map((x, j) => (j === i ? e : x)),
+          };
+          const trialScore = evalOf(trial);
+          if (trialScore > score + 1e-9) {
+            current = trial;
+            score = trialScore;
+            improved = true;
+          }
+        }
+      }
+      if (!improved) break;
+    }
+    return { stepping: current, score };
+  }
+
+  /**
+   * 仕上げの相互詰め直し。勝ち解に対して
+   * 1) 選抜スコアの細分配 → 2) 踏み方の山登り → 3) 編成の組み直し
+   * を収束するまで反復し、時間が余れば焼きなましリスタートで局所解の脱出を試みる。
+   * （「レッスンを1タイプに寄せてサポカも寄せる」ような結合解はこの反復で詰まる）
+   */
+  refineLoop(best: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  }): {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  } {
+    const evalWith = (slots: SelectedSlot[]) => (s: Stepping) =>
+      this.preciseObjective(slots, this.buildEctx(s)).obj;
+
+    for (let round = 0; round < 6; round++) {
+      if (performance.now() > this.deadline) break;
+      let changed = false;
+
+      const fine = this.refineExams(best.slots, best.stepping, best.score);
+      if (fine && fine.score > best.score + 1e-9) {
+        best.stepping = fine.stepping;
+        best.score = fine.score;
+        changed = true;
+      }
+
+      const climbed = climbStepping(
+        best.stepping,
+        best.score,
+        evalWith(best.slots),
+        this.deadline,
+      );
+      if (climbed.score > best.score + 1e-9) {
+        best.stepping = climbed.stepping;
+        best.score = climbed.score;
+        changed = true;
+      }
+
+      const ectx = this.buildEctx(best.stepping);
+      const formation = this.buildFormation(ectx);
+      if (formation) {
+        const slots = formation.picks.map((p) => ({
+          id: p.id,
+          rental: p.rental,
+        }));
+        const { obj } = this.preciseObjective(slots, ectx);
+        if (obj > best.score + 1e-9) {
+          best.slots = slots;
+          best.score = obj;
+          best.spShortfall = formation.spShortfall;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+
+    // 余り時間で焼きなましリスタート（改善したら編成・選抜も追い詰め直す）。
+    // 焼きなましは確率的なので、1回外れても数回は再挑戦して時間を使い切る。
+    let misses = 0;
+    while (performance.now() < this.deadline - 150 && misses < 3) {
+      const searched = this.searchStepping(best.slots, best.stepping);
+      if (searched.score <= best.score + 1e-9) {
+        misses++;
+        continue;
+      }
+      misses = 0;
+      best.stepping = searched.stepping;
+      best.score = searched.score;
+      const fine = this.refineExams(best.slots, best.stepping, best.score);
+      if (fine && fine.score > best.score + 1e-9) {
+        best.stepping = fine.stepping;
+        best.score = fine.score;
+      }
+      const ectx = this.buildEctx(best.stepping);
+      const formation = this.buildFormation(ectx);
+      if (formation) {
+        const slots = formation.picks.map((p) => ({
+          id: p.id,
+          rental: p.rental,
+        }));
+        const { obj } = this.preciseObjective(slots, ectx);
+        if (obj > best.score + 1e-9) {
+          best.slots = slots;
+          best.score = obj;
+          best.spShortfall = formation.spShortfall;
+        }
+      }
+    }
+    return best;
+  }
+
   /** 踏み方から計算コンテキスト・メモリー展開・サポカ抜き基礎ステを作る */
   buildEctx(s: Stepping): Ectx {
     const { input } = this;
@@ -556,21 +719,27 @@ class OptimizeEngine {
       ctx = buildHatsuScoreContext(state, input.manual, input.eventCounts);
     }
 
-    // パラボ追従メモリーは踏み方から決まる割当で展開（踏み方を変えると付け替わる）
+    // パラボ追従メモリーは踏み方から決まる割当で展開（踏み方を変えると付け替わる）。
+    // 割当は高々6通り（メイン2タイプの選び方）なので展開結果をキャッシュする。
     const assign = paraboAssignFromGains(ctx.gains);
-    const mem = calcMemoryTotals(
-      input.memories.map((m) => m && resolveParaboMemory(m, assign)),
-    );
-    const memFixed: Record<TypeKey, number> = {
-      vocal: mem.Vo.flat,
-      dance: mem.Da.flat,
-      visual: mem.Vi.flat,
-    };
-    const memPct: Record<TypeKey, number> = {
-      vocal: mem.Vo.percent,
-      dance: mem.Da.percent,
-      visual: mem.Vi.percent,
-    };
+    const memKey = `${assign.mains[0]} ${assign.mains[1]}`;
+    let memTotals = this.memCache.get(memKey);
+    if (!memTotals) {
+      const mem = calcMemoryTotals(
+        input.memories.map((m) => m && resolveParaboMemory(m, assign)),
+      );
+      memTotals = {
+        fixed: { vocal: mem.Vo.flat, dance: mem.Da.flat, visual: mem.Vi.flat },
+        pct: {
+          vocal: mem.Vo.percent,
+          dance: mem.Da.percent,
+          visual: mem.Vi.percent,
+        },
+      };
+      this.memCache.set(memKey, memTotals);
+    }
+    const memFixed = memTotals.fixed;
+    const memPct = memTotals.pct;
 
     // HIFの授業は最適充填する（踏み方に依らない）ので、理想編成の選定に使う baseStats では
     const baseNoConv = {} as Record<TypeKey, number>;
