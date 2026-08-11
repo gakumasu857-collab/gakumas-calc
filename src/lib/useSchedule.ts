@@ -23,7 +23,8 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  */
 const STORAGE_KEY = "gakumas:schedule:v1";
 
-export type LessonPick = { main: TypeKey; sub: TypeKey; sp: boolean };
+/** main=null は「このレッスンを踏まない」（獲得・スター性・Pポイントなし） */
+export type LessonPick = { main: TypeKey | null; sub: TypeKey; sp: boolean };
 export type ExamScores = Record<TypeKey, number>;
 
 type ScheduleState = {
@@ -118,6 +119,7 @@ export function computeScheduleGains(
 
   LESSONS.forEach((lesson, i) => {
     const pick = state.lessons[i];
+    if (!pick.main) return; // 踏まないレッスン（獲得・スター性・Pポイントなし）
     const spIndex = pick.sp ? 1 : 0;
     const mainGain = Math.floor(lesson.main[spIndex] * mult(pick.main));
     const subGain = Math.floor(lesson.sub[spIndex] * mult(pick.sub));
@@ -187,10 +189,11 @@ export function loadScheduleState(): ScheduleState {
 
       const lessons: LessonPick[] = LESSONS.map((_, i) => {
         const l = lessonsRaw[i] ?? {};
-        // さらに古い形式（l.type）にも対応
-        const main = toType(l.main ?? l.type, "vocal");
+        // main=null（踏まない）は保存値をそのまま復元。さらに古い形式（l.type）にも対応
+        const main =
+          l.main === null ? null : toType(l.main ?? l.type, "vocal");
         let sub = toType(l.sub ?? l.subType, "dance");
-        if (sub === main) sub = otherType(main);
+        if (main !== null && sub === main) sub = otherType(main);
         return { main, sub, sp: (l.sp as boolean | undefined) ?? true };
       });
 
@@ -256,8 +259,30 @@ export function useSchedule() {
       ...prev,
       lessons: prev.lessons.map((l, i) => {
         if (i !== index) return l;
-        return { ...l, main, sub: l.sub === main ? l.main : l.sub };
+        return {
+          ...l,
+          main,
+          sub: l.sub === main ? (l.main ?? otherType(main)) : l.sub,
+        };
       }),
+    }));
+  }, []);
+
+  /** レッスンを「踏まない」に戻す（選択中のメインをもう一度押したとき用） */
+  const clearLessonMain = useCallback((index: number) => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l, i) =>
+        i === index ? { ...l, main: null } : l,
+      ),
+    }));
+  }, []);
+
+  /** 全レッスンを「踏まない」に戻す（さらの状態） */
+  const clearAllLessons = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l) => ({ ...l, main: null })),
     }));
   }, []);
 
@@ -288,7 +313,7 @@ export function useSchedule() {
       lessons: prev.lessons.map((l) => ({
         ...l,
         main,
-        sub: l.sub === main ? l.main : l.sub,
+        sub: l.sub === main ? (l.main ?? otherType(main)) : l.sub,
       })),
     }));
   }, []);
@@ -384,7 +409,7 @@ export function useSchedule() {
       ...prev,
       lessons: prev.lessons.map((l) => ({
         ...l,
-        main: map[l.main],
+        main: l.main ? map[l.main] : null,
         sub: map[l.sub],
       })),
       classTypes: prev.classTypes.map((t) => map[t]),
@@ -399,6 +424,8 @@ export function useSchedule() {
   return {
     ...state,
     setLessonMain,
+    clearLessonMain,
+    clearAllLessons,
     setLessonSub,
     toggleLessonSp,
     applyAllMain,

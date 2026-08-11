@@ -274,6 +274,10 @@ function HifPlan({ r }: { r: CalcResult }) {
           rows={LESSONS.map((lesson, i) => {
             const pick = r.schedule.lessons[i];
             const sp = pick.sp ? 1 : 0;
+            if (!pick.main) {
+              // 踏まないレッスン
+              return [lesson.label, "—", "—", ""];
+            }
             return [
               lesson.label,
               <TypeValue key="m" type={pick.main} value={lesson.main[sp]} />,

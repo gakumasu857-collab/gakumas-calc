@@ -177,7 +177,7 @@ export const TEMPLATE_MEMORIES: Memory[] = [
   {
     id: "tpl-role45",
     plan: "共通",
-    skillName: "パラボ45点",
+    skillName: "メインパラボ45点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 2.1, subFlat: 15 },
@@ -185,7 +185,7 @@ export const TEMPLATE_MEMORIES: Memory[] = [
   {
     id: "tpl-role60",
     plan: "共通",
-    skillName: "パラボ60点",
+    skillName: "メインパラボ60点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 2.8, subFlat: 20 },
@@ -193,7 +193,7 @@ export const TEMPLATE_MEMORIES: Memory[] = [
   {
     id: "tpl-role70",
     plan: "共通",
-    skillName: "パラボ70点",
+    skillName: "メインパラボ70点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 3.5, subFlat: 20 },

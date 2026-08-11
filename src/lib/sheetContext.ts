@@ -46,7 +46,7 @@ export function typeCountLabel(type: TypeKey): string {
  * （ステ上昇・パラボ母数には含まれる。数えるのはメイン踏みのみ）。
  */
 export function typeLessonCounts(
-  lessons: { main: TypeKey; sp: boolean }[],
+  lessons: { main: TypeKey | null; sp: boolean }[],
 ): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const type of TYPE_KEYS) {
@@ -105,6 +105,7 @@ export function buildSheetScoreContext(
   const gains = {} as SheetScoreContext["gains"];
   for (const type of TYPE_KEYS) {
     const lessons = schedule.lessons.map((pick, i) => {
+      if (!pick.main) return 0; // 踏まないレッスン
       const spIndex = pick.sp ? 1 : 0;
       if (pick.main === type) return LESSONS[i].main[spIndex];
       if (pick.sub === type) return LESSONS[i].sub[spIndex];

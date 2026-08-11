@@ -188,6 +188,14 @@ export default function SchedulePage() {
             </span>
             <button
               type="button"
+              onClick={() => schedule.clearAllLessons()}
+              title="全レッスンを「踏まない」に戻す（メインの選択を解除）"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+            >
+              レッスン全クリア
+            </button>
+            <button
+              type="button"
               onClick={() => setHelpOpen(true)}
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
             >
@@ -380,8 +388,14 @@ function LessonRow({
                 type={type}
                 selected={isMain}
                 value={lesson.main[spIndex]}
+                title={
+                  isMain
+                    ? "もう一度クリックで「踏まない」に戻す"
+                    : undefined
+                }
                 onClick={() => {
-                  if (!isMain) schedule.setLessonMain(lessonIndex, type);
+                  if (isMain) schedule.clearLessonMain(lessonIndex);
+                  else schedule.setLessonMain(lessonIndex, type);
                 }}
               />
               {/* サブバッジ（メインの右下）: クリックで残り2タイプから選ぶ */}
@@ -444,17 +458,19 @@ function TypeButton({
   selected,
   value,
   onClick,
+  title,
 }: {
   type: TypeKey;
   selected: boolean;
   value: number;
   onClick: () => void;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={TYPE_LABELS[type]}
+      title={title ?? TYPE_LABELS[type]}
       className={`h-11 w-11 rounded-lg text-sm font-bold tabular-nums transition ${
         selected ? TYPE_STYLE[type].on : TYPE_STYLE[type].off
       }`}

@@ -404,6 +404,16 @@ function SearchDebug({
             </span>
           </div>
 
+          {/* フェーズ別の到達スコア（どの段階でどれだけ改善したか） */}
+          <div className="text-xs text-slate-500">
+            <span className="font-semibold text-slate-700">フェーズ別スコア</span>
+            （広域探索 → 踏み方の詰め直し → 仕上げの相互詰め・結合手）:{" "}
+            <span className="tabular-nums">
+              {num(d.phaseScores.starts)} → {num(d.phaseScores.polish)} →{" "}
+              <b className="text-blue-600">{num(d.phaseScores.refine)}</b>
+            </span>
+          </div>
+
           {/* 勝ち踏み方 */}
           {d.stepping && (
             <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
@@ -422,6 +432,43 @@ function SearchDebug({
               {d.stepping.examBias
                 .map((b) => (b === "均等" ? "均等" : TYPE_LABELS[b]))
                 .join("・")}
+            </div>
+          )}
+
+          {/* 勝ち踏み方の詳細（レッスンごとのメイン/サブ/SPと選抜の実配分） */}
+          {d.lessonDetail && (
+            <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
+              <p className="mb-1 font-semibold text-slate-700">
+                レッスン詳細（メイン／サブ・SPは■）
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 tabular-nums">
+                {d.lessonDetail.map((l) => (
+                  <span key={l.label} className="whitespace-nowrap">
+                    <span className="text-slate-400">{l.label}</span>{" "}
+                    {l.main === null ? (
+                      <span className="text-slate-400">踏まない</span>
+                    ) : (
+                      <>
+                        <b>{TYPE_LABELS[l.main]}</b>
+                        <span className="text-slate-400">
+                          /{TYPE_LABELS[l.sub]}
+                        </span>
+                        {l.sp && <b className="text-slate-800">■</b>}
+                      </>
+                    )}
+                  </span>
+                ))}
+              </div>
+              {d.examDetail && (
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+                  {d.examDetail.map((e) => (
+                    <span key={e.name} className="whitespace-nowrap">
+                      <span className="text-slate-400">{e.name}</span>{" "}
+                      Vo {num(e.vocal)} / Da {num(e.dance)} / Vi {num(e.visual)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

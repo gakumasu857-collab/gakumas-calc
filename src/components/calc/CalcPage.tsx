@@ -338,19 +338,42 @@ export default function CalcPage() {
             </div>
           </div>
 
-          {/* メモリー（メモリーページのスロットを使用） */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-sm text-slate-600">
-            <span className="font-semibold">メモリー:</span>
-            {TYPE_KEYS.map((t) => (
-              <span key={t} className={`rounded px-1.5 py-0.5 ${TYPE_CHIP[t]}`}>
-                {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
+          {/* メモリー（メモリーページのスロットを使用）。未設定は目立つ警告にする */}
+          <div
+            className={`mt-3 flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm ${
+              r.memoryStore.selected.length === 0
+                ? "border border-amber-300 bg-amber-50 text-amber-800"
+                : "bg-slate-50 text-slate-600"
+            }`}
+          >
+            <span className="font-semibold">
+              メモリー
+              {r.memoryStore.selected.length > 0 &&
+                `（${r.memoryStore.selected.length}枚）`}
+              :
+            </span>
+            {r.memoryStore.selected.length === 0 ? (
+              <span>
+                未設定です。実際の育成に合わせて設定しないと評価値が不正確になります。
               </span>
-            ))}
+            ) : (
+              TYPE_KEYS.map((t) => (
+                <span key={t} className={`rounded px-1.5 py-0.5 ${TYPE_CHIP[t]}`}>
+                  {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
+                </span>
+              ))
+            )}
             <Link
               to="/memory"
-              className="ml-auto text-xs text-blue-600 underline"
+              className={`ml-auto text-xs underline ${
+                r.memoryStore.selected.length === 0
+                  ? "font-bold text-amber-700"
+                  : "text-blue-600"
+              }`}
             >
-              メモリーページで編集
+              {r.memoryStore.selected.length === 0
+                ? "メモリーを設定する →"
+                : "メモリーページで編集"}
             </Link>
           </div>
         </Card>

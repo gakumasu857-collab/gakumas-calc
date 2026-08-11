@@ -365,6 +365,14 @@ export default function CardScoreTable() {
                       <span className="font-bold text-blue-700">
                         {Math.round(row.ownedStat)}
                       </span>
+                    ) : row.ownedLevel >= 0 ? (
+                      // 所持しているが点数計算できない（R・アシスト等ティア表なし）
+                      <span
+                        className="text-slate-300"
+                        title={`所持（${row.ownedLevel}凸）・点数計算対象外`}
+                      >
+                        —
+                      </span>
                     ) : (
                       <span className="text-slate-300">未所持</span>
                     )}

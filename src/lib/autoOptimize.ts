@@ -19,7 +19,7 @@
  * ※ 踏み方で変わるのはステ由来の評価値のみ（スター性・投票数・本戦は不変）なので、
  *    比較は Σmin(上限, ステ)＋NIA札換算 で行い、最終的な評価値は勝者だけ算出する。
  */
-import { FINAL_ROUNDS, finalRoundValue } from "@/data/schedule";
+import { EXAMS, FINAL_ROUNDS, finalRoundValue, LESSONS } from "@/data/schedule";
 import {
   HATSU_PARAM_RATE,
   HATSU_RANK_VALUES,
@@ -59,6 +59,7 @@ import {
   examScoresFromRatio,
   examScoresUniform,
   sameExamScores,
+  steppingAxes,
   uniformStepping,
   type Stepping,
 } from "./optimize/stepping";
@@ -101,7 +102,7 @@ const TIME_BUDGET_MS = 4800;
  * 残りは仕上げの相互詰め直し（選抜細分配⇄編成⇄踏み方）と
  * 余り時間の焼きなましリスタートに確保する。
  */
-const MAIN_PHASE_RATIO = 0.72;
+const MAIN_PHASE_RATIO = 0.62;
 
 const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
 
@@ -192,6 +193,25 @@ export type OptimizeDebug = {
   evaluated: number;
   /** 各起点から焼きなましで到達したスコア（初期値非依存・ばらつきの確認用） */
   startScores: number[];
+  /**
+   * フェーズ別の到達スコア。
+   * starts=9起点の交互反復後 / polish=踏み方の詰め直し後 /
+   * refine=仕上げの相互詰め直し（選抜細分配・結合手・リスタート）後。
+   */
+  phaseScores: { starts: number; polish: number; refine: number };
+  /** 勝ち踏み方のレッスン詳細（HIFのみ。main=null は踏まない） */
+  lessonDetail:
+    | {
+        label: string;
+        main: TypeKey | null;
+        sub: TypeKey;
+        sp: boolean;
+      }[]
+    | null;
+  /** 勝ち踏み方の選抜スコア実配分（HIFのみ） */
+  examDetail:
+    | { name: string; vocal: number; dance: number; visual: number }[]
+    | null;
   /** 勝ち踏み方の要約（HIF: メイン枚数・授業枚数・選抜の寄せ先） */
   stepping: {
     lessonMains: Record<TypeKey, number>;
@@ -267,6 +287,7 @@ export function runFullOptimize(
     if (!best || settled.score > best.score) best = settled;
   }
   if (!best) return null;
+  const scoreAfterStarts = best.score;
 
   // 勝った編成に対して踏み方を9起点から入念に詰め直す（交互反復の取りこぼしを補う）。
   const polished = engine.optimizeStepping(best.slots);
@@ -274,11 +295,17 @@ export function runFullOptimize(
     best.stepping = polished.stepping;
     best.score = polished.score;
   }
+  const scoreAfterPolish = best.score;
 
   // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り」を
   // 収束するまで相互に詰め、まだ余れば焼きなましリスタートで局所解の脱出を試みる。
   engine.deadline = finalDeadline;
   best = engine.refineLoop(best);
+  const phaseScores = {
+    starts: Math.round(scoreAfterStarts),
+    polish: Math.round(scoreAfterPolish),
+    refine: Math.round(best.score),
+  };
 
   // ---- イベント予算の離散割り当て ----
   // 探索中は比例配分の近似で評価していたが、最終結果では「どのカードのイベントを
@@ -310,7 +337,12 @@ export function runFullOptimize(
     evaluated: engine.evaluated,
     elapsedMs: performance.now() - t0,
     eventOps,
-    debug: finalEngine.buildDebug(best.stepping, best.slots, startScores),
+    debug: finalEngine.buildDebug(
+      best.stepping,
+      best.slots,
+      startScores,
+      phaseScores,
+    ),
   };
 }
 
@@ -584,8 +616,48 @@ class OptimizeEngine {
   }
 
   /**
+   * 「レッスン1箇所の変更」と「編成の組み直し」を同時に試す結合手。
+   * 交互反復（踏み方⇄編成）は片方ずつしか動かせないため、
+   * 「あるタイプが上限で溢れていて、レッスンを1つ逃がすと別のカードが勝つ」
+   * ような解に到達できない。ここではレッスン軸の全代替それぞれで編成を
+   * 組み直して同時評価し、改善が見つかり次第 best を更新して true を返す。
+   */
+  private jointLessonFormationMove(best: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  }): boolean {
+    const lessonCount = best.stepping.lessons.length;
+    // steppingAxes は先頭 lessonCount 個がレッスン軸（stepping.ts の構築順）
+    const lessonAxes = steppingAxes(best.stepping).slice(0, lessonCount);
+    for (const axis of lessonAxes) {
+      for (const trial of axis.alternatives(best.stepping)) {
+        if (performance.now() > this.deadline) return false;
+        const ectx = this.buildEctx(trial);
+        const formation = this.buildFormation(ectx);
+        if (!formation) continue;
+        const slots = formation.picks.map((p) => ({
+          id: p.id,
+          rental: p.rental,
+        }));
+        const { obj } = this.preciseObjective(slots, ectx);
+        if (obj > best.score + 1e-9) {
+          best.stepping = trial;
+          best.slots = slots;
+          best.score = obj;
+          best.spShortfall = formation.spShortfall;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * 仕上げの相互詰め直し。勝ち解に対して
    * 1) 選抜スコアの細分配 → 2) 踏み方の山登り → 3) 編成の組み直し
+   * → 4) レッスン×編成の結合手（改善が無いときだけ）
    * を収束するまで反復し、時間が余れば焼きなましリスタートで局所解の脱出を試みる。
    * （「レッスンを1タイプに寄せてサポカも寄せる」ような結合解はこの反復で詰まる）
    */
@@ -641,7 +713,8 @@ class OptimizeEngine {
           changed = true;
         }
       }
-      if (!changed) break;
+      // 片方ずつの改善が尽きたら、レッスン変更＋編成組み直しの同時手を試す
+      if (!changed && !this.jointLessonFormationMove(best)) break;
     }
 
     // 余り時間で焼きなましリスタート（改善したら編成・選抜も追い詰め直す）。
@@ -1027,6 +1100,7 @@ class OptimizeEngine {
     stepping: Stepping,
     slots: SelectedSlot[],
     startScores: number[],
+    phaseScores: OptimizeDebug["phaseScores"],
   ): OptimizeDebug {
     const { input } = this;
     const ectx = this.buildEctx(stepping);
@@ -1039,7 +1113,7 @@ class OptimizeEngine {
     let steppingSummary: OptimizeDebug["stepping"] = null;
     if (stepping.kind === "hif") {
       const lessonMains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      for (const l of stepping.lessons) lessonMains[l.main]++;
+      for (const l of stepping.lessons) if (l.main) lessonMains[l.main]++;
       const classTypes: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       for (const c of stepping.classTypes) classTypes[c]++;
       const examBias = stepping.examScores.map((e) => {
@@ -1050,6 +1124,26 @@ class OptimizeEngine {
       });
       steppingSummary = { lessonMains, classTypes, examBias };
     }
+
+    // 勝ち踏み方の詳細（HIFのみ。レッスンごとのメイン/サブ/SPと選抜の実配分）
+    const lessonDetail =
+      stepping.kind === "hif"
+        ? stepping.lessons.map((l, i) => ({
+            label: LESSONS[i].label,
+            main: l.main,
+            sub: l.sub,
+            sp: l.sp,
+          }))
+        : null;
+    const examDetail =
+      stepping.kind === "hif"
+        ? stepping.examScores.map((e, i) => ({
+            name: EXAMS[i].name,
+            vocal: e.vocal,
+            dance: e.dance,
+            visual: e.visual,
+          }))
+        : null;
 
     const topOwned = {} as Record<
       TypeKey,
@@ -1098,6 +1192,9 @@ class OptimizeEngine {
       starts: startScores.length,
       evaluated: this.evaluated,
       startScores,
+      phaseScores,
+      lessonDetail,
+      examDetail,
       stepping: steppingSummary,
       formation: {
         ownedCount: owned.length,

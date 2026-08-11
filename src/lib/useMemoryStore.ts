@@ -42,7 +42,14 @@ export function useMemoryStore() {
     load<Memory[]>(LIB_KEY, []).map(normalizeMemory),
   );
   const [selected, setSelected] = useState<string[]>(() =>
-    load<string[]>(SEL_KEY, []),
+    // 初回（保存なし）はメインパラボ60点×4をデフォルトにする
+    // （未設定のまま計算すると評価値が実態より高く出てしまうため）
+    load<string[]>(SEL_KEY, [
+      "tpl-role60",
+      "tpl-role60",
+      "tpl-role60",
+      "tpl-role60",
+    ]),
   );
   const [sets, setSets] = useState<MemorySet[]>(() =>
     load<MemorySet[]>(SETS_KEY, []),
