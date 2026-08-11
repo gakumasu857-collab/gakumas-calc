@@ -213,6 +213,12 @@ export default function CardSettingsPage() {
               </th>
               <th
                 className={thNarrow}
+                title="ステイベ（パラメータイベント）の発動回数。前イベ・後イベ同様ランダム発動なのでカードごとに変更できます（自動=1回）"
+              >
+                ステイベ
+              </th>
+              <th
+                className={thNarrow}
                 title="前イベで得られるPアイテム/スキルカード。取得しない場合は前イベ発動0回扱い"
               >
                 前イベ
@@ -285,6 +291,23 @@ export default function CardSettingsPage() {
                       />
                     ) : (
                       <div className="h-9 w-20" />
+                    )}
+                  </td>
+                  {/* ステイベ（パラメータイベント）の発動回数 */}
+                  <td className={td}>
+                    {!card.abilities.some(
+                      (s) => s !== null && "key" in s && s.key === "param_event",
+                    ) ? (
+                      <span className="text-slate-300">—</span>
+                    ) : (
+                      <NumberField
+                        value={override?.statEvent ?? 1}
+                        onChange={(v) =>
+                          events.set(card.id, "statEvent", v === 1 ? null : v)
+                        }
+                        max={9}
+                        className="w-14"
+                      />
                     )}
                   </td>
                   {/* 前イベ（獲得アイテム/スキルの画像＋取得トグル） */}

@@ -19,7 +19,7 @@ export type PlanKey = "共通" | "センス" | "ロジック" | "アノマリー
 export type Memory = {
   id: string;
   plan: PlanKey;
-  /** スキルから選択した場合のスキル名（プランはそのスキルの所属プラン） */
+  /** メモリーの名前（任意の自由入力。プランとは独立） */
   skillName?: string;
   /** 1〜3個。同一属性の重複なし */
   abilities: Ability[];
@@ -143,33 +143,6 @@ export const PLAN_STYLES: Record<
     label: "アノマリー",
   },
 };
-
-/** 「スキルから選択」ボタン専用スタイル（プランではないので別枠） */
-export const SKILL_PICKER_STYLE = {
-  btnOn: "border-sky-500 bg-sky-500 text-white",
-  btnOff: "border-sky-200 bg-white text-sky-600 hover:bg-sky-50",
-};
-
-/**
- * 「スキルから選択」モーダルに出す仮のスキル一覧。
- * 各スキルには所属プランが割り当てられている（値は仮。実データで差し替える）。
- */
-export type PlaceholderSkill = { name: string; plan: PlanKey };
-
-export const PLACEHOLDER_SKILLS: PlaceholderSkill[] = [
-  { name: "アピールの基本", plan: "共通" },
-  { name: "ポーズの基本", plan: "共通" },
-  { name: "表現の基本", plan: "共通" },
-  { name: "目線の基本", plan: "共通" },
-  { name: "意識の基本", plan: "センス" },
-  { name: "願いの力", plan: "ロジック" },
-  { name: "祝福", plan: "ロジック" },
-  { name: "光のステージ", plan: "センス" },
-  { name: "デイドリーム", plan: "ロジック" },
-  { name: "アドレナリン全開", plan: "アノマリー" },
-  { name: "始まりの合図", plan: "センス" },
-  { name: "ワンモアステップ", plan: "アノマリー" },
-];
 
 /** テンプレメモリー。ライブラリに常時表示され削除不可。 */
 export const TEMPLATE_MEMORIES: Memory[] = [

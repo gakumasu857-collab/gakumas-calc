@@ -261,9 +261,12 @@ export default function CalcPage() {
         {/* 設定 */}
         <Card title="設定">
           <div className="flex flex-col gap-3 sm:flex-row">
-            {/* Pアイドルの画像と情報（画像クリックで特訓・才能開花を変更） */}
+            {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花） */}
             <div className="flex shrink-0 items-start gap-3">
-              <PIdolImageEditor r={r} />
+              <PIdolImageEditor
+                r={r}
+                onOpenPicker={() => setIdolPickerOpen(true)}
+              />
               <div className="flex flex-col gap-1 text-sm sm:hidden">
                 <PIdolInfo r={r} />
               </div>
@@ -539,7 +542,7 @@ export default function CalcPage() {
           action={
             <button
               type="button"
-              onClick={() => void exportSheetImage(r)}
+              onClick={() => void exportSheetImage(r, flags.pinned)}
               title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画面と同じデザインの画像で保存します"
               className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
             >
@@ -1081,7 +1084,13 @@ function CardThumb({
 }
 
 /** Pアイドルの画像（クリックで特訓・才能開花のポップオーバーを開く） */
-function PIdolImageEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
+function PIdolImageEditor({
+  r,
+  onOpenPicker,
+}: {
+  r: ReturnType<typeof useCalcResult>;
+  onOpenPicker: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const key = r.pMaster?.key;
   const url = r.pMaster ? imageUrl(r.pMaster.url) : "";
@@ -1092,10 +1101,11 @@ function PIdolImageEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
     }`;
   return (
     <div className="relative">
+      {/* 画像クリック=Pアイドル選択（サポカと同じ操作感） */}
       <button
         type="button"
-        onClick={() => key && setOpen((v) => !v)}
-        title="クリックで特訓・才能開花を変更"
+        onClick={onOpenPicker}
+        title="クリックでPアイドルを選択"
         className="block"
       >
         {url ? (
@@ -1110,6 +1120,34 @@ function PIdolImageEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
           </div>
         )}
       </button>
+      {/* 歯車=特訓・才能開花の設定（サポカの凸設定と同じ位置） */}
+      {key && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          title="特訓・才能開花を設定"
+          className="absolute right-1 top-1 z-10 rounded-full bg-black/60 p-1 text-white transition hover:bg-blue-600"
+        >
+          <Settings size={13} />
+        </button>
+      )}
+      {/* 特訓・開花の現在値（クリックでも設定を開ける） */}
+      {key && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          title="クリックで特訓・才能開花を設定"
+          className="mt-1 block w-28 text-center text-[11px] text-slate-600 underline decoration-slate-300 decoration-dotted underline-offset-2 hover:text-blue-600"
+        >
+          {own ? (
+            <>
+              特訓{own.kunren}・開花{own.kaika}
+            </>
+          ) : (
+            <span className="text-red-500">未所持</span>
+          )}
+        </button>
+      )}
       {open && key && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
@@ -1158,7 +1196,7 @@ function PIdolImageEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
   );
 }
 
-/** Pアイドルの状態表示（プラン・おすすめ効果・特訓開花） */
+/** Pアイドルの状態表示（プラン・おすすめ効果。特訓/開花は画像下に表示） */
 function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
   if (!r.pMaster) return null;
   return (
@@ -1167,18 +1205,11 @@ function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
         <b className="text-slate-800">{r.pMaster.plan}</b> / おすすめ効果:{" "}
         {r.pMaster.effect}
       </p>
-      <p className="mt-0.5">
-        {r.ownership ? (
-          <>
-            特訓{r.ownership.kunren}・開花{r.ownership.kaika}
-          </>
-        ) : (
-          <span className="text-red-500">未所持（特訓0・開花0として計算）</span>
-        )}
-        <Link to="/support" className="ml-2 text-blue-600 underline">
-          Pアイドルページで編集
-        </Link>
-      </p>
+      {!r.ownership && (
+        <p className="mt-0.5 text-red-500">
+          未所持（特訓0・開花0として計算）
+        </p>
+      )}
     </div>
   );
 }
@@ -1250,10 +1281,13 @@ function SupportSlot({
           </span>
         </div>
       </button>
-      {/* 凸バッジ（表示のみ。設定は右上の歯車から） */}
+      {/* 凸バッジ（表示のみ。設定は右上の歯車から）＋レンタル・固定の印 */}
       <span className="absolute left-1 top-1 z-10 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
         {member.level}凸
         {member.rental && <span className="ml-0.5 text-amber-300">レンタル</span>}
+        {flags.pinned.has(member.id) && (
+          <span className="ml-0.5 text-sky-300">📌固定</span>
+        )}
       </span>
       {/* 歯車（クリックで凸・BAN・固定・レンタルNGの設定ポップオーバー） */}
       <button

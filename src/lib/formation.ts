@@ -776,7 +776,15 @@ export function findBestFormation(
     const climbed = climbFormation(seed, ctx, ownedCandidates);
     if (!best || climbed.score > best.score) best = climbed;
   }
-  const members = best!.members;
+  // レンタル枠に選ばれたカードを自分も完凸で所持している場合、レンタルの意味が
+  // 無い（点数が同じ）ので所持カード扱いに戻す。全カード完凸所持のときに
+  // 「所持しているのにレンタル表記」になる紛らわしさを防ぐ。
+  const ownedById = new Map(owned.map((c) => [c.id, c]));
+  const members = best!.members.map((m) => {
+    if (!m.rental) return m;
+    const own = ownedById.get(m.id);
+    return own && own.level >= 4 ? own : m;
+  });
 
   // ---- 結果の組み立て ----
   const result = evaluateTeam(members, base, cap, opts?.eventBudget);

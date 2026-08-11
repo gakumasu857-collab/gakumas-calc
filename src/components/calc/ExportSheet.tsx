@@ -1,11 +1,15 @@
 /**
  * 計算シートの画像出力。
- * 画面と同じデザイン言語（カード・チップ・表・配色）で情報を1枚に並べた
+ *
  * 出力専用ビューを画面外に描画し、DOMスクリーンショット（modern-screenshot）でPNG保存する。
- * 内容: 基本情報・評価値・現在のステ・シナリオ固有値・選択サポカ・メモリー・
- *       レッスン（踏み方/授業/営業/選抜/オーディション/試験）・アビリティ発動回数。
- * ※ サポカ画像はR2がCORS非対応のため載せない（タイプ色チップ＋名前で表現）。
- * ※ SP指定枚数・セーブデータは含めない（ユーザー指定）。
+ * Tailwind のクラスはスクリーンショット時に正しくシリアライズされないことがある
+ * （v4 の CSS 変数・レイヤーが原因でレイアウト崩れ・文字重なりが起きる）ため、
+ * このビューは**インラインスタイルのみ**で組む。
+ *
+ * 内容（育成の再現に必要な最小限）:
+ * シナリオ / Pアイドル / 育成セット / 評価値 / 最終ステ / スター性 / 本戦点数 /
+ * メモリー / サポカ6枚（画像＋名前＋ステイベ・前イベ・後イベの有無と回数） /
+ * レッスン・授業の踏み方 / 選抜の点数配分 / アビリティ発動回数（表形式）
  */
 import { createRoot } from "react-dom/client";
 import { domToPng } from "modern-screenshot";
@@ -20,6 +24,8 @@ import {
   NIA_SALES,
   SCENARIO_LABELS,
 } from "@/data/scenarios";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { imageUrl } from "@/lib/config";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -30,31 +36,51 @@ const TYPE_JA: Record<TypeKey, string> = {
   dance: "Da",
   visual: "Vi",
 };
-const TYPE_CHIP: Record<TypeKey, string> = {
-  vocal: "bg-red-100 text-red-700",
-  dance: "bg-blue-100 text-blue-700",
-  visual: "bg-yellow-100 text-yellow-700",
+/** タイプ色（文字色/背景色） */
+const TYPE_COLOR: Record<TypeKey, { fg: string; bg: string }> = {
+  vocal: { fg: "#b91c1c", bg: "#fee2e2" },
+  dance: { fg: "#1d4ed8", bg: "#dbeafe" },
+  visual: { fg: "#a16207", bg: "#fef9c3" },
 };
-const TYPE_TEXT: Record<TypeKey, string> = {
-  vocal: "text-red-600",
-  dance: "text-blue-600",
-  visual: "text-yellow-600",
-};
+
+const INK = "#0f172a";
+const SUB = "#64748b";
+const FAINT = "#cbd5e1";
+const LINE = "#e2e8f0";
+const BLUE = "#2563eb";
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
+const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
+
 /** 出力専用ビューを画面外に描画してPNGでダウンロードする */
-export async function exportSheetImage(r: CalcResult): Promise<void> {
+export async function exportSheetImage(
+  r: CalcResult,
+  pinned: ReadonlySet<string>,
+): Promise<void> {
   const host = document.createElement("div");
   host.style.position = "fixed";
-  host.style.left = "-9999px";
+  host.style.left = "-99999px";
   host.style.top = "0";
-  host.style.width = "960px";
+  host.style.width = "1040px";
   document.body.appendChild(host);
   const root = createRoot(host);
-  root.render(<ExportSheet r={r} />);
-  // レイアウト確定を待ってからスナップショット
+  root.render(<ExportSheet r={r} pinned={pinned} />);
+  // レイアウト確定＋サポカ画像の読み込みを待ってからスナップショット
   await new Promise((resolve) => setTimeout(resolve, 80));
+  const images = [...host.querySelectorAll("img")];
+  await Promise.all(
+    images.map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          if (img.complete) return resolve();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          // 読み込みが長引いても3秒で諦める（名前は必ず出る）
+          setTimeout(resolve, 3000);
+        }),
+    ),
+  );
   try {
     const el = host.firstElementChild as HTMLElement;
     const dataUrl = await domToPng(el, { scale: 2 });
@@ -69,220 +95,477 @@ export async function exportSheetImage(r: CalcResult): Promise<void> {
   }
 }
 
-function ExportSheet({ r }: { r: CalcResult }) {
+// ===== スタイル部品（インラインのみ） =====
+
+const S = {
+  sheet: {
+    width: 1040,
+    background: "#f1f5f9",
+    color: INK,
+    padding: 16,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    fontFamily:
+      '"Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif',
+    fontSize: 13,
+    lineHeight: 1.5,
+  } as const,
+  card: {
+    background: "#fff",
+    border: `1px solid ${LINE}`,
+    borderRadius: 10,
+    padding: "10px 12px",
+  } as const,
+  h2: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: SUB,
+    margin: "0 0 6px",
+  } as const,
+  th: {
+    border: `1px solid ${LINE}`,
+    background: "#f8fafc",
+    color: SUB,
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "3px 8px",
+    whiteSpace: "nowrap",
+  } as const,
+  td: {
+    border: `1px solid ${LINE}`,
+    padding: "3px 8px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    fontVariantNumeric: "tabular-nums",
+  } as const,
+} as const;
+
+function TypeChip({ type }: { type: TypeKey }) {
+  const c = TYPE_COLOR[type];
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        minWidth: 24,
+        borderRadius: 4,
+        padding: "0 4px",
+        background: c.bg,
+        color: c.fg,
+        fontSize: 11,
+        fontWeight: 700,
+        textAlign: "center",
+      }}
+    >
+      {TYPE_JA[type]}
+    </span>
+  );
+}
+
+// ===== 本体 =====
+
+function ExportSheet({
+  r,
+  pinned,
+}: {
+  r: CalcResult;
+  pinned: ReadonlySet<string>;
+}) {
   const settings = r.calc.settings;
   const members = r.members.filter(
     (m): m is NonNullable<(typeof r.members)[number]> => m !== null,
   );
   return (
-    <div className="flex w-240 flex-col gap-3 bg-slate-100 p-4 text-slate-900">
-      {/* ヘッダー: タイトル＋評価値 */}
-      <div className="flex items-center gap-4 rounded-xl border-2 border-blue-600 bg-white px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-bold text-slate-900">
-            学マス育成 計算シート
-          </p>
-          <p className="text-xs text-slate-500">
-            {SCENARIO_LABELS[r.scenario]}・
-            {new Date().toLocaleDateString("ja-JP")}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-semibold text-slate-500">評価値</p>
-          <p className="text-3xl font-bold tabular-nums text-blue-600">
-            {fmt(r.rating)}
-          </p>
-        </div>
-      </div>
-
-      {/* 基本情報＋現在のステ */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card title="基本情報">
-          <dl className="flex flex-col gap-1 text-sm">
-            <Row label="アイドル" value={settings.idol} />
-            <Row
-              label="Pアイドル"
-              value={
-                r.pMaster
-                  ? `${r.pMaster.cardName}（${r.pMaster.rarity}・特訓${r.ownership?.kunren ?? 0}・開花${r.ownership?.kaika ?? 0}）`
-                  : "未選択"
-              }
-            />
-            <Row label="育成セット" value={r.selectedSet?.name ?? "未選択"} />
-            <Row label="プラン" value={r.plan ?? "—"} />
-          </dl>
-        </Card>
-        <Card title={`現在のステ（上限${r.statCap}）`}>
-          <div className="flex flex-col gap-1 text-sm tabular-nums">
-            {TYPE_KEYS.map((type) => (
-              <div key={type} className="flex items-center gap-2">
-                <span
-                  className={`w-10 rounded px-1 py-0.5 text-center text-xs font-bold ${TYPE_CHIP[type]}`}
-                >
-                  {TYPE_JA[type]}
-                </span>
-                <span className="text-base font-bold">
-                  {fmt(r.perType[type].current)}
-                </span>
-                <span className="text-xs text-slate-400">
-                  （+{r.perType[type].startPct}%）
-                </span>
-              </div>
-            ))}
-            <div className="mt-0.5 border-t border-slate-100 pt-1 text-sm">
-              合計（上限適用後）{" "}
-              <b className="text-blue-600">{fmt(r.cappedSum)}</b>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* シナリオ固有値 */}
-      <Card
-        title={
-          r.scenario === "hif"
-            ? "スター性・本戦"
-            : r.scenario === "niaMaster"
-              ? "ファン投票"
-              : "試験"
-        }
+    <div style={S.sheet}>
+      {/* ===== ヘッダー: シナリオ・Pアイドル・育成 ＋ 評価値 ===== */}
+      <div
+        style={{
+          ...S.card,
+          border: `2px solid ${BLUE}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+        }}
       >
-        {r.scenario === "hif" && (
-          <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
-            <Chip label="スター性" value={String(r.totalStar)} />
-            <span className="text-slate-400">
-              （ワッペン{r.starParts.wappen}＋レッスン{r.starParts.lesson}＋選抜
-              {r.starParts.exam}＋本戦{r.starParts.final}）
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>
+            {SCENARIO_LABELS[r.scenario]}
+            <span style={{ color: SUB, fontWeight: 400, fontSize: 12 }}>
+              {" "}
+              ・ {new Date().toLocaleDateString("ja-JP")} ・ hoppepan.com
             </span>
-            <Chip
-              label="本戦R1"
-              value={`${fmt(settings.round1)} → ${fmt(r.roundValues[0])}`}
-            />
-            <Chip
-              label="本戦R2"
-              value={`${fmt(settings.round2)} → ${fmt(r.roundValues[1])}`}
-            />
           </div>
-        )}
-        {r.scenario === "niaMaster" && (
-          <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
-            <Chip label="営業" value={fmt(r.scenarioValues.votesSales ?? 0)} />
-            <Chip
-              label="1次・2次"
-              value={fmt(r.scenarioValues.votesAuditions ?? 0)}
-            />
-            <Chip label="最終" value={fmt(r.scenarioValues.votesFinale ?? 0)} />
-            <Chip
-              label={`札${r.scenarioValues.totalFuda ?? 0}枚`}
-              value={fmt(r.scenarioValues.votesFuda ?? 0)}
-            />
-            <span className="font-bold text-slate-800">
-              = 合計 {fmt(r.scenarioValues.totalVotes ?? 0)}票
+          <div style={{ marginTop: 2 }}>
+            <b>{settings.idol}</b>
+            {r.pMaster && (
+              <>
+                {" / "}
+                {r.pMaster.cardName}（{r.pMaster.rarity}・
+                {r.ownership
+                  ? `特訓${r.ownership.kunren}・開花${r.ownership.kaika}`
+                  : "未所持"}
+                ・{r.pMaster.plan}）
+              </>
+            )}
+          </div>
+          <div style={{ color: SUB, fontSize: 12 }}>
+            育成: {r.selectedSet?.name ?? "未選択"}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: SUB }}>
+            評価値
+          </div>
+          <div
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              color: BLUE,
+              fontVariantNumeric: "tabular-nums",
+              lineHeight: 1.2,
+            }}
+          >
+            {fmt(r.rating)}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== 最終ステ・スター性・本戦・メモリー ===== */}
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ ...S.card, flex: 1 }}>
+          <h2 style={S.h2}>最終ステータス（上限{r.statCap}）</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {TYPE_KEYS.map((type) => (
+              <span key={type} style={{ whiteSpace: "nowrap" }}>
+                <TypeChip type={type} />{" "}
+                <b
+                  style={{ fontSize: 17, fontVariantNumeric: "tabular-nums" }}
+                >
+                  {fmt(r.perType[type].current)}
+                </b>
+              </span>
+            ))}
+            <span style={{ whiteSpace: "nowrap", color: SUB }}>
+              合計{" "}
+              <b style={{ color: BLUE, fontSize: 17 }}>{fmt(r.cappedSum)}</b>
             </span>
-            <span>
-              → 評価値換算{" "}
-              <b className="text-blue-600">
-                {fmt(r.scenarioValues.fanValue ?? 0)}
-              </b>
-            </span>
+          </div>
+        </div>
+        {r.scenario === "hif" && (
+          <div style={{ ...S.card, flexShrink: 0 }}>
+            <h2 style={S.h2}>スター性・本戦</h2>
+            <div style={{ display: "flex", gap: 12, whiteSpace: "nowrap" }}>
+              <span>
+                スター性 <b>{fmt(r.totalStar)}</b>
+              </span>
+              <span>
+                R1 <b>{fmt(settings.round1)}</b>
+              </span>
+              <span>
+                R2 <b>{fmt(settings.round2)}</b>
+              </span>
+            </div>
           </div>
         )}
         {r.scenario === "hatsuLegend" && (
-          <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
-            <Chip
-              label="中間"
-              value={`${fmt(r.hatsuSchedule.midScore)} → ${fmt(r.scenarioValues.midValue ?? 0)}`}
-            />
-            <Chip
-              label="最終"
-              value={`${fmt(r.hatsuSchedule.finalScore)} → ${fmt(r.scenarioValues.finalValue ?? 0)}`}
-            />
-            <Chip
-              label="順位分"
-              value={fmt(r.scenarioValues.rankValue ?? 0)}
-            />
+          <div style={{ ...S.card, flexShrink: 0 }}>
+            <h2 style={S.h2}>試験スコア</h2>
+            <div style={{ display: "flex", gap: 12, whiteSpace: "nowrap" }}>
+              <span>
+                中間 <b>{fmt(r.hatsuSchedule.midScore)}</b>
+              </span>
+              <span>
+                最終 <b>{fmt(r.hatsuSchedule.finalScore)}</b>
+              </span>
+            </div>
           </div>
         )}
-      </Card>
-
-      {/* 選択サポカ＋メモリー */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card title="選択サポカ">
-          {members.length === 0 ? (
-            <p className="text-xs text-slate-400">未選択</p>
-          ) : (
-            <ul className="flex flex-col gap-1 text-sm">
-              {members.map((m) => (
-                <li key={m.id} className="flex items-center gap-1.5">
-                  <span
-                    className={`w-8 shrink-0 rounded px-1 py-0.5 text-center text-[10px] font-bold ${TYPE_CHIP[m.type]}`}
-                  >
-                    {TYPE_JA[m.type]}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-xs">
-                    {m.name}
-                  </span>
-                  <span className="shrink-0 text-[10px] text-slate-500">
-                    {m.rental ? "レンタル・" : ""}
-                    {m.level}凸
-                  </span>
-                  <span className="shrink-0 text-xs font-bold tabular-nums text-blue-600">
-                    +{fmt(m.points + m.synergy)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <Card title="メモリー">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums">
-            {TYPE_KEYS.map((type) => (
-              <span
-                key={type}
-                className={`rounded px-1.5 py-0.5 font-semibold ${TYPE_CHIP[type]}`}
-              >
-                {TYPE_JA[type]} +{r.perType[type].memPct}% / +
-                {r.perType[type].memFixed}
-              </span>
-            ))}
+        {r.scenario === "niaMaster" && (
+          <div style={{ ...S.card, flexShrink: 0 }}>
+            <h2 style={S.h2}>ファン投票</h2>
+            <div style={{ whiteSpace: "nowrap" }}>
+              合計 <b>{fmt(r.scenarioValues.totalVotes ?? 0)}票</b>
+            </div>
           </div>
-        </Card>
+        )}
+        <div style={{ ...S.card, flexShrink: 0, maxWidth: 340 }}>
+          <h2 style={S.h2}>メモリー</h2>
+          <MemoryList r={r} />
+        </div>
       </div>
 
-      {/* レッスン情報（シナリオ別） */}
+      {/* ===== サポカ6枚 ===== */}
+      <div style={S.card}>
+        <h2 style={S.h2}>サポートカード</h2>
+        {members.length === 0 ? (
+          <div style={{ color: FAINT }}>未選択</div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(6, 1fr)",
+              gap: 8,
+            }}
+          >
+            {members.map((m) => (
+              <SupportCardCell key={m.id} r={r} m={m} pinned={pinned} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ===== 踏み方（シナリオ別） ===== */}
       {r.scenario === "hif" && <HifPlan r={r} />}
       {r.scenario === "niaMaster" && <NiaPlan r={r} />}
       {r.scenario === "hatsuLegend" && <HatsuPlan r={r} />}
 
-      {/* アビリティ発動回数 */}
-      <Card
-        title={`アビリティ発動回数${r.selectedSet ? `（${r.selectedSet.name}）` : ""}`}
-      >
-        <AbilityCounts r={r} />
-      </Card>
+      {/* ===== アビリティ発動回数 ===== */}
+      <div style={S.card}>
+        <h2 style={S.h2}>
+          アビリティ発動回数
+          {r.selectedSet ? `（${r.selectedSet.name}）` : ""}
+        </h2>
+        <AbilityCountTable r={r} />
+      </div>
     </div>
   );
 }
 
-/** H.I.F.: 踏み方・授業・選抜 */
+/** メモリー4枠（名前＋アビリティ要約） */
+function MemoryList({ r }: { r: CalcResult }) {
+  const memories = r.memoryStore.selected.map((id) =>
+    r.memoryStore.findMemory(id),
+  );
+  if (memories.length === 0) {
+    return <div style={{ color: "#dc2626", fontSize: 12 }}>未設定</div>;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      {memories.map((m, i) => (
+        <div key={i} style={{ fontSize: 11, whiteSpace: "nowrap" }}>
+          {m ? (
+            <>
+              <b>{m.skillName ?? m.plan}</b>{" "}
+              <span style={{ color: SUB }}>
+                {m.roleSpec
+                  ? `メイン+${m.roleSpec.mainPct}%×2 / サブ+${m.roleSpec.subFlat}`
+                  : m.abilities
+                      .map((a) =>
+                        a.attr === "回復"
+                          ? `回復${a.value}`
+                          : `${a.attr}${a.value}`,
+                      )
+                      .join(" ")}
+              </span>
+            </>
+          ) : (
+            <span style={{ color: FAINT }}>—</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** サポカ1枚（画像＋名前＋凸/レンタル/固定＋ステイベ・前イベ・後イベ） */
+function SupportCardCell({
+  r,
+  m,
+  pinned,
+}: {
+  r: CalcResult;
+  m: NonNullable<CalcResult["members"][number]>;
+  pinned: ReadonlySet<string>;
+}) {
+  const db = DB_BY_ID.get(m.id);
+  const url = imageUrl(m.image);
+  const ov = r.events.get(m.id);
+  const hasStatEvent = !!db?.abilities.some(
+    (s) => s !== null && "key" in s && s.key === "param_event",
+  );
+  const statEventCount = ov?.statEvent ?? 1;
+  const preKind = db && db.preEventType !== "何もなし" ? db.preEventType : null;
+  const postKind =
+    db && db.postEventType !== "何もなし" ? db.postEventType : null;
+  const postCount = Math.max(0, ov?.post ?? 1);
+  const eventRow = (label: string, value: string | null) => (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 10,
+        color: value ? INK : FAINT,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span style={{ color: SUB }}>{label}</span>
+      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+        {value ?? "—"}
+      </span>
+    </div>
+  );
+  return (
+    <div
+      style={{
+        border: `1px solid ${LINE}`,
+        borderRadius: 8,
+        overflow: "hidden",
+        background: "#fff",
+      }}
+    >
+      <div style={{ position: "relative", height: 88, background: "#f8fafc" }}>
+        {url && (
+          <img
+            src={url}
+            alt={m.name}
+            crossOrigin="anonymous"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        )}
+        {/* 凸・レンタル・固定バッジ */}
+        <span
+          style={{
+            position: "absolute",
+            left: 3,
+            top: 3,
+            borderRadius: 4,
+            background: "rgba(0,0,0,0.65)",
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: 700,
+            padding: "1px 4px",
+          }}
+        >
+          {m.level}凸
+          {m.rental && <span style={{ color: "#fcd34d" }}> レンタル</span>}
+          {pinned.has(m.id) && <span style={{ color: "#7dd3fc" }}> 固定</span>}
+        </span>
+      </div>
+      <div style={{ padding: "4px 6px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            marginBottom: 2,
+          }}
+        >
+          <TypeChip type={m.type} />
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={m.name}
+          >
+            {m.name}
+          </span>
+        </div>
+        {eventRow(
+          "ステイベ",
+          hasStatEvent ? `×${statEventCount}` : null,
+        )}
+        {eventRow("前イベ", preKind ? `${preKind}×${m.preActs}` : null)}
+        {eventRow("後イベ", postKind ? `${postKind}×${postCount}` : null)}
+      </div>
+    </div>
+  );
+}
+
+/** 表を組み立てる小道具 */
+function PlanTable({
+  head,
+  rows,
+}: {
+  head: string[];
+  rows: React.ReactNode[][];
+}) {
+  return (
+    <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
+      <thead>
+        <tr>
+          {head.map((h) => (
+            <th key={h} style={S.th}>
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((cells, i) => (
+          <tr key={i}>
+            {cells.map((c, j) => (
+              <td key={j} style={{ ...S.td, textAlign: j === 0 ? "left" : "center" }}>
+                {c}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function TypeValue({ type, value }: { type: TypeKey; value?: number }) {
+  return (
+    <span
+      style={{
+        color: TYPE_COLOR[type].fg,
+        fontWeight: 700,
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {TYPE_JA[type]}
+      {value !== undefined ? ` ${value}` : ""}
+    </span>
+  );
+}
+
+const spMark = (on: boolean) =>
+  on ? (
+    <span
+      style={{
+        borderRadius: 3,
+        background: "#334155",
+        color: "#fff",
+        fontSize: 9,
+        fontWeight: 700,
+        padding: "1px 3px",
+      }}
+    >
+      SP
+    </span>
+  ) : (
+    <span style={{ color: FAINT }}>—</span>
+  );
+
+/** H.I.F.: レッスン・授業・選抜 */
 function HifPlan({ r }: { r: CalcResult }) {
   return (
-    <Card title="レッスン・授業・選抜">
-      <div className="flex flex-wrap gap-x-8 gap-y-2">
+    <div style={S.card}>
+      <h2 style={S.h2}>レッスン・授業・選抜</h2>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
           head={["日程", "メイン", "サブ", "SP"]}
           rows={LESSONS.map((lesson, i) => {
             const pick = r.schedule.lessons[i];
-            const sp = pick.sp ? 1 : 0;
             if (!pick.main) {
-              // 踏まないレッスン
-              return [lesson.label, "—", "—", ""];
+              return [lesson.label, <span key="n" style={{ color: FAINT }}>踏まない</span>, "", ""];
             }
+            const sp = pick.sp ? 1 : 0;
             return [
               lesson.label,
               <TypeValue key="m" type={pick.main} value={lesson.main[sp]} />,
               <TypeValue key="s" type={pick.sub} value={lesson.sub[sp]} />,
-              <SpMark key="sp" on={pick.sp} />,
+              spMark(pick.sp),
             ];
           })}
         />
@@ -298,34 +581,29 @@ function HifPlan({ r }: { r: CalcResult }) {
           ])}
         />
         <PlanTable
-          head={["選抜", ...TYPE_KEYS.map((t) => TYPE_JA[t]), "合計"]}
+          head={["選抜", "Vo", "Da", "Vi", "合計"]}
           rows={EXAMS.map((exam, i) => {
             const scores = r.schedule.examScores[i];
             const total = TYPE_KEYS.reduce((s, t) => s + scores[t], 0);
             return [
               exam.name,
-              ...TYPE_KEYS.map((t) => (
-                <span key={t} className="tabular-nums">
-                  {fmt(scores[t])}
-                </span>
-              )),
-              <b key="total" className="tabular-nums">
-                {fmt(total)}
-              </b>,
+              ...TYPE_KEYS.map((t) => fmt(scores[t])),
+              <b key="total">{fmt(total)}</b>,
             ];
           })}
         />
       </div>
-    </Card>
+    </div>
   );
 }
 
-/** N.I.A.: 自主レッスン・営業・オーディション */
+/** NIA: レッスン・営業・オーディション */
 function NiaPlan({ r }: { r: CalcResult }) {
   const nia = r.niaSchedule;
   return (
-    <Card title="自主レッスン・営業・オーディション">
-      <div className="flex flex-wrap gap-x-8 gap-y-2">
+    <div style={S.card}>
+      <h2 style={S.h2}>レッスン・営業・オーディション</h2>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
           head={["レッスン", "タイプ", "SP"]}
           rows={NIA_LESSONS.map((lesson, i) => {
@@ -337,62 +615,38 @@ function NiaPlan({ r }: { r: CalcResult }) {
                 type={pick.main}
                 value={lesson.value[pick.sp ? 1 : 0]}
               />,
-              <SpMark key="sp" on={pick.sp} />,
+              spMark(pick.sp),
             ];
           })}
         />
         <PlanTable
-          head={["営業", "タイプ", "営業先", "成功度"]}
-          rows={NIA_SALES.map((sale, i) => {
-            const pick = nia.sales[i];
-            return [
-              sale.label,
-              <TypeValue key="t" type={pick.type} value={sale.value} />,
-              pick.resort ? "リゾート" : "その他",
-              pick.great ? "大成功" : "成功",
-            ];
-          })}
+          head={["営業", "タイプ"]}
+          rows={NIA_SALES.map((sale, i) => [
+            sale.label,
+            <TypeValue key="t" type={nia.sales[i].type} />,
+          ])}
         />
         <PlanTable
-          head={["審査", ...TYPE_KEYS.map((t) => TYPE_JA[t]), "投票"]}
-          rows={[
-            ...NIA_AUDITIONS.map((audition, i) => [
-              audition.name,
-              ...TYPE_KEYS.map((t) => (
-                <span key={t} className="tabular-nums">
-                  {fmt(nia.auditions[i][t])}
-                </span>
-              )),
-              <span key="v" className="tabular-nums">
-                {fmt(nia.auditionVotes[i])}
-              </span>,
-            ]),
-            [
-              "最終",
-              ...TYPE_KEYS.map((t) => (
-                <span key={t} className="tabular-nums">
-                  {fmt(nia.finalScores[t])}
-                </span>
-              )),
-              <span key="v" className="text-slate-400">
-                自動
-              </span>,
-            ],
-          ]}
+          head={["オーディション", "獲得票"]}
+          rows={NIA_AUDITIONS.map((a, i) => [
+            a.name,
+            fmt(nia.auditionVotes[i] ?? 0),
+          ])}
         />
       </div>
-    </Card>
+    </div>
   );
 }
 
-/** 初: レジェンドレッスン・授業・試験 */
+/** 初: レッスン・授業・試験 */
 function HatsuPlan({ r }: { r: CalcResult }) {
   const hatsu = r.hatsuSchedule;
   return (
-    <Card title="レジェンドレッスン・授業・試験">
-      <div className="flex flex-wrap gap-x-8 gap-y-2">
+    <div style={S.card}>
+      <h2 style={S.h2}>レッスン・授業・試験</h2>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
-          head={["レッスン", "タイプ", "SP", "パフェ"]}
+          head={["レッスン", "タイプ", "SP", "クリア"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
             const sp = pick.sp ? 1 : 0;
@@ -403,7 +657,7 @@ function HatsuPlan({ r }: { r: CalcResult }) {
                 type={pick.main}
                 value={pick.perfect ? lesson.perfectMain[sp] : lesson.clear[sp]}
               />,
-              <SpMark key="sp" on={pick.sp} />,
+              spMark(pick.sp),
               pick.perfect ? "パフェ" : "クリア",
             ];
           })}
@@ -424,135 +678,60 @@ function HatsuPlan({ r }: { r: CalcResult }) {
             return [
               exam.name,
               rank === 4 ? "4位以下" : `${rank}位`,
-              <span key="s" className="tabular-nums">
-                {fmt(score)}
-              </span>,
+              fmt(score),
             ];
           })}
         />
       </div>
-    </Card>
+    </div>
   );
 }
 
-/** 発動回数（選択セットの回数>0をチップで列挙） */
-function AbilityCounts({ r }: { r: CalcResult }) {
+/** 発動回数（回数>0のアビリティを4列の表で見やすく） */
+function AbilityCountTable({ r }: { r: CalcResult }) {
   if (!r.selectedSet) {
-    return <p className="text-xs text-slate-400">セット未選択</p>;
+    return <div style={{ color: FAINT }}>セット未選択</div>;
   }
   const set = r.selectedSet;
   const entries = (Object.keys(ABILITY_NAMES) as AbilityName[])
     .map((key) => ({ key, count: r.ability.getCount(set, key) }))
     .filter((e) => e.count > 0);
   if (entries.length === 0) {
-    return <p className="text-xs text-slate-400">回数の設定なし</p>;
+    return <div style={{ color: FAINT }}>回数の設定なし</div>;
   }
   return (
-    <div className="flex flex-wrap gap-1">
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 0,
+        border: `1px solid ${LINE}`,
+      }}
+    >
       {entries.map((e) => (
-        <span
+        <div
           key={e.key}
-          className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+            padding: "3px 8px",
+            border: `0.5px solid ${LINE}`,
+            fontSize: 12,
+            whiteSpace: "nowrap",
+          }}
         >
-          {ABILITY_NAMES[e.key]}
-          <b className="ml-0.5 tabular-nums">×{e.count}</b>
-        </span>
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {ABILITY_NAMES[e.key]}
+          </span>
+          <b style={{ fontVariantNumeric: "tabular-nums" }}>×{e.count}</b>
+        </div>
       ))}
     </div>
-  );
-}
-
-// ===== 小物 =====
-
-function Card({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3.5">
-      <h2 className="mb-2 text-sm font-bold text-slate-900">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="w-20 shrink-0 text-xs leading-5 text-slate-500">
-        {label}
-      </dt>
-      <dd className="min-w-0 text-sm font-medium">{value}</dd>
-    </div>
-  );
-}
-
-function Chip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="rounded bg-slate-100 px-1.5 py-0.5">
-      {label} <b className="text-slate-700">{value}</b>
-    </span>
-  );
-}
-
-/** タイプ色つきの値表示（例: 赤字で「Vo 145」） */
-function TypeValue({ type, value }: { type: TypeKey; value: number }) {
-  return (
-    <span className={`font-bold tabular-nums ${TYPE_TEXT[type]}`}>
-      {TYPE_JA[type]} {value}
-    </span>
-  );
-}
-
-function SpMark({ on }: { on: boolean }) {
-  return on ? (
-    <span className="rounded bg-slate-700 px-1 py-0.5 text-[10px] font-bold text-white">
-      SP
-    </span>
-  ) : (
-    <span className="text-slate-300">—</span>
-  );
-}
-
-/** ラベル列＋データ列の小さい表 */
-function PlanTable({
-  head,
-  rows,
-}: {
-  head: string[];
-  rows: React.ReactNode[][];
-}) {
-  return (
-    <table className="w-auto text-xs">
-      <thead>
-        <tr className="border-b border-slate-300 text-left font-semibold text-slate-500">
-          {head.map((h, i) => (
-            <th
-              key={i}
-              className={`px-1.5 py-0.5 font-semibold ${i === 0 ? "pr-3 text-left" : "text-center"}`}
-            >
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {rows.map((cells, i) => (
-          <tr key={i}>
-            {cells.map((cell, j) => (
-              <td
-                key={j}
-                className={`px-1.5 py-0.5 ${j === 0 ? "whitespace-nowrap pr-3 font-medium text-slate-700" : "text-center"}`}
-              >
-                {cell}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }

@@ -44,7 +44,8 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     o.acquire === undefined &&
     o.enhance === undefined &&
     o.preEnhanceM === undefined &&
-    o.preDelM === undefined;
+    o.preDelM === undefined &&
+    o.statEvent === undefined;
 
   /** 1項目の更新（null でデフォルトに戻す）共通処理 */
   const patch = useCallback(
@@ -66,9 +67,9 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     [],
   );
 
-  /** 回数の設定。null で自動に戻す */
+  /** 回数の設定（前イベ・後イベ・ステイベ）。null で自動に戻す */
   const set = useCallback(
-    (id: string, key: "pre" | "post", value: number | null) => {
+    (id: string, key: "pre" | "post" | "statEvent", value: number | null) => {
       patch(id, key, value === null ? null : Math.max(0, value));
     },
     [patch],

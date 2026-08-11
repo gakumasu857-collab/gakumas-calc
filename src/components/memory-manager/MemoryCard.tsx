@@ -3,7 +3,6 @@
   Brain,
   Circle,
   Sparkles,
-  Wand2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -44,10 +43,8 @@ export default function MemoryCard({
   deleteMode = false,
 }: Props) {
   const plan = PLAN_STYLES[memory.plan] ?? PLAN_STYLES.共通;
-  // スキル選択メモリーは杖アイコン、色は所属プランの色
-  const Icon = memory.skillName
-    ? Wand2
-    : (PLAN_ICONS[memory.plan] ?? Circle);
+  // アイコンは常にプランのもの（名前はプランと独立の自由入力）
+  const Icon = PLAN_ICONS[memory.plan] ?? Circle;
   const deletable = deleteMode && !memory.isTemplate;
 
   return (

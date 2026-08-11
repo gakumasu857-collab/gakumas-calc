@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import {
   ATTR_LABEL,
@@ -8,14 +8,12 @@ import {
   BTN_DISABLED,
   PLAN_LIST,
   PLAN_STYLES,
-  SKILL_PICKER_STYLE,
   sortAbilities,
   type Ability,
   type AttrKey,
   type Memory,
   type PlanKey,
 } from "@/lib/memoryTypes";
-import PlanSelectorModal from "./PlanSelectorModal";
 
 type Props = {
   onAdd: (memory: Omit<Memory, "id" | "isTemplate">) => void;
@@ -27,10 +25,7 @@ const MAX_ABILITIES = 3;
 export default function MemoryCreator({ onAdd }: Props) {
   const [abilities, setAbilities] = useState<Ability[]>([]);
   const [plan, setPlan] = useState<PlanKey>("共通");
-  const [skillName, setSkillName] = useState<string | undefined>(undefined);
-  const [skillModalOpen, setSkillModalOpen] = useState(false);
-
-  const selectedAttrs = abilities.map((a) => a.attr);
+  const [name, setName] = useState("");
 
   /** 値ボタンのクリック: 同属性は値の置き換え、同じ値なら解除、新属性は3つまで追加 */
   const toggleValue = (attr: AttrKey, value: string) => {
@@ -47,17 +42,16 @@ export default function MemoryCreator({ onAdd }: Props) {
     });
   };
 
-  // プランを直接選ぶとスキル選択は解除される
-  const choosePlan = (p: PlanKey) => {
-    setPlan(p);
-    setSkillName(undefined);
-  };
-
   const handleAdd = () => {
     if (abilities.length === 0) return;
-    // Vo→Da→Vi→P→回復 の順に揃えて保存する
-    onAdd({ plan, skillName, abilities: sortAbilities(abilities) });
-    setAbilities([]); // プランは維持し、アビリティだけリセット
+    // Vo→Da→Vi→P→回復 の順に揃えて保存する。名前は任意（空なら未設定）
+    onAdd({
+      plan,
+      skillName: name.trim() || undefined,
+      abilities: sortAbilities(abilities),
+    });
+    setAbilities([]); // プランは維持し、アビリティと名前だけリセット
+    setName("");
   };
 
   return (
@@ -114,7 +108,7 @@ export default function MemoryCreator({ onAdd }: Props) {
         })}
       </div>
 
-      {/* プラン設定（スキル選択時はそのスキルの所属プランが自動で入る） */}
+      {/* プラン設定 */}
       <div className="mt-4">
         <p className="mb-1 text-xs text-slate-500">プラン設定:</p>
         <div className="flex flex-wrap gap-1.5">
@@ -125,7 +119,7 @@ export default function MemoryCreator({ onAdd }: Props) {
               <button
                 key={p}
                 type="button"
-                onClick={() => choosePlan(p)}
+                onClick={() => setPlan(p)}
                 className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
                   on ? s.btnOn : s.btnOff
                 }`}
@@ -134,16 +128,20 @@ export default function MemoryCreator({ onAdd }: Props) {
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => setSkillModalOpen(true)}
-            className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
-              skillName ? SKILL_PICKER_STYLE.btnOn : SKILL_PICKER_STYLE.btnOff
-            }`}
-          >
-            {skillName ? `スキル: ${skillName}` : "スキルから選択"}
-          </button>
         </div>
+      </div>
+
+      {/* 名前（任意）。プランとは独立に自由につけられる */}
+      <div className="mt-3">
+        <p className="mb-1 text-xs text-slate-500">名前（任意）:</p>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="例: 咲季用パラボ"
+          maxLength={20}
+          className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+        />
       </div>
 
       {/* 追加ボタン */}
@@ -160,18 +158,6 @@ export default function MemoryCreator({ onAdd }: Props) {
         <Plus size={16} />
         メモリー追加
       </button>
-
-      {skillModalOpen && (
-        <PlanSelectorModal
-          onSelect={(skill) => {
-            // スキルの所属プランをメモリーのプランにする
-            setPlan(skill.plan);
-            setSkillName(skill.name);
-            setSkillModalOpen(false);
-          }}
-          onClose={() => setSkillModalOpen(false)}
-        />
-      )}
     </section>
   );
 }
