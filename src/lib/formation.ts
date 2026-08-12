@@ -503,8 +503,12 @@ export type FindBestOptions = {
   minStat?: MinStatCondition;
 };
 
-/** 「試験補助を強める」をONにしたときの前イベ価値の重み倍率 */
-export const EXAM_ASSIST_PRE_BOOST = 2;
+/**
+ * 「試験補助を強める」をONにしたときの前イベ価値（アイテム補正・前イベ相互作用）の重み倍率。
+ * 基本方針: アイテムの評価が高い順に採用してよい（ステはΣmin(上限,ステ)で
+ * 評価に残るので、低くなりすぎない範囲で自動的に歯止めがかかる）。
+ */
+export const EXAM_ASSIST_PRE_BOOST = 4;
 
 /**
  * SP条件の不足1枚あたりのペナルティ。

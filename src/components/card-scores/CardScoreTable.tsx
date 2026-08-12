@@ -390,7 +390,7 @@ export default function CardScoreTable() {
         <Link to="/card-settings" className="text-blue-600 underline">
           サポカ設定
         </Link>
-        ページで設定でき、この表のアイテム補正・最大ステにも反映されます。Rカード・アシストはティア表が無いため「—」。
+        ページで設定でき、この表のアイテム補正・最大ステにも反映されます。アシストはティア表が無いため「—」。
       </p>
 
       {detail && detailCard && (

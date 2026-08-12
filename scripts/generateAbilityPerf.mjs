@@ -98,8 +98,8 @@ for (const row of abilityValues) {
 }
 
 // ---- slotTier（凸→ティアindex）----
-const RARITY_MAP = { SSR: "SSR", 配布SSR: "EventSSR", SR: "SR" };
-const slotTier = { SSR: [], EventSSR: [], SR: [] };
+const RARITY_MAP = { SSR: "SSR", 配布SSR: "EventSSR", SR: "SR", R: "R" };
+const slotTier = { SSR: [], EventSSR: [], SR: [], R: [] };
 for (const [sheetR, appR] of Object.entries(RARITY_MAP)) {
   for (let slot = 0; slot < 6; slot++) {
     const e = abilityEvolutions.find(
@@ -136,7 +136,7 @@ try {
 const out = { perf, slotTier, fixedCounts };
 writeFileSync(outPath, JSON.stringify(out, null, 1), "utf8");
 console.log(
-  `✓ perf ${Object.keys(perf).length}件 / slotTier 3レア / fixedCounts ${Object.keys(fixedCounts).length}件` +
+  `✓ perf ${Object.keys(perf).length}件 / slotTier ${Object.keys(slotTier).length}レア / fixedCounts ${Object.keys(fixedCounts).length}件` +
     (dup ? `（正規化キー衝突 ${dup}件！ 括弧・空白の表記を確認）` : ""),
 );
 if (missing.length) {

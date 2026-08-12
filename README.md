@@ -3,7 +3,7 @@
 Vite + React + React Router + Tailwind v4 の SPA。
 Cloudflare Workers 1つで **SPA配信 + マスタ配信API + スプシ→R2同期(cron)** をまかなう。
 
-- 本番: https://hoppepan.com
+- 本番: https://gkapps.hoppepan.com
 - 計算ロジックはすべてブラウザ側（localStorage + `src/lib/`）。Worker はマスタ配信専用。
 
 ## マスタ配信のしくみ
@@ -90,11 +90,11 @@ npx wrangler secret put SYNC_SECRET       # /api/sync 保護用の任意の長�
 
 ```bash
 # 手動で同期（初回や即時反映したいとき）
-curl -X POST -H "x-sync-token: <SYNC_SECRET>" https://hoppepan.com/api/sync
+curl -X POST -H "x-sync-token: <SYNC_SECRET>" https://gkapps.hoppepan.com/api/sync
 # → {"synced":[{"tab":"supMaster","rows":193},...],"skipped":[],...}
 
-curl https://hoppepan.com/api/master
-curl "https://hoppepan.com/api/master?name=supMaster"
+curl https://gkapps.hoppepan.com/api/master
+curl "https://gkapps.hoppepan.com/api/master?name=supMaster"
 ```
 
 ローカルは `npx wrangler dev`（R2/cron/secret 込みで Worker を再現）。

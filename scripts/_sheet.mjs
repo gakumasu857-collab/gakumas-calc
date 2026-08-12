@@ -3,7 +3,7 @@
  * データ源は「スプシ→Worker(cron 5分)→R2」で常に最新。gen スクリプトはここから引く。
  * 別エンドポイントを使うときは環境変数 SHEET_API で上書き。
  */
-const BASE = process.env.SHEET_API ?? "https://hoppepan.com";
+const BASE = process.env.SHEET_API ?? "https://gkapps.hoppepan.com";
 
 /** タブ名を指定して現行スプシのタブ（オブジェクト配列）を取得する */
 export async function fetchTab(name) {

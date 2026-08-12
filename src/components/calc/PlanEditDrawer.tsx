@@ -137,13 +137,23 @@ function HifEditor({ r }: { r: CalcResult }) {
   const schedule = r.schedule;
   return (
     <div className="flex flex-col gap-4">
-      <BulkRow
-        groups={[
-          { label: "メイン一括", onPick: (t) => schedule.applyAllMain(t) },
-          { label: "サブ一括", onPick: (t) => schedule.applyAllSubs(t) },
-          { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <BulkRow
+          groups={[
+            { label: "メイン一括", onPick: (t) => schedule.applyAllMain(t) },
+            { label: "サブ一括", onPick: (t) => schedule.applyAllSubs(t) },
+            { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
+          ]}
+        />
+        <button
+          type="button"
+          onClick={() => schedule.clearAllLessons()}
+          title="全レッスンを「踏まない」に戻す（メインの選択を解除）"
+          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+        >
+          レッスン全クリア
+        </button>
+      </div>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         <MiniTable
           head={["日程", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP"]}
@@ -158,8 +168,14 @@ function HifEditor({ r }: { r: CalcResult }) {
                     type={type}
                     selected={pick.main === type}
                     value={lesson.main[spIndex]}
+                    title={
+                      pick.main === type
+                        ? "もう一度クリックで「踏まない」に戻す"
+                        : undefined
+                    }
                     onClick={() => {
-                      if (pick.main !== type) schedule.setLessonMain(i, type);
+                      if (pick.main === type) schedule.clearLessonMain(i);
+                      else schedule.setLessonMain(i, type);
                     }}
                   />
                   {/* サブバッジ: クリックで残り2タイプを交互に切替 */}
@@ -630,17 +646,19 @@ function MiniTypeButton({
   selected,
   value,
   onClick,
+  title,
 }: {
   type: TypeKey;
   selected: boolean;
   value: number;
   onClick: () => void;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={TYPE_LABELS[type]}
+      title={title ?? TYPE_LABELS[type]}
       className={`h-8 w-10 rounded-md text-xs font-bold tabular-nums transition ${
         selected ? TYPE_STYLE[type].on : TYPE_STYLE[type].off
       }`}

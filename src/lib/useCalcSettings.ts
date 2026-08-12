@@ -76,8 +76,9 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   typeRatio: { enabled: false, vocal: 1, dance: 1, visual: 1 },
   examAssist: false,
   minStats: { vocal: 0, dance: 0, visual: 0 },
-  round1: 0,
-  round2: 0,
+  // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
+  round1: 1_400_000,
+  round2: 2_400_000,
   formation: "",
   maxStat: false,
 };

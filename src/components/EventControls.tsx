@@ -17,7 +17,11 @@ import {
 } from "@/lib/sheetScore";
 
 export type EventStoreLike = {
-  set: (id: string, key: "pre" | "post", value: number | null) => void;
+  set: (
+    id: string,
+    key: "pre" | "post" | "statEvent",
+    value: number | null,
+  ) => void;
   setTarget: (id: string, value: "A" | "M" | null) => void;
   setAssign: (
     id: string,
@@ -26,6 +30,57 @@ export type EventStoreLike = {
   ) => void;
   setAcquire: (id: string, value: boolean | null) => void;
 };
+
+/** カードがステイベ（パラメータイベント）を持つか */
+export function hasStatEvent(card: SupportCardData): boolean {
+  return card.abilities.some(
+    (s) => s !== null && "key" in s && s.key === "param_event",
+  );
+}
+
+/**
+ * ステイベ（パラメータイベント）の発動トグル。
+ * 前イベ・後イベ同様ランダム発動で、1育成に1回しか起こらないため〇/✕の2択。
+ */
+export function StatEventToggle({
+  card,
+  override,
+  events,
+}: {
+  card: SupportCardData;
+  override: EventCountOverride | undefined;
+  events: EventStoreLike;
+}) {
+  if (!hasStatEvent(card)) {
+    return <span className="text-slate-300">—</span>;
+  }
+  const active = (override?.statEvent ?? 1) > 0;
+  const btn = (on: boolean, cls: string) =>
+    `h-6 min-w-6 rounded px-1 text-[11px] font-bold transition ${
+      on ? cls : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+    }`;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 whitespace-nowrap"
+      title="ステイベ（パラメータイベント）が発動したか（1育成に1回まで）"
+    >
+      <button
+        type="button"
+        onClick={() => events.set(card.id, "statEvent", null)}
+        className={btn(active, "bg-emerald-500 text-white")}
+      >
+        〇
+      </button>
+      <button
+        type="button"
+        onClick={() => events.set(card.id, "statEvent", 0)}
+        className={btn(!active, "bg-slate-600 text-white")}
+      >
+        ✕
+      </button>
+    </span>
+  );
+}
 
 /** 前イベのスキル/Pアイテムの取得トグル（前イベなしカードは何も出さない） */
 export function AcquireToggle({

@@ -192,7 +192,7 @@ function ExportSheet({
             {SCENARIO_LABELS[r.scenario]}
             <span style={{ color: SUB, fontWeight: 400, fontSize: 12 }}>
               {" "}
-              ・ {new Date().toLocaleDateString("ja-JP")} ・ hoppepan.com
+              ・ {new Date().toLocaleDateString("ja-JP")} ・ gkapps.hoppepan.com
             </span>
           </div>
           <div style={{ marginTop: 2 }}>
@@ -471,7 +471,7 @@ function SupportCardCell({
         </div>
         {eventRow(
           "ステイベ",
-          hasStatEvent ? `×${statEventCount}` : null,
+          hasStatEvent ? (statEventCount > 0 ? "〇" : "✕") : null,
         )}
         {eventRow("前イベ", preKind ? `${preKind}×${m.preActs}` : null)}
         {eventRow("後イベ", postKind ? `${postKind}×${postCount}` : null)}

@@ -31,7 +31,8 @@ const [pidleName, pidleStatus, idleTypes] = await Promise.all([
 
 // ---- masters ----
 const masters = pidleName.map((r) => ({
-  url: "", // 画像は今後R2へ。ここは仮置きの空文字（表示側で非表示）。
+  // 画像は R2 の skill/<固有スキル名>.webp（固有スキル画像で識別する）
+  url: r["固有スキル名"] ? `skill/${r["固有スキル名"]}.webp` : "",
   idol: r["名前"] ?? "",
   cardName: r["カード名"] ?? "",
   skillName: r["固有スキル名"] ?? "",
@@ -86,6 +87,7 @@ for (const r of idleTypes) {
 }
 
 writeFileSync(outPath, JSON.stringify({ masters, growth, idolRanks }, null, 1), "utf8");
+const withImage = masters.filter((m) => m.url).length;
 console.log(
-  `✓ masters ${masters.length}件 / growth ${Object.keys(growth).length}タグ / idolRanks ${Object.keys(idolRanks).length}人（画像はR2待ちの仮置き=空）`,
+  `✓ masters ${masters.length}件 / growth ${Object.keys(growth).length}タグ / idolRanks ${Object.keys(idolRanks).length}人 / 画像(skill/) ${withImage}件`,
 );

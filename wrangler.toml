@@ -4,8 +4,7 @@ compatibility_date = "2025-09-01"
 
 # 本番の独自ドメイン（workers.dev のURLは無効化済み・こちらに一本化）
 routes = [
-  { pattern = "hoppepan.com", custom_domain = true },
-  { pattern = "www.hoppepan.com", custom_domain = true },
+  { pattern = "gkapps.hoppepan.com", custom_domain = true },
 ]
 
 # SPA（Vite の dist/）を配信。/api/* だけ Worker が先に処理し、

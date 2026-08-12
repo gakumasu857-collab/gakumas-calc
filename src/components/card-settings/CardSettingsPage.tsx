@@ -6,6 +6,7 @@ import {
   AcquireToggle,
   PostEventButtons,
   PreAssign,
+  StatEventToggle,
 } from "@/components/EventControls";
 import NumberField from "@/components/NumberField";
 import { matchesCardQuery } from "@/lib/cardSearch";
@@ -213,7 +214,7 @@ export default function CardSettingsPage() {
               </th>
               <th
                 className={thNarrow}
-                title="ステイベ（パラメータイベント）の発動回数。前イベ・後イベ同様ランダム発動なのでカードごとに変更できます（自動=1回）"
+                title="ステイベ（パラメータイベント）が発動したか。前イベ・後イベ同様ランダム発動で、1育成に1回だけ起こります"
               >
                 ステイベ
               </th>
@@ -293,22 +294,13 @@ export default function CardSettingsPage() {
                       <div className="h-9 w-20" />
                     )}
                   </td>
-                  {/* ステイベ（パラメータイベント）の発動回数 */}
+                  {/* ステイベ（パラメータイベント）の発動有無 */}
                   <td className={td}>
-                    {!card.abilities.some(
-                      (s) => s !== null && "key" in s && s.key === "param_event",
-                    ) ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      <NumberField
-                        value={override?.statEvent ?? 1}
-                        onChange={(v) =>
-                          events.set(card.id, "statEvent", v === 1 ? null : v)
-                        }
-                        max={9}
-                        className="w-14"
-                      />
-                    )}
+                    <StatEventToggle
+                      card={card}
+                      override={override}
+                      events={events}
+                    />
                   </td>
                   {/* 前イベ（獲得アイテム/スキルの画像＋取得トグル） */}
                   <td className={td}>

@@ -26,6 +26,7 @@ import {
   AcquireToggle,
   PostEventButtons,
   PreAssign,
+  StatEventToggle,
 } from "@/components/EventControls";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
@@ -959,6 +960,12 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
         <thead>
           <tr className="border-b border-slate-200">
             <th className={th}>カード</th>
+            <th
+              className={th}
+              title="ステイベ（パラメータイベント）が発動したか。1育成に1回だけランダムで起こります"
+            >
+              ステイベ
+            </th>
             <th className={th} title="取得しない場合は前イベ発動0回扱い">
               前イベ
             </th>
@@ -997,6 +1004,14 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
                       {card.name}
                     </span>
                   </span>
+                </td>
+                {/* ステイベ（パラメータイベント）の発動有無 */}
+                <td className={td}>
+                  <StatEventToggle
+                    card={card}
+                    override={override}
+                    events={r.events}
+                  />
                 </td>
                 {/* 前イベ（獲得アイテム/スキルの画像＋取得トグル） */}
                 <td className={td}>
