@@ -230,6 +230,17 @@ export const STAT_CAP = 3200;
 export const DECK_SIZE = 6;
 
 /**
+ * ステータス上限。数値ならシナリオ上限（全タイプ共通）、
+ * Recordならタイプ別上限（「最高ステータス」設定＝min(シナリオ上限, 設定値)）。
+ */
+export type StatCaps = number | Record<TypeKey, number>;
+
+/** タイプ別の上限値を取り出す */
+export function capFor(cap: StatCaps, type: TypeKey): number {
+  return typeof cap === "number" ? cap : cap[type];
+}
+
+/**
  * タイプ比率（例 1:3:2）を編成の6枚へ最大剰余法で配分したタイプ構成。
  * サポカ編成のタイプ割合固定に使う。
  */
@@ -420,7 +431,7 @@ export function eventBudgetScales(
 export function evaluateTeam(
   members: ScoredCard[],
   base: Record<TypeKey, number>,
-  cap: number = STAT_CAP,
+  cap: StatCaps = STAT_CAP,
   budget?: EventBudget,
   preBoost: number = 1,
 ): EvalResult {
@@ -463,7 +474,7 @@ export function evaluateTeam(
   const totals = {} as Formation["totals"];
   let score = 0;
   for (const type of TYPE_LIST) {
-    const capped = Math.min(cap, raw[type]);
+    const capped = Math.min(capFor(cap, type), raw[type]);
     totals[type] = { capped, raw: raw[type] };
     score += capped;
   }
@@ -486,8 +497,8 @@ export type FindBestOptions = {
   pinned?: ReadonlySet<string>;
   /** タイプごとのSPレッスン率アップ持ちの最低枚数条件 */
   spMin?: SpMinCondition;
-  /** タイプごとのステータス上限（シナリオ依存。省略時は3200） */
-  cap?: number;
+  /** ステータス上限（シナリオ上限、またはタイプ別の最高ステ設定。省略時は3200） */
+  cap?: StatCaps;
   /** 編成全体の前イベ・後イベの合計発動回数の上限（理論評価値用） */
   eventBudget?: EventBudget;
   /**

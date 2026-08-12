@@ -26,6 +26,8 @@ import {
 } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { imageUrl } from "@/lib/config";
+import { sumEventContrib } from "@/lib/formation";
+import { clampExtraCount } from "@/lib/sheetScore";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -83,7 +85,12 @@ export async function exportSheetImage(
   );
   try {
     const el = host.firstElementChild as HTMLElement;
-    const dataUrl = await domToPng(el, { scale: 2 });
+    // bypassingCache: 通常閲覧でキャッシュされた「CORSヘッダなし」の画像レスポンスを
+    // 再利用すると取り込みに失敗するため、出力時はキャッシュを迂回して取得する
+    const dataUrl = await domToPng(el, {
+      scale: 2,
+      fetch: { bypassingCache: true },
+    });
     const a = document.createElement("a");
     const stamp = new Date().toLocaleDateString("ja-JP").replace(/\//g, "-");
     a.href = dataUrl;
@@ -184,9 +191,26 @@ function ExportSheet({
           border: `2px solid ${BLUE}`,
           display: "flex",
           alignItems: "center",
-          gap: 16,
+          gap: 12,
         }}
       >
+        {/* Pアイドル（固有スキル画像） */}
+        {r.pMaster?.url && (
+          <img
+            src={imageUrl(r.pMaster.url)}
+            alt={r.pMaster.cardName}
+            // crossOrigin は付けない（通常閲覧のキャッシュと衝突して読み込みに失敗する。
+            // スクリーンショット側の fetch が bypassingCache + CORS で取り込む）
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 8,
+              objectFit: "cover",
+              flexShrink: 0,
+              border: `1px solid ${LINE}`,
+            }}
+          />
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 700 }}>
             {SCENARIO_LABELS[r.scenario]}
@@ -208,9 +232,11 @@ function ExportSheet({
               </>
             )}
           </div>
-          <div style={{ color: SUB, fontSize: 12 }}>
-            育成: {r.selectedSet?.name ?? "未選択"}
-          </div>
+          {settings.userName && (
+            <div style={{ color: SUB, fontSize: 12 }}>
+              Produced by {settings.userName}
+            </div>
+          )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: SUB }}>
@@ -331,37 +357,30 @@ function ExportSheet({
   );
 }
 
-/** メモリー4枠（名前＋アビリティ要約） */
+/** メモリー（タイプ別の合計値。固定値/％） */
 function MemoryList({ r }: { r: CalcResult }) {
-  const memories = r.memoryStore.selected.map((id) =>
-    r.memoryStore.findMemory(id),
-  );
-  if (memories.length === 0) {
+  const count = r.memoryStore.selected.length;
+  if (count === 0) {
     return <div style={{ color: "#dc2626", fontSize: 12 }}>未設定</div>;
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {memories.map((m, i) => (
-        <div key={i} style={{ fontSize: 11, whiteSpace: "nowrap" }}>
-          {m ? (
-            <>
-              <b>{m.skillName ?? m.plan}</b>{" "}
-              <span style={{ color: SUB }}>
-                {m.roleSpec
-                  ? `メイン+${m.roleSpec.mainPct}%×2 / サブ+${m.roleSpec.subFlat}`
-                  : m.abilities
-                      .map((a) =>
-                        a.attr === "回復"
-                          ? `回復${a.value}`
-                          : `${a.attr}${a.value}`,
-                      )
-                      .join(" ")}
-              </span>
-            </>
-          ) : (
-            <span style={{ color: FAINT }}>—</span>
-          )}
-        </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        whiteSpace: "nowrap",
+        fontSize: 12,
+      }}
+    >
+      <span style={{ color: SUB }}>{count}枚:</span>
+      {TYPE_KEYS.map((type) => (
+        <span key={type}>
+          <TypeChip type={type} />{" "}
+          <b style={{ fontVariantNumeric: "tabular-nums" }}>
+            {r.perType[type].memFixed} / {r.perType[type].memPct}%
+          </b>
+        </span>
       ))}
     </div>
   );
@@ -418,7 +437,8 @@ function SupportCardCell({
           <img
             src={url}
             alt={m.name}
-            crossOrigin="anonymous"
+            // crossOrigin は付けない（通常閲覧のキャッシュと衝突して読み込みに失敗する。
+            // スクリーンショット側の fetch が bypassingCache + CORS で取り込む）
             style={{
               width: "100%",
               height: "100%",
@@ -560,11 +580,10 @@ function HifPlan({ r }: { r: CalcResult }) {
             if (!pick.main) {
               return [lesson.label, <span key="n" style={{ color: FAINT }}>踏まない</span>, "", ""];
             }
-            const sp = pick.sp ? 1 : 0;
             return [
               lesson.label,
-              <TypeValue key="m" type={pick.main} value={lesson.main[sp]} />,
-              <TypeValue key="s" type={pick.sub} value={lesson.sub[sp]} />,
+              <TypeValue key="m" type={pick.main} />,
+              <TypeValue key="s" type={pick.sub} />,
               spMark(pick.sp),
             ];
           })}
@@ -573,11 +592,7 @@ function HifPlan({ r }: { r: CalcResult }) {
           head={["授業", "タイプ"]}
           rows={CLASSES.map((cls, i) => [
             cls.label,
-            <TypeValue
-              key="t"
-              type={r.schedule.classTypes[i]}
-              value={cls.gain}
-            />,
+            <TypeValue key="t" type={r.schedule.classTypes[i]} />,
           ])}
         />
         <PlanTable
@@ -610,11 +625,7 @@ function NiaPlan({ r }: { r: CalcResult }) {
             const pick = nia.lessons[i];
             return [
               lesson.label,
-              <TypeValue
-                key="t"
-                type={pick.main}
-                value={lesson.value[pick.sp ? 1 : 0]}
-              />,
+              <TypeValue key="t" type={pick.main} />,
               spMark(pick.sp),
             ];
           })}
@@ -649,14 +660,9 @@ function HatsuPlan({ r }: { r: CalcResult }) {
           head={["レッスン", "タイプ", "SP", "クリア"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
-            const sp = pick.sp ? 1 : 0;
             return [
               lesson.label,
-              <TypeValue
-                key="t"
-                type={pick.main}
-                value={pick.perfect ? lesson.perfectMain[sp] : lesson.clear[sp]}
-              />,
+              <TypeValue key="t" type={pick.main} />,
               spMark(pick.sp),
               pick.perfect ? "パフェ" : "クリア",
             ];
@@ -666,7 +672,7 @@ function HatsuPlan({ r }: { r: CalcResult }) {
           head={["授業", "タイプ"]}
           rows={HATSU_CLASSES.map((cls, i) => [
             cls.label,
-            <TypeValue key="t" type={hatsu.classTypes[i]} value={cls.gain} />,
+            <TypeValue key="t" type={hatsu.classTypes[i]} />,
           ])}
         />
         <PlanTable
@@ -687,15 +693,42 @@ function HatsuPlan({ r }: { r: CalcResult }) {
   );
 }
 
-/** 発動回数（回数>0のアビリティを4列の表で見やすく） */
+/** 全角括弧→半角・空白除去（イベント上乗せキーとの突き合わせ用） */
+const normLabel = (s: string) =>
+  s.replace(/（/g, "(").replace(/）/g, ")").replace(/\s+/g, "");
+
+/**
+ * 発動回数の一覧（サポカの前イベ・後イベによる上乗せ込みの最終回数）。
+ * 列数は auto-fill でアビリティが増えても自動で折り返す。
+ */
 function AbilityCountTable({ r }: { r: CalcResult }) {
   if (!r.selectedSet) {
     return <div style={{ color: FAINT }}>セット未選択</div>;
   }
   const set = r.selectedSet;
+  const members = r.members.filter(
+    (m): m is NonNullable<(typeof r.members)[number]> => m !== null,
+  );
+  // 編成の前イベ・後イベによる回数上乗せ（キーは正規化して突き合わせる）
+  const extraRaw = sumEventContrib(members);
+  const extraByNorm: Record<string, number> = {};
+  for (const key in extraRaw) {
+    extraByNorm[normLabel(key)] =
+      (extraByNorm[normLabel(key)] ?? 0) + extraRaw[key];
+  }
   const entries = (Object.keys(ABILITY_NAMES) as AbilityName[])
-    .map((key) => ({ key, count: r.ability.getCount(set, key) }))
-    .filter((e) => e.count > 0);
+    .map((key) => {
+      const label = ABILITY_NAMES[key];
+      const base = r.ability.getCount(set, key);
+      // 「〜回まで」の上限を超える上乗せは切り捨て（計算と同じ扱い）
+      const extra = clampExtraCount(
+        label,
+        base,
+        extraByNorm[normLabel(label)] ?? 0,
+      );
+      return { key, label, total: base + extra };
+    })
+    .filter((e) => e.total > 0);
   if (entries.length === 0) {
     return <div style={{ color: FAINT }}>回数の設定なし</div>;
   }
@@ -703,7 +736,7 @@ function AbilityCountTable({ r }: { r: CalcResult }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
+        gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
         gap: 0,
         border: `1px solid ${LINE}`,
       }}
@@ -727,9 +760,9 @@ function AbilityCountTable({ r }: { r: CalcResult }) {
               textOverflow: "ellipsis",
             }}
           >
-            {ABILITY_NAMES[e.key]}
+            {e.label}
           </span>
-          <b style={{ fontVariantNumeric: "tabular-nums" }}>×{e.count}</b>
+          <b style={{ fontVariantNumeric: "tabular-nums" }}>×{e.total}</b>
         </div>
       ))}
     </div>

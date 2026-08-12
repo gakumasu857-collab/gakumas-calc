@@ -130,7 +130,11 @@ export default function CalcPage() {
     const best = findBestFormation(owned, rentals, r.baseStats, {
       pinned: flags.pinned,
       spMin: settings.spMin,
-      cap: r.statCap,
+      cap: {
+        vocal: Math.min(r.statCap, settings.maxStats.vocal || r.statCap),
+        dance: Math.min(r.statCap, settings.maxStats.dance || r.statCap),
+        visual: Math.min(r.statCap, settings.maxStats.visual || r.statCap),
+      },
       extraScore: r.niaFudaExtra,
       preBoost: settings.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
       typeCounts: settings.typeRatio.enabled
@@ -427,6 +431,10 @@ export default function CalcPage() {
             {TYPE_KEYS.some((t) => settings.minStats[t] > 0)
               ? `（${TYPE_JA.vocal}${settings.minStats.vocal}/${TYPE_JA.dance}${settings.minStats.dance}/${TYPE_JA.visual}${settings.minStats.visual}）`
               : "＝条件なし"}{" "}
+            ／ 最高ステ
+            {TYPE_KEYS.some((t) => settings.maxStats[t] < 3200)
+              ? `（${TYPE_JA.vocal}${settings.maxStats.vocal}/${TYPE_JA.dance}${settings.maxStats.dance}/${TYPE_JA.visual}${settings.maxStats.visual}）`
+              : "＝制限なし"}{" "}
             ／ 試験補助{settings.examAssist ? "＝強め" : "＝標準"}
           </p>
           {optMsg && (
@@ -541,15 +549,25 @@ export default function CalcPage() {
         <Card
           title="セーブデータ"
           action={
-            <button
-              type="button"
-              onClick={() => void exportSheetImage(r, flags.pinned)}
-              title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画面と同じデザインの画像で保存します"
-              className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
-            >
-              <ImageDown size={13} />
-              画像で保存
-            </button>
+            <span className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={settings.userName}
+                onChange={(e) => calc.update({ userName: e.target.value })}
+                placeholder="ユーザー名（画像に載る）"
+                maxLength={20}
+                className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => void exportSheetImage(r, flags.pinned)}
+                title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画像で保存します"
+                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+              >
+                <ImageDown size={13} />
+                画像で保存
+              </button>
+            </span>
           }
         >
           <div className="flex flex-col gap-2.5">
@@ -724,6 +742,29 @@ export default function CalcPage() {
               </span>
             </p>
           )}
+          {/* この育成で得られるPポイント・体力（サポカ・前イベ・メモリー込み） */}
+          <p className="mt-1 text-sm text-slate-500">
+            Pポイント:{" "}
+            <b className="text-cyan-700">
+              {Math.round(r.resources.pTotal).toLocaleString()}
+            </b>
+            <span className="ml-1 text-[10px] text-slate-400">
+              （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
+              ＋サポカ{Math.round(r.resources.pCards)}）
+            </span>
+            <span className="ml-3">
+              体力回復:{" "}
+              <b className="text-emerald-700">
+                {Math.round(r.resources.recover)}
+              </b>
+              <span className="ml-1 text-[10px] text-slate-400">
+                （サポカ・前イベ由来
+                {r.resources.recoverMemoryCount > 0 &&
+                  `・回復メモリー×${r.resources.recoverMemoryCount}`}
+                {r.resources.maxHp > 0 && `・最大体力+${r.resources.maxHp}`}）
+              </span>
+            </span>
+          </p>
         </Card>
 
         {/* プロデュース開始時のステ */}

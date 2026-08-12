@@ -12,11 +12,13 @@
  * パラボ追従メモリーは「パラボ母数が大きい上位2タイプ」に%が付く。
  */
 import { useMemo } from "react";
-import { FINAL_ROUNDS, finalRoundValue } from "@/data/schedule";
+import { FINAL_ROUNDS, finalRoundValue, LESSONS } from "@/data/schedule";
 import {
+  HATSU_LESSONS,
   HATSU_PARAM_RATE,
   HATSU_RANK_VALUES,
   hatsuExamValue,
+  NIA_LESSONS,
   NIA_PARAM_RATE,
   niaFanValue,
   niaFudaVotes,
@@ -26,7 +28,6 @@ import {
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import {
   evaluateTeam,
-  EXAM_ASSIST_PRE_BOOST,
   scoreSelectedCards,
   summedParaboByType,
   type ScoredCard,
@@ -48,7 +49,7 @@ import {
   TYPE_SHEET_ROLE,
   manualCountFromSet,
 } from "./sheetContext";
-import { cardInitialFixed, paraboConvert } from "./sheetScore";
+import { cardInitialFixed, cardResources, paraboConvert } from "./sheetScore";
 import { useAbilityCounts } from "./useAbilityCounts";
 import { TYPE_KEYS, useCalcSettings, type TypeKey } from "./useCalcSettings";
 import { CALC_EVENT_COUNTS_KEY, useEventCounts } from "./useEventCounts";
@@ -139,16 +140,29 @@ export function useCalcResult() {
     let hifStar = { lessonStar: 0, examStar: 0 };
     let niaVotesBase = { sales: 0, auditions: 0, finale: 0, base: 0 };
     let ctx;
+    // レッスン由来のPポイント合計と、タイプ別「メイン踏み×SP」のPポイント（P率の母数）
+    let lessonP = 0;
+    const typeSpP: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     if (scenario === "niaMaster") {
       const nia = computeNiaGains(niaSchedule, niaTag, typeRanks);
       bd = nia.breakdown;
       schedGains = nia.gains;
       niaVotesBase = nia.votes;
+      lessonP = nia.pPoints;
+      NIA_LESSONS.forEach((lesson, i) => {
+        const pick = niaSchedule.lessons[i];
+        if (pick?.sp) typeSpP[pick.main] += lesson.p;
+      });
       ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks);
     } else if (scenario === "hatsuLegend") {
       const hatsu = computeHatsuGains(hatsuSchedule);
       bd = hatsu.breakdown;
       schedGains = hatsu.gains;
+      lessonP = hatsu.pPoints;
+      HATSU_LESSONS.forEach((lesson, i) => {
+        const pick = hatsuSchedule.lessons[i];
+        if (pick?.sp) typeSpP[pick.main] += lesson.p;
+      });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
       const sched = computeScheduleGains(schedule);
@@ -158,6 +172,11 @@ export function useCalcResult() {
         lessonStar: sched.breakdown.lessonStar,
         examStar: sched.breakdown.examStar,
       };
+      lessonP = sched.pPoints;
+      LESSONS.forEach((lesson, i) => {
+        const pick = schedule.lessons[i];
+        if (pick?.main && pick.sp) typeSpP[pick.main] += lesson.p;
+      });
       ctx = buildSheetScoreContext(schedule, manual, events.get);
     }
 
@@ -186,12 +205,19 @@ export function useCalcResult() {
       ? scoreSelectedCards(selected.slots, getLevel, ctx, TYPE_SHEET_ROLE)
       : selected.slots.map(() => null);
     const activeCards = slotCards.filter((m): m is ScoredCard => m !== null);
+    // 表示・評価値は常に素の値（「試験補助を強める」は理想編成の選定のみに効かせる）。
+    // タイプ別の最高ステ設定は min(シナリオ上限, 設定値) で反映する。
+    const caps: Record<TypeKey, number> = {
+      vocal: Math.min(statCap, settings.maxStats?.vocal || statCap),
+      dance: Math.min(statCap, settings.maxStats?.dance || statCap),
+      visual: Math.min(statCap, settings.maxStats?.visual || statCap),
+    };
     const teamEval = evaluateTeam(
       activeCards,
       { vocal: 0, dance: 0, visual: 0 },
-      statCap,
+      caps,
       undefined,
-      settings.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
+      1,
     );
     let memberIndex = 0;
     const members: (SelectedMember | null)[] = slotCards.map((m) =>
@@ -253,11 +279,45 @@ export function useCalcResult() {
         examGain: bd.exams[type],
         supportPoints,
         current,
-        capped: Math.min(statCap, current),
+        capped: Math.min(caps[type], current),
         startFixed: memFixed[type] + supportInitial + idolFixed,
         startPct: Math.round((memPct[type] + supportPct + idolPct) * 10) / 10,
       };
     }
+
+    // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
+    const resources = (() => {
+      let cardP = 0;
+      let recover = 0;
+      let maxHp = 0;
+      let rateLesson = 0;
+      let rateTypeSpTotal = 0;
+      for (const m of activeCards) {
+        const db = DB_BY_ID.get(m.id);
+        if (!db) continue;
+        const res = cardResources(db, m.level, TYPE_SHEET_ROLE[m.type], ctx);
+        cardP += res.p;
+        recover += res.recover;
+        maxHp += res.maxHp;
+        rateLesson += res.pRateLesson;
+        // タイプSP率は「自タイプのメイン踏み×SPレッスン」のPが母数
+        rateTypeSpTotal += res.pRateTypeSp * typeSpP[m.type];
+      }
+      const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
+      return {
+        /** 合計Pポイント（レッスン＋メモリー＋サポカ固定＋P率換算） */
+        pTotal: lessonP + mem.P + cardP + rateP,
+        pLesson: lessonP,
+        pMemory: mem.P,
+        pCards: cardP + rateP,
+        /** サポカ・前イベ由来の体力回復合計 */
+        recover,
+        /** 最大体力上昇の合計 */
+        maxHp,
+        /** 回復メモリーの個数（回復量はゲーム側仕様のため個数のみ） */
+        recoverMemoryCount: mem.回復.Vo + mem.回復.Da + mem.回復.Vi,
+      };
+    })();
 
     // ---- スター性・本戦・評価値（シナリオ別） ----
     const isHif = scenario === "hif";
@@ -369,6 +429,7 @@ export function useCalcResult() {
       cappedSum,
       rating,
       scenarioValues,
+      resources,
       statCap,
       ctx,
       // 互換用: タイプ⇔シート内部ロールの固定対応

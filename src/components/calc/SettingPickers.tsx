@@ -188,7 +188,35 @@ export function TheorySettingsModal({
             ))}
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            各タイプの最終ステータスがこの値以上になる編成・踏み方を優先します。全部を満たせないときは、そのアイドルの審査基準が高いタイプから順にできるだけ満たします。
+            各タイプの最終ステータスがこの値以上になる編成・踏み方を優先します。既に満たされる編成が最適なら結果は変わりません（必要以上には盛りません）。全部を満たせないときは、そのアイドルの審査基準が高いタイプから順にできるだけ満たします。
+          </p>
+        </section>
+
+        {/* タイプ別の最高ステータス */}
+        <section className="border-t border-slate-100 pt-3">
+          <p className="font-semibold">最高ステータス（3200=制限なし）</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {TYPE_KEYS.map((type) => (
+              <label key={type} className="flex items-center gap-1">
+                <span
+                  className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
+                >
+                  {TYPE_LABELS[type]}
+                </span>
+                <NumberField
+                  value={settings.maxStats[type]}
+                  onChange={(v) =>
+                    onUpdate({ maxStats: { ...settings.maxStats, [type]: v } })
+                  }
+                  max={3200}
+                  sliderMax={3200}
+                  className="w-20"
+                />
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">
+            この値を超えた分は評価に数えません（例: Da1000 → Daを1000までとみなして、その範囲で合計が最も高くなる編成・踏み方を探します）。
           </p>
         </section>
 
@@ -201,10 +229,10 @@ export function TheorySettingsModal({
               onChange={(e) => onUpdate({ examAssist: e.target.checked })}
               className="accent-blue-600"
             />
-            試験補助を強めにする
+            試験補助を強めにする（アイテム特化で編成）
           </label>
           <p className="mt-1 text-[11px] text-slate-400">
-            ONにすると前イベ（アイテム/スキル）の価値を重めに見積もり、前イベが強いサポカを優先して編成します。※前イベの強さはカードごとの設定（今後追加予定）で精度が上がります。
+            ONにすると前イベ（アイテム）の価値を大きく重み付けし、アイテムが強いサポカを優先して編成します。表示されるステータス・評価値は常に素の値です（この重みは編成の選び方だけに効きます）。
           </p>
         </section>
       </div>

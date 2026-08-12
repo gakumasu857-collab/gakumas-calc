@@ -55,6 +55,7 @@ export function buildAutoOptimizeInput(
       : undefined,
     examAssist: settings.examAssist,
     minStats: settings.minStats,
+    maxStats: settings.maxStats,
     wappenCount: settings.wappenCount,
     round1: settings.round1,
     round2: settings.round2,

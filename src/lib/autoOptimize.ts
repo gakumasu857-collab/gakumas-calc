@@ -150,6 +150,11 @@ export type AutoOptimizeInput = {
    * 全部満たせないときはアイドルの審査基準が高いタイプから優先して満たす。
    */
   minStats?: Record<TypeKey, number>;
+  /**
+   * タイプ別の最高ステータス（上限）。min(シナリオ上限, この値) で評価する。
+   * 「この属性はこれ以上盛らない」の指定（デフォルト3200=制限なし）。
+   */
+  maxStats?: Record<TypeKey, number>;
   /** H.I.F.の評価値の固定部分（ワッペン・本戦） */
   wappenCount: number;
   round1: number;
@@ -324,8 +329,13 @@ export function runFullOptimize(
   }
 
   // ---- 最終評価値の算出（勝者のみ・計算ページと同じ式） ----
+  // 試験補助の重み（preBoost）は探索専用なので、表示する評価値からは外す
   const ectx = finalEngine.buildEctx(best.stepping);
-  const { cappedSum, members } = finalEngine.preciseObjective(best.slots, ectx);
+  const { cappedSum, members } = finalEngine.preciseObjective(
+    best.slots,
+    ectx,
+    true,
+  );
   const rating = finalEngine.fullRating(best.stepping, cappedSum, members);
 
   return {
@@ -392,8 +402,15 @@ class OptimizeEngine {
     string,
     { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> }
   >();
+  /** タイプ別のステ上限（min(シナリオ上限, 最高ステ設定)） */
+  private caps: Record<TypeKey, number>;
 
   constructor(private input: AutoOptimizeInput) {
+    this.caps = {
+      vocal: Math.min(input.statCap, input.maxStats?.vocal || input.statCap),
+      dance: Math.min(input.statCap, input.maxStats?.dance || input.statCap),
+      visual: Math.min(input.statCap, input.maxStats?.visual || input.statCap),
+    };
     const req = input.minStats;
     if (req && TYPE_KEYS.some((t) => (req[t] ?? 0) > 0)) {
       this.minStatCond = {
@@ -836,10 +853,15 @@ class OptimizeEngine {
     return { ctx, baseNoConv, basePct, baseStats };
   }
 
-  /** 編成を固定して正確に評価（合算パラボ・上限・NIA札・イベント予算込み） */
+  /**
+   * 編成を固定して正確に評価（合算パラボ・上限・NIA札・イベント予算込み）。
+   * @param forReport true なら「試験補助を強める」の重み（preBoost）を外して
+   *   実際のステ・評価値を返す（探索用の目的関数と表示値を分離する）。
+   */
   preciseObjective(
     slots: SelectedSlot[],
     ectx: Ectx,
+    forReport = false,
   ): {
     obj: number;
     cappedSum: number;
@@ -852,7 +874,7 @@ class OptimizeEngine {
       ectx.ctx,
       TYPE_SHEET_ROLE,
     ).filter((m): m is ScoredCard => m !== null);
-    return this.preciseMembers(members, ectx);
+    return this.preciseMembers(members, ectx, forReport);
   }
 
   /**
@@ -863,6 +885,7 @@ class OptimizeEngine {
   preciseMembers(
     members: ScoredCard[],
     ectx: Ectx,
+    forReport = false,
   ): {
     obj: number;
     cappedSum: number;
@@ -874,9 +897,10 @@ class OptimizeEngine {
     const team = evaluateTeam(
       members,
       ZERO_STATS,
-      this.input.statCap,
+      this.caps,
       budget,
-      this.input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
+      // 試験補助の重みは探索の目的関数のみ。表示・評価値には掛けない
+      !forReport && this.input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
     );
     const adj = summedParaboByType(
       members,
@@ -893,12 +917,11 @@ class OptimizeEngine {
         itemCut[m.type] += (1 - scales.pre) * m.itemBonus;
       }
     }
-    const cap = this.input.statCap;
     let cappedSum = 0;
     const stats: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const type of TYPE_KEYS) {
       stats[type] = Math.min(
-        cap,
+        this.caps[type],
         ectx.baseNoConv[type] +
           adj[type].support +
           adj[type].conv -
@@ -1042,7 +1065,7 @@ class OptimizeEngine {
     return findBestFormation(owned, rentals, ectx.baseStats, {
       pinned: input.flags.pinned,
       spMin: input.spMin,
-      cap: input.statCap,
+      cap: this.caps,
       eventBudget: input.eventBudget,
       extraScore: this.extraScore,
       preBoost: input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
@@ -1173,9 +1196,9 @@ class OptimizeEngine {
     const team = evaluateTeam(
       scored,
       ZERO_STATS,
-      input.statCap,
+      this.caps,
       input.eventBudget,
-      input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
+      1, // 表示用なので試験補助の重みは掛けない
     );
     const picks = scored.map((m, i) => ({
       id: m.id,

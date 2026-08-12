@@ -55,9 +55,17 @@ export type CalcSettings = {
    * 全部満たせないときはアイドルの審査基準が高いタイプから優先して満たす。
    */
   minStats: Record<TypeKey, number>;
+  /**
+   * タイプごとの最高ステータス（デフォルト3200=制限なし）。
+   * min(シナリオ上限, この値) を超えた分は評価に数えない
+   * （例: Da1000 なら「Daが1000以下の範囲で最も高い編成」を探す）。
+   */
+  maxStats: Record<TypeKey, number>;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
   round2: number;
+  /** 画像出力に載せるユーザー名（任意） */
+  userName: string;
   /** おすすめ編成の選択（例: Vo / 1 / Da / 5 / Vi / 0） */
   formation: string;
   /** 最大ステ編成選択 */
@@ -76,11 +84,13 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   typeRatio: { enabled: false, vocal: 1, dance: 1, visual: 1 },
   examAssist: false,
   minStats: { vocal: 0, dance: 0, visual: 0 },
+  maxStats: { vocal: 3200, dance: 3200, visual: 3200 },
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,
   formation: "",
   maxStat: false,
+  userName: "",
 };
 
 export type CalcSave = {
@@ -124,6 +134,7 @@ function loadCurrentSettings(): CalcSettings {
       ...(stored.typeRatio ?? {}),
     },
     minStats: { ...DEFAULT_SETTINGS.minStats, ...(stored.minStats ?? {}) },
+    maxStats: { ...DEFAULT_SETTINGS.maxStats, ...(stored.maxStats ?? {}) },
   };
 }
 
