@@ -753,15 +753,11 @@ export default function CalcPage() {
               ＋サポカ{Math.round(r.resources.pCards)}）
             </span>
             <span className="ml-3">
-              体力回復:{" "}
-              <b className="text-emerald-700">
-                {Math.round(r.resources.recover)}
-              </b>
+              体力:{" "}
+              <b className="text-emerald-700">{Math.round(r.resources.hpTotal)}</b>
               <span className="ml-1 text-[10px] text-slate-400">
-                （サポカ・前イベ由来
-                {r.resources.recoverMemoryCount > 0 &&
-                  `・回復メモリー×${r.resources.recoverMemoryCount}`}
-                {r.resources.maxHp > 0 && `・最大体力+${r.resources.maxHp}`}）
+                （Pアイドル{r.resources.hpIdol}
+                {r.resources.hpCards > 0 && `＋サポカ${r.resources.hpCards}`}）
               </span>
             </span>
           </p>

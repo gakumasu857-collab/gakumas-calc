@@ -304,18 +304,17 @@ export function useCalcResult() {
         rateTypeSpTotal += res.pRateTypeSp * typeSpP[m.type];
       }
       const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
+      void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
       return {
         /** 合計Pポイント（レッスン＋メモリー＋サポカ固定＋P率換算） */
         pTotal: lessonP + mem.P + cardP + rateP,
         pLesson: lessonP,
         pMemory: mem.P,
         pCards: cardP + rateP,
-        /** サポカ・前イベ由来の体力回復合計 */
-        recover,
-        /** 最大体力上昇の合計 */
-        maxHp,
-        /** 回復メモリーの個数（回復量はゲーム側仕様のため個数のみ） */
-        recoverMemoryCount: mem.回復.Vo + mem.回復.Da + mem.回復.Vi,
+        /** 体力（Pアイドルの体力＋サポカの最大体力上昇） */
+        hpTotal: (pStats?.hp ?? 0) + maxHp,
+        hpIdol: pStats?.hp ?? 0,
+        hpCards: maxHp,
       };
     })();
 

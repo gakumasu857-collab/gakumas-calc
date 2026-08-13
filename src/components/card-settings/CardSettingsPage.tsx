@@ -90,7 +90,12 @@ export default function CardSettingsPage() {
     const map = new Map<string, number>();
     for (const card of SUPPORT_CARD_DB) {
       const type = TYPE_OF_CARD[card.cardType];
-      const role = type ? typeRole[type] : undefined;
+      const role =
+        type != null
+          ? typeRole[type]
+          : card.cardType === "アシスト"
+            ? ("main1" as const)
+            : undefined;
       if (!role) {
         map.set(card.id, -Infinity);
         continue;

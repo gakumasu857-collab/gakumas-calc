@@ -77,7 +77,10 @@ export default function ScoreDetailModal({
                         ? `${fmt((item.value ?? 0) * 100)}%`
                         : item.value === null
                           ? "—"
-                          : fmt(item.value)}
+                          : item.value <= 1
+                            ? // 率系（レッスンサポート率など）は%表示
+                              `${Math.round(item.value * 1000) / 10}%`
+                            : fmt(item.value)}
                     </td>
                     <td className={td}>
                       {item.kind === "count" && (
@@ -98,7 +101,8 @@ export default function ScoreDetailModal({
                           レッスン・試験の獲得×%を個別にfloorして合算
                         </span>
                       )}
-                      {item.kind === "excluded" && "計算対象外（アビリティ3）"}
+                      {item.kind === "excluded" &&
+                        "点数計算対象外（アビリティ3。効果量のみ表示）"}
                       {item.kind === "none" && "—"}
                     </td>
                     <td

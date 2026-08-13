@@ -10,7 +10,6 @@ import DatabasePage from "@/components/database/DatabasePage";
 import DebugPage from "@/components/debug/DebugPage";
 import MemoryManager from "@/components/memory-manager/MemoryManager";
 import OwnershipPage from "@/components/ownership/OwnershipPage";
-import ScenarioSchedulePage from "@/components/schedule/ScenarioSchedulePage";
 
 /** メイン（/=計算ページ）以外のページ（共通の余白＋見出しで包む） */
 const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
@@ -20,11 +19,6 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
     path: "/ability-counts",
     title: "アビリティ発動回数",
     element: <AbilityCountManager />,
-  },
-  {
-    path: "/lessons",
-    title: "レッスン・オーディション・授業",
-    element: <ScenarioSchedulePage />,
   },
   {
     path: "/card-settings",

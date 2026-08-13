@@ -45,6 +45,12 @@ export type ScoredCard = {
   image: string;
   rarity: string;
   type: TypeKey;
+  /**
+   * アシスト（トレーナー）カードか。
+   * アシストのステ系アビリティは Vo/Da/Vi の3タイプ全部に効くため、
+   * points は「3タイプ合計」（1タイプあたりは points/3）で持つ。type は便宜上 vocal。
+   */
+  assist?: boolean;
   /** 凸数(0〜4) */
   level: number;
   /** ステータス貢献（sheetScore＋アイテム補正。イベント相互作用は含まない） */
@@ -104,12 +110,17 @@ function scoreCard(
   typeRole: Partial<Record<TypeKey, SheetRole>>,
   rental: boolean,
 ): ScoredCard | null {
-  const type = TYPE_OF_CARD[card.cardType];
-  if (!type) return null; // アシスト等
-  const role = typeRole[type];
+  // アシスト（トレーナー）: ステ系アビリティが3タイプ全部に効く。
+  // アビリティはレッスン系を持たないため回数キーはロール非依存 → main1 で1タイプ分を
+  // 計算し、3倍して「3タイプ合計」として扱う（評価側で /3 して各タイプへ配る）。
+  const assist = card.cardType === "アシスト";
+  const type = assist ? "vocal" : TYPE_OF_CARD[card.cardType];
+  if (!type) return null;
+  const role = assist ? "main1" : typeRole[type];
   if (!role) return null; // ロール未割当のタイプ
-  const base = sheetScore(card, level, role, ctx);
-  if (base === null) return null; // R等、計算不能
+  const perTypeBase = sheetScore(card, level, role, ctx);
+  if (perTypeBase === null) return null; // ティア表なし等、計算不能
+  const base = assist ? perTypeBase * 3 : perTypeBase;
   const itemBonus = itemCorrectionAuto(card, role, ctx)?.points ?? 0;
   const valuesByKey = abilityValuesByCountKey(card, level, role);
   const baseCounts: Record<string, number> = {};
@@ -125,6 +136,7 @@ function scoreCard(
     image: IMAGE_BY_ID.get(card.id) ?? card.imageUrl,
     rarity: card.rarity,
     type,
+    assist,
     level,
     points: base + itemBonus,
     itemBonus,
@@ -354,6 +366,13 @@ export function summedParaboByType(
     visual: { support: 0, pct: 0 },
   };
   members.forEach((m, i) => {
+    if (m.assist) {
+      // アシストは3タイプ均等（パラボは持たない）。シナジーは各タイプに満額
+      for (const t of TYPE_LIST) {
+        acc[t].support += m.points / 3 + (synergies[i] ?? 0);
+      }
+      return;
+    }
     const role = typeRole[m.type];
     const g = role ? ctx.gains[role] : undefined;
     // 各カードの点数から自前のパラボ変換分を抜く（あとで合算して変換し直す）
@@ -465,11 +484,19 @@ export function evaluateTeam(
   members.forEach((m, i) => {
     // 前イベが予算で目減りする分、アイテム補正（発動回数×上昇値）も同率で引く。
     // 試験補助（preBoost>1）では前イベのアイテム補正ぶんを追加で加点する。
-    raw[m.type] +=
+    // アシストのシナジー（上乗せ発動）も3タイプ全部に効くので3倍する
+    const syn = m.assist ? synergies[i] * 3 : synergies[i];
+    const total =
       m.points +
-      synergies[i] -
+      syn -
       (1 - scales.pre) * m.itemBonus +
       (preBoost - 1) * scales.pre * m.itemBonus;
+    if (m.assist) {
+      // アシストは3タイプ全部に均等（points は3タイプ合計で持っている）
+      for (const type of TYPE_LIST) raw[type] += total / 3;
+    } else {
+      raw[m.type] += total;
+    }
   });
   const totals = {} as Formation["totals"];
   let score = 0;

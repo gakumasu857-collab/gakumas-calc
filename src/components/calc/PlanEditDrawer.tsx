@@ -10,7 +10,13 @@ import { useState } from "react";
 import { CalendarCheck, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
-import { CLASSES, EXAMS, LESSONS } from "@/data/schedule";
+import {
+  CLASSES,
+  distributeExam,
+  EXAMS,
+  examStar,
+  LESSONS,
+} from "@/data/schedule";
 import {
   HATSU_CLASSES,
   HATSU_EXAMS,
@@ -281,10 +287,38 @@ function HifEditor({ r }: { r: CalcResult }) {
                   総スコア{" "}
                   <b className="text-slate-800">{total.toLocaleString()}</b>
                 </span>
+                {/* この配分での上昇量とスター性 */}
+                {total > 0 && (
+                  <span className="w-full text-[11px] tabular-nums text-slate-500">
+                    →{" "}
+                    {(() => {
+                      const dist = distributeExam(i, scores, TYPE_KEYS);
+                      return TYPE_KEYS.map((t) => (
+                        <span key={t} className="mr-2">
+                          <b className={TYPE_STYLE[t].head}>
+                            {TYPE_LABELS[t]}
+                          </b>{" "}
+                          +{Math.round(dist[t])}
+                        </span>
+                      ));
+                    })()}
+                    <span className="text-violet-600">
+                      ★{examStar(i, total)}
+                    </span>
+                    <span className="ml-2 text-slate-400">
+                      ※パラメータボーナス%は別途上乗せ
+                    </span>
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
+        <p className="mt-1.5 text-[11px] tabular-nums text-slate-500">
+          レッスン・授業のPポイント合計:{" "}
+          <b className="text-cyan-700">{r.resources.pLesson}</b> ／
+          レッスンのスター性: <b className="text-violet-600">{r.starParts.lesson}</b>
+        </p>
       </Section>
     </div>
   );

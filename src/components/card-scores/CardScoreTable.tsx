@@ -135,7 +135,13 @@ export default function CardScoreTable() {
   const rows: Row[] = useMemo(() => {
     return SUPPORT_CARD_DB.map((card) => {
       const type = TYPE_OF_CARD[card.cardType];
-      const role = type ? typeRole[type] : undefined;
+      // アシストはロール非依存（3タイプ全部に効く）。main1で1タイプ分を計算する
+      const role =
+        type != null
+          ? typeRole[type]
+          : card.cardType === "アシスト"
+            ? ("main1" as const)
+            : undefined;
       const scores = role
         ? [0, 1, 2, 3, 4].map((level) => sheetScore(card, level, role, ctx))
         : [null, null, null, null, null];
@@ -390,7 +396,7 @@ export default function CardScoreTable() {
         <Link to="/card-settings" className="text-blue-600 underline">
           サポカ設定
         </Link>
-        ページで設定でき、この表のアイテム補正・最大ステにも反映されます。アシストはティア表が無いため「—」。
+        ページで設定でき、この表のアイテム補正・最大ステにも反映されます。アシストの点数は1タイプ分の値です（実際はVo/Da/Viすべてに同値で効きます）。
       </p>
 
       {detail && detailCard && (
