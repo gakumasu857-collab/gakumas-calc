@@ -475,7 +475,25 @@ function SupportCardCell({
             marginBottom: 2,
           }}
         >
-          <TypeChip type={m.type} />
+          {m.assist ? (
+            <span
+              style={{
+                display: "inline-block",
+                minWidth: 24,
+                borderRadius: 4,
+                padding: "0 4px",
+                background: "#e2e8f0",
+                color: "#475569",
+                fontSize: 11,
+                fontWeight: 700,
+                textAlign: "center",
+              }}
+            >
+              ア
+            </span>
+          ) : (
+            <TypeChip type={m.type} />
+          )}
           <span
             style={{
               fontSize: 10,

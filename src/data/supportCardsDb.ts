@@ -52,6 +52,12 @@ export type SupportCardData = {
    * 枠の位置は凸解放段階に対応する可能性があるため詰めない。
    */
   abilities: (AbilitySlot | null)[];
+  /**
+   * アビリティ1〜6の効果タイプ（abi_type列: Vocal/Dance/Visual/Assist）。
+   * アシスト（トレーナー）カードは枠ごとに効くタイプが違うため、これで判定する。
+   * Assist はステに直接効かない枠（率系・P系・回復系など）。
+   */
+  abilityTypes: string[];
   /** 元CSVの画像URL（将来はR2のキーに置き換える想定） */
   imageUrl: string;
   /** 使用制限（プラン）: 共通 / センス / ロジック / アノマリー */
@@ -193,6 +199,9 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
   const abilities: (AbilitySlot | null)[] = Array.from({ length: 6 }, (_, i) =>
     toAbilitySlot(str(row[`${COL.abilityPrefix}${i + 1}`])),
   );
+  const abilityTypes = Array.from({ length: 6 }, (_, i) =>
+    str(row[`abi_type${i + 1}`]),
+  );
 
   const isSkill = numOf(row.is_skill) > 0;
   const isItem = numOf(row.p_item_get_ut3) > 0;
@@ -242,6 +251,7 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
     rarity: RARITY_ALIASES[str(row[COL.rarity])] ?? "SSR",
     cardType: CARD_TYPE_JP[str(row[COL.cardType])] ?? "",
     abilities,
+    abilityTypes,
     imageUrl: "", // supMaster に画像URL列は無い（カタログが R2 名前一致で解決）
     plan: str(row[COL.plan]),
     preEventType,

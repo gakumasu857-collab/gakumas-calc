@@ -237,6 +237,8 @@ export type OptimizeDebug = {
       id: string;
       name: string;
       type: TypeKey;
+      /** アシスト（トレーナー）カードか（表示は「アシスト」にする） */
+      assist: boolean;
       level: number;
       rental: boolean;
       points: number;
@@ -908,6 +910,7 @@ class OptimizeEngine {
       ectx.ctx,
       TYPE_SHEET_ROLE,
       ectx.basePct,
+      team.synergiesByType,
     );
     // 前イベが予算で目減りする分、アイテム補正も同率で引く
     const scales = eventBudgetScales(members, budget);
@@ -1204,6 +1207,7 @@ class OptimizeEngine {
       id: m.id,
       name: m.name,
       type: m.type,
+      assist: m.assist ?? false,
       level: m.level,
       rental: m.rental,
       points: Math.round(m.points),

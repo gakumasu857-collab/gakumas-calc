@@ -156,6 +156,8 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   何もなし: "nothing",
   体力なし: "nothing",
   "試験終了時": "stage_finish_ut2",
+  // 前イベのトリガー列（triggered_by）は括弧なし表記
+  特別指導: "extra_lecture_ut3",
   // supMaster で英語キーのまま残っているセルの受け皿（本来スプシ側で「差し入れ時回復」に直す）
   recovery_supply: "recovery_supply",
   // 発動回数タブ(abilityCountsHIF/NIA)は旧名のままの行があるので受ける

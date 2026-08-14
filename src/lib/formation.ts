@@ -27,6 +27,7 @@ import {
   postEventActivations,
   postEventStatRelevant,
   sheetScore,
+  slotAbilityEntry,
   type SheetRole,
   type SheetScoreContext,
 } from "./sheetScore";
@@ -47,10 +48,14 @@ export type ScoredCard = {
   type: TypeKey;
   /**
    * アシスト（トレーナー）カードか。
-   * アシストのステ系アビリティは Vo/Da/Vi の3タイプ全部に効くため、
-   * points は「3タイプ合計」（1タイプあたりは points/3）で持つ。type は便宜上 vocal。
+   * アシストは枠ごとに効くタイプが違う（abi_type列）。points は全タイプ合計、
+   * タイプ別の内訳は pointsByType / valuesByKeyByType に持つ。type は内部都合で vocal。
    */
   assist?: boolean;
+  /** アシスト用: タイプ別のアビリティ点（イベント相互作用・アイテム補正は含まない） */
+  pointsByType?: Record<TypeKey, number>;
+  /** アシスト用: タイプ別の「回数キー→効果量」（シナジーのタイプ割当に使う） */
+  valuesByKeyByType?: Record<TypeKey, Record<string, number>>;
   /** 凸数(0〜4) */
   level: number;
   /** ステータス貢献（sheetScore＋アイテム補正。イベント相互作用は含まない） */
@@ -110,19 +115,42 @@ function scoreCard(
   typeRole: Partial<Record<TypeKey, SheetRole>>,
   rental: boolean,
 ): ScoredCard | null {
-  // アシスト（トレーナー）: ステ系アビリティが3タイプ全部に効く。
-  // アビリティはレッスン系を持たないため回数キーはロール非依存 → main1 で1タイプ分を
-  // 計算し、3倍して「3タイプ合計」として扱う（評価側で /3 して各タイプへ配る）。
+  // アシスト（トレーナー）: 枠ごとに abi_type 列のタイプへ効く（Assist枠=非ステ）。
   const assist = card.cardType === "アシスト";
   const type = assist ? "vocal" : TYPE_OF_CARD[card.cardType];
   if (!type) return null;
   const role = assist ? "main1" : typeRole[type];
   if (!role) return null; // ロール未割当のタイプ
-  const perTypeBase = sheetScore(card, level, role, ctx);
-  if (perTypeBase === null) return null; // ティア表なし等、計算不能
-  const base = assist ? perTypeBase * 3 : perTypeBase;
+
+  let base: number;
+  let pointsByType: Record<TypeKey, number> | undefined;
+  let valuesByKeyByType: Record<TypeKey, Record<string, number>> | undefined;
+  let valuesByKey: Record<string, number>;
+  if (assist) {
+    pointsByType = { vocal: 0, dance: 0, visual: 0 };
+    valuesByKeyByType = { vocal: {}, dance: {}, visual: {} };
+    valuesByKey = {};
+    for (const slotIndex of [0, 1, 3, 4, 5]) {
+      const slotType = TYPE_OF_CARD[card.abilityTypes[slotIndex]];
+      if (!slotType) continue; // Assist枠（率系・P系・回復系）はステ計算外
+      const slotRole = typeRole[slotType];
+      if (!slotRole) continue;
+      const entry = slotAbilityEntry(card, level, slotRole, slotIndex);
+      if (!entry) continue;
+      pointsByType[slotType] += entry.value * ctx.counts(entry.countKey);
+      valuesByKeyByType[slotType][entry.countKey] =
+        (valuesByKeyByType[slotType][entry.countKey] ?? 0) + entry.value;
+      valuesByKey[entry.countKey] =
+        (valuesByKey[entry.countKey] ?? 0) + entry.value;
+    }
+    base = TYPE_LIST.reduce((sum, t) => sum + pointsByType![t], 0);
+  } else {
+    const score = sheetScore(card, level, role, ctx);
+    if (score === null) return null; // ティア表なし等、計算不能
+    base = score;
+    valuesByKey = abilityValuesByCountKey(card, level, role);
+  }
   const itemBonus = itemCorrectionAuto(card, role, ctx)?.points ?? 0;
-  const valuesByKey = abilityValuesByCountKey(card, level, role);
   const baseCounts: Record<string, number> = {};
   for (const key in valuesByKey) baseCounts[key] = ctx.counts(key);
   const contrib = eventCountContributionSplit(card, role, ctx);
@@ -137,6 +165,8 @@ function scoreCard(
     rarity: card.rarity,
     type,
     assist,
+    pointsByType,
+    valuesByKeyByType,
     level,
     points: base + itemBonus,
     itemBonus,
@@ -288,6 +318,8 @@ export type EvalResult = {
   totals: Formation["totals"];
   score: number;
   synergies: number[];
+  /** アシストのタイプ別シナジー内訳（アシスト以外は null） */
+  synergiesByType: (Record<TypeKey, number> | null)[];
 };
 
 /** SP最低枚数条件（タイプごとのSPレッスン率アップ持ちの最低枚数） */
@@ -359,6 +391,7 @@ export function summedParaboByType(
   ctx: SheetScoreContext,
   typeRole: Partial<Record<TypeKey, SheetRole>>,
   basePct: Record<TypeKey, number>,
+  synergiesByType?: (Record<TypeKey, number> | null)[],
 ): Record<TypeKey, { support: number; conv: number; totalPct: number }> {
   const acc = {
     vocal: { support: 0, pct: 0 },
@@ -366,11 +399,16 @@ export function summedParaboByType(
     visual: { support: 0, pct: 0 },
   };
   members.forEach((m, i) => {
-    if (m.assist) {
-      // アシストは3タイプ均等（パラボは持たない）。シナジーは各タイプに満額
+    if (m.assist && m.pointsByType) {
+      // アシストは枠ごとの効果タイプ（abi_type）に従って各タイプへ配る（パラボは持たない）
+      const byType = synergiesByType?.[i] ?? null;
+      let assigned = 0;
       for (const t of TYPE_LIST) {
-        acc[t].support += m.points / 3 + (synergies[i] ?? 0);
+        acc[t].support += m.pointsByType[t] + (byType?.[t] ?? 0);
+        assigned += m.pointsByType[t];
       }
+      // points に含まれるアイテム補正分は type 側へ
+      acc[m.type].support += m.points - assigned;
       return;
     }
     const role = typeRole[m.type];
@@ -470,7 +508,24 @@ export function evaluateTeam(
     dance: base.dance,
     visual: base.visual,
   };
+  const synergiesByType: (Record<TypeKey, number> | null)[] = [];
   const synergies = members.map((m) => {
+    // アシストは枠ごとのタイプ別にシナジーを分けて数える
+    if (m.assist && m.valuesByKeyByType) {
+      const byType: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const type of TYPE_LIST) {
+        const values = m.valuesByKeyByType[type];
+        for (const key in values) {
+          const e = extra[key];
+          if (!e) continue;
+          const effective = clampExtraCount(key, m.baseCounts[key] ?? 0, e);
+          if (effective > 0) byType[type] += values[key] * effective;
+        }
+      }
+      synergiesByType.push(byType);
+      return byType.vocal + byType.dance + byType.visual;
+    }
+    synergiesByType.push(null);
     let syn = 0;
     for (const key in m.valuesByKey) {
       const e = extra[key];
@@ -484,18 +539,19 @@ export function evaluateTeam(
   members.forEach((m, i) => {
     // 前イベが予算で目減りする分、アイテム補正（発動回数×上昇値）も同率で引く。
     // 試験補助（preBoost>1）では前イベのアイテム補正ぶんを追加で加点する。
-    // アシストのシナジー（上乗せ発動）も3タイプ全部に効くので3倍する
-    const syn = m.assist ? synergies[i] * 3 : synergies[i];
-    const total =
-      m.points +
-      syn -
-      (1 - scales.pre) * m.itemBonus +
-      (preBoost - 1) * scales.pre * m.itemBonus;
-    if (m.assist) {
-      // アシストは3タイプ全部に均等（points は3タイプ合計で持っている）
-      for (const type of TYPE_LIST) raw[type] += total / 3;
+    const itemAdj =
+      -(1 - scales.pre) * m.itemBonus + (preBoost - 1) * scales.pre * m.itemBonus;
+    if (m.assist && m.pointsByType) {
+      const byType = synergiesByType[i];
+      let assigned = 0;
+      for (const type of TYPE_LIST) {
+        raw[type] += m.pointsByType[type] + (byType?.[type] ?? 0);
+        assigned += m.pointsByType[type];
+      }
+      // points に含まれるアイテム補正分（points − タイプ別合計）と予算調整は type 側へ
+      raw[m.type] += m.points - assigned + itemAdj;
     } else {
-      raw[m.type] += total;
+      raw[m.type] += m.points + synergies[i] + itemAdj;
     }
   });
   const totals = {} as Formation["totals"];
@@ -505,7 +561,7 @@ export function evaluateTeam(
     totals[type] = { capped, raw: raw[type] };
     score += capped;
   }
-  return { totals, score, synergies };
+  return { totals, score, synergies, synergiesByType };
 }
 
 function groupByType(cards: ScoredCard[]): Record<TypeKey, ScoredCard[]> {

@@ -243,6 +243,7 @@ export function useCalcResult() {
       ctx,
       TYPE_SHEET_ROLE,
       basePct,
+      teamEval.synergiesByType,
     );
 
     const perType = {} as Record<TypeKey, PerTypeResult>;

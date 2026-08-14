@@ -227,9 +227,15 @@ export default function DebugPage() {
                       )}
                     </td>
                     <td className="px-2 py-1">
-                      <span className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[m.type]}`}>
-                        {TYPE_LABELS[m.type]}
-                      </span>
+                      {m.assist ? (
+                        <span className="rounded bg-slate-200 px-1 text-xs font-bold text-slate-600">
+                          アシスト
+                        </span>
+                      ) : (
+                        <span className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[m.type]}`}>
+                          {TYPE_LABELS[m.type]}
+                        </span>
+                      )}
                     </td>
                     <td className="px-2 py-1">{m.level}</td>
                     <td className="px-2 py-1">{num(m.points)}</td>
@@ -309,9 +315,15 @@ export default function DebugPage() {
                             )}
                           </td>
                           <td className="px-2 py-1">
-                            <span className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[p.type]}`}>
-                              {TYPE_LABELS[p.type]}
-                            </span>
+                            {p.assist ? (
+                              <span className="rounded bg-slate-200 px-1 text-xs font-bold text-slate-600">
+                                アシスト
+                              </span>
+                            ) : (
+                              <span className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[p.type]}`}>
+                                {TYPE_LABELS[p.type]}
+                              </span>
+                            )}
                           </td>
                           <td className="px-2 py-1">{num(p.points)}</td>
                           <td className="px-2 py-1">{num(p.synergy)}</td>
@@ -502,11 +514,17 @@ function SearchDebug({
                         )}
                       </td>
                       <td className="px-2 py-1">
-                        <span
-                          className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[p.type]}`}
-                        >
-                          {TYPE_LABELS[p.type]}
-                        </span>
+                        {p.assist ? (
+                          <span className="rounded bg-slate-200 px-1 text-xs font-bold text-slate-600">
+                            アシスト
+                          </span>
+                        ) : (
+                          <span
+                            className={`rounded px-1 text-xs font-bold ${TYPE_CHIP[p.type]}`}
+                          >
+                            {TYPE_LABELS[p.type]}
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-1">{p.level}</td>
                       <td className="px-2 py-1">{num(p.points)}</td>
