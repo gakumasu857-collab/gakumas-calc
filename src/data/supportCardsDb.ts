@@ -69,6 +69,11 @@ export type SupportCardData = {
   preEvent: PreEventInfo;
   /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
   searchWords: string[];
+  /**
+   * アイテム評価（スプシ strongest 列）。前イベで得るアイテム/スキルが
+   * 試験中どれだけ強いかの評点（-5〜7程度）。空欄は null＝試験の助けにならない。
+   */
+  strongest: number | null;
   /** 上記以外の列すべて（列名→値）。新列は自動的にここへ入る */
   extras: Record<string, string>;
 };
@@ -261,6 +266,7 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
       .split(/[,、]/)
       .map((w) => w.trim())
       .filter(Boolean),
+    strongest: str(row.strongest) === "" ? null : numOf(row.strongest),
     extras,
   };
 }

@@ -46,8 +46,9 @@ export type CalcSettings = {
    */
   typeRatio: { enabled: boolean } & Record<TypeKey, number>;
   /**
-   * 試験補助を強めに見積もる（理論評価値用）。
-   * ONで「試験終了時（2回まで）」など試験系アビリティを最大回数発動として扱う。
+   * 試験補助を強めにする（理想編成の選定用）。
+   * ONで「アイテム評価が高い」「ドリンク獲得」「SP率持ち」のサポカを優先して
+   * 編成する（EXAM_ASSIST_WEIGHTS）。表示されるステ・評価値は常に素の値。
    */
   examAssist: boolean;
   /**

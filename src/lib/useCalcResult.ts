@@ -216,8 +216,6 @@ export function useCalcResult() {
       activeCards,
       { vocal: 0, dance: 0, visual: 0 },
       caps,
-      undefined,
-      1,
     );
     let memberIndex = 0;
     const members: (SelectedMember | null)[] = slotCards.map((m) =>

@@ -9,10 +9,7 @@
  * - Pアイドルのプランに合うカードのみ（共通は誰でも可）
  * - レンタル枠が必ず1枠（全カードから完凸を1枚借りる。レンタルNGは除外）
  * - 前イベ・後イベによる発動回数の上乗せ（イベント相互作用）を編成全体で評価
- *
- * 【未対応（今後の課題）】
- * - アシストタイプのカード（ロール＝タイプ割当が無いため対象外）
- * - Rカード（ティア表が未提供）
+ * - アシスト（トレーナー）は枠ごとに abi_type 列のタイプへ効く
  */
 import { SUPPORT_CARD_DB, type SupportCardData } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -68,6 +65,11 @@ export type ScoredCard = {
   rental: boolean;
   /** SPレッスン率アップ持ちか（SP最低枚数条件用） */
   hasSpUp: boolean;
+  /**
+   * 「試験の助けになる度」のステ換算値（試験補助を強めるON時に目的関数へ足す）。
+   * アイテム評価（strongest）＋ドリンク獲得＋SP率持ちの合成。表示値には含めない。
+   */
+  examAssist: number;
   /** 前イベ・後イベが編成全体に与える発動回数の上乗せ（回数キー→回数。前後の合算） */
   eventContrib: Record<string, number>;
   /** 前イベ分の上乗せ（合計発動回数の予算スケール用） */
@@ -158,6 +160,17 @@ function scoreCard(
   for (const key in contrib.post) {
     eventContrib[key] = (eventContrib[key] ?? 0) + contrib.post[key];
   }
+  const hasSpUp = card.abilities.some(
+    (slot) => slot && "key" in slot && slot.key === "up_SP_lesson_rate",
+  );
+  // 試験の助けになる度: アイテム評価（空欄=0。負の評点は弱いだけなので0扱い）
+  // ＋前イベのドリンク獲得本数＋SP率持ち。ステ点はそのまま目的関数に残るので、
+  // 「ステも高い」カードほど自然に勝つ。
+  const drinkCount = Number(card.extras["ドリンク獲得"] ?? 0) || 0;
+  const examAssist =
+    EXAM_ASSIST_WEIGHTS.rating * Math.max(0, card.strongest ?? 0) +
+    EXAM_ASSIST_WEIGHTS.drink * drinkCount +
+    (hasSpUp ? EXAM_ASSIST_WEIGHTS.spRate : 0);
   return {
     id: card.id,
     name: card.name,
@@ -172,9 +185,8 @@ function scoreCard(
     itemBonus,
     bonusPercent: cardBonusPercent(card, level),
     rental,
-    hasSpUp: card.abilities.some(
-      (slot) => slot && "key" in slot && slot.key === "up_SP_lesson_rate",
-    ),
+    hasSpUp,
+    examAssist,
     eventContrib,
     preContrib: contrib.pre,
     postContrib: contrib.post,
@@ -482,22 +494,18 @@ export function eventBudgetScales(
  * 編成の合計を評価する（イベント相互作用込み・タイプ上限はシナリオ依存）。選択サポカの評価にも使う。
  * @param budget 前イベ取得数（カード1枚=1）・後イベ発動数の上限（理論評価値用）。
  *   超過分は比例配分でスケールし、前イベ由来のアイテム補正も同率で目減りさせる。
- * @param preBoost 前イベ由来の価値（アイテム補正・前イベ相互作用）の重み倍率。
- *   「試験補助を強める」で1より大きくすると、前イベが強いサポカが優先されやすくなる。
  */
 export function evaluateTeam(
   members: ScoredCard[],
   base: Record<TypeKey, number>,
   cap: StatCaps = STAT_CAP,
   budget?: EventBudget,
-  preBoost: number = 1,
 ): EvalResult {
   const scales = eventBudgetScales(members, budget);
   const extra: Record<string, number> = {};
   for (const m of members) {
     for (const key in m.preContrib) {
-      // 前イベの相互作用（他カードへの上乗せ）を preBoost 倍で重み付け
-      extra[key] = (extra[key] ?? 0) + m.preContrib[key] * scales.pre * preBoost;
+      extra[key] = (extra[key] ?? 0) + m.preContrib[key] * scales.pre;
     }
     for (const key in m.postContrib) {
       extra[key] = (extra[key] ?? 0) + m.postContrib[key] * scales.post;
@@ -537,10 +545,8 @@ export function evaluateTeam(
     return syn;
   });
   members.forEach((m, i) => {
-    // 前イベが予算で目減りする分、アイテム補正（発動回数×上昇値）も同率で引く。
-    // 試験補助（preBoost>1）では前イベのアイテム補正ぶんを追加で加点する。
-    const itemAdj =
-      -(1 - scales.pre) * m.itemBonus + (preBoost - 1) * scales.pre * m.itemBonus;
+    // 前イベが予算で目減りする分、アイテム補正（発動回数×上昇値）も同率で引く
+    const itemAdj = -(1 - scales.pre) * m.itemBonus;
     if (m.assist && m.pointsByType) {
       const byType = synergiesByType[i];
       let assigned = 0;
@@ -564,14 +570,17 @@ export function evaluateTeam(
   return { totals, score, synergies, synergiesByType };
 }
 
-function groupByType(cards: ScoredCard[]): Record<TypeKey, ScoredCard[]> {
+function groupByType(
+  cards: ScoredCard[],
+  value: (c: ScoredCard) => number = (c) => c.points,
+): Record<TypeKey, ScoredCard[]> {
   const pools: Record<TypeKey, ScoredCard[]> = {
     vocal: [],
     dance: [],
     visual: [],
   };
   for (const card of cards) pools[card.type].push(card);
-  for (const type of TYPE_LIST) pools[type].sort((a, b) => b.points - a.points);
+  for (const type of TYPE_LIST) pools[type].sort((a, b) => value(b) - value(a));
   return pools;
 }
 
@@ -589,8 +598,8 @@ export type FindBestOptions = {
    * NIAの札（スキルカード獲得→ファン投票数→評価値）などに使う。
    */
   extraScore?: (members: ScoredCard[]) => number;
-  /** 前イベ価値の重み倍率（試験補助を強める）。省略時1 */
-  preBoost?: number;
+  /** 試験補助を強める（各カードの examAssist を目的関数へ足す）。省略時OFF */
+  examAssist?: boolean;
   /** サポカ編成のタイプ構成（Vo/Da/Vi各枚数・合計6）。指定するとこの構成に固定 */
   typeCounts?: Record<TypeKey, number>;
   /** タイプ別の最低ステータス条件（審査基準順の優先つき） */
@@ -598,11 +607,27 @@ export type FindBestOptions = {
 };
 
 /**
- * 「試験補助を強める」をONにしたときの前イベ価値（アイテム補正・前イベ相互作用）の重み倍率。
- * 基本方針: アイテムの評価が高い順に採用してよい（ステはΣmin(上限,ステ)で
- * 評価に残るので、低くなりすぎない範囲で自動的に歯止めがかかる）。
+ * 「試験補助を強める」の重み（1点＝ステ1相当で目的関数へ足す）。
+ * 対象は (1) アイテム評価（strongest列。空欄=助けにならない→加点なし）
+ * (2) 前イベのドリンク獲得 (3) SPレッスン率アップ持ち。
+ * ステはΣmin(上限,ステ)で評価に残るので「ステも高い」カードが自然に優先され、
+ * 最低ステ条件（minStat）が下限の歯止めになる。
  */
-export const EXAM_ASSIST_PRE_BOOST = 4;
+export const EXAM_ASSIST_WEIGHTS = {
+  /** アイテム評価1点あたり（例: 評点5 → ステ400相当の優先度） */
+  rating: 80,
+  /** ドリンク獲得1本あたり */
+  drink: 80,
+  /** SPレッスン率アップ持ち1枚あたり */
+  spRate: 60,
+} as const;
+
+/** 編成の「試験の助けになる度」合計（試験補助を強めるON時の加点） */
+export function examAssistSum(members: ScoredCard[]): number {
+  let sum = 0;
+  for (const m of members) sum += m.examAssist;
+  return sum;
+}
 
 /**
  * SP条件の不足1枚あたりのペナルティ。
@@ -812,13 +837,7 @@ export function findBestFormation(
   const cap = opts?.cap ?? STAT_CAP;
   const spMin = opts?.spMin;
   const evalPenalized = (members: ScoredCard[]) => {
-    const team = evaluateTeam(
-      members,
-      base,
-      cap,
-      opts?.eventBudget,
-      opts?.preBoost ?? 1,
-    );
+    const team = evaluateTeam(members, base, cap, opts?.eventBudget);
     const capped: Record<TypeKey, number> = {
       vocal: team.totals.vocal.capped,
       dance: team.totals.dance.capped,
@@ -827,6 +846,8 @@ export function findBestFormation(
     return (
       team.score +
       (opts?.extraScore?.(members) ?? 0) +
+      // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
+      (opts?.examAssist ? examAssistSum(members) : 0) +
       minStatBonus(capped, opts?.minStat) -
       spConditionShortfall(members, spMin) * SP_PENALTY
     );
@@ -843,16 +864,24 @@ export function findBestFormation(
   const ownedPinnedIds = new Set(ownedPinned.map((c) => c.id));
 
   // レンタル候補: 固定があればそれで確定、無ければタイプ別上位からシード
-  // （固定済みカードと同名のレンタルは重複になるため除外）
+  // （固定済みカードと同名のレンタルは重複になるため除外）。
+  // 試験補助を強めるときはシードの上位取りにも examAssist を効かせる
+  // （山登りだけでは点数下位の補助カードへ届きにくいため）。
+  const seedValue = opts?.examAssist
+    ? (c: ScoredCard) => c.points + c.examAssist
+    : undefined;
   const usableRentals = rentals.filter((c) => !ownedPinnedIds.has(c.id));
-  const rentalPools = groupByType(usableRentals);
+  const rentalPools = groupByType(usableRentals, seedValue);
   const rentalSeeds: (ScoredCard | null)[] = pinnedRental
     ? [pinnedRental]
     : useRental
       ? TYPE_LIST.flatMap((t) => rentalPools[t].slice(0, PRUNE_RENTAL))
       : [null];
 
-  const pools = groupByType(owned.filter((c) => !ownedPinnedIds.has(c.id)));
+  const pools = groupByType(
+    owned.filter((c) => !ownedPinnedIds.has(c.id)),
+    seedValue,
+  );
   const spForced = pickSpForced(pools, ownedPinned, spMin, opts?.typeCounts);
   const ctx: SearchCtx = {
     evalPenalized,

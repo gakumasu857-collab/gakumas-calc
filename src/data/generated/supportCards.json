@@ -4650,7 +4650,7 @@
   "type": "Assist",
   "plan": "共通",
   "abi_type1": "Assist",
-  "ability1": "最大体力上昇",
+  "ability1": "最大体力上昇（1アビ）",
   "abi_type2": "Assist",
   "ability2": "全SPレッスン率（14%）",
   "abi_type3": "Assist",
@@ -5343,7 +5343,7 @@
   "p_item_get_ut3": 0,
   "p_point": 0,
   "recovery": 0,
-  "Search_word": "花萌ゆ季節,有村麻央,姫崎莉波"
+  "Search_word": "花萌ゆ季節,花燃ゆ,有村麻央,姫崎莉波"
  },
  {
   "id": 100,

@@ -34,7 +34,6 @@ import { runFullOptimize } from "@/lib/autoOptimize";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
-  EXAM_ASSIST_PRE_BOOST,
   findBestFormation,
   planAllows,
   scoreOwnedCards,
@@ -136,7 +135,7 @@ export default function CalcPage() {
         visual: Math.min(r.statCap, settings.maxStats.visual || r.statCap),
       },
       extraScore: r.niaFudaExtra,
-      preBoost: settings.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
+      examAssist: settings.examAssist,
       typeCounts: settings.typeRatio.enabled
         ? typeCountsFromRatio({
             vocal: settings.typeRatio.vocal,

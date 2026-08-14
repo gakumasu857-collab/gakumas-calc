@@ -33,7 +33,7 @@ import {
 import {
   evaluateTeam,
   eventBudgetScales,
-  EXAM_ASSIST_PRE_BOOST,
+  examAssistSum,
   findBestFormation,
   minStatBonus,
   SP_PENALTY,
@@ -143,7 +143,7 @@ export type AutoOptimizeInput = {
    * 未指定ならタイプ構成も自由に探索する。
    */
   typeRatio?: Record<TypeKey, number> | null;
-  /** 試験補助を強める（試験系アビリティの回数を底上げして評価） */
+  /** 試験補助を強める（アイテム評価・ドリンク獲得・SP率持ちを優先して編成） */
   examAssist?: boolean;
   /**
    * タイプ別の最低ステータス（0=条件なし）。
@@ -331,7 +331,7 @@ export function runFullOptimize(
   }
 
   // ---- 最終評価値の算出（勝者のみ・計算ページと同じ式） ----
-  // 試験補助の重み（preBoost）は探索専用なので、表示する評価値からは外す
+  // 試験補助の加点（examAssist）は探索専用なので、表示する評価値からは外す
   const ectx = finalEngine.buildEctx(best.stepping);
   const { cappedSum, members } = finalEngine.preciseObjective(
     best.slots,
@@ -389,8 +389,9 @@ export function optimizeSteppingForSlots(
  * 3. 評価        : buildEctx / preciseObjective / preciseMembers
  * 4. 編成・仕上げ: allocateEvents / buildFormation / fullRating / buildDebug
  * 踏み方そのものの定義と局所探索は optimize/stepping.ts・optimize/anneal.ts 側。
+ * export は開発検証用（devHarness）。アプリからは runFullOptimize 経由で使う。
  */
-class OptimizeEngine {
+export class OptimizeEngine {
   evaluated = 0;
   /** この時刻を過ぎたら新しい起点・ラウンドを始めない（探索時間の上限） */
   deadline = Infinity;
@@ -640,6 +641,11 @@ class OptimizeEngine {
    * 「あるタイプが上限で溢れていて、レッスンを1つ逃がすと別のカードが勝つ」
    * ような解に到達できない。ここではレッスン軸の全代替それぞれで編成を
    * 組み直して同時評価し、改善が見つかり次第 best を更新して true を返す。
+   *
+   * 第2パスでは選抜スコアの「単タイプ全寄せ」も同時に変える（HIFのみ）。
+   * レッスン変更だけ・選抜寄せだけ・編成組み直しだけではどれも悪化するのに、
+   * 3点同時なら勝つ谷（例: DaViセンスの「レッスン1つVi化＋選抜全Vi＋
+   * ドリンク型カードへ差し替え」）はこのパスでしか越えられない。
    */
   private jointLessonFormationMove(best: {
     stepping: Stepping;
@@ -650,33 +656,162 @@ class OptimizeEngine {
     const lessonCount = best.stepping.lessons.length;
     // steppingAxes は先頭 lessonCount 個がレッスン軸（stepping.ts の構築順）
     const lessonAxes = steppingAxes(best.stepping).slice(0, lessonCount);
+    const tryTrial = (trial: Stepping): boolean => {
+      const ectx = this.buildEctx(trial);
+      const formation = this.buildFormation(ectx);
+      if (!formation) return false;
+      const slots = formation.picks.map((p) => ({
+        id: p.id,
+        rental: p.rental,
+      }));
+      const { obj } = this.preciseObjective(slots, ectx);
+      if (obj > best.score + 1e-9) {
+        best.stepping = trial;
+        best.slots = slots;
+        best.score = obj;
+        best.spShortfall = formation.spShortfall;
+        return true;
+      }
+      return false;
+    };
+    // 第1パス: レッスン軸のみ変更（選抜は現状のまま）
     for (const axis of lessonAxes) {
       for (const trial of axis.alternatives(best.stepping)) {
         if (performance.now() > this.deadline) return false;
-        const ectx = this.buildEctx(trial);
-        const formation = this.buildFormation(ectx);
-        if (!formation) continue;
-        const slots = formation.picks.map((p) => ({
-          id: p.id,
-          rental: p.rental,
-        }));
-        const { obj } = this.preciseObjective(slots, ectx);
-        if (obj > best.score + 1e-9) {
-          best.stepping = trial;
-          best.slots = slots;
-          best.score = obj;
-          best.spShortfall = formation.spShortfall;
-          return true;
+        if (tryTrial(trial)) return true;
+      }
+    }
+    // 第2パス: レッスン1箇所のメイン変更＋全選抜の単タイプ寄せを同時に試す。
+    // こちらは最良改善（全候補を見て一番良い組を採用）。第1パスと違い
+    // 「どの日をオフタイプにするか」で数点変わるため、最初に見つかった改善で
+    // 確定すると劣った位置に固まってしまう。サブは「他レッスンで最多のメイン
+    // タイプ」で仮置きし、細部は後続の山登り・入れ替え手に任せる
+    // （サブの全組まで試すと編成組み直しが倍増して時間切れしやすい）。
+    if (best.stepping.kind !== "hif") return false;
+    const cur = best.stepping;
+    const mainCounts: Record<TypeKey, number> = {
+      vocal: 0,
+      dance: 0,
+      visual: 0,
+    };
+    for (const l of cur.lessons) if (l.main) mainCounts[l.main]++;
+    let bestTrial: {
+      stepping: Stepping;
+      slots: SelectedSlot[];
+      score: number;
+      spShortfall: number;
+    } | null = null;
+    for (let i = 0; i < cur.lessons.length; i++) {
+      const li = cur.lessons[i];
+      for (const newMain of TYPE_KEYS) {
+        if (newMain === li.main) continue;
+        const sub = TYPE_KEYS.filter((t) => t !== newMain).sort(
+          (a, b) => mainCounts[b] - mainCounts[a],
+        )[0];
+        const lessons = cur.lessons.map((l, j) =>
+          j === i ? { ...l, main: newMain, sub } : l,
+        );
+        // 寄せ先はその踏み方でメインに使うタイプだけ（無関係な寄せは無駄撃ち）
+        const mains = new Set(lessons.map((l) => l.main));
+        for (const type of TYPE_KEYS) {
+          if (!mains.has(type)) continue;
+          if (performance.now() > this.deadline) break;
+          const ratio: [number, number, number] = [
+            type === "vocal" ? 1 : 0,
+            type === "dance" ? 1 : 0,
+            type === "visual" ? 1 : 0,
+          ];
+          const exams = cur.examScores.map((_, k) =>
+            examScoresFromRatio(k, ratio),
+          );
+          if (
+            exams.every((e, k) => sameExamScores(e, cur.examScores[k])) &&
+            lessons[i].main === li.main
+          )
+            continue;
+          const s: Stepping = { ...cur, lessons, examScores: exams };
+          const ectx = this.buildEctx(s);
+          const formation = this.buildFormation(ectx);
+          if (!formation) continue;
+          const slots = formation.picks.map((p) => ({
+            id: p.id,
+            rental: p.rental,
+          }));
+          const { obj } = this.preciseObjective(slots, ectx);
+          if (obj > (bestTrial?.score ?? best.score) + 1e-9) {
+            bestTrial = {
+              stepping: s,
+              slots,
+              score: obj,
+              spShortfall: formation.spShortfall,
+            };
+          }
         }
       }
+    }
+    if (bestTrial) {
+      best.stepping = bestTrial.stepping;
+      best.slots = bestTrial.slots;
+      best.score = bestTrial.score;
+      best.spShortfall = bestTrial.spShortfall;
+      return true;
     }
     return false;
   }
 
   /**
+   * レッスン2日分の踏み方（メイン/サブ/SP）をまるごと入れ替える2軸手。
+   * 日ごとの獲得量が違うため「どの日をオフタイプにするか」で数点変わるが、
+   * 1軸ずつの山登りでは中間状態が悪化して越えられない。編成固定なので速い。
+   */
+  private swapLessonPicks(best: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+  }): boolean {
+    const swapAt = <T,>(arr: readonly T[], i: number, j: number): T[] => {
+      const out = arr.slice();
+      const t = out[i];
+      out[i] = out[j];
+      out[j] = t;
+      return out;
+    };
+    let improved = false;
+    for (let pass = 0; pass < 3; pass++) {
+      let roundImproved = false;
+      const n = best.stepping.lessons.length;
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (performance.now() > this.deadline) return improved;
+          const cur = best.stepping;
+          if (JSON.stringify(cur.lessons[i]) === JSON.stringify(cur.lessons[j]))
+            continue;
+          const trial: Stepping =
+            cur.kind === "hif"
+              ? { ...cur, lessons: swapAt(cur.lessons, i, j) }
+              : cur.kind === "nia"
+                ? { ...cur, lessons: swapAt(cur.lessons, i, j) }
+                : { ...cur, lessons: swapAt(cur.lessons, i, j) };
+          const { obj } = this.preciseObjective(
+            best.slots,
+            this.buildEctx(trial),
+          );
+          if (obj > best.score + 1e-9) {
+            best.stepping = trial;
+            best.score = obj;
+            improved = roundImproved = true;
+          }
+        }
+      }
+      if (!roundImproved) break;
+    }
+    return improved;
+  }
+
+  /**
    * 仕上げの相互詰め直し。勝ち解に対して
-   * 1) 選抜スコアの細分配 → 2) 踏み方の山登り → 3) 編成の組み直し
-   * → 4) レッスン×編成の結合手（改善が無いときだけ）
+   * 1) 選抜スコアの細分配 → 2) 踏み方の山登り＋レッスン日の入れ替え
+   * → 3) 編成の組み直し → 4) レッスン×編成の結合手（改善が無いときだけ）
    * を収束するまで反復し、時間が余れば焼きなましリスタートで局所解の脱出を試みる。
    * （「レッスンを1タイプに寄せてサポカも寄せる」ような結合解はこの反復で詰まる）
    */
@@ -716,6 +851,8 @@ class OptimizeEngine {
         best.score = climbed.score;
         changed = true;
       }
+
+      if (this.swapLessonPicks(best)) changed = true;
 
       const ectx = this.buildEctx(best.stepping);
       const formation = this.buildFormation(ectx);
@@ -857,7 +994,7 @@ class OptimizeEngine {
 
   /**
    * 編成を固定して正確に評価（合算パラボ・上限・NIA札・イベント予算込み）。
-   * @param forReport true なら「試験補助を強める」の重み（preBoost）を外して
+   * @param forReport true なら「試験補助を強める」の加点を外して
    *   実際のステ・評価値を返す（探索用の目的関数と表示値を分離する）。
    */
   preciseObjective(
@@ -896,14 +1033,7 @@ class OptimizeEngine {
   } {
     this.evaluated++;
     const budget = this.input.eventBudget;
-    const team = evaluateTeam(
-      members,
-      ZERO_STATS,
-      this.caps,
-      budget,
-      // 試験補助の重みは探索の目的関数のみ。表示・評価値には掛けない
-      !forReport && this.input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
-    );
+    const team = evaluateTeam(members, ZERO_STATS, this.caps, budget);
     const adj = summedParaboByType(
       members,
       team.synergies,
@@ -935,6 +1065,8 @@ class OptimizeEngine {
     const obj =
       cappedSum +
       (this.extraScore ? this.extraScore(members) : 0) +
+      // 試験補助の加点は探索の目的関数のみ。表示・評価値には足さない
+      (!forReport && this.input.examAssist ? examAssistSum(members) : 0) +
       minStatBonus(stats, this.minStatCond) -
       spConditionShortfall(members, this.input.spMin) * SP_PENALTY;
     return { obj, cappedSum, members, stats };
@@ -1071,7 +1203,7 @@ class OptimizeEngine {
       cap: this.caps,
       eventBudget: input.eventBudget,
       extraScore: this.extraScore,
-      preBoost: input.examAssist ? EXAM_ASSIST_PRE_BOOST : 1,
+      examAssist: input.examAssist,
       typeCounts: input.typeRatio
         ? typeCountsFromRatio(input.typeRatio)
         : undefined,
@@ -1196,13 +1328,7 @@ class OptimizeEngine {
       TYPE_SHEET_ROLE,
     );
     const scored = members.filter((m): m is ScoredCard => m !== null);
-    const team = evaluateTeam(
-      scored,
-      ZERO_STATS,
-      this.caps,
-      input.eventBudget,
-      1, // 表示用なので試験補助の重みは掛けない
-    );
+    const team = evaluateTeam(scored, ZERO_STATS, this.caps, input.eventBudget);
     const picks = scored.map((m, i) => ({
       id: m.id,
       name: m.name,
