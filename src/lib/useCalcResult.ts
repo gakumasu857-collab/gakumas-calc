@@ -206,11 +206,12 @@ export function useCalcResult() {
       : selected.slots.map(() => null);
     const activeCards = slotCards.filter((m): m is ScoredCard => m !== null);
     // 表示・評価値は常に素の値（「試験補助を強める」は理想編成の選定のみに効かせる）。
-    // タイプ別の最高ステ設定は min(シナリオ上限, 設定値) で反映する。
+    // 最高ステ設定はソフト上限（探索で積みに行かないだけ）なので、
+    // 表示・評価値の頭打ちはシナリオ上限のみ＝溢れて超えた分も全額入る。
     const caps: Record<TypeKey, number> = {
-      vocal: Math.min(statCap, settings.maxStats?.vocal || statCap),
-      dance: Math.min(statCap, settings.maxStats?.dance || statCap),
-      visual: Math.min(statCap, settings.maxStats?.visual || statCap),
+      vocal: statCap,
+      dance: statCap,
+      visual: statCap,
     };
     const teamEval = evaluateTeam(
       activeCards,

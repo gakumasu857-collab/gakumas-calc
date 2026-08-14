@@ -3,7 +3,7 @@
  * 計算ページと /debug で同じ入力を使うため共通化している。
  */
 import type { AutoOptimizeInput } from "./autoOptimize";
-import type { CardFlagSets } from "./formation";
+import { examStyleTags, type CardFlagSets } from "./formation";
 import { IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
 import type { useCalcResult } from "./useCalcResult";
@@ -54,6 +54,8 @@ export function buildAutoOptimizeInput(
         }
       : undefined,
     examAssist: settings.examAssist,
+    examStyleTags: examStyleTags(r.selectedSet?.name ?? null),
+    noStageItems: settings.noStageItems,
     minStats: settings.minStats,
     maxStats: settings.maxStats,
     wappenCount: settings.wappenCount,

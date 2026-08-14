@@ -74,6 +74,14 @@ export type SupportCardData = {
    * 試験中どれだけ強いかの評点（-5〜7程度）。空欄は null＝試験の助けにならない。
    */
   strongest: number | null;
+  /**
+   * アイテムのおすすめ育成スタイル（スプシ recommend_plan 列を分割）。
+   * 例: ["好調","集中"] / ["やる気","好印象"] / ["共通"]（=どのスタイルでも有効）。
+   * 試験補助の評点はこのスタイルが現在の育成に合うときだけ加点する。
+   */
+  recommendPlans: string[];
+  /** ステージ（試験中）に持ち込むPアイテムか（スプシ is_stage_item 列） */
+  stageItem: boolean;
   /** 上記以外の列すべて（列名→値）。新列は自動的にここへ入る */
   extras: Record<string, string>;
 };
@@ -126,12 +134,17 @@ const NUMERIC_ACTION_MAP: Record<string, string> = {
   recovery: "体力回復",
 };
 
-/** 後イベ（later_event の値 → アプリの後イベ語彙） */
+/**
+ * 後イベ（later_event の値 → アプリの後イベ語彙）。
+ * トラブル削除（trouble_delete）とスキル削除は別物:
+ * トラブル削除はデッキのトラブルカードを消す（汎用スキル削除アビのみ反応）、
+ * スキル削除は選んだスキルを1枚消す（A/M属性を選択できる。デフォルトA）。
+ */
 const LATER_EVENT_MAP: Record<string, string> = {
   スキル強化: "強化",
   チェンジ: "チェンジ",
   trouble_delete: "トラブル削除",
-  スキル削除: "トラブル削除",
+  スキル削除: "スキル削除",
   Pポイント: "Pポイント",
 };
 
@@ -267,6 +280,12 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
       .map((w) => w.trim())
       .filter(Boolean),
     strongest: str(row.strongest) === "" ? null : numOf(row.strongest),
+    // 区切りはカンマ・読点のほか誤記のドットも許容（例: "強気.全力"）
+    recommendPlans: str(row.recommend_plan)
+      .split(/[,、.]/)
+      .map((w) => w.trim())
+      .filter(Boolean),
+    stageItem: numOf(row.is_stage_item) > 0,
     extras,
   };
 }

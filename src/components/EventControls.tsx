@@ -9,9 +9,11 @@ import type { SupportCardData } from "@/data/supportCardsDb";
 import {
   defaultDelTarget,
   defaultEnhanceTarget,
+  hasPostDelete,
   hasPostEnhance,
   hasPreDelete,
   hasPreEnhance,
+  POST_DELETE_DEFAULT_TARGET,
   postEventStatRelevant,
   type EventCountOverride,
 } from "@/lib/sheetScore";
@@ -234,9 +236,12 @@ export function PostEventButtons({
   }
   const active = (override?.post ?? 1) > 0;
 
-  if (hasPostEnhance(card)) {
-    // ランダム強化: M / A / ✕（発動しない）のボタン
-    const defaultTarget = defaultEnhanceTarget(card);
+  if (hasPostEnhance(card) || hasPostDelete(card)) {
+    // ランダム強化／選択スキル削除: M / A / ✕（発動しない）のボタン
+    const isDelete = hasPostDelete(card);
+    const defaultTarget = isDelete
+      ? POST_DELETE_DEFAULT_TARGET
+      : defaultEnhanceTarget(card);
     const current = active ? (override?.enhance ?? defaultTarget) : "off";
     const pick = (v: "M" | "A" | "off") => {
       if (v === "off") {
@@ -253,9 +258,15 @@ export function PostEventButtons({
     return (
       <span
         className="inline-flex items-center gap-0.5 whitespace-nowrap"
-        title="ランダム強化がどちらのスキルを強化したか（✕=発動しない）"
+        title={
+          isDelete
+            ? "どちらのスキルを選んで削除したか（✕=発動しない）"
+            : "ランダム強化がどちらのスキルを強化したか（✕=発動しない）"
+        }
       >
-        <span className="mr-0.5 text-slate-400">強化</span>
+        <span className="mr-0.5 text-slate-400">
+          {isDelete ? "削除" : "強化"}
+        </span>
         <button type="button" onClick={() => pick("M")} className={btn(current === "M", "bg-blue-600 text-white")}>
           M
         </button>

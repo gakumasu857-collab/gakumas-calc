@@ -216,7 +216,8 @@ export function TheorySettingsModal({
             ))}
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            この値を超えた分は評価に数えません（例: Da1000 → Daを1000までとみなして、その範囲で合計が最も高くなる編成・踏み方を探します）。
+            この値を超える分を狙って盛らなくなります（例: Da1000 →
+            Daはおよそ1000までを目標に編成・踏み方を探します）。他のタイプが上限で溢れて自然にはみ出した分は評価値にそのまま入ります（選抜スコアを微調整して削るような提案はしません）。
           </p>
         </section>
 
@@ -232,7 +233,23 @@ export function TheorySettingsModal({
             試験補助を強めにする（試験に強いサポカで編成）
           </label>
           <p className="mt-1 text-[11px] text-slate-400">
-            ONにすると「試験中に強いアイテム・スキルをくれる（アイテム評価が高い）」「ドリンクをくれる」「SPレッスン率アップ持ち」のサポカを優先して編成します。アイテム評価が空欄のサポカは試験の助けにならないため優先しません。表示されるステータス・評価値は常に素の値です（この優先は編成の選び方だけに効きます）。
+            ONにすると「試験中に強いアイテム・スキルをくれる（アイテム評価が高い）」「ドリンクをくれる」「SPレッスン率アップ持ち」のサポカを優先して編成します。アイテム評価が空欄のサポカは試験の助けにならないため優先しません。アイテム評価は今の育成スタイル（発動回数セット名: センス/好印象/やる気/強気/全力）に合うものだけ見ます。表示されるステータス・評価値は常に素の値です（この優先は編成の選び方だけに効きます）。
+          </p>
+        </section>
+
+        {/* ステージアイテム */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={settings.noStageItems}
+              onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
+              className="accent-blue-600"
+            />
+            ステージに入るPアイテムのサポカを編成しない
+          </label>
+          <p className="mt-1 text-[11px] text-slate-400">
+            ONにすると、前イベで「ステージ（試験中）に持ち込むPアイテム」をくれるサポカを理想編成の候補から外します。固定（ピン）したサポカはこの設定に関係なく編成に入ります。
           </p>
         </section>
       </div>

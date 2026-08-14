@@ -21,6 +21,7 @@ import {
   runFullOptimize,
   type AutoOptimizeInput,
 } from "./autoOptimize";
+import { examStyleTags } from "./formation";
 import { TEMPLATE_MEMORIES, type Memory } from "./memoryTypes";
 import type { Stepping } from "./optimize/stepping";
 import { computePIdolStats, findPIdolMaster, IDOL_RANKS } from "./pIdol";
@@ -191,6 +192,8 @@ export function buildInput(): AutoOptimizeInput {
         }
       : undefined,
     examAssist: settings.examAssist,
+    examStyleTags: examStyleTags(set?.name ?? null),
+    noStageItems: settings.noStageItems,
     minStats: settings.minStats,
     maxStats: settings.maxStats,
     wappenCount: settings.wappenCount,

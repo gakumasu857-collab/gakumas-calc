@@ -55,6 +55,29 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
+/**
+ * 画像URLを fetch して dataURL に変換する（失敗したら null）。
+ * cache:"reload" でHTTPキャッシュを完全に迂回する。通常閲覧で「CORSヘッダなしの
+ * レスポンス」がキャッシュされていると、スクリーンショット側の取り込みが
+ * キャッシュの状態次第で失敗する（画像が出たり出なかったりする）ため、
+ * 出力前に必ずネットワークから取り直して dataURL に焼き込んでしまう。
+ */
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: "cors", cache: "reload" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** 出力専用ビューを画面外に描画してPNGでダウンロードする */
 export async function exportSheetImage(
   r: CalcResult,
@@ -68,25 +91,25 @@ export async function exportSheetImage(
   document.body.appendChild(host);
   const root = createRoot(host);
   root.render(<ExportSheet r={r} pinned={pinned} />);
-  // レイアウト確定＋サポカ画像の読み込みを待ってからスナップショット
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  // レイアウト確定を待つ（createRoot のコミットは非同期。imgが現れるまで少し粘る）
+  for (let i = 0; i < 10; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    if (host.querySelector("img")) break;
+  }
+  // 全画像を dataURL に差し替える（キャッシュ・CORS状態に依存しない確実な取り込み）
   const images = [...host.querySelectorAll("img")];
   await Promise.all(
-    images.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          if (img.complete) return resolve();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          // 読み込みが長引いても3秒で諦める（名前は必ず出る）
-          setTimeout(resolve, 3000);
-        }),
-    ),
+    images.map(async (img) => {
+      const data = await toDataUrl(img.src);
+      if (data) {
+        img.src = data;
+        await img.decode().catch(() => undefined);
+      }
+    }),
   );
   try {
     const el = host.firstElementChild as HTMLElement;
-    // bypassingCache: 通常閲覧でキャッシュされた「CORSヘッダなし」の画像レスポンスを
-    // 再利用すると取り込みに失敗するため、出力時はキャッシュを迂回して取得する
+    // dataURL化に失敗した画像が残った場合の保険として bypassingCache も維持
     const dataUrl = await domToPng(el, {
       scale: 2,
       fetch: { bypassingCache: true },

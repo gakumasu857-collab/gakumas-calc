@@ -34,6 +34,7 @@ import {
   evaluateTeam,
   eventBudgetScales,
   examAssistSum,
+  MAX_STAT_EXCESS_WEIGHT,
   findBestFormation,
   minStatBonus,
   SP_PENALTY,
@@ -145,6 +146,10 @@ export type AutoOptimizeInput = {
   typeRatio?: Record<TypeKey, number> | null;
   /** 試験補助を強める（アイテム評価・ドリンク獲得・SP率持ちを優先して編成） */
   examAssist?: boolean;
+  /** 現在の育成スタイルタグ（試験補助のアイテム評点のゲート用。発動回数セット名由来） */
+  examStyleTags?: string[] | null;
+  /** ステージ（試験中）に持ち込むPアイテムのサポカを編成しない（固定は貫通） */
+  noStageItems?: boolean;
   /**
    * タイプ別の最低ステータス（0=条件なし）。
    * 全部満たせないときはアイドルの審査基準が高いタイプから優先して満たす。
@@ -405,11 +410,22 @@ export class OptimizeEngine {
     string,
     { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> }
   >();
-  /** タイプ別のステ上限（min(シナリオ上限, 最高ステ設定)） */
+  /** タイプ別のステ上限（シナリオ上限。評価値はここまで全額入る） */
   private caps: Record<TypeKey, number>;
+  /**
+   * 最高ステ設定のソフト上限（min(シナリオ上限, 設定値)）。
+   * 超過分は評価値から削らず、探索の価値だけ MAX_STAT_EXCESS_WEIGHT へ割り引く
+   * （わざわざ積みに行かない・溢れ込みを選抜の微調整で削りにも行かない）。
+   */
+  private maxTargets: Record<TypeKey, number>;
 
   constructor(private input: AutoOptimizeInput) {
     this.caps = {
+      vocal: input.statCap,
+      dance: input.statCap,
+      visual: input.statCap,
+    };
+    this.maxTargets = {
       vocal: Math.min(input.statCap, input.maxStats?.vocal || input.statCap),
       dance: Math.min(input.statCap, input.maxStats?.dance || input.statCap),
       visual: Math.min(input.statCap, input.maxStats?.visual || input.statCap),
@@ -1051,6 +1067,7 @@ export class OptimizeEngine {
       }
     }
     let cappedSum = 0;
+    let excess = 0;
     const stats: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const type of TYPE_KEYS) {
       stats[type] = Math.min(
@@ -1061,12 +1078,17 @@ export class OptimizeEngine {
           itemCut[type],
       );
       cappedSum += stats[type];
+      excess += Math.max(0, stats[type] - this.maxTargets[type]);
     }
     const obj =
-      cappedSum +
+      cappedSum -
+      // 最高ステ設定の超過分は探索価値を割り引く（評価値からは削らない）
+      (1 - MAX_STAT_EXCESS_WEIGHT) * excess +
       (this.extraScore ? this.extraScore(members) : 0) +
       // 試験補助の加点は探索の目的関数のみ。表示・評価値には足さない
-      (!forReport && this.input.examAssist ? examAssistSum(members) : 0) +
+      (!forReport && this.input.examAssist
+        ? examAssistSum(members, this.input.examStyleTags)
+        : 0) +
       minStatBonus(stats, this.minStatCond) -
       spConditionShortfall(members, this.input.spMin) * SP_PENALTY;
     return { obj, cappedSum, members, stats };
@@ -1189,7 +1211,11 @@ export class OptimizeEngine {
   /** 理想編成を1回組む（現在の踏み方前提） */
   buildFormation(ectx: Ectx) {
     const { input } = this;
-    const opts = { flags: input.flags, plan: input.plan };
+    const opts = {
+      flags: input.flags,
+      plan: input.plan,
+      noStageItems: input.noStageItems,
+    };
     const owned = scoreOwnedCards(
       input.getLevel,
       ectx.ctx,
@@ -1201,9 +1227,11 @@ export class OptimizeEngine {
       pinned: input.flags.pinned,
       spMin: input.spMin,
       cap: this.caps,
+      maxTargets: this.maxTargets,
       eventBudget: input.eventBudget,
       extraScore: this.extraScore,
       examAssist: input.examAssist,
+      examStyleTags: input.examStyleTags,
       typeCounts: input.typeRatio
         ? typeCountsFromRatio(input.typeRatio)
         : undefined,
@@ -1262,7 +1290,11 @@ export class OptimizeEngine {
   ): OptimizeDebug {
     const { input } = this;
     const ectx = this.buildEctx(stepping);
-    const opts = { flags: input.flags, plan: input.plan };
+    const opts = {
+      flags: input.flags,
+      plan: input.plan,
+      noStageItems: input.noStageItems,
+    };
     const owned = scoreOwnedCards(input.getLevel, ectx.ctx, TYPE_SHEET_ROLE, opts);
     const rentals = scoreRentalCandidates(ectx.ctx, TYPE_SHEET_ROLE, opts);
     const pickedIds = new Set(slots.map((s) => s.id));

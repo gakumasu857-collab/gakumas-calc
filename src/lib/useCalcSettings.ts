@@ -58,10 +58,12 @@ export type CalcSettings = {
   minStats: Record<TypeKey, number>;
   /**
    * タイプごとの最高ステータス（デフォルト3200=制限なし）。
-   * min(シナリオ上限, この値) を超えた分は評価に数えない
-   * （例: Da1000 なら「Daが1000以下の範囲で最も高い編成」を探す）。
+   * ソフト上限: これを超えるぶんは探索で「積みに行かない」が、
+   * 他タイプの溢れで自然に超えた分は評価値へ全額入る（頭打ちはシナリオ上限のみ）。
    */
   maxStats: Record<TypeKey, number>;
+  /** ステージ（試験中）に持ち込むPアイテムのサポカを編成しない（固定は貫通） */
+  noStageItems: boolean;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
   round2: number;
@@ -86,6 +88,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   examAssist: false,
   minStats: { vocal: 0, dance: 0, visual: 0 },
   maxStats: { vocal: 3200, dance: 3200, visual: 3200 },
+  noStageItems: false,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,

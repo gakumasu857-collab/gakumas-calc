@@ -6,6 +6,7 @@ import {
   ImageDown,
   Save,
   Settings,
+  Settings2,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { runFullOptimize } from "@/lib/autoOptimize";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
+  examStyleTags,
   findBestFormation,
   planAllows,
   scoreOwnedCards,
@@ -100,6 +102,7 @@ export default function CalcPage() {
   const [selectedSaveId, setSelectedSaveId] = useState("");
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [idealMsg, setIdealMsg] = useState<string | null>(null);
+  const [idealBusy, setIdealBusy] = useState(false);
   const [detail, setDetail] = useState<SelectedMember | null>(null);
   const [optBusy, setOptBusy] = useState(false);
   const [optMsg, setOptMsg] = useState<string | null>(null);
@@ -119,49 +122,73 @@ export default function CalcPage() {
   const canShowRating =
     r.members.every((m) => m !== null) && !!r.selectedSet;
 
-  /** 理想編成を計算して選択サポカへ一括設定 */
+  /**
+   * 理想編成を計算して選択サポカへ一括設定。
+   * 条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助・ステージアイテム）は
+   * 全自動最適化（理論評価値）と同じものを引き継ぐ。
+   */
   const applyIdealFormation = () => {
-    const opts = { flags, plan: r.plan };
-    const owned = scoreOwnedCards(r.getLevel, r.ctx, r.roles.typeRole, opts);
-    const rentals = scoreRentalCandidates(r.ctx, r.roles.typeRole, opts);
-    // ベースはサポカ抜きの現在ステ（レッスン・メモリー・Pアイドル込み）。上限溢れを考慮して選ぶ。
-    // NIAでは札（スキルカード獲得→ファン投票数）の価値もステ換算で加点する
-    const best = findBestFormation(owned, rentals, r.baseStats, {
-      pinned: flags.pinned,
-      spMin: settings.spMin,
-      cap: {
-        vocal: Math.min(r.statCap, settings.maxStats.vocal || r.statCap),
-        dance: Math.min(r.statCap, settings.maxStats.dance || r.statCap),
-        visual: Math.min(r.statCap, settings.maxStats.visual || r.statCap),
-      },
-      extraScore: r.niaFudaExtra,
-      examAssist: settings.examAssist,
-      typeCounts: settings.typeRatio.enabled
-        ? typeCountsFromRatio({
-            vocal: settings.typeRatio.vocal,
-            dance: settings.typeRatio.dance,
-            visual: settings.typeRatio.visual,
-          })
-        : undefined,
-      minStat: TYPE_KEYS.some((t) => settings.minStats[t] > 0)
-        ? {
-            req: settings.minStats,
-            priority: [...TYPE_KEYS].sort(
-              (a, b) => r.typeRanks[a] - r.typeRanks[b],
-            ),
-          }
-        : undefined,
-    });
-    if (!best) {
-      setIdealMsg("編成を組めません（プラン制限内の所持サポカが不足しています）");
-      return;
-    }
-    selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
-    setIdealMsg(
-      best.spShortfall > 0
-        ? `SPレッスン率の条件をあと${best.spShortfall}枚分満たせませんでした`
-        : null,
-    );
+    setIdealBusy(true);
+    setIdealMsg(null);
+    // 「計算中…」を先に描画させてから重い探索を回す
+    setTimeout(() => {
+      try {
+        const opts = {
+          flags,
+          plan: r.plan,
+          noStageItems: settings.noStageItems,
+        };
+        const owned = scoreOwnedCards(r.getLevel, r.ctx, r.roles.typeRole, opts);
+        const rentals = scoreRentalCandidates(r.ctx, r.roles.typeRole, opts);
+        // ベースはサポカ抜きの現在ステ（レッスン・メモリー・Pアイドル込み）。上限溢れを考慮して選ぶ。
+        // NIAでは札（スキルカード獲得→ファン投票数）の価値もステ換算で加点する
+        const best = findBestFormation(owned, rentals, r.baseStats, {
+          pinned: flags.pinned,
+          spMin: settings.spMin,
+          cap: r.statCap,
+          maxTargets: {
+            vocal: Math.min(r.statCap, settings.maxStats.vocal || r.statCap),
+            dance: Math.min(r.statCap, settings.maxStats.dance || r.statCap),
+            visual: Math.min(r.statCap, settings.maxStats.visual || r.statCap),
+          },
+          eventBudget: settings.eventBudget.enabled
+            ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
+            : undefined,
+          extraScore: r.niaFudaExtra,
+          examAssist: settings.examAssist,
+          examStyleTags: examStyleTags(r.selectedSet?.name ?? null),
+          typeCounts: settings.typeRatio.enabled
+            ? typeCountsFromRatio({
+                vocal: settings.typeRatio.vocal,
+                dance: settings.typeRatio.dance,
+                visual: settings.typeRatio.visual,
+              })
+            : undefined,
+          minStat: TYPE_KEYS.some((t) => settings.minStats[t] > 0)
+            ? {
+                req: settings.minStats,
+                priority: [...TYPE_KEYS].sort(
+                  (a, b) => r.typeRanks[a] - r.typeRanks[b],
+                ),
+              }
+            : undefined,
+        });
+        if (!best) {
+          setIdealMsg(
+            "編成を組めません（プラン制限内の所持サポカが不足しています）",
+          );
+          return;
+        }
+        selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
+        setIdealMsg(
+          best.spShortfall > 0
+            ? `SPレッスン率の条件をあと${best.spShortfall}枚分満たせませんでした`
+            : null,
+        );
+      } finally {
+        setIdealBusy(false);
+      }
+    }, 30);
   };
 
   /**
@@ -500,10 +527,20 @@ export default function CalcPage() {
               <button
                 type="button"
                 onClick={applyIdealFormation}
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+                disabled={idealBusy}
+                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
               >
                 <Sparkles size={13} />
-                理想編成を計算して設定
+                {idealBusy ? "計算中…" : "理想編成を計算して設定"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheoryOpen(true)}
+                title="理論評価値と共通の条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助など）"
+                className={SMALL_BTN}
+              >
+                <Settings2 size={13} />
+                条件設定
               </button>
               <button
                 type="button"
@@ -516,6 +553,13 @@ export default function CalcPage() {
           }
         >
           {idealMsg && <p className="mb-2 text-xs text-red-500">{idealMsg}</p>}
+          {r.members.filter((m) => m?.rental).length >= 2 && (
+            <p className="mb-2 text-xs font-semibold text-amber-600">
+              ⚠ レンタルが
+              {r.members.filter((m) => m?.rental).length}
+              枚選ばれています。ゲームで借りられるレンタルは1育成につき1枚です。
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
             {selected.slots.map((slot, i) => (
               <SupportSlot
@@ -1106,7 +1150,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
         </tbody>
       </table>
       <p className="px-2 pt-1 text-[10px] text-slate-400">
-        計算ページ専用の設定です（サポカ設定ページとは別に保存され、互いに影響しません）。前イベは取得/未取得の2択（回数は自動計算）。後イベは発動回数を−/＋で指定できます。
+        計算ページ専用の設定です（サポカ設定ページとは別に保存され、互いに影響しません）。前イベは取得/未取得の2択（回数は自動計算）。後イベは強化・削除ならM/A/✕、それ以外は〇/✕で指定できます。
       </p>
     </div>
   );

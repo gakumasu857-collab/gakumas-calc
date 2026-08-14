@@ -66,10 +66,17 @@ export type ScoredCard = {
   /** SPレッスン率アップ持ちか（SP最低枚数条件用） */
   hasSpUp: boolean;
   /**
-   * 「試験の助けになる度」のステ換算値（試験補助を強めるON時に目的関数へ足す）。
-   * アイテム評価（strongest）＋ドリンク獲得＋SP率持ちの合成。表示値には含めない。
+   * 「試験の助けになる度」のスタイル非依存部分（ドリンク獲得＋SP率持ち。ステ換算）。
+   * 試験補助を強めるON時に目的関数へ足す。表示値には含めない。
    */
   examAssist: number;
+  /**
+   * 試験補助のアイテム評点部分（strongest×重み）。アイテムのおすすめスタイル
+   * （recommendPlans）が現在の育成スタイルに合うときだけ加点する。
+   */
+  examAssistRating: number;
+  /** アイテムのおすすめ育成スタイル（recommend_plan列。共通=どのスタイルでも有効） */
+  recommendPlans: string[];
   /** 前イベ・後イベが編成全体に与える発動回数の上乗せ（回数キー→回数。前後の合算） */
   eventContrib: Record<string, number>;
   /** 前イベ分の上乗せ（合計発動回数の予算スケール用） */
@@ -99,6 +106,11 @@ export type FormationOptions = {
   flags?: CardFlagSets;
   /** Pアイドルのプラン（センス/ロジック/アノマリー）。フリー・未指定は制限なし */
   plan?: string | null;
+  /**
+   * ステージ（試験中）に持ち込むPアイテムのサポカを候補から外す。
+   * 固定（ピン）されたカードは除外しない（固定は条件を貫通する）。
+   */
+  noStageItems?: boolean;
 };
 
 /** プラン制限: 共通は誰でも可、それ以外はPアイドルのプランと一致が必要 */
@@ -163,14 +175,15 @@ function scoreCard(
   const hasSpUp = card.abilities.some(
     (slot) => slot && "key" in slot && slot.key === "up_SP_lesson_rate",
   );
-  // 試験の助けになる度: アイテム評価（空欄=0。負の評点は弱いだけなので0扱い）
-  // ＋前イベのドリンク獲得本数＋SP率持ち。ステ点はそのまま目的関数に残るので、
-  // 「ステも高い」カードほど自然に勝つ。
+  // 試験の助けになる度: ドリンク獲得本数＋SP率持ち（スタイル非依存）と、
+  // アイテム評価（空欄=0。負の評点は弱いだけなので0扱い。スタイル一致時のみ加点）。
+  // ステ点はそのまま目的関数に残るので「ステも高い」カードほど自然に勝つ。
   const drinkCount = Number(card.extras["ドリンク獲得"] ?? 0) || 0;
   const examAssist =
-    EXAM_ASSIST_WEIGHTS.rating * Math.max(0, card.strongest ?? 0) +
     EXAM_ASSIST_WEIGHTS.drink * drinkCount +
     (hasSpUp ? EXAM_ASSIST_WEIGHTS.spRate : 0);
+  const examAssistRating =
+    EXAM_ASSIST_WEIGHTS.rating * Math.max(0, card.strongest ?? 0);
   return {
     id: card.id,
     name: card.name,
@@ -187,6 +200,8 @@ function scoreCard(
     rental,
     hasSpUp,
     examAssist,
+    examAssistRating,
+    recommendPlans: card.recommendPlans,
     eventContrib,
     preContrib: contrib.pre,
     postContrib: contrib.post,
@@ -236,12 +251,25 @@ export function scoreOwnedCards(
   for (const card of SUPPORT_CARD_DB) {
     if (opts?.flags?.banned.has(card.id)) continue;
     if (!planAllows(card.plan, opts?.plan)) continue;
+    if (excludedStageItem(card, opts)) continue;
     const level = getLevel(card.id);
     if (level < 0) continue; // 未所持
     const scored = scoreCard(card, level, ctx, typeRole, false);
     if (scored) result.push(scored);
   }
   return result;
+}
+
+/** ステージアイテム除外の対象か（固定カードは貫通して残す） */
+function excludedStageItem(
+  card: SupportCardData,
+  opts: FormationOptions | undefined,
+): boolean {
+  return (
+    !!opts?.noStageItems &&
+    card.stageItem &&
+    !opts?.flags?.pinned.has(card.id)
+  );
 }
 
 /** レンタル枠の候補（全カードの完凸。BAN・レンタルNG・プラン外は除外） */
@@ -255,6 +283,7 @@ export function scoreRentalCandidates(
     if (opts?.flags?.banned.has(card.id)) continue;
     if (opts?.flags?.rentalNg?.has(card.id)) continue;
     if (!planAllows(card.plan, opts?.plan)) continue;
+    if (excludedStageItem(card, opts)) continue;
     const scored = scoreCard(card, 4, ctx, typeRole, true);
     if (scored) result.push(scored);
   }
@@ -600,10 +629,18 @@ export type FindBestOptions = {
   extraScore?: (members: ScoredCard[]) => number;
   /** 試験補助を強める（各カードの examAssist を目的関数へ足す）。省略時OFF */
   examAssist?: boolean;
+  /** 現在の育成スタイルタグ（試験補助のアイテム評点をゲートする）。null=ゲートなし */
+  examStyleTags?: string[] | null;
   /** サポカ編成のタイプ構成（Vo/Da/Vi各枚数・合計6）。指定するとこの構成に固定 */
   typeCounts?: Record<TypeKey, number>;
   /** タイプ別の最低ステータス条件（審査基準順の優先つき） */
   minStat?: MinStatCondition;
+  /**
+   * タイプ別の最高ステータス目標（ソフト上限）。超過分の価値を
+   * MAX_STAT_EXCESS_WEIGHT まで割り引いて「積みに行かない」ようにする。
+   * 評価値そのもの（cap での頭打ち）はシナリオ上限のまま。
+   */
+  maxTargets?: Record<TypeKey, number>;
 };
 
 /**
@@ -622,12 +659,64 @@ export const EXAM_ASSIST_WEIGHTS = {
   spRate: 60,
 } as const;
 
+/**
+ * 発動回数セット名の接頭辞 → アイテムおすすめ（recommend_plan列）のスタイルタグ。
+ * センス育成のアイテム評価は「好調/集中」向け、といった対応。
+ */
+const SET_STYLE_TAGS: [string, string[]][] = [
+  ["センス", ["好調", "集中"]],
+  ["好印象", ["好印象"]],
+  ["やる気", ["やる気"]],
+  ["強気", ["強気"]],
+  ["全力", ["全力"]],
+];
+
+/** 発動回数セット名から現在の育成スタイルタグを引く（不明なら null=ゲートしない） */
+export function examStyleTags(
+  setName: string | null | undefined,
+): string[] | null {
+  if (!setName) return null;
+  for (const [prefix, tags] of SET_STYLE_TAGS) {
+    if (setName.startsWith(prefix)) return tags;
+  }
+  return null;
+}
+
+/**
+ * カード1枚の試験補助価値。評点（アイテム評価）はおすすめスタイルが
+ * 現在の育成スタイルに合うときだけ加点する（好印象育成にやる気アイテムは不要）。
+ * スタイル不明（セット未選択等）・おすすめ記載なしはゲートせずそのまま加点。
+ */
+export function examAssistValueOf(
+  c: ScoredCard,
+  styleTags?: string[] | null,
+): number {
+  const ratingOk =
+    !styleTags ||
+    c.recommendPlans.length === 0 ||
+    c.recommendPlans.includes("共通") ||
+    c.recommendPlans.some((p) => styleTags.includes(p));
+  return c.examAssist + (ratingOk ? c.examAssistRating : 0);
+}
+
 /** 編成の「試験の助けになる度」合計（試験補助を強めるON時の加点） */
-export function examAssistSum(members: ScoredCard[]): number {
+export function examAssistSum(
+  members: ScoredCard[],
+  styleTags?: string[] | null,
+): number {
   let sum = 0;
-  for (const m of members) sum += m.examAssist;
+  for (const m of members) sum += examAssistValueOf(m, styleTags);
   return sum;
 }
+
+/**
+ * 最高ステータス設定の超過分に残す価値の割合（探索用のソフト上限）。
+ * 設定値を超えた分も評価値には全額入る（ゲームでも実際に付く）が、
+ * 探索では価値をこの割合まで割り引いて「わざわざ積みに行かない」ようにする。
+ * 0より大きくしておくことで、他タイプが上限で溢れて流れ込むぶんを
+ * 選抜スコアの微調整で削るような不毛な動きも起きない（削っても得しない）。
+ */
+export const MAX_STAT_EXCESS_WEIGHT = 0.05;
 
 /**
  * SP条件の不足1枚あたりのペナルティ。
@@ -764,15 +853,34 @@ function collectSeeds(ctx: SearchCtx, rentalSeeds: (ScoredCard | null)[]): Seed[
     };
 
     if (ctx.typeCounts) {
-      // タイプ構成を固定: 残り枠は typeCounts − fixed の各タイプ枚数で確定
+      // タイプ構成を固定: 残り枠は typeCounts − fixed の各タイプ枚数で確定。
+      // 固定（ピン）カードだけは構成を超えていても優先し（固定は条件を貫通する）、
+      // 超過分は需要が一番大きいタイプの枠から差し引いて帳尻を合わせる。
+      // ピン以外の確定枠（レンタル・SP先取り）は構成に収まらなければこの候補は捨てる。
       const fc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      for (const c of fixed) fc[c.type]++;
+      const pinnedFc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const c of fixed) {
+        fc[c.type]++;
+        if (ctx.pinnedIds?.has(c.id)) pinnedFc[c.type]++;
+      }
+      const overflow = TYPE_LIST.some(
+        (t) =>
+          fc[t] - pinnedFc[t] >
+          Math.max(0, ctx.typeCounts![t] - pinnedFc[t]),
+      );
+      if (overflow) continue;
       const need = {
-        vocal: ctx.typeCounts.vocal - fc.vocal,
-        dance: ctx.typeCounts.dance - fc.dance,
-        visual: ctx.typeCounts.visual - fc.visual,
+        vocal: Math.max(0, ctx.typeCounts.vocal - fc.vocal),
+        dance: Math.max(0, ctx.typeCounts.dance - fc.dance),
+        visual: Math.max(0, ctx.typeCounts.visual - fc.visual),
       };
-      if (need.vocal < 0 || need.dance < 0 || need.visual < 0) continue;
+      let over = need.vocal + need.dance + need.visual - slots;
+      while (over > 0) {
+        const t = TYPE_LIST.reduce((a, b) => (need[a] >= need[b] ? a : b));
+        if (need[t] <= 0) break;
+        need[t]--;
+        over--;
+      }
       if (need.vocal + need.dance + need.visual !== slots) continue;
       takeAndPush(need.vocal, need.dance, need.visual);
       continue;
@@ -843,11 +951,19 @@ export function findBestFormation(
       dance: team.totals.dance.capped,
       visual: team.totals.visual.capped,
     };
+    // 最高ステ設定: 超過分の価値を割り引く（評価値から削るのではなく積みに行かせない）
+    let excess = 0;
+    if (opts?.maxTargets) {
+      for (const type of TYPE_LIST) {
+        excess += Math.max(0, capped[type] - opts.maxTargets[type]);
+      }
+    }
     return (
-      team.score +
+      team.score -
+      (1 - MAX_STAT_EXCESS_WEIGHT) * excess +
       (opts?.extraScore?.(members) ?? 0) +
       // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
-      (opts?.examAssist ? examAssistSum(members) : 0) +
+      (opts?.examAssist ? examAssistSum(members, opts?.examStyleTags) : 0) +
       minStatBonus(capped, opts?.minStat) -
       spConditionShortfall(members, spMin) * SP_PENALTY
     );
@@ -868,7 +984,7 @@ export function findBestFormation(
   // 試験補助を強めるときはシードの上位取りにも examAssist を効かせる
   // （山登りだけでは点数下位の補助カードへ届きにくいため）。
   const seedValue = opts?.examAssist
-    ? (c: ScoredCard) => c.points + c.examAssist
+    ? (c: ScoredCard) => c.points + examAssistValueOf(c, opts?.examStyleTags)
     : undefined;
   const usableRentals = rentals.filter((c) => !ownedPinnedIds.has(c.id));
   const rentalPools = groupByType(usableRentals, seedValue);

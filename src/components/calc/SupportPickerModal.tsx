@@ -230,9 +230,13 @@ export default function SupportPickerModal({
                     <div className="h-9 w-18 shrink-0 rounded bg-slate-100" />
                   )}
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold ${TYPE_CHIP[card.type]}`}
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold ${
+                      card.assist
+                        ? "bg-purple-100 text-purple-700"
+                        : TYPE_CHIP[card.type]
+                    }`}
                   >
-                    {TYPE_LABELS[card.type]}
+                    {card.assist ? "アシスト" : TYPE_LABELS[card.type]}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-slate-800">
                     {card.name}
@@ -261,7 +265,7 @@ export default function SupportPickerModal({
         </ul>
       )}
       <p className="mt-2 text-[11px] text-slate-400">
-        ※ 点数は現在のレッスン・発動回数・踏み方の設定での基本点（イベント相互作用は6枚が揃ったときに加算）。アシスト・Rカードは点数計算ができないため表示していません。
+        ※ 点数は現在のレッスン・発動回数・踏み方の設定での基本点（イベント相互作用は6枚が揃ったときに加算）。ティア表が無いカードは点数計算ができないため表示していません。
       </p>
     </Modal>
   );

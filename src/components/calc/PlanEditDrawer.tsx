@@ -62,6 +62,7 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 export default function PlanEditDrawer({ r }: { r: CalcResult }) {
   const [open, setOpen] = useState(false);
   const [optMsg, setOptMsg] = useState<string | null>(null);
+  const [optBusy, setOptBusy] = useState(false);
   const title =
     r.scenario === "niaMaster"
       ? "自主レッスン・営業・オーディション"
@@ -71,29 +72,39 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
 
   /** 今の選択サポカ6枚を前提に、踏み方（授業・営業込み）だけを広域探索して適用 */
   const optimizePlan = () => {
-    const slots = r.selected.slots.filter(
-      (s): s is SelectedSlot => s !== null,
-    );
-    // 編成は固定するので BAN/固定フラグは無関係（空で渡す）
-    const input = buildAutoOptimizeInput(
-      r,
-      { banned: new Set(), pinned: new Set() },
-      r.calc.settings,
-    );
-    const result = optimizeSteppingForSlots(input, slots);
-    if (!result) return;
-    if (result.hif)
-      r.schedule.setPlan(
-        result.hif.lessons,
-        result.hif.classTypes,
-        result.hif.examScores,
-      );
-    if (result.nia) r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
-    if (result.hatsu)
-      r.hatsuSchedule.setPlan(result.hatsu.lessons, result.hatsu.classTypes);
-    setOptMsg(
-      `今の編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`,
-    );
+    setOptBusy(true);
+    setOptMsg(null);
+    // 「計算中…」を先に描画させてから重い探索を回す
+    setTimeout(() => {
+      try {
+        const slots = r.selected.slots.filter(
+          (s): s is SelectedSlot => s !== null,
+        );
+        // 編成は固定するので BAN/固定フラグは無関係（空で渡す）
+        const input = buildAutoOptimizeInput(
+          r,
+          { banned: new Set(), pinned: new Set() },
+          r.calc.settings,
+        );
+        const result = optimizeSteppingForSlots(input, slots);
+        if (!result) return;
+        if (result.hif)
+          r.schedule.setPlan(
+            result.hif.lessons,
+            result.hif.classTypes,
+            result.hif.examScores,
+          );
+        if (result.nia)
+          r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
+        if (result.hatsu)
+          r.hatsuSchedule.setPlan(result.hatsu.lessons, result.hatsu.classTypes);
+        setOptMsg(
+          `今の編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`,
+        );
+      } finally {
+        setOptBusy(false);
+      }
+    }, 30);
   };
 
   return (
@@ -116,11 +127,12 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
             <button
               type="button"
               onClick={optimizePlan}
+              disabled={optBusy}
               title="編成は変えずに、今の選択サポカ6枚で合計ステが最大になる踏み方・授業（営業）を探して適用します"
-              className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+              className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
             >
               <Sparkles size={13} />
-              今の編成で踏み方を最適化
+              {optBusy ? "計算中…" : "今の編成で踏み方を最適化"}
             </button>
             <span className="text-xs text-slate-400">
               レッスンページと共有（どちらで編集してもOK）。値は素の獲得量で、パラメータボーナス%は計算側で反映します。
