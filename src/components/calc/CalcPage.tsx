@@ -583,17 +583,18 @@ export default function CalcPage() {
           {/* SPレッスン率とこの踏み方の実現確率 */}
           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-bold text-slate-700">SPレッスン率</span>
+              <span className="font-bold text-slate-700">SPレッスン率上昇</span>
               {TYPE_KEYS.map((type) => (
                 <span key={type} className="tabular-nums">
                   <span className={`font-bold ${TYPE_TEXT[type]}`}>
                     {TYPE_LABELS[type]}
                   </span>{" "}
-                  {(r.spLesson.rates[type] * 100).toFixed(1)}%
+                  +{(r.spLesson.bonus[type] * 100).toFixed(1)}%
                 </span>
               ))}
+              <span className="text-slate-400">（サポカ＋Pアイドル）</span>
               <span className="flex items-center gap-1 text-slate-400">
-                （基礎
+                基礎
                 <input
                   type="number"
                   min={0}
@@ -604,10 +605,10 @@ export default function CalcPage() {
                       baseSpRate: Math.max(0, Number(e.target.value) || 0),
                     })
                   }
-                  title="レッスンが素でSPになる確率。コミュニティ検証で約10%とされるが確定値ではないので変更できます"
+                  title="レッスンが素でSPになる確率（ゲーム内には表示されない元値）。コミュニティ検証で約10%とされるが確定値ではないので変更できます"
                   className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs"
                 />
-                %＋サポカ＋Pアイドル）
+                %は実現確率にのみ使用
               </span>
             </div>
             <p className="mt-1">
@@ -616,9 +617,10 @@ export default function CalcPage() {
                 {formatProb(r.spLesson.prob)}
               </b>
               <span className="ml-1 text-slate-400">
-                （SP踏み{r.spLesson.spCount}回はSP率、得意
-                {TYPE_LABELS[r.spLesson.favType]}以外の踏み
-                {r.spLesson.subCount}回は2択50%で計算）
+                （SP踏み{r.spLesson.spCount}回×メイン属性のSP率
+                {r.spLesson.subCount > 0 &&
+                  `、サブ属性の指定${r.spLesson.subCount}回×2択50%`}
+                ）
               </span>
             </p>
           </div>

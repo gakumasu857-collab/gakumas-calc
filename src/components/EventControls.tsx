@@ -90,10 +90,13 @@ export function AcquireToggle({
   card,
   override,
   events,
+  imgClass = "h-6 w-6",
 }: {
   card: SupportCardData;
   override: EventCountOverride | undefined;
   events: EventStoreLike;
+  /** 前イベ画像のサイズ（サポカ設定ページでは大きめにする） */
+  imgClass?: string;
 }) {
   if (card.preEventType !== "アイテム" && card.preEventType !== "スキル") {
     return null;
@@ -108,7 +111,7 @@ export function AcquireToggle({
           alt=""
           title={`前イベで${card.preEventType}を獲得`}
           loading="lazy"
-          className={`h-6 w-6 shrink-0 object-contain ${acquired ? "" : "opacity-30 grayscale"}`}
+          className={`${imgClass} shrink-0 object-contain ${acquired ? "" : "opacity-30 grayscale"}`}
         />
       )}
       <button

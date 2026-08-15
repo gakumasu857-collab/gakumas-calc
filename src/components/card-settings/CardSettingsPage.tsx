@@ -309,14 +309,12 @@ export default function CardSettingsPage() {
                   </td>
                   {/* 前イベ（獲得アイテム/スキルの画像＋取得トグル） */}
                   <td className={td}>
-                    <span className="inline-flex items-center gap-1">
-                      <PreEventImage card={card} />
-                      <AcquireToggle
-                        card={card}
-                        override={override}
-                        events={events}
-                      />
-                    </span>
+                    <AcquireToggle
+                      card={card}
+                      override={override}
+                      events={events}
+                      imgClass="h-10 w-10"
+                    />
                   </td>
                   {/* 前イベ回数。スキルは取得した時点で1回確定なので固定表示 */}
                   <td className={td}>
@@ -436,21 +434,6 @@ function FlagCell({
         />
       </label>
     </td>
-  );
-}
-
-/** 前イベで得られるPアイテム/スキルカードの画像（DBの前イベ画像URL列） */
-function PreEventImage({ card }: { card: (typeof SUPPORT_CARD_DB)[number] }) {
-  const url = imageUrl(card.extras["前イベ画像URL"] ?? "");
-  if (!url) return <span className="text-slate-300">—</span>;
-  return (
-    <img
-      src={url}
-      alt={`${card.name}の前イベ`}
-      title={`前イベ: ${card.preEventType}`}
-      loading="lazy"
-      className="mx-auto h-9 w-9 shrink-0 rounded object-contain"
-    />
   );
 }
 

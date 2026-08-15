@@ -1,4 +1,6 @@
 ﻿import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Camera } from "lucide-react";
 import SupportCardOwnership from "@/components/ownership/SupportCardOwnership";
 import PIdolOwnership from "@/components/ownership/PIdolOwnership";
 
@@ -8,26 +10,35 @@ export default function OwnershipPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex overflow-hidden self-start rounded-xl border border-slate-300">
-        {(
-          [
-            ["support", "サポートカード"],
-            ["pidol", "Pアイドル"],
-          ] as const
-        ).map(([key, label], i) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`px-5 py-2 text-sm font-bold transition ${i > 0 ? "border-l border-slate-300" : ""} ${
-              tab === key
-                ? "bg-blue-600 text-white"
-                : "bg-white text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex overflow-hidden self-start rounded-xl border border-slate-300">
+          {(
+            [
+              ["support", "サポートカード"],
+              ["pidol", "Pアイドル"],
+            ] as const
+          ).map(([key, label], i) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`px-5 py-2 text-sm font-bold transition ${i > 0 ? "border-l border-slate-300" : ""} ${
+                tab === key
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <Link
+          to="/card-import"
+          className="flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+        >
+          <Camera size={15} />
+          画面キャプチャで所持入力（β）
+        </Link>
       </div>
       {tab === "support" ? <SupportCardOwnership /> : <PIdolOwnership />}
     </div>

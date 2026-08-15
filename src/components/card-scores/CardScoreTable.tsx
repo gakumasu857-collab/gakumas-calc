@@ -295,17 +295,17 @@ export default function CardScoreTable() {
                   >
                     {row.name}
                   </td>
-                  {/* 画像はデータベースページと同じ表示（h-8 w-16・角丸） */}
+                  {/* 画像はサポカ設定ページと同じ表示（h-9 w-20・角丸） */}
                   <td className="sticky left-44 z-10 border-b border-r-2 border-b-slate-300 border-r-slate-400 bg-white p-0.5">
                     {url ? (
                       <img
                         src={url}
                         alt={row.name}
                         loading="lazy"
-                        className="mx-auto h-8 w-16 rounded object-cover"
+                        className="mx-auto h-9 w-20 rounded object-cover"
                       />
                     ) : (
-                      <div className="h-8 w-16" />
+                      <div className="h-9 w-20" />
                     )}
                   </td>
                   <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center text-slate-800">

@@ -23,7 +23,7 @@ export type Memory = {
   skillName?: string;
   /** 1〜3個。同一属性の重複なし */
   abilities: Ability[];
-  /** テンプレメモリー(mem1〜3)は削除不可 */
+  /** テンプレメモリー（メインパラボ）は削除不可 */
   isTemplate?: boolean;
   /**
    * ロール追従メモリー: メイン1/メイン2のタイプに%、サブのタイプに固定値。
@@ -178,33 +178,6 @@ export const TEMPLATE_MEMORIES: Memory[] = [
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 3.5, subFlat: 20 },
-  },
-  {
-    id: "tpl-mem1",
-    plan: "共通",
-    abilities: [
-      { attr: "Vo", value: "+2.8%" },
-      { attr: "Da", value: "+2.8%" },
-    ],
-    isTemplate: true,
-  },
-  {
-    id: "tpl-mem2",
-    plan: "センス",
-    abilities: [
-      { attr: "Vo", value: "+10" },
-      { attr: "P", value: "+30" },
-    ],
-    isTemplate: true,
-  },
-  {
-    id: "tpl-mem3",
-    plan: "ロジック",
-    abilities: [
-      { attr: "回復", value: "Vo" },
-      { attr: "Vi", value: "+3.5%" },
-    ],
-    isTemplate: true,
   },
 ];
 

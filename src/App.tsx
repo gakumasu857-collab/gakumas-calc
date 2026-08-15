@@ -4,6 +4,7 @@ import NavBar from "@/components/NavBar";
 import StatusBar from "@/components/StatusBar";
 import AbilityCountManager from "@/components/ability-counts/AbilityCountManager";
 import CalcPage from "@/components/calc/CalcPage";
+import CardImportPage from "@/components/card-import/CardImportPage";
 import CardScoreTable from "@/components/card-scores/CardScoreTable";
 import CardSettingsPage from "@/components/card-settings/CardSettingsPage";
 import DatabasePage from "@/components/database/DatabasePage";
@@ -16,6 +17,11 @@ import OwnershipPage from "@/components/ownership/OwnershipPage";
 /** サポカ編成計算機のメイン（/calc）以外のページ（共通の余白＋見出しで包む） */
 const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
   { path: "/support", title: "所持状況入力", element: <OwnershipPage /> },
+  {
+    path: "/card-import",
+    title: "画面キャプチャで所持入力（β）",
+    element: <CardImportPage />,
+  },
   { path: "/memory", title: "メモリー設定", element: <MemoryManager /> },
   {
     path: "/ability-counts",

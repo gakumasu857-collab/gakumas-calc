@@ -350,26 +350,29 @@ export function useCalcResult() {
       };
     })();
 
-    // ---- SPレッスン率（基礎＋サポカ＋Pアイドル）とこの踏み方の実現確率 ----
+    // ---- SPレッスン率（サポカ＋Pアイドルの上昇分）とこの踏み方の実現確率 ----
     const spLesson = (() => {
       const base = (settings.baseSpRate ?? 10) / 100;
-      const rates: Record<TypeKey, number> = {
-        vocal: base + (pStats?.spRate.vocal ?? 0),
-        dance: base + (pStats?.spRate.dance ?? 0),
-        visual: base + (pStats?.spRate.visual ?? 0),
+      // 表示はゲーム内に合わせて基礎を除いた上昇分（サポカ＋Pアイドル）。
+      // サポカのSPレッスン率は枠の abi_type の属性へ効く
+      const bonus: Record<TypeKey, number> = {
+        vocal: pStats?.spRate.vocal ?? 0,
+        dance: pStats?.spRate.dance ?? 0,
+        visual: pStats?.spRate.visual ?? 0,
       };
       for (const m of activeCards) {
         const db = DB_BY_ID.get(m.id);
         if (!db) continue;
         const sp = cardSpRate(db, m.level);
-        // 「SPレッスン率」は自タイプのみ（アシストは type がプレースホルダなので除外）
-        if (sp.own > 0 && !m.assist) rates[m.type] += sp.own;
-        if (sp.all > 0) for (const t of TYPE_KEYS) rates[t] += sp.all;
+        for (const t of TYPE_KEYS) bonus[t] += sp[t];
       }
-      // 実現確率: 得意タイプ（審査基準ランク1）は毎回選べるが、
-      // それ以外は2択（残り2タイプからランダム1つ）で50%。SP踏みはさらに×SP率
-      const favType =
-        TYPE_KEYS.find((t) => typeRanks[t] === 1) ?? ("vocal" as TypeKey);
+      const rates: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const t of TYPE_KEYS) {
+        rates[t] = Math.min(1, Math.max(0, base + bonus[t]));
+      }
+      // 実現確率: SP踏みは「メイン属性のSP率」、サブ属性の指定があるレッスン（HIF）は
+      // 2択（残り2属性からランダム）で50%。
+      // 例: DaSP率30%で Da（サブVo）のSP踏み = 30% × 50% = 15%
       const picks =
         scenario === "niaMaster"
           ? niaSchedule.lessons
@@ -381,16 +384,16 @@ export function useCalcResult() {
       let subCount = 0;
       for (const pick of picks) {
         if (!pick?.main) continue;
-        if (pick.main !== favType) {
+        if ("sub" in pick) {
           prob *= 0.5;
           subCount++;
         }
         if (pick.sp) {
-          prob *= Math.min(1, Math.max(0, rates[pick.main]));
+          prob *= rates[pick.main];
           spCount++;
         }
       }
-      return { rates, favType, prob, spCount, subCount };
+      return { bonus, rates, prob, spCount, subCount };
     })();
 
     // ---- スター性・本戦・評価値（シナリオ別） ----

@@ -42,12 +42,14 @@ export default function MemorySlot({ memories, onRemove }: Props) {
               {memory ? (
                 <MemoryCard memory={memory} onClick={() => onRemove(i)} />
               ) : (
-                // カードと同じ内部構造にして、埋まっても高さが変わらないようにする
+                // MemoryCardと同じ行構成（ヘッダー行＋アビリティ3行）で高さを合わせる
                 <div className="flex w-full flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-1.5">
-                  <div className="flex aspect-square w-full items-center justify-center rounded-md bg-slate-100 text-lg font-bold text-slate-300">
-                    {i + 1}
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-100 text-sm font-bold text-slate-300">
+                      {i + 1}
+                    </span>
+                    <span className="text-[10px] text-slate-300">未選択</span>
                   </div>
-                  <div className="invisible text-center text-[10px]">-</div>
                   <div className="flex flex-col gap-1">
                     <span className="h-4.5" />
                     <span className="h-4.5" />

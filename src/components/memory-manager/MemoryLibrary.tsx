@@ -198,7 +198,7 @@ export default function MemoryLibrary({
               checked={showTemplates}
               onChange={(e) => setShowTemplates(e.target.checked)}
             />
-            テンプレメモリー(mem1〜3)を表示
+            テンプレメモリー（メインパラボ）を表示
           </label>
         </div>
       )}
