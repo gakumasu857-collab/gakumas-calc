@@ -285,13 +285,15 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
     preEventType,
     postEventType,
     preEvent: buildPreEvent(preEventType, extras),
+    // 区切りは半角カンマのみ（「その本、おもしろい？」のように語の中に
+    // 読点が入るため、読点では区切らない。スプシ側も , 区切りで統一されている）
     searchWords: str(row.Search_word)
-      .split(/[,、]/)
+      .split(",")
       .map((w) => w.trim())
       .filter(Boolean),
     preEventImage: (() => {
       const hit = str(row.Search_word)
-        .split(/[,、]/)
+        .split(",")
         .map((w) => w.trim())
         .find((w) => PRE_EVENT_IMAGE_SET.has(w));
       return hit ? `preEvent/${hit}.webp` : null;
