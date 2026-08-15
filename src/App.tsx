@@ -8,6 +8,7 @@ import CardScoreTable from "@/components/card-scores/CardScoreTable";
 import CardSettingsPage from "@/components/card-settings/CardSettingsPage";
 import DatabasePage from "@/components/database/DatabasePage";
 import DebugPage from "@/components/debug/DebugPage";
+import EventCounterPage from "@/components/event-counter/EventCounterPage";
 import HomePage from "@/components/home/HomePage";
 import MemoryManager from "@/components/memory-manager/MemoryManager";
 import OwnershipPage from "@/components/ownership/OwnershipPage";
@@ -41,17 +42,21 @@ function ScrollToTop() {
 }
 
 export default function App() {
-  // ホーム（/）はサイトの玄関なので、ツールのナビバー・ステータスバーは出さない
-  const isHome = useLocation().pathname === "/";
+  // ホーム（/）とイベントカウンターは計算機のナビバー・ステータスバーを出さない
+  // （別ツール。イベントカウンターは自前のヘッダーを持つ）
+  const { pathname } = useLocation();
+  const standalone = pathname === "/" || pathname === "/event-counter";
   return (
     <>
       <ScrollToTop />
-      {!isHome && <NavBar />}
+      {!standalone && <NavBar />}
       {/* 下部のステータスバーに隠れないよう余白を確保 */}
-      <div className={isHome ? "flex-1" : "flex-1 pb-20"}>
+      <div className={standalone ? "flex-1" : "flex-1 pb-20"}>
         <Routes>
           {/* ホーム: ツールの入口 */}
           <Route path="/" element={<HomePage />} />
+          {/* イベントカウンター（開発中・独立ツール） */}
+          <Route path="/event-counter" element={<EventCounterPage />} />
           {/* サポカ編成計算機のメイン */}
           <Route
             path="/calc"
@@ -80,7 +85,7 @@ export default function App() {
           ))}
         </Routes>
       </div>
-      {!isHome && <StatusBar />}
+      {!standalone && <StatusBar />}
     </>
   );
 }

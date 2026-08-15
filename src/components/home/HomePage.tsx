@@ -11,6 +11,8 @@ const TOOLS: {
   description: string;
   icon: React.ReactNode;
   ready: boolean;
+  /** タイトル横の小さな注記（β・開発中など） */
+  badge?: string;
 }[] = [
   {
     href: "/calc",
@@ -21,12 +23,13 @@ const TOOLS: {
     ready: true,
   },
   {
-    href: "#",
+    href: "/event-counter",
     title: "イベントカウンター",
     description:
-      "育成画面をキャプチャして、サポカイベント（前イベ・後イベ・ステイベ）の発生を自動で記録・集計するツール。",
+      "育成画面をキャプチャして、サポカイベント（前イベ・後イベ・ステイベ）の発生を自動で記録・集計するツール（PC専用）。現在は画面の取り込みと範囲指定まで動きます。",
     icon: <Camera size={28} />,
-    ready: false,
+    ready: true,
+    badge: "開発中",
   },
 ];
 
@@ -62,8 +65,13 @@ export default function HomePage() {
                 {tool.icon}
               </span>
               <span className="min-w-0">
-                <span className="block text-base font-bold text-slate-900 group-hover:text-blue-700">
+                <span className="flex items-center gap-2 text-base font-bold text-slate-900 group-hover:text-blue-700">
                   {tool.title}
+                  {tool.badge && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      {tool.badge}
+                    </span>
+                  )}
                 </span>
                 <span className="mt-1 block text-xs leading-relaxed text-slate-500">
                   {tool.description}
