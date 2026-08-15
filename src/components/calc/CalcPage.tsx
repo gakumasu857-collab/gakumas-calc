@@ -580,6 +580,48 @@ export default function CalcPage() {
           </div>
           {/* 選択中カードの前イベ・後イベ回数（サポカ設定とは独立した計算ページ専用） */}
           <EventCountEditor r={r} />
+          {/* SPレッスン率とこの踏み方の実現確率 */}
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-bold text-slate-700">SPレッスン率</span>
+              {TYPE_KEYS.map((type) => (
+                <span key={type} className="tabular-nums">
+                  <span className={`font-bold ${TYPE_TEXT[type]}`}>
+                    {TYPE_LABELS[type]}
+                  </span>{" "}
+                  {(r.spLesson.rates[type] * 100).toFixed(1)}%
+                </span>
+              ))}
+              <span className="flex items-center gap-1 text-slate-400">
+                （基礎
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={settings.baseSpRate}
+                  onChange={(e) =>
+                    calc.update({
+                      baseSpRate: Math.max(0, Number(e.target.value) || 0),
+                    })
+                  }
+                  title="レッスンが素でSPになる確率。コミュニティ検証で約10%とされるが確定値ではないので変更できます"
+                  className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs"
+                />
+                %＋サポカ＋Pアイドル）
+              </span>
+            </div>
+            <p className="mt-1">
+              この踏み方の実現確率:{" "}
+              <b className="tabular-nums text-blue-700">
+                {formatProb(r.spLesson.prob)}
+              </b>
+              <span className="ml-1 text-slate-400">
+                （SP踏み{r.spLesson.spCount}回はSP率、得意
+                {TYPE_LABELS[r.spLesson.favType]}以外の踏み
+                {r.spLesson.subCount}回は2択50%で計算）
+              </span>
+            </p>
+          </div>
           <p className="mt-2 text-[11px] text-slate-400">
             枠をクリックして手動で選択できます。理想編成の条件（BAN・固定・レンタルNG）は
             <Link to="/card-scores" className="text-blue-600 underline">
@@ -792,10 +834,25 @@ export default function CalcPage() {
             <b className="text-cyan-700">
               {Math.round(r.resources.pTotal).toLocaleString()}
             </b>
-            <span className="ml-1 text-[10px] text-slate-400">
-              （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
-              ＋サポカ{Math.round(r.resources.pCards)}）
-            </span>
+            {r.scenario === "hif" && (
+              <span className="ml-1 tabular-nums">
+                （選抜{" "}
+                <b className="text-cyan-700">
+                  {Math.round(r.resources.pSenbatsu).toLocaleString()}
+                </b>
+                ／本戦{" "}
+                <b className="text-cyan-700">
+                  {Math.round(r.resources.pHonsen).toLocaleString()}
+                </b>
+                ）
+              </span>
+            )}
+            {r.scenario !== "hif" && (
+              <span className="ml-1 text-[10px] text-slate-400">
+                （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
+                ＋サポカ{Math.round(r.resources.pCards)}）
+              </span>
+            )}
             <span className="ml-3">
               体力:{" "}
               <b className="text-emerald-700">{Math.round(r.resources.hpTotal)}</b>
@@ -804,6 +861,14 @@ export default function CalcPage() {
                 {r.resources.hpCards > 0 && `＋サポカ${r.resources.hpCards}`}）
               </span>
             </span>
+            {r.scenario === "hif" && (
+              <span className="block text-[10px] text-slate-400">
+                選抜＝開始時{r.resources.pFixedSenbatsu - 400}＋差し入れ400＋レッスン
+                {r.resources.pLessonSenbatsu}＋メモリー{r.resources.pMemory}＋サポカ
+                {Math.round(r.resources.pCards)}／本戦＝開始時
+                {r.resources.pFixedHonsen}＋レッスン{r.resources.pLessonHonsen}
+              </span>
+            )}
           </p>
         </Card>
 
@@ -1511,6 +1576,16 @@ function VoteChip({ label, value }: { label: string; value: number }) {
       {label} <b className="text-slate-700">{value.toLocaleString()}</b>
     </span>
   );
+}
+
+/** 踏み方の実現確率の表示（小さい値でも桁が読めるように段階的に精度を上げる） */
+function formatProb(p: number): string {
+  const pct = p * 100;
+  if (pct >= 10) return `${pct.toFixed(1)}%`;
+  if (pct >= 1) return `${pct.toFixed(2)}%`;
+  if (pct >= 0.01) return `${pct.toFixed(3)}%`;
+  if (pct <= 0) return "0%";
+  return `${pct.toPrecision(2)}%`;
 }
 
 const INPUT =

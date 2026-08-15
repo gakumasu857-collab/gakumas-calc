@@ -5,8 +5,11 @@
  * 出力:
  * {
  *   masters: [{ url, idol, cardName, rarity, plan, effect, key, growthTag }],
- *   growth: { 成長タグ: { base:[7], kunren1:[7], kunren4:[7], kunren5:[7], kaika3:[7], kaika4:[7] } },
- *     ※ 配列は [体力, Vo初期値, Da初期値, Vi初期値, Voパラボ, Daパラボ, Viパラボ]
+ *   growth: { 成長タグ: { base:[10], kunren1:[10], kunren2:[10], kunren4:[10], kunren5:[10],
+ *                        kunren6:[10], kaika1:[10], kaika3:[10], kaika4:[10] } },
+ *     ※ 配列は [体力, Vo初期値, Da初期値, Vi初期値, Voパラボ, Daパラボ, Viパラボ, VoSP率, DaSP率, ViSP率]
+ *     ※ パラボ・SP率はスプシの小数表記のまま（0.11 = 11%）。%変換は pIdol.ts 側で行う
+ *     ※ 無条件で加算する段階（初期・初・NIA・HIF・親愛度22・親愛度25）は base に合算済み
  *   idolRanks: { アイドル名: { vocal, dance, visual, tag } }
  * }
  *
@@ -43,34 +46,67 @@ const masters = pidleName.map((r) => ({
   growthTag: r["成長タグ"] ?? "",
 }));
 
-// ---- growth（段階行→ブロック、[体力,Vo,Da,Vi,Voパラボ,Daパラボ,Viパラボ]）----
+// ---- growth（段階行→ブロック）----
+// 段階のうち 初期・初・NIA・HIF・親愛度22/25 は所持状況によらず常に効く（無条件加算）ので
+// base に合算する。特訓・才能開花は段階条件つきの個別ブロック。
+const UNCONDITIONAL_STAGES = new Set([
+  "初期",
+  "初",
+  "NIA",
+  "HIF",
+  "親愛度22",
+  "親愛度25",
+]);
 const STAGE_TO_BLOCK = {
-  初期: "base",
   特訓1: "kunren1",
+  特訓2: "kunren2",
   特訓4: "kunren4",
   特訓5: "kunren5",
+  特訓6: "kunren6",
+  才能開花1: "kaika1",
   才能開花3: "kaika3",
   才能開花4: "kaika4",
 };
+const COLS = [
+  "体力",
+  "Vo初期値",
+  "Da初期値",
+  "Vi初期値",
+  "Voパラボ",
+  "Daパラボ",
+  "Viパラボ",
+  "VoSP率",
+  "DaSP率",
+  "ViSP率",
+];
+const round4 = (v) => Math.round(v * 10000) / 10000; // 小数合算の浮動小数ノイズ除去
 const growth = {};
+const unknownStages = new Set();
 for (const r of pidleStatus) {
   const tag = r["成長タグ"];
-  const block = STAGE_TO_BLOCK[r["段階"]];
-  if (!tag || !block) continue;
-  (growth[tag] ??= {})[block] = [
-    num(r["体力"]),
-    num(r["Vo初期値"]),
-    num(r["Da初期値"]),
-    num(r["Vi初期値"]),
-    num(r["Voパラボ"]),
-    num(r["Daパラボ"]),
-    num(r["Viパラボ"]),
-  ];
+  if (!tag) continue;
+  const stage = r["段階"];
+  const block = UNCONDITIONAL_STAGES.has(stage)
+    ? "base"
+    : STAGE_TO_BLOCK[stage];
+  if (!block) {
+    if (stage) unknownStages.add(stage);
+    continue;
+  }
+  const entry = (growth[tag] ??= {});
+  const target = (entry[block] ??= new Array(COLS.length).fill(0));
+  COLS.forEach((col, i) => {
+    target[i] = round4(target[i] + num(r[col]));
+  });
 }
-// 欠けている段階は 0 埋め（全段階そろっている前提だが安全側で補完）
-const ZERO = [0, 0, 0, 0, 0, 0, 0];
+// 欠けている段階は 0 埋め（タグにより存在しない段階があるため）
+const ZERO = new Array(COLS.length).fill(0);
+const ALL_BLOCKS = ["base", ...Object.values(STAGE_TO_BLOCK)];
 for (const entry of Object.values(growth)) {
-  for (const block of Object.values(STAGE_TO_BLOCK)) entry[block] ??= [...ZERO];
+  for (const block of ALL_BLOCKS) entry[block] ??= [...ZERO];
+}
+if (unknownStages.size > 0) {
+  console.warn(`⚠ 未対応の段階（無視した）: ${[...unknownStages].join(", ")}`);
 }
 
 // ---- idolRanks ----

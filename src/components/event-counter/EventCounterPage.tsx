@@ -707,8 +707,8 @@ export default function EventCounterPage() {
         )}
 
         <div className="flex flex-col gap-4 lg:flex-row">
-          {/* 取り込みプレビュー＋範囲指定 */}
-          <section className="min-w-0 flex-1">
+          {/* 取り込みプレビュー＋範囲指定（範囲ドラッグできる最小限の大きさに抑える） */}
+          <section className="min-w-0 w-full max-w-md shrink-0">
             <h2 className="mb-1.5 text-sm font-bold text-slate-700">
               取り込みプレビュー
               <span className="ml-2 text-xs font-normal text-slate-400">
@@ -770,7 +770,7 @@ export default function EventCounterPage() {
               ref={canvasRef}
               width={WORK_W}
               height={WORK_H}
-              className="h-[480px] w-[270px] rounded-xl border border-slate-300 bg-slate-900"
+              className="h-[320px] w-[180px] rounded-xl border border-slate-300 bg-slate-900"
             />
           </section>
 

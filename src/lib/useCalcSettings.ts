@@ -64,6 +64,11 @@ export type CalcSettings = {
   maxStats: Record<TypeKey, number>;
   /** ステージ（試験中）に持ち込むPアイテムのサポカを編成しない（固定は貫通） */
   noStageItems: boolean;
+  /**
+   * 基礎SPレッスン率（%）。SP率 = 基礎 + サポカ + Pアイドル。
+   * 元値はコミュニティ検証で約10%とされる（確定値ではないので変更可）。
+   */
+  baseSpRate: number;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
   round2: number;
@@ -89,6 +94,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   minStats: { vocal: 0, dance: 0, visual: 0 },
   maxStats: { vocal: 3200, dance: 3200, visual: 3200 },
   noStageItems: false,
+  baseSpRate: 10,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,

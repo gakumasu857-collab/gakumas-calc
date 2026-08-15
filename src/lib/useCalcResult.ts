@@ -49,7 +49,12 @@ import {
   TYPE_SHEET_ROLE,
   manualCountFromSet,
 } from "./sheetContext";
-import { cardInitialFixed, cardResources, paraboConvert } from "./sheetScore";
+import {
+  cardInitialFixed,
+  cardResources,
+  cardSpRate,
+  paraboConvert,
+} from "./sheetScore";
 import { useAbilityCounts } from "./useAbilityCounts";
 import { TYPE_KEYS, useCalcSettings, type TypeKey } from "./useCalcSettings";
 import { CALC_EVENT_COUNTS_KEY, useEventCounts } from "./useEventCounts";
@@ -305,17 +310,87 @@ export function useCalcResult() {
       }
       const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
+      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・差し入れ80×5。
+      // 差し入れ・サポカ・メモリー・P率換算は選抜期間ぶんとして計上する
+      const isHifP = scenario === "hif";
+      let lessonPSenbatsu = 0;
+      let lessonPHonsen = 0;
+      if (isHifP) {
+        LESSONS.forEach((lesson, i) => {
+          const pick = schedule.lessons[i];
+          if (!pick?.main) return;
+          if (lesson.label.startsWith("本戦")) lessonPHonsen += lesson.p;
+          else lessonPSenbatsu += lesson.p;
+        });
+      }
+      const pFixedSenbatsu = isHifP ? 230 + 80 * 5 : 0;
+      const pFixedHonsen = isHifP ? 200 : 0;
+      const pSenbatsu =
+        pFixedSenbatsu + lessonPSenbatsu + mem.P + cardP + rateP;
+      const pHonsen = pFixedHonsen + lessonPHonsen;
       return {
-        /** 合計Pポイント（レッスン＋メモリー＋サポカ固定＋P率換算） */
-        pTotal: lessonP + mem.P + cardP + rateP,
+        /** 合計Pポイント（HIFは開始時・差し入れの固定取得も含む） */
+        pTotal: isHifP
+          ? pSenbatsu + pHonsen
+          : lessonP + mem.P + cardP + rateP,
         pLesson: lessonP,
         pMemory: mem.P,
         pCards: cardP + rateP,
+        /** HIFの内訳（他シナリオは0） */
+        pSenbatsu,
+        pHonsen,
+        pFixedSenbatsu,
+        pFixedHonsen,
+        pLessonSenbatsu: lessonPSenbatsu,
+        pLessonHonsen: lessonPHonsen,
         /** 体力（Pアイドルの体力＋サポカの最大体力上昇） */
         hpTotal: (pStats?.hp ?? 0) + maxHp,
         hpIdol: pStats?.hp ?? 0,
         hpCards: maxHp,
       };
+    })();
+
+    // ---- SPレッスン率（基礎＋サポカ＋Pアイドル）とこの踏み方の実現確率 ----
+    const spLesson = (() => {
+      const base = (settings.baseSpRate ?? 10) / 100;
+      const rates: Record<TypeKey, number> = {
+        vocal: base + (pStats?.spRate.vocal ?? 0),
+        dance: base + (pStats?.spRate.dance ?? 0),
+        visual: base + (pStats?.spRate.visual ?? 0),
+      };
+      for (const m of activeCards) {
+        const db = DB_BY_ID.get(m.id);
+        if (!db) continue;
+        const sp = cardSpRate(db, m.level);
+        // 「SPレッスン率」は自タイプのみ（アシストは type がプレースホルダなので除外）
+        if (sp.own > 0 && !m.assist) rates[m.type] += sp.own;
+        if (sp.all > 0) for (const t of TYPE_KEYS) rates[t] += sp.all;
+      }
+      // 実現確率: 得意タイプ（審査基準ランク1）は毎回選べるが、
+      // それ以外は2択（残り2タイプからランダム1つ）で50%。SP踏みはさらに×SP率
+      const favType =
+        TYPE_KEYS.find((t) => typeRanks[t] === 1) ?? ("vocal" as TypeKey);
+      const picks =
+        scenario === "niaMaster"
+          ? niaSchedule.lessons
+          : scenario === "hatsuLegend"
+            ? hatsuSchedule.lessons
+            : schedule.lessons;
+      let prob = 1;
+      let spCount = 0;
+      let subCount = 0;
+      for (const pick of picks) {
+        if (!pick?.main) continue;
+        if (pick.main !== favType) {
+          prob *= 0.5;
+          subCount++;
+        }
+        if (pick.sp) {
+          prob *= Math.min(1, Math.max(0, rates[pick.main]));
+          spCount++;
+        }
+      }
+      return { rates, favType, prob, spCount, subCount };
     })();
 
     // ---- スター性・本戦・評価値（シナリオ別） ----
@@ -429,6 +504,7 @@ export function useCalcResult() {
       rating,
       scenarioValues,
       resources,
+      spLesson,
       statCap,
       ctx,
       // 互換用: タイプ⇔シート内部ロールの固定対応
