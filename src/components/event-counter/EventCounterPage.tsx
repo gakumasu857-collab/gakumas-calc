@@ -3,15 +3,17 @@ import { Link } from "react-router-dom";
 import { Camera, Download, Home, ScanSearch, Square, X } from "lucide-react";
 import { detectGameRegion } from "@/lib/eventCounter/autoRegion";
 import {
-  analyzeFrame,
+  cardsQuality,
   DEFAULT_THRESHOLDS,
+  EVENT_TOP_MAX,
+  extractCards,
   loadLandmarks,
   SCREEN_LABELS,
   TEMPLATE_KEYS,
+  toGray,
   WORK_H,
   WORK_W,
   type AnalyzeResult,
-  type GrayImage,
   type TemplateKey,
 } from "@/lib/eventCounter/detect";
 
@@ -19,13 +21,51 @@ import {
  * イベントカウンター（開発中）。
  *
  * フェーズ1: 取り込みの土台（画面共有 → ゲーム領域の自動検出 → 540x960 正規化）。
- * フェーズ2: 目印検出（Python版 detect.py の移植）で「今どの画面か」を判定。
+ * フェーズ2: 目印検出で「今どの画面か」を判定（Python版 detect.py の移植）。
+ * フェーズ3: サポカ6枚の自動読み取り＋イベントシーン照合＋スキルカード＋日数。
+ *            判定はWeb Workerで回す（メインスレッドを固めないため）。
  * 検出結果の追跡・記録・統計は次フェーズで載せる。
  */
 
 /** 正規化プレビュー・判定の周期（ms）。Python版の既定と同じ5Hz */
 const TICK_MS = 200;
 const REGION_KEY = "gakumas:eventCounterRegion:v1";
+const CARDS_KEY = "gakumas:eventCounterCards:v1";
+/** サポカ読み取りの最短間隔（ms）。開始確認画面にいる間ずっと読み直さない */
+const CARD_CAPTURE_INTERVAL = 1500;
+
+/** 保存するサポカ読み取り結果（サムネイルはdataURL） */
+type StoredCards = {
+  quality: number;
+  source: "start" | "info";
+  thumbs: (string | null)[];
+};
+
+function loadCards(): StoredCards | null {
+  try {
+    const raw = localStorage.getItem(CARDS_KEY);
+    if (raw) return JSON.parse(raw) as StoredCards;
+  } catch {
+    // 破損データは無視
+  }
+  return null;
+}
+
+/** dataURL → ImageData（保存済みサポカの復元用） */
+async function dataUrlToImageData(url: string): Promise<ImageData | null> {
+  try {
+    const bmp = await createImageBitmap(await (await fetch(url)).blob());
+    const canvas = document.createElement("canvas");
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(bmp, 0, 0);
+    return ctx.getImageData(0, 0, bmp.width, bmp.height);
+  } catch {
+    return null;
+  }
+}
 
 /** 目印の短い表示名 */
 const LANDMARK_LABELS: Record<TemplateKey, string> = {
@@ -81,20 +121,117 @@ export default function EventCounterPage() {
   const [tickInfo, setTickInfo] = useState<string | null>(null);
   const [autoMsg, setAutoMsg] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
-  const landmarksRef = useRef<Partial<Record<TemplateKey, GrayImage>> | null>(
-    null,
+  const [cardsInfo, setCardsInfo] = useState<StoredCards | null>(loadCards);
+  const workerRef = useRef<Worker | null>(null);
+  const workerBusy = useRef(false);
+  const cardsQualityRef = useRef(0);
+  const lastCardCapture = useRef(0);
+
+  /** 読み取ったサポカ6枚を確定する（保存・Workerへ送信・表示更新） */
+  const commitCards = useCallback(
+    (
+      extracted: ({ thumb: ImageData; gray: { w: number; h: number; data: Float32Array } } | null)[],
+      quality: number,
+      source: "start" | "info",
+      persist: boolean,
+    ) => {
+      cardsQualityRef.current = quality;
+      workerRef.current?.postMessage({
+        type: "cards",
+        cards: extracted.map((c) => (c ? c.gray : null)),
+      });
+      const thumbs = extracted.map((c) => {
+        if (!c) return null;
+        const canvas = document.createElement("canvas");
+        canvas.width = c.thumb.width;
+        canvas.height = c.thumb.height;
+        canvas.getContext("2d")?.putImageData(c.thumb, 0, 0);
+        return canvas.toDataURL("image/png");
+      });
+      const info: StoredCards = { quality, source, thumbs };
+      setCardsInfo(info);
+      if (persist) {
+        try {
+          localStorage.setItem(CARDS_KEY, JSON.stringify(info));
+        } catch {
+          // 容量超過などは無視
+        }
+      }
+    },
+    [],
   );
 
-  // 目印画像を一度だけ読み込む
+  /** 開始確認/編成情報の画面が見えたら、サポカ6枚を自動で読み取る */
+  const maybeCaptureCards = useCallback(
+    (source: "start" | "info") => {
+      const now = performance.now();
+      if (now - lastCardCapture.current < CARD_CAPTURE_INTERVAL) return;
+      lastCardCapture.current = now;
+      const ctx = canvasRef.current?.getContext("2d", {
+        willReadFrequently: true,
+      });
+      if (!ctx) return;
+      const frame = ctx.getImageData(0, 0, WORK_W, WORK_H);
+      const extracted = extractCards(frame, source);
+      if (extracted.filter((c) => c !== null).length !== 6) return;
+      // 暗転中などの写りが悪い読み取りで、今持っている絵を上書きしない
+      const quality = cardsQuality(extracted.map((c) => c?.gray ?? null));
+      if (quality <= cardsQualityRef.current) return;
+      commitCards(extracted, quality, source, true);
+    },
+    [commitCards],
+  );
+
+  // 判定Worker: 起動して目印と保存済みサポカを送り込む
   useEffect(() => {
-    let alive = true;
-    void loadLandmarks().then((lm) => {
-      if (alive) landmarksRef.current = lm;
-    });
-    return () => {
-      alive = false;
+    const worker = new Worker(
+      new URL("../../lib/eventCounter/detectWorker.ts", import.meta.url),
+      { type: "module" },
+    );
+    workerRef.current = worker;
+    worker.onmessage = (e: MessageEvent) => {
+      const data = e.data as { type: string; result?: AnalyzeResult };
+      if (data.type !== "result" || !data.result) return;
+      workerBusy.current = false;
+      setAnalysis(data.result);
+      if (data.result.screen === "start") maybeCaptureCards("start");
+      else if (data.result.screen === "info") maybeCaptureCards("info");
     };
-  }, []);
+    void loadLandmarks().then((lm) => {
+      worker.postMessage({ type: "landmarks", landmarks: lm });
+    });
+    // 保存済みサポカを復元してWorkerへ
+    const stored = loadCards();
+    if (stored) {
+      void (async () => {
+        const grays = await Promise.all(
+          stored.thumbs.map(async (url) => {
+            if (!url) return null;
+            const img = await dataUrlToImageData(url);
+            return img ? toGray(img) : null;
+          }),
+        );
+        cardsQualityRef.current = stored.quality;
+        worker.postMessage({ type: "cards", cards: grays });
+      })();
+    }
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, [maybeCaptureCards]);
+
+  /** 読み取ったサポカを消す（次の開始確認画面で読み直す） */
+  const clearCards = () => {
+    setCardsInfo(null);
+    cardsQualityRef.current = 0;
+    workerRef.current?.postMessage({ type: "cards", cards: [] });
+    try {
+      localStorage.removeItem(CARDS_KEY);
+    } catch {
+      // 無視
+    }
+  };
 
   /** ゲーム画面領域の自動検出（映像が来てから呼ぶ） */
   const autoDetect = useCallback(() => {
@@ -231,11 +368,15 @@ export default function EventCounterPage() {
         WORK_W,
         WORK_H,
       );
-      // 目印検出（今どの画面か）。Python版と同じく正規化画像に対して行う
-      const lm = landmarksRef.current;
-      if (lm) {
+      // 判定はWorkerへ（前の判定が終わっていない時はこのフレームを飛ばす）
+      const worker = workerRef.current;
+      if (worker && !workerBusy.current) {
         const img = ctx.getImageData(0, 0, WORK_W, WORK_H);
-        setAnalysis(analyzeFrame(img, lm));
+        workerBusy.current = true;
+        worker.postMessage(
+          { type: "frame", w: img.width, h: img.height, buffer: img.data.buffer },
+          [img.data.buffer],
+        );
       }
       frames++;
       const now = performance.now();
@@ -512,6 +653,63 @@ export default function EventCounterPage() {
                   })}
                 </tbody>
               </table>
+              {/* イベント検出（サポカ読み取り後に有効になる） */}
+              <table className="mt-2 w-full border-t border-slate-200 text-xs tabular-nums">
+                <tbody>
+                  <tr>
+                    <td className="py-1 text-slate-500">イベント絵</td>
+                    <td
+                      className={`py-1 text-right font-semibold ${
+                        analysis?.screen === "event"
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {analysis && cardsInfo
+                        ? `${analysis.eventCard !== null ? `${analysis.eventCard + 1}枚目 ` : ""}${(analysis.scores.event ?? 0).toFixed(3)}`
+                        : "—"}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-slate-100">
+                    <td className="py-1 text-slate-500">絵上ノイズ</td>
+                    <td
+                      className={`py-1 text-right font-semibold ${
+                        analysis && analysis.eventClear
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {analysis && cardsInfo
+                        ? `${(analysis.scores.event_top ?? 0).toFixed(3)}（≦${EVENT_TOP_MAX}）`
+                        : "—"}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-slate-100">
+                    <td className="py-1 text-slate-500">スキルカード</td>
+                    <td
+                      className={`py-1 text-right font-semibold ${
+                        analysis?.skillCard
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {analysis?.skillCard ? "検出 ✓" : "—"}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-slate-100">
+                    <td className="py-1 text-slate-500">日数表示</td>
+                    <td
+                      className={`py-1 text-right font-semibold ${
+                        analysis?.dayMask
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {analysis?.dayMask ? "読み取り中 ✓" : "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
               {analysis && (
                 <p className="mt-2 text-[10px] text-slate-400">
                   判定 {analysis.elapsedMs.toFixed(0)}ms／
@@ -521,6 +719,58 @@ export default function EventCounterPage() {
             </div>
           </section>
         </div>
+
+        {/* サポカ読み取り */}
+        <section className="mt-6">
+          <h2 className="mb-1.5 flex items-center gap-2 text-sm font-bold text-slate-700">
+            編成サポカ（イベント照合用）
+            {cardsInfo && (
+              <button
+                type="button"
+                onClick={clearCards}
+                className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-100"
+              >
+                クリア
+              </button>
+            )}
+          </h2>
+          {cardsInfo ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {cardsInfo.thumbs.map((url, i) => (
+                <div
+                  key={i}
+                  className={`relative overflow-hidden rounded border-2 ${
+                    analysis?.screen === "event" && analysis.eventCard === i
+                      ? "border-emerald-500"
+                      : "border-slate-200"
+                  }`}
+                >
+                  {url ? (
+                    <img src={url} alt={`サポカ${i + 1}`} className="h-12 w-24 object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-24 items-center justify-center bg-slate-100 text-[10px] text-slate-400">
+                      空き
+                    </div>
+                  )}
+                  <span className="absolute left-0 top-0 bg-slate-900/60 px-1 text-[10px] font-bold text-white">
+                    {i + 1}
+                  </span>
+                </div>
+              ))}
+              <span className="text-[11px] text-slate-400">
+                読み取り元:
+                {cardsInfo.source === "start" ? "開始確認画面" : "編成情報ページ"}
+                ／写り {cardsInfo.quality.toFixed(1)}
+                （より写りの良い画面が映れば自動で更新）
+              </span>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-400">
+              まだ読み取っていません。プロデュースの「4.
+              開始確認」画面（または編成情報ページ）を映すと、編成サポカ6枚を自動で読み取って、イベントがどのカードのものかを判定できるようになります。
+            </p>
+          )}
+        </section>
 
         {/* 使い方 */}
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-600">
@@ -536,6 +786,10 @@ export default function EventCounterPage() {
             </li>
             <li>
               「画面判定」に今の画面（スケジュール選択・試験中など）がリアルタイムで表示されればOK
+            </li>
+            <li>
+              プロデュースの「4.
+              開始確認」画面（または編成情報ページ）が映ると、編成サポカ6枚を自動で読み取ります。以降、イベントシーンが出ると「どのサポカのイベントか」を自動判定します（該当サムネイルが緑枠になります）
             </li>
           </ol>
           <p className="mt-3 text-xs text-slate-400">
