@@ -6,6 +6,7 @@
  */
 import { Minus, Plus } from "lucide-react";
 import type { SupportCardData } from "@/data/supportCardsDb";
+import { imageUrl } from "@/lib/config";
 import {
   defaultDelTarget,
   defaultEnhanceTarget,
@@ -98,23 +99,35 @@ export function AcquireToggle({
     return null;
   }
   const acquired = override?.acquire ?? true;
+  const image = card.preEventImage ? imageUrl(card.preEventImage) : "";
   return (
-    <button
-      type="button"
-      onClick={() => events.setAcquire(card.id, acquired ? false : null)}
-      title={
-        acquired
-          ? "取得する（クリックで取得しない=前イベ発動0回扱いに）"
-          : "取得しない（前イベは発動0回扱い）"
-      }
-      className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition ${
-        acquired
-          ? "bg-cyan-100 text-cyan-700 hover:bg-cyan-200"
-          : "bg-slate-200 text-slate-400 line-through hover:bg-slate-300"
-      }`}
-    >
-      取得
-    </button>
+    <span className="inline-flex items-center gap-1 whitespace-nowrap align-middle">
+      {image && (
+        <img
+          src={image}
+          alt=""
+          title={`前イベで${card.preEventType}を獲得`}
+          loading="lazy"
+          className={`h-6 w-6 shrink-0 object-contain ${acquired ? "" : "opacity-30 grayscale"}`}
+        />
+      )}
+      <button
+        type="button"
+        onClick={() => events.setAcquire(card.id, acquired ? false : null)}
+        title={
+          acquired
+            ? "取得する（クリックで取得しない=前イベ発動0回扱いに）"
+            : "取得しない（前イベは発動0回扱い）"
+        }
+        className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold transition ${
+          acquired
+            ? "bg-cyan-100 text-cyan-700 hover:bg-cyan-200"
+            : "bg-slate-200 text-slate-400 line-through hover:bg-slate-300"
+        }`}
+      >
+        取得
+      </button>
+    </span>
   );
 }
 

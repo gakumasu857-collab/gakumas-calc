@@ -9,6 +9,7 @@
  * - 知らないアビリティラベル → キー変換せず { raw: "..." } で保持（データを落とさない）
  * - 知らない列 → extras にそのまま残す（後から使える）
  */
+import preEventImageNames from "./generated/preEventImages.json";
 import rawRows from "./generated/supportCards.json";
 import {
   abilityKeyFromLabel,
@@ -74,6 +75,12 @@ export type SupportCardData = {
    * 試験中どれだけ強いかの評点（-5〜7程度）。空欄は null＝試験の助けにならない。
    */
   strongest: number | null;
+  /**
+   * 前イベ（アイテム/スキル）の画像パス（R2の preEvent/ 配下。無ければ null）。
+   * 画像は前イベ名で命名されており、Search_word 列に前イベ名が入っているカードは
+   * ここで自動的に対応づく（preEventImages.json = R2にある画像名の一覧）。
+   */
+  preEventImage: string | null;
   /**
    * アイテムのおすすめ育成スタイル（スプシ recommend_plan 列を分割）。
    * 例: ["好調","集中"] / ["やる気","好印象"] / ["共通"]（=どのスタイルでも有効）。
@@ -208,6 +215,9 @@ const numOf = (v: unknown): number => {
 const str = (v: unknown): string =>
   v == null ? "" : (typeof v === "string" ? v : String(v)).trim();
 
+/** R2にある前イベ画像の名前一覧（Search_word との突合用） */
+const PRE_EVENT_IMAGE_SET = new Set<string>(preEventImageNames as string[]);
+
 function convert(row: Record<string, unknown>): SupportCardData | null {
   const name = str(row[COL.name]);
   // 名前のない行やシート用のダミー行（固定用）はスキップ
@@ -279,6 +289,13 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
       .split(/[,、]/)
       .map((w) => w.trim())
       .filter(Boolean),
+    preEventImage: (() => {
+      const hit = str(row.Search_word)
+        .split(/[,、]/)
+        .map((w) => w.trim())
+        .find((w) => PRE_EVENT_IMAGE_SET.has(w));
+      return hit ? `preEvent/${hit}.webp` : null;
+    })(),
     strongest: str(row.strongest) === "" ? null : numOf(row.strongest),
     // 区切りはカンマ・読点のほか誤記のドットも許容（例: "強気.全力"）
     recommendPlans: str(row.recommend_plan)

@@ -214,7 +214,19 @@ function SupportInfoTable() {
                   >
                     {card.extras["属性"] ?? "—"}
                   </td>
-                  <td className={`${TD} text-slate-600`}>{card.preEventType}</td>
+                  <td className={`${TD} text-slate-600`}>
+                    <span className="inline-flex items-center gap-1">
+                      {card.preEventImage && (
+                        <img
+                          src={imageUrl(card.preEventImage)}
+                          alt=""
+                          loading="lazy"
+                          className="h-6 w-6 shrink-0 object-contain"
+                        />
+                      )}
+                      {card.preEventType}
+                    </span>
+                  </td>
                   <td
                     className={`${TD} max-w-32 truncate text-left text-slate-500`}
                     title={pre.trigger}
