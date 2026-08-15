@@ -1,26 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Download, Home, Square, X } from "lucide-react";
+import { Camera, Download, Home, ScanSearch, Square, X } from "lucide-react";
+import { detectGameRegion } from "@/lib/eventCounter/autoRegion";
+import {
+  analyzeFrame,
+  DEFAULT_THRESHOLDS,
+  loadLandmarks,
+  SCREEN_LABELS,
+  TEMPLATE_KEYS,
+  WORK_H,
+  WORK_W,
+  type AnalyzeResult,
+  type GrayImage,
+  type TemplateKey,
+} from "@/lib/eventCounter/detect";
 
 /**
  * イベントカウンター（開発中）。
  *
- * フェーズ1: 取り込みの土台。
- * 1. 画面共有（getDisplayMedia）でゲームウィンドウを取り込む
- * 2. プレビュー上でゲーム画面の範囲をドラッグ指定（ウィンドウ枠・タイトルバーを除く）
- * 3. 指定範囲を 540x960（判定の作業サイズ）へ正規化して約5Hzでプレビュー
- *
- * 検出・追跡・記録は今後のフェーズで載せる（Python版 gakumas_event_counter の
- * detect/tracker/stats を OpenCV.js で移植する予定）。判定は Python 版と同じく
- * 「540x960 に正規化してから」行うので、このページの正規化出力がそのまま入力になる。
+ * フェーズ1: 取り込みの土台（画面共有 → ゲーム領域の自動検出 → 540x960 正規化）。
+ * フェーズ2: 目印検出（Python版 detect.py の移植）で「今どの画面か」を判定。
+ * 検出結果の追跡・記録・統計は次フェーズで載せる。
  */
 
-/** 判定の作業サイズ（Python版 detect.py の to_work_size と同じ） */
-const WORK_W = 540;
-const WORK_H = 960;
-/** 正規化プレビューの更新間隔（ms）。判定も将来この周期で回す */
+/** 正規化プレビュー・判定の周期（ms）。Python版の既定と同じ5Hz */
 const TICK_MS = 200;
 const REGION_KEY = "gakumas:eventCounterRegion:v1";
+
+/** 目印の短い表示名 */
+const LANDMARK_LABELS: Record<TemplateKey, string> = {
+  start_tab: "開始確認",
+  schedule: "スケジュール",
+  day_line: "日数表示",
+  produce_end: "ホーム",
+  produce_done: "プロデュース完了",
+  exam_line: "突破ライン",
+  info_page: "編成情報",
+};
 
 /** 選択範囲（映像ピクセル座標）。映像サイズが変わったら無効にするため寸法も持つ */
 type StoredRegion = {
@@ -63,6 +79,49 @@ export default function EventCounterPage() {
     cy: number;
   } | null>(null);
   const [tickInfo, setTickInfo] = useState<string | null>(null);
+  const [autoMsg, setAutoMsg] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
+  const landmarksRef = useRef<Partial<Record<TemplateKey, GrayImage>> | null>(
+    null,
+  );
+
+  // 目印画像を一度だけ読み込む
+  useEffect(() => {
+    let alive = true;
+    void loadLandmarks().then((lm) => {
+      if (alive) landmarksRef.current = lm;
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /** ゲーム画面領域の自動検出（映像が来てから呼ぶ） */
+  const autoDetect = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return;
+    const found = detectGameRegion(video);
+    if (found) {
+      const next: StoredRegion = {
+        ...found,
+        videoW: video.videoWidth,
+        videoH: video.videoHeight,
+      };
+      setRegion(next);
+      setAutoMsg(
+        `ゲーム画面を自動検出しました（${found.w}×${found.h}）。ずれている場合はプレビューをドラッグして直せます。`,
+      );
+      try {
+        localStorage.setItem(REGION_KEY, JSON.stringify(next));
+      } catch {
+        // 無視
+      }
+    } else {
+      setAutoMsg(
+        "ゲーム画面を自動検出できませんでした。プレビュー上をドラッグして範囲を指定してください。",
+      );
+    }
+  }, []);
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -72,6 +131,8 @@ export default function EventCounterPage() {
     setVideoSize(null);
     setDrag(null);
     setTickInfo(null);
+    setAnalysis(null);
+    setAutoMsg(null);
   }, []);
 
   /** ストリームを取り付ける（画面共有・開発検証の両方から使う） */
@@ -81,16 +142,22 @@ export default function EventCounterPage() {
       streamRef.current = s;
       const video = videoRef.current;
       if (!video) return;
+      // play() より先にハンドラを付ける（メタデータ読込を取りこぼさないように）
+      const onMeta = () => {
+        setVideoSize({ w: video.videoWidth, h: video.videoHeight });
+        // 最初のフレームが描けるようになってからゲーム領域を自動検出
+        setTimeout(autoDetect, 400);
+      };
+      video.onloadedmetadata = onMeta;
       video.srcObject = s;
       void video.play().catch(() => undefined);
-      video.onloadedmetadata = () => {
-        setVideoSize({ w: video.videoWidth, h: video.videoHeight });
-      };
+      // 既にメタデータが読めている場合（即時に整うストリーム）はその場で処理
+      if (video.readyState >= 1 && video.videoWidth > 0) onMeta();
       // 共有バーの「共有を停止」で止められたとき
       s.getVideoTracks()[0]?.addEventListener("ended", stop);
       setCapturing(true);
     },
-    [stop],
+    [stop, autoDetect],
   );
 
   const start = async () => {
@@ -164,6 +231,12 @@ export default function EventCounterPage() {
         WORK_W,
         WORK_H,
       );
+      // 目印検出（今どの画面か）。Python版と同じく正規化画像に対して行う
+      const lm = landmarksRef.current;
+      if (lm) {
+        const img = ctx.getImageData(0, 0, WORK_W, WORK_H);
+        setAnalysis(analyzeFrame(img, lm));
+      }
       frames++;
       const now = performance.now();
       if (now - lastStamp >= 1000) {
@@ -300,6 +373,15 @@ export default function EventCounterPage() {
           )}
           <button
             type="button"
+            onClick={autoDetect}
+            disabled={!capturing}
+            className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
+          >
+            <ScanSearch size={13} />
+            範囲を自動検出し直す
+          </button>
+          <button
+            type="button"
             onClick={clearRegion}
             disabled={!region}
             className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
@@ -324,6 +406,9 @@ export default function EventCounterPage() {
         </div>
         {error && (
           <p className="mb-3 text-sm font-semibold text-red-500">{error}</p>
+        )}
+        {autoMsg && (
+          <p className="mb-3 text-xs font-semibold text-blue-600">{autoMsg}</p>
         )}
 
         <div className="flex flex-col gap-4 lg:flex-row">
@@ -393,6 +478,48 @@ export default function EventCounterPage() {
               className="h-[480px] w-[270px] rounded-xl border border-slate-300 bg-slate-900"
             />
           </section>
+
+          {/* 画面判定（目印の一致度） */}
+          <section className="w-full shrink-0 lg:w-64">
+            <h2 className="mb-1.5 text-sm font-bold text-slate-700">
+              画面判定
+            </h2>
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="text-xs text-slate-400">今の画面</p>
+              <p className="mb-2 text-lg font-bold text-blue-700">
+                {analysis ? (SCREEN_LABELS[analysis.screen] ?? "—") : "—"}
+              </p>
+              <table className="w-full text-xs tabular-nums">
+                <tbody>
+                  {TEMPLATE_KEYS.map((key) => {
+                    const score = analysis?.scores[key] ?? 0;
+                    const hit = score >= (DEFAULT_THRESHOLDS[key] ?? 1);
+                    return (
+                      <tr key={key} className="border-t border-slate-100">
+                        <td className="py-1 text-slate-500">
+                          {LANDMARK_LABELS[key]}
+                        </td>
+                        <td
+                          className={`py-1 text-right font-semibold ${
+                            hit ? "text-emerald-600" : "text-slate-400"
+                          }`}
+                        >
+                          {score.toFixed(3)}
+                          {hit ? " ✓" : ""}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {analysis && (
+                <p className="mt-2 text-[10px] text-slate-400">
+                  判定 {analysis.elapsedMs.toFixed(0)}ms／
+                  {TICK_MS}ms周期
+                </p>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* 使い方 */}
@@ -405,10 +532,10 @@ export default function EventCounterPage() {
               を選ぶ
             </li>
             <li>
-              左のプレビューで、ゲーム画面の部分（縦長の画面そのもの）をドラッグで囲う
+              ゲーム画面の範囲は自動で検出されます（ずれている時だけプレビューをドラッグして調整）
             </li>
             <li>
-              右の正規化プレビューがゲーム画面ぴったりになればOK（この画像が今後の自動判定の入力になります）
+              「画面判定」に今の画面（スケジュール選択・試験中など）がリアルタイムで表示されればOK
             </li>
           </ol>
           <p className="mt-3 text-xs text-slate-400">
