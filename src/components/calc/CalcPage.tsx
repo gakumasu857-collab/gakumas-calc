@@ -41,7 +41,7 @@ import {
   scoreOwnedCards,
   scoreRentalCandidates,
   sumEventContrib,
-  typeCountsFromRatio,
+  typeConstraintFromRatio,
 } from "@/lib/formation";
 import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
 import { IDOL_RANKS } from "@/lib/pIdol";
@@ -157,13 +157,14 @@ export default function CalcPage() {
           extraScore: r.niaFudaExtra,
           examAssist: settings.examAssist,
           examStyleTags: examStyleTags(r.selectedSet?.name ?? null),
-          typeCounts: settings.typeRatio.enabled
-            ? typeCountsFromRatio({
+          // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
+          ...(settings.typeRatio.enabled
+            ? typeConstraintFromRatio({
                 vocal: settings.typeRatio.vocal,
                 dance: settings.typeRatio.dance,
                 visual: settings.typeRatio.visual,
               })
-            : undefined,
+            : {}),
           minStat: TYPE_KEYS.some((t) => settings.minStats[t] > 0)
             ? {
                 req: settings.minStats,

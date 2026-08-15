@@ -1,24 +1,9 @@
 ﻿import {
-  Atom,
-  Brain,
-  Circle,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
-import {
   ATTR_STYLES,
-  PLAN_STYLES,
+  PLAN_ICON_SRC,
   sortAbilities,
   type Memory,
-  type PlanKey,
 } from "@/lib/memoryTypes";
-
-const PLAN_ICONS: Record<PlanKey, LucideIcon> = {
-  共通: Circle,
-  センス: Sparkles,
-  ロジック: Brain,
-  アノマリー: Atom,
-};
 
 type Props = {
   memory: Memory;
@@ -42,9 +27,8 @@ export default function MemoryCard({
   onRemoveOne,
   deleteMode = false,
 }: Props) {
-  const plan = PLAN_STYLES[memory.plan] ?? PLAN_STYLES.共通;
   // アイコンは常にプランのもの（名前はプランと独立の自由入力）
-  const Icon = PLAN_ICONS[memory.plan] ?? Circle;
+  const iconSrc = PLAN_ICON_SRC[memory.plan] ?? PLAN_ICON_SRC.共通;
   const deletable = deleteMode && !memory.isTemplate;
 
   return (
@@ -69,7 +53,7 @@ export default function MemoryCard({
           ×{selectedCount}
         </span>
       )}
-      {/* 1枚解除の−ボタン（カード内側に置いて×nバッジと被らないように） */}
+      {/* 1枚解除の−ボタン（左上角。アイコンが小さくなったので枠の外側寄りに） */}
       {selectedCount > 0 && !deleteMode && onRemoveOne && (
         <span
           role="button"
@@ -78,7 +62,7 @@ export default function MemoryCard({
             e.stopPropagation();
             onRemoveOne();
           }}
-          className="absolute left-2.5 top-2.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500/90 text-sm font-bold leading-none text-white shadow hover:bg-red-400"
+          className="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500/90 text-sm font-bold leading-none text-white shadow hover:bg-red-400"
         >
           −
         </span>
@@ -90,14 +74,16 @@ export default function MemoryCard({
         </span>
       )}
 
-      {/* 上部: プランの画像/アイコン（正方形・角丸） */}
-      <div
-        className={`flex aspect-square w-full items-center justify-center rounded-md ${plan.icon}`}
-      >
-        <Icon className="h-1/3 w-1/3 text-white" strokeWidth={2.2} />
-      </div>
-      <div className="truncate text-center text-[10px] font-medium text-slate-500">
-        {memory.skillName ?? memory.plan}
+      {/* 上部: プランアイコン（ゲームのプラン画像・左寄せ）＋名前 */}
+      <div className="flex items-center gap-1.5">
+        <img
+          src={iconSrc}
+          alt={memory.plan}
+          className="h-7 w-7 shrink-0 object-contain"
+        />
+        <span className="min-w-0 flex-1 truncate text-left text-[10px] font-medium text-slate-500">
+          {memory.skillName ?? memory.plan}
+        </span>
       </div>
 
       {/* 下部: アビリティ（最大3つ・属性色・Vo→Da→Vi→P→回復順）。行の高さは18pxで統一 */}

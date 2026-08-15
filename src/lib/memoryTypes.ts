@@ -113,6 +113,14 @@ export const BTN_DISABLED =
 
 export const PLAN_LIST: PlanKey[] = ["共通", "センス", "ロジック", "アノマリー"];
 
+/** プランのゲーム内アイコン画像（public/plan-icons/。共通はFREE表記） */
+export const PLAN_ICON_SRC: Record<PlanKey, string> = {
+  共通: "/plan-icons/free.png",
+  センス: "/plan-icons/sense.png",
+  ロジック: "/plan-icons/logic.png",
+  アノマリー: "/plan-icons/anomaly.png",
+};
+
 /** プランの表示色（カードのアイコン背景・選択ボタン） */
 export const PLAN_STYLES: Record<
   PlanKey,

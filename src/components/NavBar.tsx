@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 
-// メインは計算ページ（/）。
+// サポカ編成計算機のナビ（メインは /calc）。ブランド名クリックでホームへ戻る。
 const TABS = [
-  { href: "/", label: "計算" },
+  { href: "/calc", label: "計算" },
   { href: "/support", label: "所持状況" },
   { href: "/memory", label: "メモリー設定" },
   { href: "/ability-counts", label: "発動回数" },
@@ -17,9 +17,14 @@ export default function NavBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-x-4 px-4 py-2.5">
-        <span className="shrink-0 text-base font-bold tracking-tight text-blue-600">
-          学マス 育成お助けツール
-        </span>
+        <Link
+          to="/"
+          title="ホーム（ツール一覧）へ戻る"
+          className="flex shrink-0 items-center gap-1.5 text-base font-bold tracking-tight text-blue-600 transition hover:text-blue-500"
+        >
+          <img src="/icon-192.png" alt="" className="h-6 w-6 object-contain" />
+          サポカ編成計算機
+        </Link>
         {/* タブは折り返さず横スクロール（2行にしない） */}
         <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto whitespace-nowrap scrollbar-thin">
           {TABS.map((tab) => {

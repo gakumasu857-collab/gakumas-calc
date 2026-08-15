@@ -324,6 +324,25 @@ export function capFor(cap: StatCaps, type: TypeKey): number {
 }
 
 /**
+ * 編成割合の設定値 → findBestFormation の構成条件。
+ * 合計が6以上なら比率どおり6枚へ按分して固定（6ちょうどはそのまま）、
+ * 合計が6未満なら指定枚数を最低条件にして残り枠は自由に探索する。
+ */
+export function typeConstraintFromRatio(
+  ratio: Record<TypeKey, number>,
+): Pick<FindBestOptions, "typeCounts" | "typeMinCounts"> {
+  const clean: Record<TypeKey, number> = {
+    vocal: Math.max(0, ratio.vocal || 0),
+    dance: Math.max(0, ratio.dance || 0),
+    visual: Math.max(0, ratio.visual || 0),
+  };
+  const sum = clean.vocal + clean.dance + clean.visual;
+  if (sum <= 0) return {};
+  if (sum >= DECK_SIZE) return { typeCounts: typeCountsFromRatio(clean) };
+  return { typeMinCounts: clean };
+}
+
+/**
  * タイプ比率（例 1:3:2）を編成の6枚へ最大剰余法で配分したタイプ構成。
  * サポカ編成のタイプ割合固定に使う。
  */
@@ -633,6 +652,11 @@ export type FindBestOptions = {
   examStyleTags?: string[] | null;
   /** サポカ編成のタイプ構成（Vo/Da/Vi各枚数・合計6）。指定するとこの構成に固定 */
   typeCounts?: Record<TypeKey, number>;
+  /**
+   * タイプごとの最低採用枚数（合計6未満の割合指定）。
+   * 指定枚数ぶんはそのタイプを必ず採用し、残り枠は自由に探索する。
+   */
+  typeMinCounts?: Record<TypeKey, number>;
   /** タイプ別の最低ステータス条件（審査基準順の優先つき） */
   minStat?: MinStatCondition;
   /**
@@ -785,9 +809,9 @@ function pickSpForced(
   pools: Record<TypeKey, ScoredCard[]>,
   ownedPinned: ScoredCard[],
   spMin: SpMinCondition | undefined,
-  typeCounts: Record<TypeKey, number> | undefined,
+  typeConstrained: boolean,
 ): ScoredCard[] {
-  if (!spMin || typeCounts) return [];
+  if (!spMin || typeConstrained) return [];
   const forced: ScoredCard[] = [];
   for (const type of TYPE_LIST) {
     const already = ownedPinned.filter(
@@ -809,6 +833,7 @@ type SearchCtx = {
   spForced: ScoredCard[];
   spForcedIds: Set<string>;
   typeCounts?: Record<TypeKey, number>;
+  typeMinCounts?: Record<TypeKey, number>;
   pinnedIds?: ReadonlySet<string>;
 };
 
@@ -885,9 +910,21 @@ function collectSeeds(ctx: SearchCtx, rentalSeeds: (ScoredCard | null)[]): Seed[
       takeAndPush(need.vocal, need.dance, need.visual);
       continue;
     }
+    // 最低枚数条件（合計6未満の割合指定）: 確定枠込みで各タイプの最低を満たす分割のみ
+    const min = ctx.typeMinCounts;
+    const fc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    if (min) for (const c of fixed) fc[c.type]++;
     for (let v = 0; v <= slots; v++) {
       for (let d = 0; d <= slots - v; d++) {
-        takeAndPush(v, d, slots - v - d);
+        const s = slots - v - d;
+        if (
+          min &&
+          (fc.vocal + v < min.vocal ||
+            fc.dance + d < min.dance ||
+            fc.visual + s < min.visual)
+        )
+          continue;
+        takeAndPush(v, d, s);
       }
     }
   }
@@ -912,6 +949,14 @@ function climbFormation(
         if (cand.id === current.id) continue;
         // タイプ構成を固定するときは同タイプ同士の入れ替えのみ（構成を崩さない）
         if (ctx.typeCounts && cand.type !== current.type) continue;
+        // 最低枚数条件: 別タイプへの入れ替えで現タイプが最低枚数を割るなら不可
+        if (
+          ctx.typeMinCounts &&
+          cand.type !== current.type &&
+          members.filter((m) => m.type === current.type).length - 1 <
+            ctx.typeMinCounts[current.type]
+        )
+          continue;
         if (members.some((m, j) => j !== i && m.id === cand.id)) continue;
         const trial = members.slice();
         trial[i] = cand;
@@ -998,7 +1043,12 @@ export function findBestFormation(
     owned.filter((c) => !ownedPinnedIds.has(c.id)),
     seedValue,
   );
-  const spForced = pickSpForced(pools, ownedPinned, spMin, opts?.typeCounts);
+  const spForced = pickSpForced(
+    pools,
+    ownedPinned,
+    spMin,
+    !!opts?.typeCounts || !!opts?.typeMinCounts,
+  );
   const ctx: SearchCtx = {
     evalPenalized,
     pools,
@@ -1007,6 +1057,7 @@ export function findBestFormation(
     spForced,
     spForcedIds: new Set(spForced.map((c) => c.id)),
     typeCounts: opts?.typeCounts,
+    typeMinCounts: opts?.typeMinCounts,
     pinnedIds: opts?.pinned,
   };
 

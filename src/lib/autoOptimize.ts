@@ -36,10 +36,10 @@ import {
   examAssistSum,
   MAX_STAT_EXCESS_WEIGHT,
   findBestFormation,
+  typeConstraintFromRatio,
   minStatBonus,
   SP_PENALTY,
   spConditionShortfall,
-  typeCountsFromRatio,
   scoreOwnedCards,
   scoreRentalCandidates,
   scoreSelectedCards,
@@ -139,8 +139,9 @@ export type AutoOptimizeInput = {
    */
   eventBudget?: EventBudget;
   /**
-   * サポカ編成のタイプ構成をこの比率に固定する（例 {vocal:1,dance:3,visual:2}）。
-   * 指定すると編成6枚を比率どおりのタイプ枚数（typeCountsFromRatio）に固定して探索する。
+   * サポカ編成のタイプ構成の指定（例 {vocal:1,dance:3,visual:2}）。
+   * 合計が6以上なら比率どおり6枚へ按分して固定、6未満なら指定枚数を
+   * 最低条件にして残り枠は自由に探索する（typeConstraintFromRatio）。
    * 未指定ならタイプ構成も自由に探索する。
    */
   typeRatio?: Record<TypeKey, number> | null;
@@ -1232,9 +1233,8 @@ export class OptimizeEngine {
       extraScore: this.extraScore,
       examAssist: input.examAssist,
       examStyleTags: input.examStyleTags,
-      typeCounts: input.typeRatio
-        ? typeCountsFromRatio(input.typeRatio)
-        : undefined,
+      // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
+      ...(input.typeRatio ? typeConstraintFromRatio(input.typeRatio) : {}),
       minStat: this.minStatCond,
     });
   }

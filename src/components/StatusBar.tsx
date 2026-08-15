@@ -84,8 +84,8 @@ function StatusBarInner() {
     if (allLoaded) lastSnapshot = live;
   });
 
-  // 計算ページ（メイン=/）では同じ情報がページ内にあるので表示しない
-  if (pathname === "/") return null;
+  // 計算ページ（/calc）では同じ情報がページ内にあるので表示しない
+  if (pathname === "/calc") return null;
 
   const activeMembers = shown.members.filter(
     (m): m is SelectedMember => m !== null,
@@ -179,7 +179,7 @@ function StatusBarInner() {
 
           {/* 評価値（クリックで計算ページへ） */}
           <Link
-            to="/"
+            to="/calc"
             className="ml-auto flex items-baseline gap-1.5"
             title="計算ページを開く"
           >

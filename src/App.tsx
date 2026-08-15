@@ -8,10 +8,11 @@ import CardScoreTable from "@/components/card-scores/CardScoreTable";
 import CardSettingsPage from "@/components/card-settings/CardSettingsPage";
 import DatabasePage from "@/components/database/DatabasePage";
 import DebugPage from "@/components/debug/DebugPage";
+import HomePage from "@/components/home/HomePage";
 import MemoryManager from "@/components/memory-manager/MemoryManager";
 import OwnershipPage from "@/components/ownership/OwnershipPage";
 
-/** メイン（/=計算ページ）以外のページ（共通の余白＋見出しで包む） */
+/** サポカ編成計算機のメイン（/calc）以外のページ（共通の余白＋見出しで包む） */
 const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
   { path: "/support", title: "所持状況入力", element: <OwnershipPage /> },
   { path: "/memory", title: "メモリー設定", element: <MemoryManager /> },
@@ -40,16 +41,20 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  // ホーム（/）はサイトの玄関なので、ツールのナビバー・ステータスバーは出さない
+  const isHome = useLocation().pathname === "/";
   return (
     <>
       <ScrollToTop />
-      <NavBar />
+      {!isHome && <NavBar />}
       {/* 下部のステータスバーに隠れないよう余白を確保 */}
-      <div className="flex-1 pb-20">
+      <div className={isHome ? "flex-1" : "flex-1 pb-20"}>
         <Routes>
-          {/* メインは計算ページ */}
+          {/* ホーム: ツールの入口 */}
+          <Route path="/" element={<HomePage />} />
+          {/* サポカ編成計算機のメイン */}
           <Route
-            path="/"
+            path="/calc"
             element={
               <main className="mx-auto max-w-7xl px-4 py-4">
                 <h1 className="mb-3 text-xl font-bold text-slate-900">
@@ -75,7 +80,7 @@ export default function App() {
           ))}
         </Routes>
       </div>
-      <StatusBar />
+      {!isHome && <StatusBar />}
     </>
   );
 }
