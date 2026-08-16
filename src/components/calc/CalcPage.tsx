@@ -293,24 +293,23 @@ export default function CalcPage() {
         {/* 設定 */}
         <Card title="設定">
           <div className="flex flex-col gap-3 sm:flex-row">
-            {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花） */}
-            <div className="flex shrink-0 items-start gap-3">
+            {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花）。
+                プラン・おすすめ効果は特訓開花の下 */}
+            <div className="flex w-28 shrink-0 flex-col gap-1.5">
               <PIdolImageEditor
                 r={r}
                 onOpenPicker={() => setIdolPickerOpen(true)}
               />
-              <div className="flex flex-col gap-1 text-sm sm:hidden">
-                <PIdolInfo r={r} />
-              </div>
+              <PIdolInfo r={r} />
             </div>
-            {/* 入力欄 */}
+            {/* 入力欄（3つ縦並び） */}
             <div className="min-w-0 flex-1">
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2">
                 <Field label="育成シナリオ">
                   <button
                     type="button"
                     onClick={() => setScenarioPickerOpen(true)}
-                    className={`${PICKER_INPUT} flex w-full items-center gap-2 text-left`}
+                    className={`${INPUT} flex w-full items-center gap-2 text-left`}
                   >
                     <span
                       className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
@@ -325,7 +324,7 @@ export default function CalcPage() {
                   <button
                     type="button"
                     onClick={() => setIdolPickerOpen(true)}
-                    className={`${PICKER_INPUT} flex w-full items-center justify-between gap-2 text-left`}
+                    className={`${INPUT} flex w-full items-center justify-between gap-2 text-left`}
                   >
                     <span className="truncate">
                       {settings.idol}
@@ -341,7 +340,7 @@ export default function CalcPage() {
                       if (e.target.value !== r.ability.selectedSetId)
                         r.ability.selectSet(e.target.value);
                     }}
-                    className={`${PICKER_INPUT} w-full`}
+                    className={`${INPUT} w-full`}
                   >
                     <option value="">未選択</option>
                     {r.ability.sets
@@ -356,9 +355,6 @@ export default function CalcPage() {
                       ))}
                   </select>
                 </Field>
-              </div>
-              <div className="mt-2 hidden text-sm sm:block">
-                <PIdolInfo r={r} />
               </div>
             </div>
           </div>
@@ -409,7 +405,11 @@ export default function CalcPage() {
         {/* 全自動最適化 */}
         <Card
           title="全自動最適化"
-          hint="シナリオ・名前・Pアイドル・育成セット・メモリーを選んでから押す"
+          hint={
+            <span className="font-semibold text-amber-600">
+              シナリオ・名前・Pアイドル・育成セット・メモリーを選んでから押す
+            </span>
+          }
         >
           {/* 求めるボタンの右隣に設定ボタン */}
           <div className="flex flex-wrap items-center gap-2">
@@ -499,7 +499,7 @@ export default function CalcPage() {
                 className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
               >
                 <Sparkles size={13} />
-                {idealBusy ? "計算中…" : "サポカ編成を求める"}
+                {idealBusy ? "計算中…" : "今の踏み方でサポカ編成を最適化"}
               </button>
               <button
                 type="button"
@@ -591,13 +591,6 @@ export default function CalcPage() {
               </span>
             </p>
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">
-            枠をクリックして手動で選択できます。理想編成の条件（BAN・固定・レンタルNG）は
-            <Link to="/card-scores" className="text-blue-600 underline">
-              点数表
-            </Link>
-            、プラン制限はPアイドルのプラン（共通＋{r.plan ?? "全プラン"}）。
-          </p>
         </Card>
 
         {/* セーブデータ・画像出力 */}
@@ -1227,7 +1220,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
         </tbody>
       </table>
       <p className="px-2 pt-1 text-[10px] text-slate-400">
-        計算ページ専用の設定です（サポカ設定ページとは別に保存され、互いに影響しません）。前イベは取得/未取得の2択（回数は自動計算）。後イベは強化・削除ならM/A/✕、それ以外は〇/✕で指定できます。
+        計算ページ専用（サポカ設定ページとは別保存）。前イベ=取得/未取得、後イベ=M/A/✕。
       </p>
     </div>
   );
@@ -1309,10 +1302,8 @@ function PIdolImageEditor({
           type="button"
           onClick={() => setOpen((v) => !v)}
           title="クリックで特訓・才能開花を設定"
-          className={`mt-1 block w-28 rounded-md px-1 py-1 text-center text-xs font-bold ring-1 transition ${
-            own
-              ? "bg-blue-50 text-blue-700 ring-blue-200 hover:bg-blue-100"
-              : "bg-red-50 text-red-600 ring-red-200 hover:bg-red-100"
+          className={`mt-1 block w-28 text-center text-xs font-bold transition hover:text-blue-600 ${
+            own ? "text-slate-700" : "text-red-500"
           }`}
         >
           {own ? `特訓${own.kunren}・開花${own.kaika}` : "未所持"}
@@ -1366,20 +1357,17 @@ function PIdolImageEditor({
   );
 }
 
-/** Pアイドルの状態表示（プラン・おすすめ効果。特訓/開花は画像下に表示） */
+/** Pアイドルの状態表示（プラン・おすすめ効果。特訓開花表示の下に置く） */
 function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
   if (!r.pMaster) return null;
   return (
-    <div className="text-xs text-slate-600">
+    <div className="text-center text-xs text-slate-600">
       <p>
-        <b className="text-slate-800">{r.pMaster.plan}</b> / おすすめ効果:{" "}
-        {r.pMaster.effect}
+        <b className="text-slate-800">{r.pMaster.plan}</b>
       </p>
-      {!r.ownership && (
-        <p className="mt-0.5 text-red-500">
-          未所持（特訓0・開花0として計算）
-        </p>
-      )}
+      <p className="text-[11px] leading-tight text-slate-500">
+        おすすめ: {r.pMaster.effect}
+      </p>
     </div>
   );
 }
@@ -1600,9 +1588,6 @@ function formatProb(p: number): string {
 const INPUT =
   "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500";
 
-/** 設定ブロックの主要プルダウン用（「ここを設定する」が伝わるよう強調） */
-const PICKER_INPUT =
-  "rounded-lg border-2 border-blue-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-sm outline-none transition hover:border-blue-400 focus:border-blue-500";
 
 const SMALL_BTN =
   "flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
@@ -1614,7 +1599,7 @@ function Card({
   children,
 }: {
   title: string;
-  hint?: string;
+  hint?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {

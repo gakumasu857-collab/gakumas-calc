@@ -30,6 +30,17 @@ function rowsToRecords(rows) {
 }
 
 /**
+ * 生グリッド（行列そのまま）で保存するタブ。
+ * 発動回数タブは1行目がプランのタグ行（左上セルが空）になり、
+ * ヘッダー→オブジェクト変換だとアビリティ名列が落ちる・プラン名の重複で列が潰れるため。
+ */
+const GRID_TABS = new Set([
+  "abilityCountsHIF",
+  "abilityCountsNIA",
+  "abilityCountsHajime",
+]);
+
+/**
  * 全タブを同期する。
  * @returns {Promise<{synced: {tab: string, rows: number}[], skipped: {tab: string, reason: string}[], tabs: string[], updatedAt: string}>}
  */
@@ -69,7 +80,9 @@ export async function syncMasters(env) {
       skipped.push({ tab, reason: rows ? "データ行がない" : "取得できない" });
       continue;
     }
-    const records = rowsToRecords(rows);
+    const records = GRID_TABS.has(tab)
+      ? rows.filter((row) => row.some((cell) => String(cell).trim() !== ""))
+      : rowsToRecords(rows);
     if (records.length === 0) {
       skipped.push({ tab, reason: "有効な行がない" });
       continue;

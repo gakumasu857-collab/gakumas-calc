@@ -52,9 +52,12 @@ export default function SetEditModal({
     formationKeys !== undefined,
   );
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
+  // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する
   const visibleAbilities =
     onlyFormation && formationKeys
-      ? current.abilities.filter((key) => formationKeys.has(key))
+      ? current.abilities.filter(
+          (key) => key === "skill_ac" || formationKeys.has(key),
+        )
       : [...current.abilities];
 
   return (

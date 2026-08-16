@@ -140,7 +140,12 @@ const DERIVED_CAPS = [
   { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
 ] as const satisfies readonly { key: AbilityName; base: AbilityName; cap: number }[];
 
-type CountTable = { setNames: string[]; rows: Record<string, number[]> };
+type CountTable = {
+  setNames: string[];
+  /** セットごとのプラン（スプシのプラン行。旧データ・未記入は""） */
+  plans?: string[];
+  rows: Record<string, number[]>;
+};
 
 /** per-setではなくシナリオ固定回数(FIXED_COUNTS)で扱うため、この表からは除外するキー */
 const FIXED_COUNT_KEYS = new Set<AbilityName>(["stage_finish"]);
@@ -175,16 +180,25 @@ const SET_NAMES: readonly string[] = generatedCounts.hif.setNames;
  */
 const DEFAULT_COUNTS = toCountTable(generatedCounts.hif);
 
-export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => ({
-  id: `set:${name}`,
-  name,
-  plan: planFromSetName(name),
-  defaults: Object.fromEntries(
-    Object.entries(DEFAULT_COUNTS)
-      .map(([key, values]) => [key, values[i]])
-      .filter(([, value]) => value !== 0),
-  ) as Partial<Record<AbilityName, number>>,
-}));
+/** テンプレのプラン: スプシのプラン行を優先し、無ければセット名から推定 */
+const SET_PLANS: readonly string[] = generatedCounts.hif.plans ?? [];
+
+// スプシのセット名はプラン列の分離で短くなった（例: センス花ロボ(黄) → 花ロボ(黄)）。
+// 名前はプランをまたいで重複するため、IDは「プラン＋名前」で一意にする
+// （旧ID「set:センス花ロボ(黄)」とも一致し、保存済みの回数・選択が引き継がれる）。
+export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => {
+  const plan = SET_PLANS[i] || planFromSetName(name);
+  return {
+    id: `set:${plan}${name}`,
+    name,
+    plan,
+    defaults: Object.fromEntries(
+      Object.entries(DEFAULT_COUNTS)
+        .map(([key, values]) => [key, values[i]])
+        .filter(([, value]) => value !== 0),
+    ) as Partial<Record<AbilityName, number>>,
+  };
+});
 
 // ============================================================
 // N.I.A.用テンプレセット（現行スプシの abilityCountsNIA タブ由来）
@@ -193,17 +207,22 @@ export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => ({
 const NIA_SET_NAMES: readonly string[] = generatedCounts.nia.setNames;
 const NIA_DEFAULT_COUNTS = toCountTable(generatedCounts.nia);
 
+const NIA_SET_PLANS: readonly string[] = generatedCounts.nia.plans ?? [];
+
 export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
-  (name, i) => ({
-    id: `nia:${name}`,
-    name,
-    plan: planFromSetName(name),
-    defaults: Object.fromEntries(
-      Object.entries(NIA_DEFAULT_COUNTS)
-        .map(([key, values]) => [key, values[i]])
-        .filter(([, value]) => value !== 0),
-    ) as Partial<Record<AbilityName, number>>,
-  }),
+  (name, i) => {
+    const plan = NIA_SET_PLANS[i] || planFromSetName(name);
+    return {
+      id: `nia:${plan}${name}`,
+      name,
+      plan,
+      defaults: Object.fromEntries(
+        Object.entries(NIA_DEFAULT_COUNTS)
+          .map(([key, values]) => [key, values[i]])
+          .filter(([, value]) => value !== 0),
+      ) as Partial<Record<AbilityName, number>>,
+    };
+  },
 );
 
 /**
