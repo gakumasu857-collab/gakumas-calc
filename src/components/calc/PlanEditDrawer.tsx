@@ -154,6 +154,36 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
           {optMsg && (
             <p className="mb-2 text-xs font-semibold text-blue-600">{optMsg}</p>
           )}
+          {/* モーダルを開いたままでも最終ステ・評価値を追えるライブサマリー */}
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm tabular-nums">
+            <span className="text-xs font-bold text-slate-500">
+              最終ステータス
+            </span>
+            {TYPE_KEYS.map((t) => (
+              <span key={t}>
+                <span className={`text-xs font-bold ${TYPE_STYLE[t].head}`}>
+                  {TYPE_LABELS[t]}
+                </span>{" "}
+                <b className="text-slate-800">
+                  {Math.round(r.perType[t].current).toLocaleString()}
+                </b>
+              </span>
+            ))}
+            <span className="text-xs text-slate-500">
+              合計{" "}
+              <b className="text-sm text-slate-800">
+                {Math.round(r.cappedSum).toLocaleString()}
+              </b>
+            </span>
+            <span className="ml-auto text-xs text-slate-500">
+              評価値{" "}
+              <b className="text-base text-blue-600">
+                {r.members.every((m) => m !== null) && r.selectedSet
+                  ? r.rating.toLocaleString()
+                  : "—"}
+              </b>
+            </span>
+          </div>
           {r.scenario === "hif" && <HifEditor r={r} />}
           {r.scenario === "niaMaster" && <NiaEditor r={r} />}
           {r.scenario === "hatsuLegend" && <HatsuEditor r={r} />}

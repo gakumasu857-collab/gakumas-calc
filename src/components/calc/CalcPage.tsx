@@ -197,12 +197,61 @@ export default function CalcPage() {
   };
 
   /**
+   * 今の編成（選択サポカ）が現在の条件設定を満たしているか。
+   * 満たしているのに探索結果が今の評価値を下回る場合は、結果を反映せず現状維持する
+   * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
+   */
+  const currentMeetsConditions = (): boolean => {
+    const members = r.members.filter((m): m is SelectedMember => m !== null);
+    if (members.length < 6) return false;
+    if (members.filter((m) => m.rental).length > 1) return false;
+    for (const m of members) {
+      const db = CARD_BY_ID.get(m.id);
+      if (!db) return false;
+      if (!planAllows(db.plan, r.plan)) return false;
+      if (flags.pinned.has(m.id)) continue; // 固定は条件を貫通
+      if (flags.banned.has(m.id)) return false;
+      if (
+        settings.noStageItems &&
+        (db.stageItem || db.preEventType === "スキル")
+      )
+        return false;
+    }
+    for (const t of TYPE_KEYS) {
+      const need = settings.spMin[t] ?? 0;
+      if (
+        need > 0 &&
+        members.filter((m) => !m.assist && m.type === t && m.hasSpUp).length <
+          need
+      )
+        return false;
+    }
+    if (settings.typeRatio.enabled) {
+      const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const m of members) if (!m.assist) counts[m.type]++;
+      const ratioSum = TYPE_KEYS.reduce(
+        (sum, t) => sum + settings.typeRatio[t],
+        0,
+      );
+      for (const t of TYPE_KEYS) {
+        const want = settings.typeRatio[t];
+        // 合計6以上=枚数固定、6未満=最低枚数
+        if (ratioSum >= 6 ? counts[t] !== want : counts[t] < want) return false;
+      }
+    }
+    return true;
+  };
+
+  /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
    * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
    */
   const runAutoOptimize = () => {
     setOptBusy(true);
     setOptMsg(null);
+    // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える
+    const before = canShowRating ? r.rating : null;
+    const beforeOk = before !== null && currentMeetsConditions();
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
@@ -212,6 +261,13 @@ export default function CalcPage() {
         if (!res) {
           setOptMsg(
             "編成を組めません（プラン制限内の所持サポカが不足しています）",
+          );
+          return;
+        }
+        // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
+        if (before !== null && beforeOk && res.rating < before) {
+          setOptMsg(
+            `探索結果（理論評価値 ${res.rating.toLocaleString()}）が今の評価値 ${before.toLocaleString()} を下回ったため、変更しませんでした。もう一度押すと再探索します。`,
           );
           return;
         }
@@ -235,6 +291,9 @@ export default function CalcPage() {
         const sec = (res.elapsedMs / 1000).toFixed(1);
         setOptMsg(
           `理論評価値 ${res.rating.toLocaleString()} の組み合わせを踏み方・サポカ編成に反映しました（${res.evaluated.toLocaleString()}通りを探索・${sec}秒）` +
+            (before !== null && !beforeOk && res.rating < before
+              ? `。押す前より評価値が下がっていますが、元の編成は現在の条件設定に合っていなかったため置き換えました`
+              : "") +
             (hasOps
               ? `。評価値ボックスには前イベ/後イベの取得制限を反映した値を表示しています（下のボタンでサポカ設定にも反映できます）`
               : "") +
@@ -538,7 +597,7 @@ export default function CalcPage() {
             <p className="mb-2 text-xs font-semibold text-amber-600">
               ⚠ レンタルが
               {r.members.filter((m) => m?.rental).length}
-              枚選ばれています。ゲームで借りられるレンタルは1育成につき1枚です。
+              枚選ばれています。レンタルサポカは1育成につき1枚です。
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">

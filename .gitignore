@@ -41,3 +41,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Googleサービスアカウント鍵（sync:images用・コミット禁止）
+service-account.json

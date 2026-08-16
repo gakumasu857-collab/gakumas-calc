@@ -63,17 +63,21 @@ JSON を同梱している**ので、サイトに反映するには gen → buil
 | 編集したもの | やること |
 |---|---|
 | スプシ（サポカDB / abilityValues / 発動回数 / Pアイドル） | `npm run gen:all` → `npm run release` |
-| サポカ画像の追加（新カード） | ①スプシに行追加 ②R2 `gakumas-image` 直下に `<カード名>.webp` をアップ ③`npm run gen:all` → `npm run release` |
-| 前イベ画像の追加 | ①R2 `preEvent/<前イベ名>.webp` にアップ ②スプシの Search_word に前イベ名（`,`区切り） ③`npm run gen:all` → `npm run release` |
-| Pアイドル画像の追加 | R2 `skill/<固有スキル名>.webp` にアップ（gen不要・即反映） |
+| 画像の追加（ドライブに置いた場合） | ①ドライブの画像フォルダにPNG/JPGを置く ②`npm run sync:images`（webp変換→R2アップまで自動） ③スプシに行/語を追記 ④`npm run gen:all` → `npm run release` |
+| サポカ画像の追加（R2直接） | ①スプシに行追加 ②R2 `gakumas-image` 直下に `<カード名>.webp` をアップ ③`npm run gen:all` → `npm run release` |
+| 前イベ画像の追加（R2直接） | ①R2 `preEvent/<前イベ名>.webp` にアップ ②スプシの Search_word に前イベ名（`,`区切り） ③`npm run gen:all` → `npm run release` |
+| Pアイドル画像の追加 | ドライブ経由なら `sync:images`、直接なら R2 `skill/<固有スキル名>.webp` にアップ（gen不要・即反映） |
 | コード（.ts/.tsx） | `npm run release` |
-| 何もいらないもの | スプシ→R2の同期（自動・5分）。`/api/master` はすぐ最新になるが、サイト表示は上記の通り再ビルドが必要 |
 
-- **画像はローカルフォルダ不要・R2に直接アップでOK**（gen:sprite / gen:preevents はR2の公開URLから直接取得する）
-- `npm run gen:all` = gen:cards + gen:perf + gen:counts + gen:pidols + gen:sprite + gen:preevents（全部やっても1分弱。どれか1つでもよい）
+- **`npm run sync:images`** = ドライブの画像フォルダをR2へ同期（PNG→webp変換込み。R2に無いものだけアップ、`--force`で全上書き）。
+  初回設定: サービスアカウントJSONを `service-account.json` に置き、ドライブのフォルダをそのメールに共有し、
+  `.env.local` に `DRIVE_FOLDER_CARDS` / `DRIVE_FOLDER_PREEVENTS` / `DRIVE_FOLDER_SKILLS`（フォルダID）を書く
+- **画像はローカルフォルダ不要**（gen:sprite / gen:preevents はR2の公開URLから直接取得する）
+- `npm run gen:all` = スプシ→R2同期（`.env.local` の `SYNC_SECRET` を使用。未設定ならスキップ）＋全gen（1分弱。どれか1つでもよい）
+- スプシ→R2の定期同期cronは毎日3時(JST)の保険のみに変更（gen:all が同期を打つので通常は不要）
 - `npm run release` = `npm run build && wrangler deploy`
 - **git commit は配信には不要**（配信は wrangler deploy のみで決まる）。ただしバックアップ・巻き戻し用に、反映がうまくいったら `git add -A && git commit` を推奨
-- R2 へのアップ例: `npx wrangler r2 object put "gakumas-image/<カード名>.webp" --file <ファイル> --content-type image/webp --remote`
+- R2 へ手動アップの例: `npx wrangler r2 object put "gakumas-image/<カード名>.webp" --file <ファイル> --content-type image/webp --remote`
 - 取得元を変えたいとき: 環境変数 `GAKUMAS_IMAGE_BASE`（既定はR2公開URL）
 
 ## デプロイ / 再デプロイ
