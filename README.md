@@ -63,16 +63,18 @@ JSON を同梱している**ので、サイトに反映するには gen → buil
 | 編集したもの | やること |
 |---|---|
 | スプシ（サポカDB / abilityValues / 発動回数 / Pアイドル） | `npm run gen:all` → `npm run release` |
-| サポカ画像の追加（新カード） | ①スプシに行追加 ②`学マスサポカ画像` フォルダに `<カード名>.webp` を置く ③R2 `gakumas-image` 直下に同名でアップ ④`npm run gen:all` → `npm run release` |
-| 前イベ画像の追加 | ①`サポカ前イベ` フォルダに `<前イベ名>.webp` ②R2 `preEvent/<前イベ名>.webp` にアップ ③スプシの Search_word に前イベ名（`,`区切り） ④`npm run gen:all` → `npm run release` |
+| サポカ画像の追加（新カード） | ①スプシに行追加 ②R2 `gakumas-image` 直下に `<カード名>.webp` をアップ ③`npm run gen:all` → `npm run release` |
+| 前イベ画像の追加 | ①R2 `preEvent/<前イベ名>.webp` にアップ ②スプシの Search_word に前イベ名（`,`区切り） ③`npm run gen:all` → `npm run release` |
+| Pアイドル画像の追加 | R2 `skill/<固有スキル名>.webp` にアップ（gen不要・即反映） |
 | コード（.ts/.tsx） | `npm run release` |
 | 何もいらないもの | スプシ→R2の同期（自動・5分）。`/api/master` はすぐ最新になるが、サイト表示は上記の通り再ビルドが必要 |
 
-- `npm run gen:all` = gen:cards + gen:perf + gen:counts + gen:pidols + gen:sprite + gen:preevents（全部やっても数十秒。どれか1つでもよい）
+- **画像はローカルフォルダ不要・R2に直接アップでOK**（gen:sprite / gen:preevents はR2の公開URLから直接取得する）
+- `npm run gen:all` = gen:cards + gen:perf + gen:counts + gen:pidols + gen:sprite + gen:preevents（全部やっても1分弱。どれか1つでもよい）
 - `npm run release` = `npm run build && wrangler deploy`
 - **git commit は配信には不要**（配信は wrangler deploy のみで決まる）。ただしバックアップ・巻き戻し用に、反映がうまくいったら `git add -A && git commit` を推奨
 - R2 へのアップ例: `npx wrangler r2 object put "gakumas-image/<カード名>.webp" --file <ファイル> --content-type image/webp --remote`
-- 画像フォルダの場所を変えたら環境変数で上書き: `GAKUMAS_IMG_DIR`（サポカ画像）/ `GAKUMAS_PRE_EVENT_DIR`（前イベ画像）
+- 取得元を変えたいとき: 環境変数 `GAKUMAS_IMAGE_BASE`（既定はR2公開URL）
 
 ## デプロイ / 再デプロイ
 

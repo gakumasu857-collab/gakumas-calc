@@ -1,47 +1,71 @@
 /**
- * サポカ画像フォルダ（R2ミラー）から、画面キャプチャ所持入力用のスプライトを生成する。
+ * R2のサポカ画像から、画面キャプチャ所持入力用のスプライトを生成する。
+ *
+ * 画像はローカルフォルダではなく R2 の公開URLから直接取得する
+ * （対象キーは supportCards.json のカード名 = R2直下の `<カード名>.webp`）。
+ * → 新カードはスプシに行を足して R2 に webp を上げれば、ローカルに置く必要はない。
+ *    ※ 事前に gen:cards を実行して supportCards.json を最新にしておくこと。
  *
  * 出力:
  * - public/card-import/sprite.png … 全カードのサムネイル（80x45）をタイル状に並べたもの
- * - src/data/generated/cardSprite.json … { cellW, cellH, cols, names[] }（namesは拡張子なし）
+ * - src/data/generated/cardSprite.json … { cellW, cellH, cols, names[] }
  *
- * 使い方: node scripts/generateCardSprite.mjs
- *   画像フォルダは環境変数 GAKUMAS_IMG_DIR で上書きできる。
- *   新カードが増えたら R2 と同じフォルダに webp を足して再実行する。
+ * 使い方: npm run gen:sprite
+ *   取得元は環境変数 GAKUMAS_IMAGE_BASE（既定はR2の公開URL）で上書きできる。
  */
-import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const IMG_DIR =
-  process.env.GAKUMAS_IMG_DIR ?? "C:/Users/micta/OneDrive/画像/学マスサポカ画像";
+const IMAGE_BASE =
+  process.env.GAKUMAS_IMAGE_BASE ??
+  "https://pub-682e5459d444420f987d43ca384a3b0a.r2.dev";
 const CELL_W = 80;
 const CELL_H = 45;
 const COLS = 14;
+const CONCURRENCY = 12;
 
-const files = readdirSync(IMG_DIR)
-  .filter((f) => f.endsWith(".webp"))
-  .sort((a, b) => a.localeCompare(b, "ja"));
-if (files.length === 0) {
-  throw new Error(`画像が見つかりません: ${IMG_DIR}`);
-}
+const cards = JSON.parse(
+  readFileSync(resolve(root, "src/data/generated/supportCards.json"), "utf8"),
+);
+const names = [...new Set(cards.map((c) => String(c.name)))].sort((a, b) =>
+  a.localeCompare(b, "ja"),
+);
 
-const rows = Math.ceil(files.length / COLS);
-const cells = [];
-for (let i = 0; i < files.length; i++) {
-  const buf = await sharp(`${IMG_DIR}/${files[i]}`)
+/** 1枚取得してサムネイル化（404等は null） */
+async function fetchCell(name) {
+  const url = `${IMAGE_BASE}/${encodeURIComponent(`${name}.webp`)}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const buf = Buffer.from(await res.arrayBuffer());
+  return sharp(buf)
     .resize(CELL_W, CELL_H, { fit: "fill" })
     .removeAlpha()
     .png()
     .toBuffer();
-  cells.push({
-    input: buf,
-    left: (i % COLS) * CELL_W,
-    top: Math.floor(i / COLS) * CELL_H,
-  });
 }
+
+const cells = new Array(names.length).fill(null);
+const missing = [];
+let cursor = 0;
+await Promise.all(
+  Array.from({ length: CONCURRENCY }, async () => {
+    while (cursor < names.length) {
+      const i = cursor++;
+      const cell = await fetchCell(names[i]);
+      if (cell) cells[i] = cell;
+      else missing.push(names[i]);
+    }
+  }),
+);
+
+// 画像が無いカードはスプライトから除外（照合対象外になるだけ）
+const entries = names
+  .map((name, i) => ({ name, cell: cells[i] }))
+  .filter((e) => e.cell !== null);
+const rows = Math.ceil(entries.length / COLS);
 
 const outDir = resolve(root, "public/card-import");
 mkdirSync(outDir, { recursive: true });
@@ -53,16 +77,29 @@ await sharp({
     background: { r: 0, g: 0, b: 0 },
   },
 })
-  .composite(cells)
+  .composite(
+    entries.map((e, i) => ({
+      input: e.cell,
+      left: (i % COLS) * CELL_W,
+      top: Math.floor(i / COLS) * CELL_H,
+    })),
+  )
   .png({ compressionLevel: 9 })
   .toFile(resolve(outDir, "sprite.png"));
 
-const names = files.map((f) => f.replace(/\.webp$/, ""));
 writeFileSync(
   resolve(root, "src/data/generated/cardSprite.json"),
-  JSON.stringify({ cellW: CELL_W, cellH: CELL_H, cols: COLS, names }),
+  JSON.stringify({
+    cellW: CELL_W,
+    cellH: CELL_H,
+    cols: COLS,
+    names: entries.map((e) => e.name),
+  }),
   "utf8",
 );
 console.log(
-  `✓ sprite ${files.length}枚 (${COLS * CELL_W}x${rows * CELL_H}) → public/card-import/sprite.png`,
+  `✓ sprite ${entries.length}枚 (${COLS * CELL_W}x${rows * CELL_H}) → public/card-import/sprite.png`,
 );
+if (missing.length > 0) {
+  console.warn(`⚠ R2に画像が無いカード ${missing.length}件: ${missing.join("、")}`);
+}

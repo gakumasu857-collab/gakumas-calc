@@ -297,11 +297,33 @@ export function useCalcResult() {
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
     const resources = (() => {
+      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・
+      // 差し入れ80×5（うち1回は本戦）。サポカ固定P・メモリーは選抜期間に計上し、
+      // レッスンP率・タイプSPレッスンP率の換算は対象レッスンの期間（選抜/本戦）に入れる
+      const isHifP = scenario === "hif";
+      let lessonPSenbatsu = 0;
+      let lessonPHonsen = 0;
+      // タイプSPレッスンP率の母数（自タイプのメイン踏み×SPレッスンのP）を期間別に持つ
+      const spPSen: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      const spPHon: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      if (isHifP) {
+        LESSONS.forEach((lesson, i) => {
+          const pick = schedule.lessons[i];
+          if (!pick?.main) return;
+          const honsen = lesson.label.startsWith("本戦");
+          if (honsen) lessonPHonsen += lesson.p;
+          else lessonPSenbatsu += lesson.p;
+          if (pick.sp) (honsen ? spPHon : spPSen)[pick.main] += lesson.p;
+        });
+      }
+
       let cardP = 0;
       let recover = 0;
       let maxHp = 0;
       let rateLesson = 0;
       let rateTypeSpTotal = 0;
+      let rateTypeSpSen = 0;
+      let rateTypeSpHon = 0;
       for (const m of activeCards) {
         const db = DB_BY_ID.get(m.id);
         if (!db) continue;
@@ -312,27 +334,21 @@ export function useCalcResult() {
         rateLesson += res.pRateLesson;
         // タイプSP率は「自タイプのメイン踏み×SPレッスン」のPが母数
         rateTypeSpTotal += res.pRateTypeSp * typeSpP[m.type];
+        rateTypeSpSen += res.pRateTypeSp * spPSen[m.type];
+        rateTypeSpHon += res.pRateTypeSp * spPHon[m.type];
       }
       const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
+      // P率換算の期間別内訳（選抜レッスン由来 / 本戦レッスン由来）
+      const ratePSen = Math.floor(rateLesson * lessonPSenbatsu + rateTypeSpSen);
+      const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
-      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・
-      // 差し入れ80×5（うち1回は本戦）。サポカ・メモリー・P率換算は選抜期間ぶんとして計上する
-      const isHifP = scenario === "hif";
-      let lessonPSenbatsu = 0;
-      let lessonPHonsen = 0;
-      if (isHifP) {
-        LESSONS.forEach((lesson, i) => {
-          const pick = schedule.lessons[i];
-          if (!pick?.main) return;
-          if (lesson.label.startsWith("本戦")) lessonPHonsen += lesson.p;
-          else lessonPSenbatsu += lesson.p;
-        });
-      }
       const pFixedSenbatsu = isHifP ? 230 + 80 * 4 : 0;
       const pFixedHonsen = isHifP ? 200 + 80 : 0;
+      const pCardsSenbatsu = cardP + ratePSen;
+      const pCardsHonsen = ratePHon;
       const pSenbatsu =
-        pFixedSenbatsu + lessonPSenbatsu + mem.P + cardP + rateP;
-      const pHonsen = pFixedHonsen + lessonPHonsen;
+        pFixedSenbatsu + lessonPSenbatsu + mem.P + pCardsSenbatsu;
+      const pHonsen = pFixedHonsen + lessonPHonsen + pCardsHonsen;
       return {
         /** 合計Pポイント（HIFは開始時・差し入れの固定取得も含む） */
         pTotal: isHifP
@@ -340,7 +356,7 @@ export function useCalcResult() {
           : lessonP + mem.P + cardP + rateP,
         pLesson: lessonP,
         pMemory: mem.P,
-        pCards: cardP + rateP,
+        pCards: isHifP ? pCardsSenbatsu + pCardsHonsen : cardP + rateP,
         /** HIFの内訳（他シナリオは0） */
         pSenbatsu,
         pHonsen,
@@ -348,6 +364,8 @@ export function useCalcResult() {
         pFixedHonsen,
         pLessonSenbatsu: lessonPSenbatsu,
         pLessonHonsen: lessonPHonsen,
+        pCardsSenbatsu,
+        pCardsHonsen,
         /** 体力（Pアイドルの体力＋サポカの最大体力上昇） */
         hpTotal: (pStats?.hp ?? 0) + maxHp,
         hpIdol: pStats?.hp ?? 0,

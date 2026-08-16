@@ -230,7 +230,7 @@ export default function CalcPage() {
         setPreviewRating(hasOps ? res.rating : null);
         const sec = (res.elapsedMs / 1000).toFixed(1);
         setOptMsg(
-          `理論評価値 ${res.rating.toLocaleString()} の組み合わせを踏み方・選択サポカに反映しました（${res.evaluated.toLocaleString()}通りを探索・${sec}秒）` +
+          `理論評価値 ${res.rating.toLocaleString()} の組み合わせを踏み方・サポカ編成に反映しました（${res.evaluated.toLocaleString()}通りを探索・${sec}秒）` +
             (hasOps
               ? `。評価値ボックスには前イベ/後イベの取得制限を反映した値を表示しています（下のボタンでサポカ設定にも反映できます）`
               : "") +
@@ -404,10 +404,10 @@ export default function CalcPage() {
 
         {/* 全自動最適化 */}
         <Card
-          title="全自動最適化"
+          title=""
           hint={
             <span className="font-semibold text-amber-600">
-              シナリオ・名前・Pアイドル・育成セット・メモリーを選んでから押す
+              ↓シナリオ・名前・Pアイドル・育成セット・メモリーを選んでから押す
             </span>
           }
         >
@@ -420,7 +420,7 @@ export default function CalcPage() {
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60"
             >
               <Sparkles size={15} />
-              {optBusy ? "計算中…" : "オススメ編成を求める（サポカ編成＋踏み方を自動探索）"}
+              {optBusy ? "計算中…" : "理想の評価値編成を求める（サポカ編成＋踏み方を自動探索）"}
             </button>
             <button
               type="button"
@@ -488,8 +488,7 @@ export default function CalcPage() {
 
         {/* 選択サポカ */}
         <Card
-          title="選択サポカ"
-          hint="最終ステータス・評価値はこの6枚で計算"
+          title="サポカ編成"
           action={
             <div className="flex items-center gap-1.5">
               <button
@@ -504,11 +503,10 @@ export default function CalcPage() {
               <button
                 type="button"
                 onClick={() => setTheoryOpen(true)}
-                title="理論評価値と共通の条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助など）"
-                className={SMALL_BTN}
+                title="条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助など）"
+                className="rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 transition hover:bg-slate-100"
               >
-                <Settings2 size={13} />
-                条件設定
+                <Settings2 size={14} />
               </button>
               <button
                 type="button"
@@ -548,7 +546,7 @@ export default function CalcPage() {
           {/* 選択中カードの前イベ・後イベ回数（サポカ設定とは独立した計算ページ専用） */}
           <EventCountEditor r={r} />
           {/* SPレッスン率とこの踏み方の実現確率 */}
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-bold text-slate-700">SPレッスン率上昇</span>
               {TYPE_KEYS.map((type) => (
@@ -559,9 +557,8 @@ export default function CalcPage() {
                   +{(r.spLesson.bonus[type] * 100).toFixed(1)}%
                 </span>
               ))}
-              <span className="text-slate-400">（サポカ＋Pアイドル）</span>
               <span className="flex items-center gap-1 text-slate-400">
-                基礎
+                表記外推定SP率
                 <input
                   type="number"
                   min={0}
@@ -572,10 +569,9 @@ export default function CalcPage() {
                       baseSpRate: Math.max(0, Number(e.target.value) || 0),
                     })
                   }
-                  title="レッスンが素でSPになる確率（ゲーム内には表示されない元値）。コミュニティ検証で約10%とされるが確定値ではないので変更できます"
-                  className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs"
+                  className="w-14 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-sm"
                 />
-                %は実現確率にのみ使用
+                %
               </span>
             </div>
             <p className="mt-1">
@@ -583,12 +579,12 @@ export default function CalcPage() {
               <b className="tabular-nums text-blue-700">
                 {formatProb(r.spLesson.prob)}
               </b>
-              <span className="ml-1 text-slate-400">
+              {/* <span className="ml-1 text-slate-400">
                 （SP踏み{r.spLesson.spCount}回×メイン属性のSP率
                 {r.spLesson.subCount > 0 &&
                   `、サブ属性の指定${r.spLesson.subCount}回×2択50%`}
                 ）
-              </span>
+              </span> */}
             </p>
           </div>
         </Card>
@@ -768,7 +764,7 @@ export default function CalcPage() {
         </div>
 
         {/* 最終ステータス */}
-        <Card title="最終ステータス" hint={`選択サポカ込み・上限${r.statCap}`}>
+        <Card title="最終ステータス" hint={`各タイプ上限${r.statCap}`}>
           <table className="w-full text-sm tabular-nums">
             <tbody className="divide-y divide-slate-100">
               {TYPE_KEYS.map((type) => {
@@ -810,11 +806,11 @@ export default function CalcPage() {
             {r.scenario === "hif" && (
               <p>
                 合計スター性: <b className="text-violet-600">{r.totalStar}</b>
-                <span className="ml-1 text-[10px] text-slate-400">
+                {/* <span className="ml-1 text-[10px] text-slate-400">
                   （ワッペン{r.wappenCount}回=★{r.starParts.wappen}＋レッスン
                   {r.starParts.lesson}＋選抜{r.starParts.exam}＋本戦
                   {r.starParts.final}）
-                </span>
+                </span> */}
               </p>
             )}
             {/* この育成で得られるPポイント（サポカ・前イベ・メモリー込み） */}
@@ -836,13 +832,15 @@ export default function CalcPage() {
                     </b>
                     ）
                   </span>
-                  <span className="block text-[10px] text-slate-400">
+                  {/* <span className="block text-[10px] text-slate-400">
                     選抜＝開始時230＋差し入れ{r.resources.pFixedSenbatsu - 230}
                     ＋レッスン{r.resources.pLessonSenbatsu}＋メモリー
-                    {r.resources.pMemory}＋サポカ{Math.round(r.resources.pCards)}
+                    {r.resources.pMemory}＋サポカ
+                    {Math.round(r.resources.pCardsSenbatsu)}
                     ／本戦＝開始時200＋差し入れ{r.resources.pFixedHonsen - 200}
-                    ＋レッスン{r.resources.pLessonHonsen}
-                  </span>
+                    ＋レッスン{r.resources.pLessonHonsen}＋サポカP率
+                    {Math.round(r.resources.pCardsHonsen)}
+                  </span> */}
                 </>
               ) : (
                 <span className="ml-1 text-[10px] text-slate-400">
@@ -856,16 +854,16 @@ export default function CalcPage() {
               <b className="text-emerald-700">
                 {Math.round(r.resources.hpTotal)}
               </b>
-              <span className="ml-1 text-[10px] text-slate-400">
+              {/* <span className="ml-1 text-[10px] text-slate-400">
                 （Pアイドル{r.resources.hpIdol}
                 {r.resources.hpCards > 0 && `＋サポカ${r.resources.hpCards}`}）
-              </span>
+              </span> */}
             </p>
           </div>
         </Card>
 
         {/* プロデュース開始時のステ */}
-        <Card title="プロデュース開始時のステ">
+        <Card title="プロデュース開始時のステータス">
           <div className="grid grid-cols-3 gap-2">
             {TYPE_KEYS.map((type) => (
               <div
@@ -878,7 +876,7 @@ export default function CalcPage() {
                 <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-800">
                   {Math.round(r.perType[type].startFixed)}
                 </p>
-                <p className="text-xs tabular-nums text-slate-500">
+                <p className="text-xs tabular-nums text-slate-800">
                   ＋{r.perType[type].startPct}%
                 </p>
               </div>
@@ -1220,7 +1218,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
         </tbody>
       </table>
       <p className="px-2 pt-1 text-[10px] text-slate-400">
-        計算ページ専用（サポカ設定ページとは別保存）。前イベ=取得/未取得、後イベ=M/A/✕。
+        計算ページ専用（サポカ設定ページとは別保存）。
       </p>
     </div>
   );
