@@ -470,7 +470,7 @@ function SupportCardCell({
             }}
           />
         )}
-        {/* 凸・レンタル・固定バッジ */}
+        {/* 凸・レンタル・固定バッジ（折り返すと2行になるので1行固定） */}
         <span
           style={{
             position: "absolute",
@@ -482,6 +482,7 @@ function SupportCardCell({
             fontSize: 9,
             fontWeight: 700,
             padding: "1px 4px",
+            whiteSpace: "nowrap",
           }}
         >
           {m.level}凸

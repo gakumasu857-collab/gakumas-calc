@@ -7,7 +7,7 @@
  * - 初: レジェンドレッスン（単タイプ＋SP＋パーフェクト）・授業・試験
  */
 import { useState } from "react";
-import { CalendarCheck, Sparkles } from "lucide-react";
+import { CalendarCheck, Info, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import {
@@ -15,6 +15,7 @@ import {
   distributeExam,
   EXAMS,
   examStar,
+  LESSON_KIND_LABELS,
   LESSONS,
 } from "@/data/schedule";
 import {
@@ -61,6 +62,7 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 
 export default function PlanEditDrawer({ r }: { r: CalcResult }) {
   const [open, setOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [optMsg, setOptMsg] = useState<string | null>(null);
   const [optBusy, setOptBusy] = useState(false);
   const title =
@@ -134,6 +136,17 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
               <Sparkles size={13} />
               {optBusy ? "計算中…" : "今の編成で踏み方を最適化"}
             </button>
+            {r.scenario === "hif" && (
+              <button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                title="レッスン・授業・選抜・本戦の数値表と計算式を見る"
+                className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+              >
+                <Info size={13} />
+                数値表・計算式
+              </button>
+            )}
             <span className="text-xs text-slate-400">
               レッスンページと共有（どちらで編集してもOK）。値は素の獲得量で、パラメータボーナス%は計算側で反映します。
             </span>
@@ -144,6 +157,7 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
           {r.scenario === "hif" && <HifEditor r={r} />}
           {r.scenario === "niaMaster" && <NiaEditor r={r} />}
           {r.scenario === "hatsuLegend" && <HatsuEditor r={r} />}
+          {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
         </Modal>
       )}
     </>
@@ -596,6 +610,121 @@ function HatsuEditor({ r }: { r: CalcResult }) {
         </div>
       </Section>
     </div>
+  );
+}
+
+/** 数値表と計算式の開示モーダル（旧レッスンページから移植。H.I.F.用） */
+function HelpModal({ onClose }: { onClose: () => void }) {
+  const th = "border border-slate-300 bg-slate-100 px-2 py-1";
+  const td = "border border-slate-200 px-2 py-1";
+  const tdC = `${td} text-center`;
+  return (
+    <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
+      <p className="mb-3 text-xs text-slate-500">
+        ※ コミュニティ調べの暫定値・近似式です。
+        サブパラメータは選択した1タイプに入ります。
+        パラメータボーナス%はここでは適用せず、計算ページで反映します。
+      </p>
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">公開レッスン</h3>
+      <table className="mb-4 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["日程", "種別", "メイン(非SP/SP)", "サブ(非SP/SP)", "★(非SP/SP)", "P"].map(
+              (h) => (
+                <th key={h} className={th}>
+                  {h}
+                </th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {LESSONS.map((lesson, i) => (
+            <tr key={i}>
+              <td className={td}>{lesson.label}</td>
+              <td className={tdC}>{LESSON_KIND_LABELS[lesson.kind]}</td>
+              <td className={tdC}>
+                {lesson.main[0]} / {lesson.main[1]}
+              </td>
+              <td className={tdC}>
+                {lesson.sub[0]} / {lesson.sub[1]}
+              </td>
+              <td className={tdC}>
+                {lesson.star[0]} / {lesson.star[1]}
+              </td>
+              <td className={tdC}>{lesson.p}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">授業</h3>
+      <table className="mb-4 w-full border-collapse text-xs tabular-nums">
+        <tbody>
+          {CLASSES.map((cls, i) => (
+            <tr key={i}>
+              <td className={td}>{cls.label}</td>
+              <td className={tdC}>+{cls.gain}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">本戦スコア評価値</h3>
+      <div className="mb-4 text-xs leading-relaxed text-slate-600">
+        <p>
+          ラウンド1: 〜70万 floor((X−30万)×0.01) ／ 〜100万 4,000+floor((X−70万)×0.003) ／
+          〜120万 4,900+floor((X−100万)×0.002) ／ 〜140万 5,300+floor((X−120万)×0.001)（上限5,500）
+        </p>
+        <p className="mt-1">
+          ラウンド2: 〜90万 floor((X−60万)×0.004) ／ 〜150万 1,200+floor((X−90万)×0.008) ／
+          〜200万 6,000+floor((X−150万)×0.002) ／ 〜240万 7,000+floor((X−200万)×0.001)（上限7,400）
+        </p>
+        <p className="mt-1">★は固定（ラウンド1: 180 / ラウンド2: 225）。</p>
+      </div>
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">選抜のステータス分配</h3>
+      <table className="mb-2 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["試験", "上昇基準値", "固定上昇値", "配分上昇値", "★上限"].map((h) => (
+              <th key={h} className={th}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {EXAMS.map((exam) => (
+            <tr key={exam.name}>
+              <td className={td}>{exam.name}</td>
+              <td className={tdC}>{exam.base}</td>
+              <td className={tdC}>
+                {exam.fixed}（各タイプ+{exam.fixed / 3}）
+              </td>
+              <td className={tdC}>{exam.dist}</td>
+              <td className={tdC}>{exam.starCap * 1.5}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mb-2 text-xs leading-relaxed text-slate-600">
+        <p>
+          分配: スコア昇順に 下位=floor(配分×スコア比)+固定÷3（端数は繰り越し）、
+          中位=floor(繰り越し+配分×スコア比)+固定÷3、上位=基準値−下位−中位。
+        </p>
+        <p className="mt-1">
+          スター性の近似式（X=合計スコア、いずれも最後に1.5倍）: 選抜1:
+          (26+0.001X)×1.5（上限60）／ 選抜2: (40+X/1500)×1.5（72,500超は
+          (70+0.000275X)×1.5、上限165）／ 選抜3: (13+X/2500)×1.5（180,000超は
+          (65+X/9000)×1.5、上限165）
+        </p>
+        <p className="mt-1 text-slate-400">
+          ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
+        </p>
+      </div>
+    </Modal>
   );
 }
 

@@ -1141,7 +1141,6 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
             const acquired = override?.acquire ?? true;
             // 取得しない指定なら発動0回扱い
             const preCount = acquired ? (override?.pre ?? auto) : 0;
-            const preImageUrl = imageUrl(card.extras["前イベ画像URL"] ?? "");
             return (
               <tr key={card.id}>
                 {/* カード */}
@@ -1163,19 +1162,12 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
                 </td>
                 {/* 前イベ（獲得アイテム/スキルの画像＋取得トグル） */}
                 <td className={td}>
-                  <span className="flex h-8 items-center gap-1.5">
-                    {preImageUrl ? (
-                      <img
-                        src={preImageUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-8 w-8 shrink-0 rounded object-contain"
-                      />
-                    ) : (
-                      <span className="inline-block h-8 w-8 shrink-0" />
-                    )}
-                    <AcquireToggle card={card} override={override} events={r.events} />
-                  </span>
+                  <AcquireToggle
+                    card={card}
+                    override={override}
+                    events={r.events}
+                    imgClass="h-10 w-10"
+                  />
                 </td>
                 {/* 前イベ回数。スキルは取得した時点で1回確定なので固定表示 */}
                 <td className={td}>
