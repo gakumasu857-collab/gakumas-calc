@@ -54,11 +54,10 @@ export function buildAutoOptimizeInput(
         }
       : undefined,
     examAssist: settings.examAssist,
-    examStyleTags: examStyleTags(r.selectedSet?.name ?? null),
+    examStyleTags: examStyleTags(r.selectedSet?.plan ?? null),
     noStageItems: settings.noStageItems,
     minStats: settings.minStats,
     maxStats: settings.maxStats,
-    wappenCount: settings.wappenCount,
     round1: settings.round1,
     round2: settings.round2,
   };

@@ -4,6 +4,7 @@ import {
   ABILITY_CATEGORIES,
   abilityMax,
   DEFAULT_MAX,
+  SET_PLAN_OPTIONS,
   setVisibleInScenario,
 } from "@/data/abilityCounts";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
@@ -13,9 +14,22 @@ import { useScenario } from "@/lib/useScenario";
 import { useSelectedSupports } from "@/lib/useSelectedSupports";
 import SetEditModal from "./SetEditModal";
 
-/** 列幅(rem): アビリティ名列 / セット列（テンプレ名が読める幅） */
+/** 列幅(rem): アビリティ名列 / セット列（プランはチップ表示になったぶん少し狭める） */
 const NAME_COL_REM = 10;
-const SET_COL_REM = 8;
+const SET_COL_REM = 6.5;
+
+/** プランチップの色（セットヘッダー・編集モーダルで使用） */
+export const SET_PLAN_CHIP: Record<string, string> = {
+  センス: "bg-rose-100 text-rose-700",
+  ロジック: "bg-emerald-100 text-emerald-700",
+  アノマリー: "bg-violet-100 text-violet-700",
+  好調: "bg-rose-100 text-rose-700",
+  集中: "bg-rose-100 text-rose-700",
+  好印象: "bg-emerald-100 text-emerald-700",
+  やる気: "bg-emerald-100 text-emerald-700",
+  強気: "bg-violet-100 text-violet-700",
+  全力: "bg-violet-100 text-violet-700",
+};
 
 /** 表では分類見出しを挟まず全アビリティを並べる（分類はモーダル側だけで使う） */
 const ALL_ABILITIES: AbilityName[] = ABILITY_CATEGORIES.flatMap((c) => [
@@ -44,6 +58,7 @@ export default function AbilityCountManager() {
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [addingName, setAddingName] = useState<string | null>(null);
+  const [addingPlan, setAddingPlan] = useState("");
   const [onlyFormation, setOnlyFormation] = useState(false);
 
   // シナリオに合うテンプレだけ表示（HIF用/NIA用。ユーザーセットは常に表示）
@@ -71,8 +86,9 @@ export default function AbilityCountManager() {
 
   const submitNewSet = () => {
     if (addingName === null) return;
-    store.addSet(addingName.trim());
+    store.addSet(addingName.trim(), addingPlan);
     setAddingName(null);
+    setAddingPlan("");
   };
 
   return (
@@ -142,6 +158,19 @@ export default function AbilityCountManager() {
                 placeholder="セット名"
                 className="w-40 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
               />
+              <select
+                value={addingPlan}
+                onChange={(e) => setAddingPlan(e.target.value)}
+                title="プラン/スタイル（試験補助を強めるときのアイテム評価の判定に使います）"
+                className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
+              >
+                <option value="">プランなし</option>
+                {SET_PLAN_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={submitNewSet}
@@ -254,16 +283,25 @@ export default function AbilityCountManager() {
                     <button
                       type="button"
                       onClick={() => setEditingSetId(set.id)}
-                      title={`${set.name} を編集`}
-                      className="group flex w-full items-center justify-center gap-0.5 px-1 py-1.5 text-xs font-semibold text-slate-800 hover:text-blue-600"
+                      title={`${set.name} を編集${set.plan ? `（プラン: ${set.plan}）` : ""}`}
+                      className="group flex w-full flex-col items-center gap-0.5 px-1 py-1 text-xs font-semibold text-slate-800 hover:text-blue-600"
                     >
-                      <span className="min-w-0 truncate group-hover:underline">
-                        {set.name}
+                      <span className="flex w-full items-center justify-center gap-0.5">
+                        <span className="min-w-0 truncate group-hover:underline">
+                          {set.name}
+                        </span>
+                        <Pencil
+                          size={10}
+                          className="shrink-0 text-slate-400 group-hover:text-blue-500"
+                        />
                       </span>
-                      <Pencil
-                        size={10}
-                        className="shrink-0 text-slate-400 group-hover:text-blue-500"
-                      />
+                      {set.plan && (
+                        <span
+                          className={`rounded px-1 text-[9px] font-bold ${SET_PLAN_CHIP[set.plan] ?? "bg-slate-100 text-slate-500"}`}
+                        >
+                          {set.plan}
+                        </span>
+                      )}
                     </button>
                   </th>
                 );
@@ -373,6 +411,11 @@ export default function AbilityCountManager() {
             setEditingSetId(null);
           }}
           onRename={(name) => store.renameSet(editingSet.id, name)}
+          onSetPlan={
+            store.isUserSet(editingSet.id)
+              ? (plan) => store.setPlan(editingSet.id, plan)
+              : undefined
+          }
           onClose={() => setEditingSetId(null)}
         />
       )}

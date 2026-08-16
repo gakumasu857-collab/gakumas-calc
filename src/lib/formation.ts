@@ -684,26 +684,27 @@ export const EXAM_ASSIST_WEIGHTS = {
 } as const;
 
 /**
- * 発動回数セット名の接頭辞 → アイテムおすすめ（recommend_plan列）のスタイルタグ。
+ * 発動回数セットのプラン属性 → アイテムおすすめ（recommend_plan列）のスタイルタグ。
  * センス育成のアイテム評価は「好調/集中」向け、といった対応。
  */
-const SET_STYLE_TAGS: [string, string[]][] = [
-  ["センス", ["好調", "集中"]],
-  ["好印象", ["好印象"]],
-  ["やる気", ["やる気"]],
-  ["強気", ["強気"]],
-  ["全力", ["全力"]],
-];
+const PLAN_STYLE_TAGS: Record<string, string[]> = {
+  センス: ["好調", "集中"],
+  ロジック: ["好印象", "やる気"],
+  アノマリー: ["強気", "全力"],
+  好調: ["好調"],
+  集中: ["集中"],
+  好印象: ["好印象"],
+  やる気: ["やる気"],
+  強気: ["強気"],
+  全力: ["全力"],
+};
 
-/** 発動回数セット名から現在の育成スタイルタグを引く（不明なら null=ゲートしない） */
+/** セットのプラン属性から現在の育成スタイルタグを引く（未設定なら null=ゲートしない） */
 export function examStyleTags(
-  setName: string | null | undefined,
+  plan: string | null | undefined,
 ): string[] | null {
-  if (!setName) return null;
-  for (const [prefix, tags] of SET_STYLE_TAGS) {
-    if (setName.startsWith(prefix)) return tags;
-  }
-  return null;
+  if (!plan) return null;
+  return PLAN_STYLE_TAGS[plan] ?? null;
 }
 
 /**

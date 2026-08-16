@@ -61,6 +61,11 @@ export default function AbilityCountDrawer({
               setOpen(false);
             }}
             onRename={(name) => r.ability.renameSet(set.id, name)}
+            onSetPlan={
+              r.ability.isUserSet(set.id)
+                ? (plan) => r.ability.setPlan(set.id, plan)
+                : undefined
+            }
             onClose={() => setOpen(false)}
           />
         ) : (

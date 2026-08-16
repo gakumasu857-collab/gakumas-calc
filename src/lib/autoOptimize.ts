@@ -161,8 +161,7 @@ export type AutoOptimizeInput = {
    * 「この属性はこれ以上盛らない」の指定（デフォルト3200=制限なし）。
    */
   maxStats?: Record<TypeKey, number>;
-  /** H.I.F.の評価値の固定部分（ワッペン・本戦） */
-  wappenCount: number;
+  /** H.I.F.の評価値の固定部分（本戦。ワッペンは札取得回数から自動算出） */
   round1: number;
   round2: number;
 };
@@ -452,6 +451,13 @@ export class OptimizeEngine {
         const without = this.votesBase + niaFudaVotes(this.fudaBase);
         return (niaFanValue(withVotes) - niaFanValue(without)) / NIA_PARAM_RATE;
       };
+    }
+    // HIFのワッペンは札（スキルカード取得）の回数ぶん発動する。
+    // 編成サポカのスキル獲得分もワッペン★になるため、ステ換算で編成選定に効かせる
+    // （★1回=15、評価値=★×7.5、ステ1=評価値2 → 1札 = 15×7.5/2 ステ相当）
+    if (input.scenario === "hif") {
+      this.fudaBase = input.manual("スキル獲得") ?? 0;
+      this.extraScore = (cards) => (15 * 7.5 * this.supportFudaOf(cards)) / 2;
     }
   }
 
@@ -1268,7 +1274,9 @@ export class OptimizeEngine {
       examScores: s.examScores,
     });
     const finalStar = FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0);
-    const totalStar = 15 * input.wappenCount + sched.star + finalStar;
+    // ワッペン発動回数 = 札取得回数（セットのスキル獲得＋編成サポカのスキル獲得分）
+    const wappen = this.fudaBase + this.supportFudaOf(members);
+    const totalStar = 15 * wappen + sched.star + finalStar;
     return (
       cappedSum * 2 +
       Math.floor(totalStar * 7.5) +

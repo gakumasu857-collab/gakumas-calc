@@ -3,6 +3,7 @@ import { Copy, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import {
   ABILITY_CATEGORIES,
+  SET_PLAN_OPTIONS,
   type AbilityCountSet,
   type CategoryKey,
 } from "@/data/abilityCounts";
@@ -24,6 +25,8 @@ type Props = {
   onDuplicate: () => void;
   /** ユーザーセットの名前変更 */
   onRename: (name: string) => void;
+  /** ユーザーセットのプラン変更（テンプレは名前から自動決定なので渡さない） */
+  onSetPlan?: (plan: string) => void;
   onClose: () => void;
 };
 
@@ -38,6 +41,7 @@ export default function SetEditModal({
   onDelete,
   onDuplicate,
   onRename,
+  onSetPlan,
   onClose,
 }: Props) {
   const [category, setCategory] = useState<CategoryKey>(
@@ -59,17 +63,44 @@ export default function SetEditModal({
       onClose={onClose}
       widthClass="max-w-4xl"
     >
-      {/* ユーザーセットは名前を変更できる */}
-      {deletable && (
-        <label className="mb-3 flex items-center gap-2 text-xs text-slate-500">
-          セット名:
-          <input
-            type="text"
-            defaultValue={set.name}
-            onChange={(e) => onRename(e.target.value.trim() || set.name)}
-            className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
-          />
-        </label>
+      {/* ユーザーセットは名前・プランを変更できる */}
+      {deletable ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <label className="flex min-w-52 flex-1 items-center gap-2">
+            セット名:
+            <input
+              type="text"
+              defaultValue={set.name}
+              onChange={(e) => onRename(e.target.value.trim() || set.name)}
+              className="flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+            />
+          </label>
+          {onSetPlan && (
+            <label
+              className="flex items-center gap-2"
+              title="試験補助を強めるとき、アイテム評価をこのプラン/スタイル向けのものだけ加点します"
+            >
+              プラン:
+              <select
+                value={set.plan}
+                onChange={(e) => onSetPlan(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
+              >
+                <option value="">なし</option>
+                {SET_PLAN_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+      ) : (
+        <p className="mb-3 text-xs text-slate-400">
+          プラン: <b className="text-slate-600">{set.plan || "なし"}</b>
+          （テンプレのプランはセット名から自動で決まります。変えたい場合は複製してください）
+        </p>
       )}
 
       {/* 分類を切り替えてもモーダルの大きさが変わらないよう高さを固定 */}

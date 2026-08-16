@@ -6,6 +6,7 @@ import {
   abilityMax,
   DEFAULT_SETS,
   NIA_DEFAULT_SETS,
+  planFromSetName,
   type AbilityCountSet,
 } from "@/data/abilityCounts";
 
@@ -25,8 +26,8 @@ const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 /** setId -> (アビリティキー -> 上書き回数) */
 type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
 
-/** ユーザーがUIで追加したセット（回数はすべてoverridesに入る） */
-type UserSet = { id: string; name: string };
+/** ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定 */
+type UserSet = { id: string; name: string; plan?: string };
 
 function clamp(value: number, max: number): number {
   return Math.min(max, Math.max(0, value));
@@ -123,10 +124,17 @@ export function useAbilityCounts() {
     });
   }, []);
 
-  /** ユーザーセットを追加（回数は全て0から） */
-  const addSet = useCallback((name: string) => {
+  /** ユーザーセットを追加（回数は全て0から）。プラン未指定は名前から推定 */
+  const addSet = useCallback((name: string, plan?: string) => {
     const id = `uset-${crypto.randomUUID()}`;
-    setUserSets((prev) => [...prev, { id, name: name || `セット${prev.length + 1}` }]);
+    setUserSets((prev) => [
+      ...prev,
+      {
+        id,
+        name: name || `セット${prev.length + 1}`,
+        plan: plan ?? planFromSetName(name),
+      },
+    ]);
   }, []);
 
   /** ユーザーセットを削除（デフォルトセットは不可）。回数データも消す */
@@ -141,10 +149,13 @@ export function useAbilityCounts() {
     setSelectedSetId((prev) => (prev === setId ? null : prev));
   }, []);
 
-  /** セットを複製してユーザーセットとして追加（現在の実効値をコピー） */
+  /** セットを複製してユーザーセットとして追加（現在の実効値とプランをコピー） */
   const duplicateSet = useCallback((source: AbilityCountSet) => {
     const id = `uset-${crypto.randomUUID()}`;
-    setUserSets((prev) => [...prev, { id, name: `${source.name}のコピー` }]);
+    setUserSets((prev) => [
+      ...prev,
+      { id, name: `${source.name}のコピー`, plan: source.plan },
+    ]);
     setOverrides((prev) => {
       // 複製先は defaults を持たないので、実効値(override ?? default)を全て差分として書き込む
       const counts: Partial<Record<AbilityName, number>> = {};
@@ -172,11 +183,24 @@ export function useAbilityCounts() {
     );
   }, []);
 
+  /** ユーザーセットのプランを変更（デフォルトセットは名前から自動決定なので不可） */
+  const setPlan = useCallback((setId: string, plan: string) => {
+    if (!setId.startsWith("uset-")) return;
+    setUserSets((prev) =>
+      prev.map((s) => (s.id === setId ? { ...s, plan } : s)),
+    );
+  }, []);
+
   /** コード定義のデフォルトセット（HIF用＋NIA用）＋ユーザー追加セット */
   const sets: AbilityCountSet[] = [
     ...DEFAULT_SETS,
     ...NIA_DEFAULT_SETS,
-    ...userSets.map((s) => ({ ...s, defaults: {} })),
+    // 旧データ（plan未保存）は名前から推定
+    ...userSets.map((s) => ({
+      ...s,
+      plan: s.plan ?? planFromSetName(s.name),
+      defaults: {},
+    })),
   ];
 
   /** ユーザーがUIで追加したセットか（削除可能か） */
@@ -192,6 +216,7 @@ export function useAbilityCounts() {
     deleteSet,
     duplicateSet,
     renameSet,
+    setPlan,
     isUserSet,
     selectedSetId,
     selectSet,

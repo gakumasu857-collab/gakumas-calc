@@ -29,8 +29,6 @@ export type CalcSettings = {
   memory: string;
   /** 育成セット（発動回数ページのセットID） */
   trainingSetId: string;
-  /** HIFワッペン発動回数 */
-  wappenCount: number;
   /** 合計スター性 */
   totalStar: number;
   /** 理想編成の条件: タイプごとのSPレッスン率アップ持ちサポカの最低枚数 */
@@ -85,7 +83,6 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   pIdol: "",
   memory: "",
   trainingSetId: "",
-  wappenCount: 20,
   totalStar: 0,
   spMin: { vocal: 0, dance: 0, visual: 0 },
   eventBudget: { enabled: false, pre: 6, post: 6 },

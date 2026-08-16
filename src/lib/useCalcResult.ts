@@ -310,8 +310,8 @@ export function useCalcResult() {
       }
       const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
-      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・差し入れ80×5。
-      // 差し入れ・サポカ・メモリー・P率換算は選抜期間ぶんとして計上する
+      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・
+      // 差し入れ80×5（うち1回は本戦）。サポカ・メモリー・P率換算は選抜期間ぶんとして計上する
       const isHifP = scenario === "hif";
       let lessonPSenbatsu = 0;
       let lessonPHonsen = 0;
@@ -323,8 +323,8 @@ export function useCalcResult() {
           else lessonPSenbatsu += lesson.p;
         });
       }
-      const pFixedSenbatsu = isHifP ? 230 + 80 * 5 : 0;
-      const pFixedHonsen = isHifP ? 200 : 0;
+      const pFixedSenbatsu = isHifP ? 230 + 80 * 4 : 0;
+      const pFixedHonsen = isHifP ? 200 + 80 : 0;
       const pSenbatsu =
         pFixedSenbatsu + lessonPSenbatsu + mem.P + cardP + rateP;
       const pHonsen = pFixedHonsen + lessonPHonsen;
@@ -401,7 +401,16 @@ export function useCalcResult() {
     const finalStar = isHif
       ? FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0)
       : 0;
-    const wappenStar = isHif ? 15 * settings.wappenCount : 0;
+    // HIFのワッペンは札（スキルカード取得）のたびに発動する:
+    // 発動回数 = セットのスキル獲得回数 + 編成サポカのスキル獲得分（前イベ・後イベ込み）
+    const wappenCount = isHif
+      ? (manual("スキル獲得") ?? 0) +
+        activeCards.reduce(
+          (sum, m) => sum + (m.eventContrib["スキル獲得"] ?? 0),
+          0,
+        )
+      : 0;
+    const wappenStar = isHif ? 15 * wappenCount : 0;
     const totalStar =
       wappenStar + hifStar.lessonStar + hifStar.examStar + finalStar;
     const roundValues = isHif
@@ -496,6 +505,8 @@ export function useCalcResult() {
       perType,
       members,
       totalStar,
+      /** HIFワッペンの発動回数（札取得回数から自動算出） */
+      wappenCount,
       starParts: {
         wappen: wappenStar,
         lesson: hifStar.lessonStar,

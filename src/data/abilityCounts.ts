@@ -100,8 +100,31 @@ export function abilityMax(key: AbilityName): number {
 export type AbilityCountSet = {
   id: string;
   name: string;
+  /** 育成プラン/スタイル（試験補助強めのアイテム評価ゲートで参照。""=未設定） */
+  plan: string;
   defaults: Partial<Record<AbilityName, number>>;
 };
+
+/** セットに設定できるプラン/スタイルの選択肢 */
+export const SET_PLAN_OPTIONS = [
+  "センス",
+  "ロジック",
+  "アノマリー",
+  "好調",
+  "集中",
+  "好印象",
+  "やる気",
+  "強気",
+  "全力",
+] as const;
+
+/** セット名の接頭辞からプランを推定する（テンプレ・旧ユーザーセットの初期値用） */
+export function planFromSetName(name: string): string {
+  for (const plan of SET_PLAN_OPTIONS) {
+    if (name.startsWith(plan)) return plan;
+  }
+  return "";
+}
 
 /**
  * 発動回数の元データは現行スプシの発動回数タブ（generated/abilityCounts.json、gen:counts で生成）。
@@ -155,6 +178,7 @@ const DEFAULT_COUNTS = toCountTable(generatedCounts.hif);
 export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => ({
   id: `set:${name}`,
   name,
+  plan: planFromSetName(name),
   defaults: Object.fromEntries(
     Object.entries(DEFAULT_COUNTS)
       .map(([key, values]) => [key, values[i]])
@@ -173,6 +197,7 @@ export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
   (name, i) => ({
     id: `nia:${name}`,
     name,
+    plan: planFromSetName(name),
     defaults: Object.fromEntries(
       Object.entries(NIA_DEFAULT_COUNTS)
         .map(([key, values]) => [key, values[i]])

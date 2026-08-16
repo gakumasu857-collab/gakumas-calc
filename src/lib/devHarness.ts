@@ -192,11 +192,10 @@ export function buildInput(): AutoOptimizeInput {
         }
       : undefined,
     examAssist: settings.examAssist,
-    examStyleTags: examStyleTags(set?.name ?? null),
+    examStyleTags: examStyleTags(set?.plan ?? null),
     noStageItems: settings.noStageItems,
     minStats: settings.minStats,
     maxStats: settings.maxStats,
-    wappenCount: settings.wappenCount,
     round1: settings.round1,
     round2: settings.round2,
   };

@@ -32,6 +32,11 @@ import {
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { runFullOptimize } from "@/lib/autoOptimize";
+import {
+  computeCompromise,
+  probUpTo,
+  type CompromiseResult,
+} from "@/lib/compromiseProb";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -89,8 +94,8 @@ const SCENARIO_STYLE: Record<ScenarioKey, { short: string; bg: string }> = {
 
 /**
  * 計算シートページ。
- * 現在のステ・評価値は「選択サポカ」6枠を参照する（理想編成の自動採用ではない）。
- * 評価値 = Σmin(3200, 現在のステ)×2 + floor(合計スター性×7.5) + 本戦評価値 − 2000
+ * 最終ステータス・評価値は「選択サポカ」6枠を参照する（理想編成の自動採用ではない）。
+ * 評価値 = Σmin(3200, 最終ステ)×2 + floor(合計スター性×7.5) + 本戦評価値 − 2000
  */
 export default function CalcPage() {
   const r = useCalcResult();
@@ -116,6 +121,22 @@ export default function CalcPage() {
   const [scenarioPickerOpen, setScenarioPickerOpen] = useState(false);
   const [idolPickerOpen, setIdolPickerOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
+  // 妥協込みの実現確率（ボタンを押したときだけ計算する）
+  const [comp, setComp] = useState<CompromiseResult | null>(null);
+  const [compBusy, setCompBusy] = useState(false);
+  const [compTolerance, setCompTolerance] = useState(100);
+
+  const runCompromise = () => {
+    setCompBusy(true);
+    // 「計算中…」を先に描画させてから重い計算を回す
+    setTimeout(() => {
+      try {
+        setComp(computeCompromise(r, flags, settings, r.spLesson.rates));
+      } finally {
+        setCompBusy(false);
+      }
+    }, 30);
+  };
 
   const selectedSave = calc.saves.find((s) => s.id === selectedSaveId);
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
@@ -156,7 +177,7 @@ export default function CalcPage() {
             : undefined,
           extraScore: r.niaFudaExtra,
           examAssist: settings.examAssist,
-          examStyleTags: examStyleTags(r.selectedSet?.name ?? null),
+          examStyleTags: examStyleTags(r.selectedSet?.plan ?? null),
           // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
           ...(settings.typeRatio.enabled
             ? typeConstraintFromRatio({
@@ -310,7 +331,7 @@ export default function CalcPage() {
                   <button
                     type="button"
                     onClick={() => setScenarioPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center gap-2 text-left`}
+                    className={`${PICKER_INPUT} flex w-full items-center gap-2 text-left`}
                   >
                     <span
                       className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
@@ -325,7 +346,7 @@ export default function CalcPage() {
                   <button
                     type="button"
                     onClick={() => setIdolPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center justify-between gap-2 text-left`}
+                    className={`${PICKER_INPUT} flex w-full items-center justify-between gap-2 text-left`}
                   >
                     <span className="truncate">
                       {settings.idol}
@@ -341,7 +362,7 @@ export default function CalcPage() {
                       if (e.target.value !== r.ability.selectedSetId)
                         r.ability.selectSet(e.target.value);
                     }}
-                    className={INPUT}
+                    className={`${PICKER_INPUT} w-full`}
                   >
                     <option value="">未選択</option>
                     {r.ability.sets
@@ -351,21 +372,11 @@ export default function CalcPage() {
                       .map((set) => (
                         <option key={set.id} value={set.id}>
                           {set.name}
+                          {set.plan ? `【${set.plan}】` : ""}
                         </option>
                       ))}
                   </select>
                 </Field>
-                {r.scenario === "hif" && (
-                  <Field label="HIFワッペン発動回数">
-                    <NumberField
-                      value={settings.wappenCount}
-                      onChange={(v) => calc.update({ wappenCount: v })}
-                      max={20}
-                      sliderMax={20}
-                      className="w-full"
-                    />
-                  </Field>
-                )}
               </div>
               <div className="mt-2 hidden text-sm sm:block">
                 <PIdolInfo r={r} />
@@ -411,10 +422,10 @@ export default function CalcPage() {
                 : "メモリーページで編集"}
             </Link>
           </div>
-        </Card>
 
-        {/* 本戦・試験の点数（設定の下・全自動最適化の上） */}
-        <ScenarioScoreCard r={r} />
+          {/* 本戦・試験の点数（設定ブロック内） */}
+          <ScenarioScoreCard r={r} />
+        </Card>
 
         {/* 全自動最適化 */}
         <Card
@@ -430,7 +441,7 @@ export default function CalcPage() {
               className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60"
             >
               <Sparkles size={15} />
-              {optBusy ? "計算中…" : "理論評価値を求める（編成＋踏み方を自動探索）"}
+              {optBusy ? "計算中…" : "オススメ編成を求める（サポカ編成＋踏み方を自動探索）"}
             </button>
             <button
               type="button"
@@ -441,29 +452,6 @@ export default function CalcPage() {
               条件設定
             </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-400">
-            取得回数
-            {settings.eventBudget.enabled
-              ? `（前${settings.eventBudget.pre}枚/後${settings.eventBudget.post}回）`
-              : "＝制限なし"}{" "}
-            ／ 編成割合
-            {settings.typeRatio.enabled
-              ? `（${settings.typeRatio.vocal}:${settings.typeRatio.dance}:${settings.typeRatio.visual}）`
-              : "＝自由"}{" "}
-            ／ SP
-            {TYPE_KEYS.some((t) => settings.spMin[t] > 0)
-              ? `（${TYPE_JA.vocal}${settings.spMin.vocal}/${TYPE_JA.dance}${settings.spMin.dance}/${TYPE_JA.visual}${settings.spMin.visual}）`
-              : "＝条件なし"}{" "}
-            ／ 最低ステ
-            {TYPE_KEYS.some((t) => settings.minStats[t] > 0)
-              ? `（${TYPE_JA.vocal}${settings.minStats.vocal}/${TYPE_JA.dance}${settings.minStats.dance}/${TYPE_JA.visual}${settings.minStats.visual}）`
-              : "＝条件なし"}{" "}
-            ／ 最高ステ
-            {TYPE_KEYS.some((t) => settings.maxStats[t] < 3200)
-              ? `（${TYPE_JA.vocal}${settings.maxStats.vocal}/${TYPE_JA.dance}${settings.maxStats.dance}/${TYPE_JA.visual}${settings.maxStats.visual}）`
-              : "＝制限なし"}{" "}
-            ／ 試験補助{settings.examAssist ? "＝強め" : "＝標準"}
-          </p>
           {optMsg && (
             <p className="mt-2 text-xs font-semibold text-blue-600">{optMsg}</p>
           )}
@@ -522,7 +510,7 @@ export default function CalcPage() {
         {/* 選択サポカ */}
         <Card
           title="選択サポカ"
-          hint="現在のステ・評価値はこの6枚で計算"
+          hint="最終ステータス・評価値はこの6枚で計算"
           action={
             <div className="flex items-center gap-1.5">
               <button
@@ -532,7 +520,7 @@ export default function CalcPage() {
                 className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
               >
                 <Sparkles size={13} />
-                {idealBusy ? "計算中…" : "理想編成を計算して設定"}
+                {idealBusy ? "計算中…" : "サポカ編成を求める"}
               </button>
               <button
                 type="button"
@@ -623,6 +611,94 @@ export default function CalcPage() {
                 ）
               </span>
             </p>
+            {/* 妥協込みの実現確率（HIFのみ）: 日ごとに出た3属性＋踏まないから最良を
+                選ぶモデルで、合計評価値低下が許容内に収まる確率を実測の評価値差で出す */}
+            {r.scenario === "hif" && (
+              <div className="mt-2 border-t border-slate-200 pt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={runCompromise}
+                    disabled={compBusy}
+                    title="各レッスン日で「出た中から一番マシな踏み方を選ぶ」前提で、評価値の低下が許容内に収まる確率を計算します"
+                    className="rounded-lg bg-slate-700 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-600 disabled:opacity-60"
+                  >
+                    {compBusy ? "計算中…" : "妥協込みの実現確率を計算"}
+                  </button>
+                  <label className="flex items-center gap-1 text-slate-500">
+                    許容する評価値低下
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={compTolerance}
+                      onChange={(e) =>
+                        setCompTolerance(Math.max(0, Number(e.target.value) || 0))
+                      }
+                      className="w-16 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs"
+                    />
+                  </label>
+                  {comp && (
+                    <span>
+                      → 実現確率{" "}
+                      <b className="tabular-nums text-blue-700">
+                        {formatProb(probUpTo(comp.cdf, compTolerance))}
+                      </b>
+                    </span>
+                  )}
+                </div>
+                {comp && (
+                  <>
+                    <p className="mt-1 text-slate-400">
+                      目安:{" "}
+                      {[0, 50, 100, 200, 300, 500, 1000]
+                        .map(
+                          (x) =>
+                            `−${x}以内 ${formatProb(probUpTo(comp.cdf, x))}`,
+                        )
+                        .join(" ／ ")}
+                    </p>
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-slate-500">
+                        日別の踏み方候補ランキング（マシな順・数字は評価値低下）
+                      </summary>
+                      <div className="mt-1 flex flex-col gap-0.5 tabular-nums">
+                        {comp.days.map((day) => (
+                          <p key={day.index}>
+                            <span className="font-semibold text-slate-700">
+                              {day.label}:
+                            </span>{" "}
+                            {day.options.slice(0, 5).map((o, k) => (
+                              <span key={k} className="mr-2">
+                                <span className={TYPE_TEXT[o.main]}>
+                                  {TYPE_JA[o.main]}
+                                </span>
+                                {o.sp ? "SP" : "通常"}(サブ{TYPE_JA[o.sub]})
+                                <b
+                                  className={
+                                    o.delta === 0
+                                      ? "text-emerald-600"
+                                      : "text-slate-700"
+                                  }
+                                >
+                                  −{o.delta}
+                                </b>
+                              </span>
+                            ))}
+                            <span className="text-slate-400">
+                              踏まない−{day.skipDelta}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        編成・踏み方・設定を変えたら「計算」を押し直してください。
+                      </p>
+                    </details>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
             枠をクリックして手動で選択できます。理想編成の条件（BAN・固定・レンタルNG）は
@@ -772,19 +848,43 @@ export default function CalcPage() {
                   {produceRank(previewRating ?? r.rating)}
                 </span>
               </div>
-              <p className="mt-1 text-[10px] text-slate-400">
-                {r.scenario === "niaMaster"
-                  ? `= floor(Σmin(${r.statCap}, ステ)×2.3) + ファン投票数換算`
-                  : r.scenario === "hatsuLegend"
-                    ? `= floor(Σmin(${r.statCap}, ステ)×2.1) + 最終順位分 + 試験スコア換算`
-                    : `= Σmin(${r.statCap}, ステ)×2 + floor(スター性×7.5) + 本戦評価値 − 2000`}
+              <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                {r.scenario === "niaMaster" ? (
+                  <>
+                    ステ合計×2.3（
+                    {Math.floor(r.cappedSum * 2.3).toLocaleString()}）＋
+                    ファン投票数の換算値（
+                    {(r.scenarioValues.fanValue ?? 0).toLocaleString()}）
+                  </>
+                ) : r.scenario === "hatsuLegend" ? (
+                  <>
+                    ステ合計×2.1（
+                    {Math.floor(r.cappedSum * 2.1).toLocaleString()}）＋
+                    順位ボーナス（
+                    {(r.scenarioValues.rankValue ?? 0).toLocaleString()}）＋
+                    試験スコアの換算値（
+                    {(
+                      (r.scenarioValues.midValue ?? 0) +
+                      (r.scenarioValues.finalValue ?? 0)
+                    ).toLocaleString()}）
+                  </>
+                ) : (
+                  <>
+                    ステ合計×2（{(r.cappedSum * 2).toLocaleString()}）＋
+                    スター性{r.totalStar}×7.5（
+                    {Math.floor(r.totalStar * 7.5).toLocaleString()}）＋
+                    本戦ラウンド点数の評価値（
+                    {(r.roundValues[0] + r.roundValues[1]).toLocaleString()}）−
+                    2,000
+                  </>
+                )}
               </p>
             </>
           )}
         </div>
 
-        {/* 現在のステ */}
-        <Card title="現在のステ" hint={`選択サポカ込み・上限${r.statCap}`}>
+        {/* 最終ステータス */}
+        <Card title="最終ステータス" hint={`選択サポカ込み・上限${r.statCap}`}>
           <table className="w-full text-sm tabular-nums">
             <tbody className="divide-y divide-slate-100">
               {TYPE_KEYS.map((type) => {
@@ -821,64 +921,67 @@ export default function CalcPage() {
               </tr>
             </tbody>
           </table>
-          {r.scenario === "hif" && (
-            <p className="mt-1 text-sm text-slate-500">
-              合計スター性: <b className="text-violet-600">{r.totalStar}</b>
-              <span className="ml-1 text-[10px] text-slate-400">
-                （ワッペン{r.starParts.wappen}＋レッスン{r.starParts.lesson}
-                ＋選抜{r.starParts.exam}＋本戦{r.starParts.final}）
-              </span>
-            </p>
-          )}
-          {/* この育成で得られるPポイント・体力（サポカ・前イベ・メモリー込み） */}
-          <p className="mt-1 text-sm text-slate-500">
-            Pポイント:{" "}
-            <b className="text-cyan-700">
-              {Math.round(r.resources.pTotal).toLocaleString()}
-            </b>
+          {/* スター性・Pポイント・体力は1項目1行（3段）で見やすく */}
+          <div className="mt-1.5 flex flex-col gap-1 border-t border-slate-100 pt-1.5 text-sm text-slate-500">
             {r.scenario === "hif" && (
-              <span className="ml-1 tabular-nums">
-                （選抜{" "}
-                <b className="text-cyan-700">
-                  {Math.round(r.resources.pSenbatsu).toLocaleString()}
-                </b>
-                ／本戦{" "}
-                <b className="text-cyan-700">
-                  {Math.round(r.resources.pHonsen).toLocaleString()}
-                </b>
-                ）
-              </span>
+              <p>
+                合計スター性: <b className="text-violet-600">{r.totalStar}</b>
+                <span className="ml-1 text-[10px] text-slate-400">
+                  （ワッペン{r.wappenCount}回=★{r.starParts.wappen}＋レッスン
+                  {r.starParts.lesson}＋選抜{r.starParts.exam}＋本戦
+                  {r.starParts.final}）
+                </span>
+              </p>
             )}
-            {r.scenario !== "hif" && (
-              <span className="ml-1 text-[10px] text-slate-400">
-                （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
-                ＋サポカ{Math.round(r.resources.pCards)}）
-              </span>
-            )}
-            <span className="ml-3">
+            {/* この育成で得られるPポイント（サポカ・前イベ・メモリー込み） */}
+            <p>
+              Pポイント:{" "}
+              <b className="text-cyan-700">
+                {Math.round(r.resources.pTotal).toLocaleString()}
+              </b>
+              {r.scenario === "hif" ? (
+                <>
+                  <span className="ml-1 tabular-nums">
+                    （選抜{" "}
+                    <b className="text-cyan-700">
+                      {Math.round(r.resources.pSenbatsu).toLocaleString()}
+                    </b>
+                    ／本戦{" "}
+                    <b className="text-cyan-700">
+                      {Math.round(r.resources.pHonsen).toLocaleString()}
+                    </b>
+                    ）
+                  </span>
+                  <span className="block text-[10px] text-slate-400">
+                    選抜＝開始時230＋差し入れ{r.resources.pFixedSenbatsu - 230}
+                    ＋レッスン{r.resources.pLessonSenbatsu}＋メモリー
+                    {r.resources.pMemory}＋サポカ{Math.round(r.resources.pCards)}
+                    ／本戦＝開始時200＋差し入れ{r.resources.pFixedHonsen - 200}
+                    ＋レッスン{r.resources.pLessonHonsen}
+                  </span>
+                </>
+              ) : (
+                <span className="ml-1 text-[10px] text-slate-400">
+                  （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
+                  ＋サポカ{Math.round(r.resources.pCards)}）
+                </span>
+              )}
+            </p>
+            <p>
               体力:{" "}
-              <b className="text-emerald-700">{Math.round(r.resources.hpTotal)}</b>
+              <b className="text-emerald-700">
+                {Math.round(r.resources.hpTotal)}
+              </b>
               <span className="ml-1 text-[10px] text-slate-400">
                 （Pアイドル{r.resources.hpIdol}
                 {r.resources.hpCards > 0 && `＋サポカ${r.resources.hpCards}`}）
               </span>
-            </span>
-            {r.scenario === "hif" && (
-              <span className="block text-[10px] text-slate-400">
-                選抜＝開始時{r.resources.pFixedSenbatsu - 400}＋差し入れ400＋レッスン
-                {r.resources.pLessonSenbatsu}＋メモリー{r.resources.pMemory}＋サポカ
-                {Math.round(r.resources.pCards)}／本戦＝開始時
-                {r.resources.pFixedHonsen}＋レッスン{r.resources.pLessonHonsen}
-              </span>
-            )}
-          </p>
+            </p>
+          </div>
         </Card>
 
         {/* プロデュース開始時のステ */}
-        <Card
-          title="プロデュース開始時のステ"
-          hint="メモリー＋サポカ初期値＋Pアイドル"
-        >
+        <Card title="プロデュース開始時のステ">
           <div className="grid grid-cols-3 gap-2">
             {TYPE_KEYS.map((type) => (
               <div
@@ -898,7 +1001,7 @@ export default function CalcPage() {
             ))}
           </div>
           <p className="mt-1.5 text-[11px] text-slate-400">
-            上段=固定値、下段=パラメータボーナス%（メモリー＋サポカ＋Pアイドル＋10%）。審査基準:{" "}
+            審査基準:{" "}
             {TYPE_KEYS.map((t) => `${TYPE_JA[t]} ${r.ranks?.[t] ?? "—"}`).join(" / ")}
           </p>
         </Card>
@@ -981,12 +1084,35 @@ export default function CalcPage() {
 }
 
 /** シナリオ別の本戦・試験スコア入力（評価値の上に置く） */
+/** 設定ブロック内の小見出しつきサブセクション */
+function SettingSub({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2">
+      <p className="mb-1.5 text-xs font-bold text-slate-600">
+        {title}
+        {hint && (
+          <span className="ml-1.5 font-normal text-slate-400">{hint}</span>
+        )}
+      </p>
+      {children}
+    </div>
+  );
+}
+
 function ScenarioScoreCard({ r }: { r: ReturnType<typeof useCalcResult> }) {
   const { calc } = r;
   const { settings } = calc;
   if (r.scenario === "hif") {
     return (
-      <Card title="本戦ラウンド点数" hint="ボーナス前の点数を入力">
+      <SettingSub title="本戦ラウンド点数" hint="ボーナス前の点数を入力">
         <div className="grid gap-2 sm:grid-cols-2">
           {(
             [
@@ -1010,12 +1136,12 @@ function ScenarioScoreCard({ r }: { r: ReturnType<typeof useCalcResult> }) {
             </Field>
           ))}
         </div>
-      </Card>
+      </SettingSub>
     );
   }
   if (r.scenario === "niaMaster") {
     return (
-      <Card
+      <SettingSub
         title="ファン投票数"
         hint="営業・オーディション・札から自動集計（入力はレッスンページ）"
       >
@@ -1045,11 +1171,11 @@ function ScenarioScoreCard({ r }: { r: ReturnType<typeof useCalcResult> }) {
           ＋サポカ分 {r.scenarioValues.supportFuda ?? 0}
           枚（編成のスキル獲得から自動）。2枚ごとに3,000票、余りの1枚は無効。
         </p>
-      </Card>
+      </SettingSub>
     );
   }
   return (
-    <Card title="試験スコア・順位" hint="レッスンページと共有">
+    <SettingSub title="試験スコア・順位" hint="レッスンページと共有">
       <div className="grid gap-2 sm:grid-cols-2">
         <Field label="中間試験スコア">
           <div className="flex items-center gap-2">
@@ -1080,7 +1206,7 @@ function ScenarioScoreCard({ r }: { r: ReturnType<typeof useCalcResult> }) {
           </div>
         </Field>
       </div>
-    </Card>
+    </SettingSub>
   );
 }
 
@@ -1292,15 +1418,13 @@ function PIdolImageEditor({
           type="button"
           onClick={() => setOpen((v) => !v)}
           title="クリックで特訓・才能開花を設定"
-          className="mt-1 block w-28 text-center text-[11px] text-slate-600 underline decoration-slate-300 decoration-dotted underline-offset-2 hover:text-blue-600"
+          className={`mt-1 block w-28 rounded-md px-1 py-1 text-center text-xs font-bold ring-1 transition ${
+            own
+              ? "bg-blue-50 text-blue-700 ring-blue-200 hover:bg-blue-100"
+              : "bg-red-50 text-red-600 ring-red-200 hover:bg-red-100"
+          }`}
         >
-          {own ? (
-            <>
-              特訓{own.kunren}・開花{own.kaika}
-            </>
-          ) : (
-            <span className="text-red-500">未所持</span>
-          )}
+          {own ? `特訓${own.kunren}・開花${own.kaika}` : "未所持"}
         </button>
       )}
       {open && key && (
@@ -1584,6 +1708,10 @@ function formatProb(p: number): string {
 
 const INPUT =
   "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500";
+
+/** 設定ブロックの主要プルダウン用（「ここを設定する」が伝わるよう強調） */
+const PICKER_INPUT =
+  "rounded-lg border-2 border-blue-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 shadow-sm outline-none transition hover:border-blue-400 focus:border-blue-500";
 
 const SMALL_BTN =
   "flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
