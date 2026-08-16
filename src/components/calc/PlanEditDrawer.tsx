@@ -615,11 +615,20 @@ function HatsuEditor({ r }: { r: CalcResult }) {
 
 /** 数値表と計算式の開示モーダル（旧レッスンページから移植。H.I.F.用） */
 function HelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
+      <NumbersTables />
+    </Modal>
+  );
+}
+
+/** レッスン・授業・本戦・選抜の数値表本体（ヘルプモーダルからも使う） */
+export function NumbersTables() {
   const th = "border border-slate-300 bg-slate-100 px-2 py-1";
   const td = "border border-slate-200 px-2 py-1";
   const tdC = `${td} text-center`;
   return (
-    <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
+    <>
       <p className="mb-3 text-xs text-slate-500">
         ※ コミュニティ調べの暫定値・近似式です。
         サブパラメータは選択した1タイプに入ります。
@@ -724,7 +733,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
         </p>
       </div>
-    </Modal>
+    </>
   );
 }
 

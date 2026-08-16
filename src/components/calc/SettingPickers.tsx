@@ -246,10 +246,10 @@ export function TheorySettingsModal({
               onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
               className="accent-blue-600"
             />
-            ステージに入るPアイテムのサポカを編成しない
+            ステージに入るPアイテム・スキルのサポカを編成しない
           </label>
           <p className="mt-1 text-[11px] text-slate-400">
-            ONにすると、前イベで「ステージ（試験中）に持ち込むPアイテム」をくれるサポカを理想編成の候補から外します。固定（ピン）したサポカはこの設定に関係なく編成に入ります。
+            ONにすると、前イベで「ステージ（試験中）に持ち込むPアイテム」または「スキルカード」をくれるサポカを理想編成の候補から外します。固定（ピン）したサポカはこの設定に関係なく編成に入ります。
           </p>
         </section>
       </div>

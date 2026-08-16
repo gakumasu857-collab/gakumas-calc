@@ -260,14 +260,14 @@ export function scoreOwnedCards(
   return result;
 }
 
-/** ステージアイテム除外の対象か（固定カードは貫通して残す） */
+/** ステージ持ち込み（Pアイテム/スキルカード）除外の対象か（固定カードは貫通して残す） */
 function excludedStageItem(
   card: SupportCardData,
   opts: FormationOptions | undefined,
 ): boolean {
   return (
     !!opts?.noStageItems &&
-    card.stageItem &&
+    (card.stageItem || card.preEventType === "スキル") &&
     !opts?.flags?.pinned.has(card.id)
   );
 }

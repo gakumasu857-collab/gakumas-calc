@@ -37,7 +37,7 @@ export default function OwnershipPage() {
           className="flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
         >
           <Camera size={15} />
-          画面キャプチャで所持入力（β）
+          画面キャプチャで所持入力（β版。PCのみ）
         </Link>
       </div>
       {tab === "support" ? <SupportCardOwnership /> : <PIdolOwnership />}

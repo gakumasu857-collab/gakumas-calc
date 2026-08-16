@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ChevronDown,
   FolderOpen,
+  HelpCircle,
   ImageDown,
   Save,
   Settings,
@@ -16,6 +17,7 @@ import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
+import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import {
   IdolPickerModal,
@@ -116,6 +118,8 @@ export default function CalcPage() {
   const [scenarioPickerOpen, setScenarioPickerOpen] = useState(false);
   const [idolPickerOpen, setIdolPickerOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
 
   const selectedSave = calc.saves.find((s) => s.id === selectedSaveId);
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
@@ -288,6 +292,17 @@ export default function CalcPage() {
 
   return (
     <div className="grid gap-4 pl-9 sm:pl-10 lg:grid-cols-[360px_1fr] lg:items-start lg:pl-0">
+      {/* 使い方・計算式ヘルプ（ページ右上） */}
+      <div className="-mb-2 -mt-2 flex justify-end lg:col-span-2 lg:order-first">
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+        >
+          <HelpCircle size={14} />
+          使い方・計算式ヘルプ
+        </button>
+      </div>
       {/* ===== 入力（デスクトップでは右） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-2">
         {/* 設定 */}
@@ -349,8 +364,8 @@ export default function CalcPage() {
                       )
                       .map((set) => (
                         <option key={set.id} value={set.id}>
-                          {set.name}
                           {set.plan ? `【${set.plan}】` : ""}
+                          {set.name}
                         </option>
                       ))}
                   </select>
@@ -604,12 +619,19 @@ export default function CalcPage() {
               />
               <button
                 type="button"
-                onClick={() => void exportSheetImage(r, flags.pinned)}
+                disabled={exportBusy}
+                onClick={() => {
+                  if (exportBusy) return;
+                  setExportBusy(true);
+                  void exportSheetImage(r, flags.pinned).finally(() =>
+                    setExportBusy(false),
+                  );
+                }}
                 title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画像で保存します"
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60"
               >
                 <ImageDown size={13} />
-                画像で保存
+                {exportBusy ? "保存中…" : "画像で保存"}
               </button>
             </span>
           }
@@ -938,6 +960,9 @@ export default function CalcPage() {
           onClose={() => setTheoryOpen(false)}
         />
       )}
+
+      {/* 使い方・計算式ヘルプ */}
+      {helpOpen && <CalcHelpModal onClose={() => setHelpOpen(false)} />}
 
       {/* シナリオ選択モーダル（色付き■3つ） */}
       {scenarioPickerOpen && (
