@@ -101,7 +101,7 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
         if (result.hatsu)
           r.hatsuSchedule.setPlan(result.hatsu.lessons, result.hatsu.classTypes);
         setOptMsg(
-          `今の編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`,
+          `今のサポカ編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`,
         );
       } finally {
         setOptBusy(false);
@@ -134,7 +134,7 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
               className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
             >
               <Sparkles size={13} />
-              {optBusy ? "計算中…" : "今の編成で踏み方を最適化"}
+              {optBusy ? "計算中…" : "今のサポカ編成で踏み方を最適化"}
             </button>
             {r.scenario === "hif" && (
               <button

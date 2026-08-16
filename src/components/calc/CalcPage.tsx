@@ -789,7 +789,7 @@ export default function CalcPage() {
           </p>
           {!canShowRating ? (
             <p className="mt-2 text-xs text-slate-400">
-              サポカ6枚を編成し、育成（発動回数セット）を選ぶと表示されます。
+              サポカを6枚編成し、育成を選んでください。
             </p>
           ) : (
             <>

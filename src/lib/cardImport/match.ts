@@ -1,24 +1,25 @@
 /**
  * サポカ所持の画面キャプチャ読み取り（/card-import）の照合ロジック。
+ * すべて幅540に正規化したRGBAバッファ上で動く純ロジック（Workerから使う）。
+ * コミュニティ提供のテストデータ（スマホ/PC 42枚・354タイル）と手元のDMMキャプチャで較正済み。
  *
- * ゲームのサポカ一覧（正規化540x960）から:
- * - タイル行の検出: タイル間の背景がほぼ白なので「白率>0.9の横帯」を行境界にする
- * - カード同定: タイルのアート上部(156x56)を20x8RGB指紋にし、
- *   ライブラリ画像（スプライト80x45）から作った複数窓（スケール×位置=40通り）の
- *   指紋との正規化相関の最大値で照合する（ゲームのリスト用切り抜きはカードごとに
- *   ズーム・位置が違うため、複数窓で吸収する。実測: 手持ちスクショ117タイルで
- *   94/117がスコア0.8超、低スコアはシート未収録カード等）
- * - 凸数: Lvの桁数で開始xが変わる4つの凸マーク（白=点灯）を、
- *   両仮説（1桁=x30.5 / 2桁=x46.5、間隔16.2）×局所探索(±4px)で判定する
- *
- * すべて 540x960 の RGBA バッファ上で動く純ロジック（Worker から使う）。
+ * パイプライン:
+ * 1. タイル格子検出: タイル間の白帯で行を出し、行内の白ギャップで3列に分ける。
+ *    行の高さは58..120pxを許容し、タイル幅は行高に比例（160:91）で検証する
+ *    （ウィンドウ幅よりゲームが狭いPCキャプチャ等のスケール差に追従）。
+ * 2. 各タイルを基準サイズ160x91へリサンプル。
+ * 3. カード同定（2段階）: アート上部の20x8RGB指紋を全カードの固定窓（スケール4×位置
+ *    最大10=40窓）と照合 → スコアが低ければ上位8候補だけ、サムネイル上の
+ *    位置×スケール実探索（積分画像で高速化）で精査し、最大スコアを採用する。
+ *    （ゲームのリスト切り抜きはカードごとにズーム・位置が大きく違うため）
+ * 4. 凸数: Lvの桁数で開始位置が変わる4つの凸マークを、行内共有シフトで位置合わせし、
+ *    タイル内の相対輝度で「点灯／すりガラス未点灯／暗色未点灯」を分離して数える。
  */
 
-/** 正規化フレームの寸法 */
+/** 正規化フレームの幅（高さはキャプチャに応じて可変） */
 export const FRAME_W = 540;
-export const FRAME_H = 960;
 
-/** タイルの基準サイズ（540x960基準の実測値。検出タイルはこの寸法へ正規化する） */
+/** タイルの基準サイズ（検出タイルはこの寸法へ正規化する） */
 export const TILE_W = 160;
 export const TILE_H = 91;
 /** タイル内アート（白枠2pxを除く）の幅と、指紋に使う上部の高さ */
@@ -31,14 +32,24 @@ const FP_H = 8;
 const FP_LEN = FP_W * FP_H * 3;
 /** 粗選別用の縮約指紋（20x8 → 5x2 に平均、RGB 30値） */
 const COARSE_LEN = 5 * 2 * 3;
-/** 粗選別で残す候補数 */
+/** 粗選別で残す候補数と、精査に回す候補数 */
 const COARSE_TOP = 24;
+const REFINE_TOP = 8;
+/** 固定窓のスコアがこれ以上なら精査を省略する（十分に確からしい） */
+const REFINE_SKIP = 0.92;
 
 /** アート領域のアスペクト（ライブラリ窓の高さ計算に使う） */
 const FP_ASPECT = ART_W / ART_H;
-/** ライブラリ窓のスケール候補（ゲームのリスト切り抜きのズーム差を吸収） */
+/** ライブラリ固定窓のスケール候補 */
 const SCALES = [1.0, 1.15, 1.3, 1.5] as const;
 const Y_OFFSETS = [0, 1 / 3, 2 / 3, 1] as const;
+
+/** 精査用の縮約カラー指紋 */
+const REF_W = 12;
+const REF_H = 5;
+const REF_LEN = REF_W * REF_H * 3;
+/** 精査の探索スケール（サムネ幅/窓幅。3倍近いズームまで拾う） */
+const REFINE_SCALES = [1.0, 1.25, 1.55, 1.9, 2.35, 2.9] as const;
 
 export type TileMatch = {
   /** フレーム内でのタイル位置（表示・切り抜き用） */
@@ -50,7 +61,7 @@ export type TileMatch = {
   margin: number;
   /** 凸数 0..4 */
   tsuki: number;
-  /** 凸判定が明確だったか（曖昧なら手動確認推奨） */
+  /** 凸判定が明確だったか（オーバーレイ等で読めなければ false=手動確認推奨） */
   tsukiOk: boolean;
 };
 
@@ -140,16 +151,22 @@ function coarseOf(fp: Float32Array): Float32Array {
   return normalize(out);
 }
 
+type CellSat = [Float64Array, Float64Array, Float64Array];
+
 export type Library = {
   count: number;
+  cellW: number;
+  cellH: number;
   /** [cardIndex][variant] の指紋 */
   fine: Float32Array[][];
   coarse: Float32Array[][];
+  /** 精査用: サムネごとのRGB積分画像 */
+  sats: CellSat[];
 };
 
 /**
  * スプライト画像（cellW x cellH のサムネイルがcols列で並ぶ）からライブラリを作る。
- * 各カードにつき スケール4 x 縦4 x 横(1or3) = 40窓 の指紋を持つ。
+ * 各カードにつき固定窓40個の指紋と、精査用の積分画像を持つ。
  */
 export function buildLibrary(
   rgba: Uint8ClampedArray,
@@ -161,6 +178,7 @@ export function buildLibrary(
 ): Library {
   const fine: Float32Array[][] = [];
   const coarse: Float32Array[][] = [];
+  const sats: CellSat[] = [];
   // 16:9の元画像に幅1/scale・アスペクトFP_ASPECTの窓を置いたときの、サムネ座標系での窓高
   const baseWinH = ((16 / 9) * cellH) / FP_ASPECT;
   for (let c = 0; c < count; c++) {
@@ -182,8 +200,27 @@ export function buildLibrary(
     }
     fine.push(fps);
     coarse.push(fps.map(coarseOf));
+    // 積分画像（(w+1)x(h+1)）
+    const sat: CellSat = [
+      new Float64Array((cellW + 1) * (cellH + 1)),
+      new Float64Array((cellW + 1) * (cellH + 1)),
+      new Float64Array((cellW + 1) * (cellH + 1)),
+    ];
+    for (let y = 0; y < cellH; y++) {
+      for (let x = 0; x < cellW; x++) {
+        const idx = ((cellY + y) * imgW + cellX + x) * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          sat[ch][(y + 1) * (cellW + 1) + (x + 1)] =
+            rgba[idx + ch] +
+            sat[ch][y * (cellW + 1) + (x + 1)] +
+            sat[ch][(y + 1) * (cellW + 1) + x] -
+            sat[ch][y * (cellW + 1) + x];
+        }
+      }
+    }
+    sats.push(sat);
   }
-  return { count, fine, coarse };
+  return { count, cellW, cellH, fine, coarse, sats };
 }
 
 export type TileRect = { x: number; y: number; w: number; h: number };
@@ -191,10 +228,9 @@ export type TileRect = { x: number; y: number; w: number; h: number };
 /**
  * タイル格子の検出。
  * 領域指定が多少ズレてスケールが狂っても読めるよう、格子は毎フレーム動的に見つける:
- * 1) 白率>0.9 の横帯（タイル間の背景）で行境界を出す（高さ78..110を行とみなす）
+ * 1) 白率>0.9 の横帯（タイル間の背景）で行境界を出す（高さ58..120を行とみなす）
  * 2) 行内で白率>0.85 の縦ラインの束（左右余白と列間ギャップ）を出し、
- *    その間の幅140..185の区間をタイルとする（3列そろった行だけ採用）
- * 見つけたタイルは後段で 160x91 の基準サイズにリサンプルしてから照合する。
+ *    その間の「行高に比例した幅」の区間をタイルとする（3列そろった行だけ採用）
  */
 export function findTileGrid(
   rgba: Uint8ClampedArray,
@@ -230,7 +266,7 @@ export function findTileGrid(
     const top = bands[i][1] + 1;
     const bot = bands[i + 1][0] - 1;
     const rowH = bot - top + 1;
-    if (rowH < 78 || rowH > 110) continue;
+    if (rowH < 58 || rowH > 120) continue;
     // 行内の白い縦ライン（余白・列間ギャップ）を検出
     const gapAt: boolean[] = new Array(w).fill(false);
     for (let x = 0; x < w; x++) {
@@ -244,7 +280,8 @@ export function findTileGrid(
       }
       gapAt[x] = white / n > 0.85;
     }
-    // ギャップ間の幅140..185の区間をタイルに
+    // タイル幅は行高に比例（160:91）。PCキャプチャ等のスケール差に追従する
+    const expectW = rowH * (TILE_W / TILE_H);
     const rowTiles: TileRect[] = [];
     let gapEnd = -1;
     let x = 0;
@@ -254,11 +291,15 @@ export function findTileGrid(
         x++;
         continue;
       }
-      // 非ギャップ区間 [x, next)
       let next = x;
       while (next < w && !gapAt[next]) next++;
       const width = next - x;
-      if (gapEnd >= 0 && next < w && width >= 140 && width <= 185) {
+      if (
+        gapEnd >= 0 &&
+        next < w &&
+        width >= expectW * 0.85 &&
+        width <= expectW * 1.18
+      ) {
         rowTiles.push({ x, y: top, w: width, h: rowH });
       }
       x = next;
@@ -311,13 +352,112 @@ export function tileFingerprint(tile: Uint8ClampedArray): Float32Array {
   return fpFromRegion(tile, TILE_W, 2, 2, ART_W, ART_H);
 }
 
-/** 指紋をライブラリと照合（粗選別→精査） */
-export function matchFingerprint(
-  fp: Float32Array,
+/** 精査用: タイルアートの縮約カラー指紋 */
+function refineFpFromTile(tile: Uint8ClampedArray): Float32Array {
+  const out = new Float32Array(REF_LEN);
+  for (let j = 0; j < REF_H; j++) {
+    const ys = 2 + (j * ART_H) / REF_H;
+    const ye = 2 + ((j + 1) * ART_H) / REF_H;
+    for (let i = 0; i < REF_W; i++) {
+      const xs = 2 + (i * ART_W) / REF_W;
+      const xe = 2 + ((i + 1) * ART_W) / REF_W;
+      let r = 0,
+        g = 0,
+        b = 0,
+        n = 0;
+      for (let y = Math.floor(ys); y < ye; y++) {
+        for (let x = Math.floor(xs); x < xe; x++) {
+          const idx = (y * TILE_W + x) * 4;
+          r += tile[idx];
+          g += tile[idx + 1];
+          b += tile[idx + 2];
+          n++;
+        }
+      }
+      const o = (j * REF_W + i) * 3;
+      out[o] = r / n;
+      out[o + 1] = g / n;
+      out[o + 2] = b / n;
+    }
+  }
+  return normalize(out);
+}
+
+/** 積分画像から矩形平均 */
+function boxAvg(
+  sat: Float64Array,
+  W: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): number {
+  const a = sat[y0 * (W + 1) + x0];
+  const b = sat[y0 * (W + 1) + x1];
+  const c = sat[y1 * (W + 1) + x0];
+  const d = sat[y1 * (W + 1) + x1];
+  return (d - b - c + a) / ((x1 - x0) * (y1 - y0));
+}
+
+/** 候補サムネ上で精査指紋を位置×スケール探索して最大NCC */
+function refineScore(
+  refFp: Float32Array,
+  sat: CellSat,
+  cellW: number,
+  cellH: number,
+): number {
+  let best = -2;
+  const v = new Float32Array(REF_LEN);
+  for (const scale of REFINE_SCALES) {
+    const winW = cellW / scale;
+    const winH = winW / FP_ASPECT;
+    if (winH > cellH || winW < REF_W) continue;
+    const stepX = Math.max(1.5, (cellW - winW) / 7);
+    const stepY = Math.max(1.5, (cellH - winH) / 5);
+    for (let oy = 0; oy <= cellH - winH + 0.01; oy += stepY) {
+      for (let ox = 0; ox <= cellW - winW + 0.01; ox += stepX) {
+        for (let j = 0; j < REF_H; j++) {
+          const y0 = Math.round(oy + (j * winH) / REF_H);
+          const y1 = Math.max(y0 + 1, Math.round(oy + ((j + 1) * winH) / REF_H));
+          for (let i = 0; i < REF_W; i++) {
+            const x0 = Math.round(ox + (i * winW) / REF_W);
+            const x1 = Math.max(
+              x0 + 1,
+              Math.round(ox + ((i + 1) * winW) / REF_W),
+            );
+            const o = (j * REF_W + i) * 3;
+            v[o] = boxAvg(sat[0], cellW, x0, y0, x1, y1);
+            v[o + 1] = boxAvg(sat[1], cellW, x0, y0, x1, y1);
+            v[o + 2] = boxAvg(sat[2], cellW, x0, y0, x1, y1);
+          }
+        }
+        let mean = 0;
+        for (let i = 0; i < REF_LEN; i++) mean += v[i];
+        mean /= REF_LEN;
+        let ss = 0;
+        for (let i = 0; i < REF_LEN; i++) {
+          const t = v[i] - mean;
+          ss += t * t;
+        }
+        const norm = Math.sqrt(ss) || 1;
+        let d = 0;
+        for (let i = 0; i < REF_LEN; i++) d += ((v[i] - mean) / norm) * refFp[i];
+        if (d > best) best = d;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * タイル1枚をライブラリと照合する（粗選別→固定窓→必要なら精査）。
+ */
+function matchTile(
+  tile: Uint8ClampedArray,
   lib: Library,
 ): { index: number; score: number; margin: number } {
+  const fp = tileFingerprint(tile);
   const cfp = coarseOf(fp);
-  // 粗選別: カードごとの最良粗スコア
   const coarseScores: { c: number; s: number }[] = [];
   for (let c = 0; c < lib.count; c++) {
     let s = -2;
@@ -328,80 +468,203 @@ export function matchFingerprint(
     coarseScores.push({ c, s });
   }
   coarseScores.sort((a, b) => b.s - a.s);
-  // 精査: 上位候補のみ全窓で照合
-  let best = -1,
-    bScore = -2,
-    second = -2;
+  const fineScores: { c: number; s: number }[] = [];
   for (const { c } of coarseScores.slice(0, COARSE_TOP)) {
     let s = -2;
     for (const v of lib.fine[c]) {
       const d = dot(fp, v);
       if (d > s) s = d;
     }
-    if (s > bScore) {
-      second = bScore;
-      bScore = s;
-      best = c;
+    fineScores.push({ c, s });
+  }
+  fineScores.sort((a, b) => b.s - a.s);
+  // 固定窓で十分確からしければ精査を省略
+  if ((fineScores[0]?.s ?? -2) >= REFINE_SKIP) {
+    return {
+      index: fineScores[0].c,
+      score: fineScores[0].s,
+      margin: fineScores[0].s - (fineScores[1]?.s ?? -2),
+    };
+  }
+  // 精査: 上位候補をサムネ上の実探索で採点し、固定窓との最大値で決める
+  const refFp = refineFpFromTile(tile);
+  let best = { c: -1, s: -2 };
+  let second = -2;
+  for (const cand of fineScores.slice(0, REFINE_TOP)) {
+    const ref = refineScore(refFp, lib.sats[cand.c], lib.cellW, lib.cellH);
+    const s = Math.max(cand.s, ref);
+    if (s > best.s) {
+      second = best.s;
+      best = { c: cand.c, s };
     } else if (s > second) {
       second = s;
     }
   }
-  return { index: best, score: bScore, margin: bScore - second };
+  return { index: best.c, score: best.s, margin: best.s - second };
 }
 
 /**
- * 凸マーク（4スター、白=点灯・左から埋まる）の判定。基準サイズ(160x91)タイルで、
- * Lvが1桁なら x=30.5、2桁なら x=46.5 から間隔16.2で並ぶ。両仮説を試し、
- * スロットごとに±4pxの局所探索で星中心にスナップして白率/暗率で点灯判定する。
+ * 凸マーク（4スター、左から埋まる）の判定。基準サイズ(160x91)タイルで、
+ * Lvが1桁なら x=30.5、2桁なら x=46.5 から間隔16.2で並ぶ。
+ * - 行内共有シフトで位置合わせ（スロットごとに白いアートへ吸い付かないように）
+ * - タイル内の相対輝度で「点灯／すりガラス未点灯／暗色未点灯」を分離
+ *   （未点灯の見た目は環境で違う: 白い半透明 or 暗いシルエット）
+ * - Lv数字を拾ってしまう仮説はスロット上下の白で検出して弾く
+ * - 「上限解放可能」等のリボンがスターを覆っていたら判定不能(ok=false)
  */
-export function analyzeStars(
-  tile: Uint8ClampedArray,
-): { count: number; ok: boolean } {
+export function analyzeStars(tile: Uint8ClampedArray): {
+  count: number;
+  ok: boolean;
+} {
   const imgW = TILE_W;
-  const left = 0;
-  const top = 0;
-  const slotEval = (cx0: number) => {
-    let bestWhite = 0,
-      bestDark = 0;
-    for (let sh = -4; sh <= 4; sh++) {
-      let wCnt = 0,
-        dCnt = 0,
-        n = 0;
-      const cx = Math.round(cx0 + sh);
-      for (let dy = -4; dy <= 4; dy++) {
-        for (let dx = -4; dx <= 4; dx++) {
-          const i = ((top + 71 + dy) * imgW + cx + dx) * 4;
-          const r = tile[i],
-            g = tile[i + 1],
-            b = tile[i + 2];
-          if (r > 215 && g > 215 && b > 215) wCnt++;
-          if ((r + g + b) / 3 < 145) dCnt++;
-          n++;
+  // リボン検出: スター帯に彩度の高い黄色が横に長く続くか
+  let yellowRun = 0;
+  let maxYellowRun = 0;
+  for (let x = 25; x < 115; x++) {
+    let yellow = 0,
+      n = 0;
+    for (let y = 63; y <= 79; y += 2) {
+      const i = (y * imgW + x) * 4;
+      const r = tile[i],
+        g = tile[i + 1],
+        b = tile[i + 2];
+      if (r > 200 && g > 160 && b < 140 && r - b > 80) yellow++;
+      n++;
+    }
+    if (yellow / n >= 0.6) {
+      yellowRun++;
+      maxYellowRun = Math.max(maxYellowRun, yellowRun);
+    } else {
+      yellowRun = 0;
+    }
+  }
+  if (maxYellowRun >= 55) return { count: 0, ok: false };
+
+  // スロット評価: コア(5x5)平均輝度と、星らしさ（白 or 暗の面積）
+  const slotAt = (cx0: number, sh: number) => {
+    const cx = Math.round(cx0 + sh);
+    let wCnt = 0,
+      dCnt = 0,
+      n = 0,
+      core = 0,
+      cn = 0;
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        const i = ((71 + dy) * imgW + cx + dx) * 4;
+        const r = tile[i],
+          g = tile[i + 1],
+          b = tile[i + 2];
+        const lum = (r + g + b) / 3;
+        const sat = Math.max(r, g, b) - Math.min(r, g, b);
+        if (lum > 195 && sat < 60) wCnt++;
+        if (lum < 150) dCnt++;
+        n++;
+        if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2) {
+          core += lum;
+          cn++;
         }
       }
-      if (wCnt / n > bestWhite) bestWhite = wCnt / n;
-      if (dCnt / n > bestDark) bestDark = dCnt / n;
     }
-    return { white: bestWhite, dark: bestDark };
+    return { white: wCnt / n, dark: dCnt / n, core: core / cn };
   };
+
   type Hypo = {
     lit: number[];
     mono: boolean;
     starness: number;
+    suspect: boolean;
+    quality: number;
   };
-  const hypos: Hypo[] = [];
-  for (const start of [30.5, 46.5]) {
-    const slots = [0, 1, 2, 3].map((k) => slotEval(left + start + 16.2 * k));
-    const lit = slots.map((s) => (s.white >= 0.5 ? 1 : s.dark >= 0.35 ? 0 : -1));
-    let mono = true;
-    for (let i = 1; i < 4; i++) if (lit[i] > lit[i - 1]) mono = false;
+  const evalHypo = (start: number): Hypo => {
+    // 行内共有シフト（白/暗の星らしさ合計が最大の位置）
+    let bestShift = 0;
+    let bestScore = -1;
+    for (let sh = -5; sh <= 5; sh++) {
+      const score = [0, 1, 2, 3].reduce((a, k) => {
+        const s = slotAt(start + 16.2 * k, sh);
+        return a + Math.max(s.white, s.dark);
+      }, 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestShift = sh;
+      }
+    }
+    const slots = [0, 1, 2, 3].map((k) => {
+      let best: ReturnType<typeof slotAt> | null = null;
+      let coreMax = 0;
+      for (let d = -2; d <= 2; d++) {
+        const s = slotAt(start + 16.2 * k, bestShift + d);
+        if (!best || Math.max(s.white, s.dark) > Math.max(best.white, best.dark))
+          best = s;
+        if (s.core > coreMax) coreMax = s.core;
+      }
+      return { ...best!, coreMax };
+    });
     const starness = slots.reduce((a, s) => a + Math.max(s.white, s.dark), 0) / 4;
-    hypos.push({ lit, mono, starness });
-  }
+    const lums = slots.map((s) => s.coreMax);
+    const sorted = [...lums].sort((a, b) => b - a);
+    const avgDark = slots.reduce((a, s) => a + s.dark, 0) / 4;
+    const isMonoPrefix = (arr: number[]) => {
+      for (let i = 1; i < 4; i++) if (arr[i] > arr[i - 1]) return false;
+      return true;
+    };
+    const uniformRules = (): number[] => {
+      const mean = lums.reduce((a, b) => a + b, 0) / 4;
+      if (mean >= 234) return [1, 1, 1, 1];
+      if (avgDark >= 0.28) return [0, 0, 0, 0]; // 暗色シルエット
+      if (mean >= 185 && mean <= 232) return [0, 0, 0, 0]; // すりガラス
+      return [-1, -1, -1, -1];
+    };
+    let lit: number[];
+    let quality = 2;
+    if (sorted[0] - sorted[3] >= 35) {
+      // 輝度差が大きい: ギャップの大きい順に分割を試し、単調になるものを採用
+      const splits = [1, 2, 3]
+        .map((at) => ({ at, gap: sorted[at - 1] - sorted[at] }))
+        .sort((a, b) => b.gap - a.gap);
+      let found: number[] | null = null;
+      for (const { at, gap } of splits) {
+        if (gap < 25 || sorted[at - 1] < 218) continue;
+        const cand = lums.map((v) => (v >= sorted[at - 1] - 0.001 ? 1 : 0));
+        if (isMonoPrefix(cand)) {
+          found = cand;
+          break;
+        }
+      }
+      if (found) lit = found;
+      else {
+        lit = uniformRules();
+        quality = 1;
+      }
+    } else {
+      lit = uniformRules();
+    }
+    const mono = isMonoPrefix(lit);
+    // スロット0の上下が白い＝Lv数字を拾っている疑い
+    const cx = Math.round(start + bestShift);
+    const whiteBand = (y0: number, y1: number) => {
+      let cnt = 0,
+        n = 0;
+      for (let y = y0; y <= y1; y++) {
+        for (let dx = -6; dx <= 6; dx++) {
+          const i = (y * imgW + cx + dx) * 4;
+          if (tile[i] > 225 && tile[i + 1] > 225 && tile[i + 2] > 225) cnt++;
+          n++;
+        }
+      }
+      return cnt / n;
+    };
+    const suspect = whiteBand(57, 62) > 0.45 || whiteBand(80, 85) > 0.45;
+    return { lit, mono, starness, suspect, quality };
+  };
+
+  const hypos = [evalHypo(30.5), evalHypo(46.5)];
   hypos.sort((a, b) => {
     const okA = a.mono && !a.lit.includes(-1) ? 1 : 0;
     const okB = b.mono && !b.lit.includes(-1) ? 1 : 0;
     if (okA !== okB) return okB - okA;
+    if (a.suspect !== b.suspect) return (a.suspect ? 1 : 0) - (b.suspect ? 1 : 0);
+    if (a.quality !== b.quality) return b.quality - a.quality;
     return b.starness - a.starness;
   });
   const h = hypos[0];
@@ -421,8 +684,7 @@ export function analyzeListFrame(
   const out: TileMatch[] = [];
   for (const rect of findTileGrid(rgba, w, h)) {
     const tile = normalizeTile(rgba, w, rect);
-    const fp = tileFingerprint(tile);
-    const m = matchFingerprint(fp, lib);
+    const m = matchTile(tile, lib);
     const stars = analyzeStars(tile);
     out.push({
       rect,
