@@ -12,7 +12,12 @@
  * パラボ追従メモリーは「パラボ母数が大きい上位2タイプ」に%が付く。
  */
 import { useMemo } from "react";
-import { FINAL_ROUNDS, finalRoundValue, LESSONS } from "@/data/schedule";
+import {
+  FINAL_ROUNDS,
+  finalRoundValue,
+  LESSONS,
+  WAPPEN_MAX,
+} from "@/data/schedule";
 import {
   HATSU_LESSONS,
   HATSU_PARAM_RATE,
@@ -401,13 +406,16 @@ export function useCalcResult() {
     const finalStar = isHif
       ? FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0)
       : 0;
-    // HIFのワッペンは札（スキルカード取得）のたびに発動する:
+    // HIFのワッペンは札（スキルカード取得）のたびに発動する（最大20回）:
     // 発動回数 = セットのスキル獲得回数 + 編成サポカのスキル獲得分（前イベ・後イベ込み）
     const wappenCount = isHif
-      ? (manual("スキル獲得") ?? 0) +
-        activeCards.reduce(
-          (sum, m) => sum + (m.eventContrib["スキル獲得"] ?? 0),
-          0,
+      ? Math.min(
+          WAPPEN_MAX,
+          (manual("スキル獲得") ?? 0) +
+            activeCards.reduce(
+              (sum, m) => sum + (m.eventContrib["スキル獲得"] ?? 0),
+              0,
+            ),
         )
       : 0;
     const wappenStar = isHif ? 15 * wappenCount : 0;

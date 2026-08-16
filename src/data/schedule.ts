@@ -10,6 +10,9 @@
 
 export type LessonKind = "star" | "normal";
 
+/** HIFワッペンの最大発動回数（札を何枚取ってもこれ以上は発動しない） */
+export const WAPPEN_MAX = 20;
+
 export const LESSON_KIND_LABELS: Record<LessonKind, string> = {
   star: "スター性重視",
   normal: "通常",

@@ -32,11 +32,6 @@ import {
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { runFullOptimize } from "@/lib/autoOptimize";
-import {
-  computeCompromise,
-  probUpTo,
-  type CompromiseResult,
-} from "@/lib/compromiseProb";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -121,22 +116,6 @@ export default function CalcPage() {
   const [scenarioPickerOpen, setScenarioPickerOpen] = useState(false);
   const [idolPickerOpen, setIdolPickerOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
-  // 妥協込みの実現確率（ボタンを押したときだけ計算する）
-  const [comp, setComp] = useState<CompromiseResult | null>(null);
-  const [compBusy, setCompBusy] = useState(false);
-  const [compTolerance, setCompTolerance] = useState(100);
-
-  const runCompromise = () => {
-    setCompBusy(true);
-    // 「計算中…」を先に描画させてから重い計算を回す
-    setTimeout(() => {
-      try {
-        setComp(computeCompromise(r, flags, settings, r.spLesson.rates));
-      } finally {
-        setCompBusy(false);
-      }
-    }, 30);
-  };
 
   const selectedSave = calc.saves.find((s) => s.id === selectedSaveId);
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
@@ -611,94 +590,6 @@ export default function CalcPage() {
                 ）
               </span>
             </p>
-            {/* 妥協込みの実現確率（HIFのみ）: 日ごとに出た3属性＋踏まないから最良を
-                選ぶモデルで、合計評価値低下が許容内に収まる確率を実測の評価値差で出す */}
-            {r.scenario === "hif" && (
-              <div className="mt-2 border-t border-slate-200 pt-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={runCompromise}
-                    disabled={compBusy}
-                    title="各レッスン日で「出た中から一番マシな踏み方を選ぶ」前提で、評価値の低下が許容内に収まる確率を計算します"
-                    className="rounded-lg bg-slate-700 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-600 disabled:opacity-60"
-                  >
-                    {compBusy ? "計算中…" : "妥協込みの実現確率を計算"}
-                  </button>
-                  <label className="flex items-center gap-1 text-slate-500">
-                    許容する評価値低下
-                    <input
-                      type="number"
-                      min={0}
-                      step={10}
-                      value={compTolerance}
-                      onChange={(e) =>
-                        setCompTolerance(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="w-16 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs"
-                    />
-                  </label>
-                  {comp && (
-                    <span>
-                      → 実現確率{" "}
-                      <b className="tabular-nums text-blue-700">
-                        {formatProb(probUpTo(comp.cdf, compTolerance))}
-                      </b>
-                    </span>
-                  )}
-                </div>
-                {comp && (
-                  <>
-                    <p className="mt-1 text-slate-400">
-                      目安:{" "}
-                      {[0, 50, 100, 200, 300, 500, 1000]
-                        .map(
-                          (x) =>
-                            `−${x}以内 ${formatProb(probUpTo(comp.cdf, x))}`,
-                        )
-                        .join(" ／ ")}
-                    </p>
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-slate-500">
-                        日別の踏み方候補ランキング（マシな順・数字は評価値低下）
-                      </summary>
-                      <div className="mt-1 flex flex-col gap-0.5 tabular-nums">
-                        {comp.days.map((day) => (
-                          <p key={day.index}>
-                            <span className="font-semibold text-slate-700">
-                              {day.label}:
-                            </span>{" "}
-                            {day.options.slice(0, 5).map((o, k) => (
-                              <span key={k} className="mr-2">
-                                <span className={TYPE_TEXT[o.main]}>
-                                  {TYPE_JA[o.main]}
-                                </span>
-                                {o.sp ? "SP" : "通常"}(サブ{TYPE_JA[o.sub]})
-                                <b
-                                  className={
-                                    o.delta === 0
-                                      ? "text-emerald-600"
-                                      : "text-slate-700"
-                                  }
-                                >
-                                  −{o.delta}
-                                </b>
-                              </span>
-                            ))}
-                            <span className="text-slate-400">
-                              踏まない−{day.skipDelta}
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                      <p className="mt-1 text-[10px] text-slate-400">
-                        編成・踏み方・設定を変えたら「計算」を押し直してください。
-                      </p>
-                    </details>
-                  </>
-                )}
-              </div>
-            )}
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
             枠をクリックして手動で選択できます。理想編成の条件（BAN・固定・レンタルNG）は

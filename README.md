@@ -55,6 +55,25 @@ src/
 JSON は各タブの先頭行をキーにしたオブジェクト配列。数値は数値のまま
 （`valueRenderOption=UNFORMATTED_VALUE`）。空ヘッダー列は出力せず、全セル空の行は捨てる。
 
+## 自分の編集を反映する手順（チートシート）
+
+「スプシ→R2」は cron が5分ごとに自動同期するが、**フロントはビルド時に
+JSON を同梱している**ので、サイトに反映するには gen → build → deploy が必要。
+
+| 編集したもの | やること |
+|---|---|
+| スプシ（サポカDB / abilityValues / 発動回数 / Pアイドル） | `npm run gen:all` → `npm run release` |
+| サポカ画像の追加（新カード） | ①スプシに行追加 ②`学マスサポカ画像` フォルダに `<カード名>.webp` を置く ③R2 `gakumas-image` 直下に同名でアップ ④`npm run gen:all` → `npm run release` |
+| 前イベ画像の追加 | ①`サポカ前イベ` フォルダに `<前イベ名>.webp` ②R2 `preEvent/<前イベ名>.webp` にアップ ③スプシの Search_word に前イベ名（`,`区切り） ④`npm run gen:all` → `npm run release` |
+| コード（.ts/.tsx） | `npm run release` |
+| 何もいらないもの | スプシ→R2の同期（自動・5分）。`/api/master` はすぐ最新になるが、サイト表示は上記の通り再ビルドが必要 |
+
+- `npm run gen:all` = gen:cards + gen:perf + gen:counts + gen:pidols + gen:sprite + gen:preevents（全部やっても数十秒。どれか1つでもよい）
+- `npm run release` = `npm run build && wrangler deploy`
+- **git commit は配信には不要**（配信は wrangler deploy のみで決まる）。ただしバックアップ・巻き戻し用に、反映がうまくいったら `git add -A && git commit` を推奨
+- R2 へのアップ例: `npx wrangler r2 object put "gakumas-image/<カード名>.webp" --file <ファイル> --content-type image/webp --remote`
+- 画像フォルダの場所を変えたら環境変数で上書き: `GAKUMAS_IMG_DIR`（サポカ画像）/ `GAKUMAS_PRE_EVENT_DIR`（前イベ画像）
+
 ## デプロイ / 再デプロイ
 
 前提: Cloudflare に `wrangler login` 済み、R2 バケット `gakumas-master` 作成済み。

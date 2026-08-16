@@ -19,7 +19,13 @@
  * ※ 踏み方で変わるのはステ由来の評価値のみ（スター性・投票数・本戦は不変）なので、
  *    比較は Σmin(上限, ステ)＋NIA札換算 で行い、最終的な評価値は勝者だけ算出する。
  */
-import { EXAMS, FINAL_ROUNDS, finalRoundValue, LESSONS } from "@/data/schedule";
+import {
+  EXAMS,
+  FINAL_ROUNDS,
+  finalRoundValue,
+  LESSONS,
+  WAPPEN_MAX,
+} from "@/data/schedule";
 import {
   HATSU_PARAM_RATE,
   HATSU_RANK_VALUES,
@@ -452,12 +458,17 @@ export class OptimizeEngine {
         return (niaFanValue(withVotes) - niaFanValue(without)) / NIA_PARAM_RATE;
       };
     }
-    // HIFのワッペンは札（スキルカード取得）の回数ぶん発動する。
+    // HIFのワッペンは札（スキルカード取得）の回数ぶん発動する（最大20回）。
     // 編成サポカのスキル獲得分もワッペン★になるため、ステ換算で編成選定に効かせる
-    // （★1回=15、評価値=★×7.5、ステ1=評価値2 → 1札 = 15×7.5/2 ステ相当）
+    // （★1回=15、評価値=★×7.5、ステ1=評価値2 → 1札 = 15×7.5/2 ステ相当）。
+    // 上限20を超える札には価値がないので、超過分は加点しない
     if (input.scenario === "hif") {
       this.fudaBase = input.manual("スキル獲得") ?? 0;
-      this.extraScore = (cards) => (15 * 7.5 * this.supportFudaOf(cards)) / 2;
+      this.extraScore = (cards) => {
+        const withCards = Math.min(WAPPEN_MAX, this.fudaBase + this.supportFudaOf(cards));
+        const without = Math.min(WAPPEN_MAX, this.fudaBase);
+        return ((withCards - without) * 15 * 7.5) / 2;
+      };
     }
   }
 
@@ -1274,8 +1285,8 @@ export class OptimizeEngine {
       examScores: s.examScores,
     });
     const finalStar = FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0);
-    // ワッペン発動回数 = 札取得回数（セットのスキル獲得＋編成サポカのスキル獲得分）
-    const wappen = this.fudaBase + this.supportFudaOf(members);
+    // ワッペン発動回数 = 札取得回数（セットのスキル獲得＋編成サポカのスキル獲得分）。最大20回
+    const wappen = Math.min(WAPPEN_MAX, this.fudaBase + this.supportFudaOf(members));
     const totalStar = 15 * wappen + sched.star + finalStar;
     return (
       cappedSum * 2 +
