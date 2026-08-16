@@ -69,9 +69,33 @@ JSON を同梱している**ので、サイトに反映するには gen → buil
 | Pアイドル画像の追加 | ドライブ経由なら `sync:images`、直接なら R2 `skill/<固有スキル名>.webp` にアップ（gen不要・即反映） |
 | コード（.ts/.tsx） | `npm run release` |
 
-- **`npm run sync:images`** = ドライブの画像フォルダをR2へ同期（PNG→webp変換込み。R2に無いものだけアップ、`--force`で全上書き）。
-  初回設定: サービスアカウントJSONを `service-account.json` に置き、ドライブのフォルダをそのメールに共有し、
-  `.env.local` に `DRIVE_FOLDER_CARDS` / `DRIVE_FOLDER_PREEVENTS` / `DRIVE_FOLDER_SKILLS`（フォルダID）を書く
+- **`npm run sync:images`** = ドライブの画像フォルダをR2へ同期（PNG→webp変換込み。R2に無いものだけアップ、`npm run sync:images -- --force` で全上書き）。初回設定は下の詳細を参照
+
+### sync:images の初回設定（詳細・1回だけ）
+
+1. **サービスアカウントのJSON鍵を置く**
+   [Google Cloud Console](https://console.cloud.google.com/) → スプシ同期で使っているプロジェクト →
+   「IAMと管理」→「サービスアカウント」→ 対象アカウント →「キー」タブ →
+   「鍵を追加」→「新しい鍵を作成」→ JSON でダウンロード。
+   ファイルをプロジェクト直下に **`service-account.json`** という名前で置く（gitignore済みでコミットされない）。
+2. **Google Drive API を有効化**
+   同じプロジェクトの「APIとサービス」→「ライブラリ」→「Google Drive API」→「有効にする」
+   （Sheets APIとは別物。これをやらないと一覧取得が403になる）。
+3. **ドライブのフォルダをサービスアカウントに共有**
+   ドライブで画像フォルダを右クリック → 共有 → サービスアカウントのメール
+   （`…@….iam.gserviceaccount.com`、service-account.json の client_email）を「閲覧者」で追加。
+   カテゴリごとに別フォルダが必要（サポカ用・前イベ用・Pアイドル用。1つに混在は不可）。
+4. **フォルダIDを `.env.local` に書く**
+   ブラウザでフォルダを開いたときのURL `…/folders/XXXXX` の XXXXX がID。同期したいものだけでよい:
+   ```
+   DRIVE_FOLDER_CARDS=XXXXX      # サポカ画像 → R2直下 <カード名>.webp
+   DRIVE_FOLDER_PREEVENTS=XXXXX  # 前イベ画像 → preEvent/<前イベ名>.webp
+   DRIVE_FOLDER_SKILLS=XXXXX     # Pアイドル固有スキル画像 → skill/<固有スキル名>.webp
+   ```
+5. 以後は **ドライブにPNG/JPGを置いて `npm run sync:images`** だけ。
+   ファイル名（拡張子を除く）がそのままR2のキー名になるので、
+   **スプシのカード名/前イベ名/固有スキル名と完全一致**させること（全角半角・記号・スペースも）。
+   画像を差し替えたいときは `npm run sync:images -- --force`。
 - **画像はローカルフォルダ不要**（gen:sprite / gen:preevents はR2の公開URLから直接取得する）
 - `npm run gen:all` = スプシ→R2同期（`.env.local` の `SYNC_SECRET` を使用。未設定ならスキップ）＋全gen（1分弱。どれか1つでもよい）
 - スプシ→R2の定期同期cronは毎日3時(JST)の保険のみに変更（gen:all が同期を打つので通常は不要）
