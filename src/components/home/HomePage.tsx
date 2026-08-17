@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Calculator, Camera } from "lucide-react";
 
 /**
- * サイトのホーム画面（学マスプロデュースお助けサイト）。
+ * サイトのホーム画面（ほぺマス）。
  * 中央にツールへの入口ボタンを並べる。ツールを増やすときは TOOLS に足す。
  */
 const TOOLS: {
@@ -44,10 +44,13 @@ export default function HomePage() {
           className="h-20 w-20 object-contain"
         />
         <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          学マスプロデュースお助けサイト
+          ほぺマス
         </h1>
+        <p className="mt-1 text-xs font-medium tracking-wide text-slate-400">
+          学マス育成・評価値計算の非公式ツール
+        </p>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-          学園アイドルマスターのプロデュースを助ける非公式ツール集です。
+          学園アイドルマスターのプロデュース（育成）を助ける非公式ツール集です。
           使いたいツールを選んでください。
         </p>
       </div>
@@ -100,9 +103,34 @@ export default function HomePage() {
             </div>
           ),
         )}
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          本サイトは個人が運営する非公式ツールです。ゲーム内画像等の権利は各権利者に帰属します。
-        </p>
+        {/* 権利表記・免責 */}
+        <div className="mt-6 flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white/70 p-4 text-[11px] leading-relaxed text-slate-500">
+          <p>
+            本サイトは個人が運営する非公式のファンサイトです。
+            株式会社バンダイナムコエンターテインメント・株式会社QualiArtsとは一切関係ありません。
+          </p>
+          <p>
+            『学園アイドルマスター』に関する画像・名称等の著作権・商標権その他の知的財産権は、
+            それぞれの権利者に帰属します。
+          </p>
+          <p>
+            <b className="text-slate-600">
+              著作権元（権利者）からの削除申請には、いつでも速やかに応じます。
+            </b>
+            掲載内容についてのご連絡は{" "}
+            <a
+              href="mailto:gakumasu857@gmail.com"
+              className="text-blue-600 underline"
+            >
+              gakumasu857@gmail.com
+            </a>{" "}
+            までお願いします。
+          </p>
+          <p>
+            本サイトは収益を目的としていません。計算結果・掲載データの正確性は保証せず、
+            利用により生じた損害について運営者は責任を負いません。
+          </p>
+        </div>
       </div>
     </main>
   );

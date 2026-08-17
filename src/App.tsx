@@ -68,9 +68,7 @@ export default function App() {
             path="/calc"
             element={
               <main className="mx-auto max-w-7xl px-4 py-4">
-                <h1 className="mb-3 text-xl font-bold text-slate-900">
-                  計算ページ
-                </h1>
+                {/* 見出しはヘルプボタンと同じ行に置くため CalcPage 側で描画 */}
                 <CalcPage />
               </main>
             }

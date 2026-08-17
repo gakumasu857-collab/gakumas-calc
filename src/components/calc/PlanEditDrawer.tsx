@@ -26,6 +26,8 @@ import {
   NIA_AUDITIONS,
   NIA_LESSONS,
   NIA_SALES,
+  niaFinaleStat,
+  niaFinaleVotes,
   type NiaTag,
 } from "@/data/scenarios";
 import { optimizeSteppingForSlots } from "@/lib/autoOptimize";
@@ -456,15 +458,18 @@ function NiaEditor({ r }: { r: CalcResult }) {
       </div>
 
       {/* オーディション（1次・2次の素点＋投票、最終のタイプ別スコア） */}
-      <Section title="オーディション">
+      <Section title="オーディション（1次・2次は上がるステを入力 / 最終はスコアを入力）">
         <div className="flex flex-col divide-y divide-slate-200">
           {NIA_AUDITIONS.map((audition, i) => (
             <div
               key={audition.name}
               className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2"
             >
-              <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
+              <span className="w-24 shrink-0 text-sm font-medium text-slate-800">
                 {audition.name}
+                <span className="ml-1 text-[10px] font-normal text-slate-400">
+                  ステ上昇
+                </span>
               </span>
               {TYPE_KEYS.map((type) => (
                 <label
@@ -475,7 +480,7 @@ function NiaEditor({ r }: { r: CalcResult }) {
                     {TYPE_LABELS[type]}
                   </span>
                   <NumberField
-                    value={nia.auditions[i][type]}
+                    value={Math.min(nia.auditions[i][type], capOf(i, type))}
                     onChange={(v) => nia.setAudition(i, type, v)}
                     max={capOf(i, type)}
                     className="w-16"
@@ -494,29 +499,48 @@ function NiaEditor({ r }: { r: CalcResult }) {
               </label>
             </div>
           ))}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
-            <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
-              最終
-            </span>
-            {TYPE_KEYS.map((type) => (
-              <label
-                key={type}
-                className="flex items-center gap-1 text-xs text-slate-500"
-              >
-                <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                  {TYPE_LABELS[type]}
+          <div className="flex flex-col gap-1 py-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span className="w-24 shrink-0 text-sm font-medium text-slate-800">
+                最終
+                <span className="ml-1 text-[10px] font-normal text-slate-400">
+                  スコア
                 </span>
-                <NumberField
-                  value={nia.finalScores[type]}
-                  onChange={(v) => nia.setFinalScore(type, v)}
-                  sliderMax={500000}
-                  className="w-24"
-                />
-              </label>
-            ))}
-            <span className="ml-auto text-[11px] text-slate-400">
-              スコアから素点・投票を自動導出
-            </span>
+              </span>
+              {TYPE_KEYS.map((type) => (
+                <label
+                  key={type}
+                  className="flex items-center gap-1 text-xs text-slate-500"
+                >
+                  <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                    {TYPE_LABELS[type]}
+                  </span>
+                  <NumberField
+                    value={nia.finalScores[type]}
+                    onChange={(v) => nia.setFinalScore(type, v)}
+                    sliderMax={500000}
+                    className="w-24"
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="text-[11px] text-slate-500">
+              スコアから導出:{" "}
+              {TYPE_KEYS.map((type) => (
+                <span key={type} className="mr-2">
+                  <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                    {TYPE_LABELS[type]}
+                  </span>
+                  +{niaFinaleStat(tag, r.typeRanks[type], nia.finalScores[type])}
+                </span>
+              ))}
+              <span className="text-slate-400">
+                / 投票 +
+                {niaFinaleVotes(
+                  TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0),
+                ).toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </Section>

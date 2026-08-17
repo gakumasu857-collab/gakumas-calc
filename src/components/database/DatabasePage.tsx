@@ -182,10 +182,10 @@ function SupportInfoTable() {
                         src={url}
                         alt={card.name}
                         loading="lazy"
-                        className="mx-auto h-8 w-16 rounded object-cover"
+                        className="mx-auto h-9 w-20 rounded object-cover"
                       />
                     ) : (
-                      <div className="h-8 w-16" />
+                      <div className="h-9 w-20" />
                     )}
                   </td>
                   <td className={`${TD} text-slate-600`}>
@@ -379,10 +379,10 @@ function PIdolInfoRow({
             src={url}
             alt={master.cardName}
             loading="lazy"
-            className={`mx-auto h-8 w-8 rounded object-cover ${ownership ? "" : "grayscale opacity-60"}`}
+            className={`mx-auto h-9 w-20 rounded object-cover ${ownership ? "" : "grayscale opacity-60"}`}
           />
         ) : (
-          <div className="h-8 w-8" />
+          <div className="h-9 w-20" />
         )}
       </td>
       <td className={`${TD} whitespace-nowrap text-slate-600`}>{master.idol}</td>

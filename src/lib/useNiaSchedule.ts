@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { NIA_AUDITIONS, NIA_LESSONS, NIA_SALES } from "@/data/scenarios";
+import {
+  NIA_AUDITION_VOTE_MAX,
+  NIA_AUDITIONS,
+  NIA_FINAL_SCORE_DEFAULT,
+  NIA_LESSONS,
+  NIA_SALES,
+} from "@/data/scenarios";
 import { useSaveNotifier } from "./storeSync";
 import { roleToTypeFromCalcStorage } from "./useSchedule";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
@@ -31,10 +37,15 @@ type NiaState = {
 const DEFAULT_STATE: NiaState = {
   lessons: NIA_LESSONS.map(() => ({ main: "vocal", sp: true })),
   sales: NIA_SALES.map(() => ({ type: "visual", resort: true, great: true })),
-  // 初回デフォルトは試験を上限寄りに（オーディション素点は上限クランプ、最終は上限到達スコア）
+  // 初回デフォルトは全部上限（オーディション素点は上限クランプ、
+  // ファン投票数は上限目安、最終はステ素点・投票数とも上限に到達するスコア）
   auditions: NIA_AUDITIONS.map(() => ({ vocal: 999, dance: 999, visual: 999 })),
-  auditionVotes: NIA_AUDITIONS.map(() => 0),
-  finalScores: { vocal: 150000, dance: 150000, visual: 150000 },
+  auditionVotes: [...NIA_AUDITION_VOTE_MAX],
+  finalScores: {
+    vocal: NIA_FINAL_SCORE_DEFAULT,
+    dance: NIA_FINAL_SCORE_DEFAULT,
+    visual: NIA_FINAL_SCORE_DEFAULT,
+  },
 };
 
 const isTypeKey = (v: unknown): v is TypeKey =>
@@ -61,6 +72,13 @@ export function loadNiaState(): NiaState {
         Record<TypeKey, number>
       >[];
       const votesRaw = (stored.auditionVotes ?? []) as number[];
+      // 素点・投票数・最終スコアの0は実プレイであり得ない値なので
+      // 「未入力」とみなして上限デフォルトへ移行する
+      const orDefault = (v: number | undefined, def: number): number =>
+        v && v > 0 ? v : def;
+      const finalRaw =
+        (stored.finalScores as Partial<Record<TypeKey, number>> | undefined) ??
+        {};
       return {
         lessons: NIA_LESSONS.map((_, i) => ({
           main: toType(lessonsRaw[i]?.main, "vocal"),
@@ -72,18 +90,17 @@ export function loadNiaState(): NiaState {
           great: (salesRaw[i]?.great as boolean | undefined) ?? false,
         })),
         auditions: NIA_AUDITIONS.map((_, i) => ({
-          vocal: 0,
-          dance: 0,
-          visual: 0,
-          ...(auditionsRaw[i] ?? {}),
+          vocal: orDefault(auditionsRaw[i]?.vocal, 999),
+          dance: orDefault(auditionsRaw[i]?.dance, 999),
+          visual: orDefault(auditionsRaw[i]?.visual, 999),
         })),
-        auditionVotes: NIA_AUDITIONS.map((_, i) => votesRaw[i] ?? 0),
+        auditionVotes: NIA_AUDITIONS.map((_, i) =>
+          orDefault(votesRaw[i], NIA_AUDITION_VOTE_MAX[i]),
+        ),
         finalScores: {
-          vocal: 0,
-          dance: 0,
-          visual: 0,
-          ...((stored.finalScores as Record<TypeKey, number> | undefined) ??
-            {}),
+          vocal: orDefault(finalRaw.vocal, NIA_FINAL_SCORE_DEFAULT),
+          dance: orDefault(finalRaw.dance, NIA_FINAL_SCORE_DEFAULT),
+          visual: orDefault(finalRaw.visual, NIA_FINAL_SCORE_DEFAULT),
         },
       };
     }

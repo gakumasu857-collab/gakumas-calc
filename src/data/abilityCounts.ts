@@ -225,12 +225,41 @@ export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
   },
 );
 
+// ============================================================
+// 定期公演『初』用テンプレセット（現行スプシの abilityCountsHajime タブ由来）
+// ============================================================
+
+const HATSU_SET_NAMES: readonly string[] = generatedCounts.hajime.setNames;
+const HATSU_DEFAULT_COUNTS = toCountTable(generatedCounts.hajime);
+
+const HATSU_SET_PLANS: readonly string[] = generatedCounts.hajime.plans ?? [];
+
+export const HATSU_DEFAULT_SETS: AbilityCountSet[] = HATSU_SET_NAMES.map(
+  (name, i) => {
+    const plan = HATSU_SET_PLANS[i] || planFromSetName(name);
+    return {
+      id: `hajime:${plan}${name}`,
+      name,
+      plan,
+      defaults: Object.fromEntries(
+        Object.entries(HATSU_DEFAULT_COUNTS)
+          .map(([key, values]) => [key, values[i]])
+          .filter(([, value]) => value !== 0),
+      ) as Partial<Record<AbilityName, number>>,
+    };
+  },
+);
+
 /**
  * セットが現在のシナリオで表示対象か。
- * HIFテンプレ（set:）はNIA以外、NIAテンプレ（nia:）はNIAのみ、ユーザーセットは常に表示。
+ * HIFテンプレ（set:）はHIFのみ、NIAテンプレ（nia:）はNIAのみ、
+ * 初テンプレ（hajime:）は初のみ、ユーザーセットは常に表示。
  */
 export function setVisibleInScenario(setId: string, scenario: string): boolean {
   if (setId.startsWith("nia:")) return scenario === "niaMaster";
-  if (setId.startsWith("set:")) return scenario !== "niaMaster";
+  if (setId.startsWith("hajime:")) return scenario === "hatsuLegend";
+  if (setId.startsWith("set:")) {
+    return scenario !== "niaMaster" && scenario !== "hatsuLegend";
+  }
   return true;
 }

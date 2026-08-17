@@ -1,4 +1,4 @@
-# 学マス計算ツール
+# ほぺマス（学マス育成・評価値計算の非公式ツール）
 
 Vite + React + React Router + Tailwind v4 の SPA。
 Cloudflare Workers 1つで **SPA配信 + マスタ配信API + スプシ→R2同期(cron)** をまかなう。

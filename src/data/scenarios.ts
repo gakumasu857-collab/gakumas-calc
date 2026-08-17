@@ -89,6 +89,12 @@ export const NIA_AUDITION_CAPS: Record<NiaTag, readonly (readonly number[])[]> =
 /** 1次・2次オーディション（素点とファン投票数を手入力）。最終はスコアから導出 */
 export const NIA_AUDITIONS = [{ name: "1次" }, { name: "2次" }] as const;
 
+/** 1次・2次オーディションのファン投票数の上限目安（初期値に使用） */
+export const NIA_AUDITION_VOTE_MAX = [12000, 17000] as const;
+
+/** 最終オーディションのスコア初期値（ステ素点・投票数とも上限に到達する値） */
+export const NIA_FINAL_SCORE_DEFAULT = 500000;
+
 type Piece = { threshold: number; multiplier: number; constant: number };
 const evalPieces = (pieces: readonly Piece[], score: number): number => {
   if (score <= 0) return 0;

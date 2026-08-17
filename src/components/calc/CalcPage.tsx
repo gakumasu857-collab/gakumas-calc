@@ -351,8 +351,9 @@ export default function CalcPage() {
 
   return (
     <div className="grid gap-4 pl-9 sm:pl-10 lg:grid-cols-[360px_1fr] lg:items-start lg:pl-0">
-      {/* 使い方・計算式ヘルプ（ページ右上） */}
-      <div className="-mb-2 -mt-2 flex justify-end lg:col-span-2 lg:order-first">
+      {/* 見出しと使い方・計算式ヘルプ（同じ行） */}
+      <div className="-mb-1 flex items-center justify-between lg:col-span-2 lg:order-first">
+        <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
         <button
           type="button"
           onClick={() => setHelpOpen(true)}

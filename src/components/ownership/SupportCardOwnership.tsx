@@ -30,8 +30,15 @@ export default function SupportCardOwnership() {
   const [nameQuery, setNameQuery] = useState("");
   const [bulkLevel, setBulkLevel] = useState<BulkLevel>("keep");
 
-  // 現在のフィルターで表示するカード
+  // 現在のフィルターで表示するカード。
+  // 並びは SSR →配布SSR→ SR → R、各レアリティ内は実装順（スプシの順）
   const visible = useMemo(() => {
+    const rarityOrder: Record<string, number> = {
+      SSR: 0,
+      EventSSR: 1,
+      SR: 2,
+      R: 3,
+    };
     return SUPPORT_CATALOG.filter((card) => {
       if (rarityFilter !== "すべて" && card.rarity !== rarityFilter)
         return false;
@@ -43,7 +50,9 @@ export default function SupportCardOwnership() {
       if (nameQuery.trim() && !matchesCardQuery(card.name, nameQuery))
         return false;
       return true;
-    });
+    }).sort(
+      (a, b) => (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9),
+    );
   }, [rarityFilter, typeFilter, planFilter, abilityFilter, nameQuery]);
 
   // 表示中のカードだけを選択したレベルに一括設定（非表示は維持）

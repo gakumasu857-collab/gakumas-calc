@@ -239,7 +239,8 @@ function ExportSheet({
             {SCENARIO_LABELS[r.scenario]}
             <span style={{ color: SUB, fontWeight: 400, fontSize: 12 }}>
               {" "}
-              ・ {new Date().toLocaleDateString("ja-JP")} ・ gkapps.hoppepan.com
+              ・ {new Date().toLocaleDateString("ja-JP")} ・ ほぺマス
+              (gkapps.hoppepan.com)
             </span>
           </div>
           <div style={{ marginTop: 2 }}>

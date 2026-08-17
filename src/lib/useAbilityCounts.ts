@@ -5,6 +5,7 @@ import {
   ABILITY_CATEGORIES,
   abilityMax,
   DEFAULT_SETS,
+  HATSU_DEFAULT_SETS,
   NIA_DEFAULT_SETS,
   planFromSetName,
   type AbilityCountSet,
@@ -191,10 +192,11 @@ export function useAbilityCounts() {
     );
   }, []);
 
-  /** コード定義のデフォルトセット（HIF用＋NIA用）＋ユーザー追加セット */
+  /** コード定義のデフォルトセット（HIF用＋NIA用＋初用）＋ユーザー追加セット */
   const sets: AbilityCountSet[] = [
     ...DEFAULT_SETS,
     ...NIA_DEFAULT_SETS,
+    ...HATSU_DEFAULT_SETS,
     // 旧データ（plan未保存）は名前から推定
     ...userSets.map((s) => ({
       ...s,
