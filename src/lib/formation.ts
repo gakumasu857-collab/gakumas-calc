@@ -221,7 +221,7 @@ const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 /**
  * 計算ページの「選択サポカ」スロットをスコア化する。
  * レンタルは完凸、それ以外は所持凸（未所持は完凸レンタル扱い）。
- * 計算不能（アシスト・R・ロール未割当）は null。
+ * 計算不能（DB未登録・スコア表なしのR等）は null。アシストは通常どおりスコア化される。
  */
 export function scoreSelectedCards(
   slots: (SelectedSlot | null)[],

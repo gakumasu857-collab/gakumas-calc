@@ -21,7 +21,7 @@ import sharp from "sharp";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const IMAGE_BASE =
   process.env.GAKUMAS_IMAGE_BASE ??
-  "https://pub-682e5459d444420f987d43ca384a3b0a.r2.dev";
+  "https://img.hoppepan.com";
 const CELL_W = 80;
 const CELL_H = 45;
 const COLS = 14;

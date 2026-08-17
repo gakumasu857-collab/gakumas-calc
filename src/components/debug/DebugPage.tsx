@@ -122,7 +122,7 @@ export default function DebugPage() {
             乱数はシード非固定なので、押すたびに結果が少し変わることがあります。
           </p>
         ) : (
-          <SearchDebug res={search} statCap={r.statCap} num={num} />
+          <SearchDebug res={search} num={num} />
         )}
       </Section>
 
@@ -378,11 +378,9 @@ export default function DebugPage() {
 /** 全自動最適化の探索結果（候補プール・勝ち踏み方・採用理由）を表示する */
 function SearchDebug({
   res,
-  statCap,
   num,
 }: {
   res: AutoOptimizeResult;
-  statCap: number;
   num: (v: number, d?: number) => string;
 }) {
   const d = res.debug;

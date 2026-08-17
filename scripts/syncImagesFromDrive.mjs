@@ -31,7 +31,7 @@ import "./_env.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const IMAGE_BASE =
   process.env.GAKUMAS_IMAGE_BASE ??
-  "https://pub-682e5459d444420f987d43ca384a3b0a.r2.dev";
+  "https://img.hoppepan.com";
 const BUCKET = "gakumas-image";
 const FORCE = process.argv.includes("--force");
 
@@ -161,6 +161,9 @@ try {
             out,
             "--content-type",
             "image/webp",
+            // カード画像は不変（差し替えは --force 前提）なので長期キャッシュさせる
+            "--cache-control",
+            "public, max-age=31536000, immutable",
             "--remote",
           ],
           { cwd: root, stdio: "pipe", shell: true },

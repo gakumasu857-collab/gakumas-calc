@@ -19,7 +19,6 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  * - lessons: 各公開レッスンの メイン/サブ タイプとSP有無
  * - classTypes: 各授業で上げるタイプ
  * - examScores: 選抜ごとのタイプ別スコア
- * - idolPercent: アイドル（曲）由来のパラメータボーナス%（タイプ別・手入力）
  */
 const STORAGE_KEY = "gakumas:schedule:v1";
 
@@ -31,7 +30,6 @@ type ScheduleState = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
-  idolPercent: Record<TypeKey, number>;
 };
 
 const EMPTY_EXAM: ExamScores = { vocal: 0, dance: 0, visual: 0 };
@@ -47,7 +45,6 @@ const DEFAULT_STATE: ScheduleState = {
     const each = DEFAULT_EXAM_EACH[i] ?? 0;
     return { vocal: each, dance: each, visual: each };
   }),
-  idolPercent: { vocal: 0, dance: 0, visual: 0 },
 };
 
 function otherType(type: TypeKey): TypeKey {
@@ -98,17 +95,13 @@ export function roleToTypeFromCalcStorage(): Record<string, TypeKey> {
 
 /**
  * スケジュール入力からタイプ別上昇量・スター性・Pポイントを集計する（純関数）。
- * @param bonusPercent パラメータボーナス%（レッスン・選抜の獲得に乗る。授業には乗らない）
+ * パラメータボーナスはここでは掛けない（sheetScore 側でまとめて変換する）。
  */
-export function computeScheduleGains(
-  state: {
-    lessons: LessonPick[];
-    classTypes: TypeKey[];
-    examScores: ExamScores[];
-  },
-  bonusPercent?: Record<TypeKey, number>,
-) {
-  const mult = (type: TypeKey) => 1 + (bonusPercent?.[type] ?? 0) / 100;
+export function computeScheduleGains(state: {
+  lessons: LessonPick[];
+  classTypes: TypeKey[];
+  examScores: ExamScores[];
+}) {
   const gains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const lessonGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const classGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -121,8 +114,8 @@ export function computeScheduleGains(
     const pick = state.lessons[i];
     if (!pick.main) return; // 踏まないレッスン（獲得・スター性・Pポイントなし）
     const spIndex = pick.sp ? 1 : 0;
-    const mainGain = Math.floor(lesson.main[spIndex] * mult(pick.main));
-    const subGain = Math.floor(lesson.sub[spIndex] * mult(pick.sub));
+    const mainGain = lesson.main[spIndex];
+    const subGain = lesson.sub[spIndex];
     gains[pick.main] += mainGain;
     gains[pick.sub] += subGain;
     lessonGains[pick.main] += mainGain;
@@ -142,7 +135,7 @@ export function computeScheduleGains(
     const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
     const rawDist = distributeExam(i, scores, TYPE_KEYS);
     const dist = Object.fromEntries(
-      TYPE_KEYS.map((t) => [t, Math.floor(rawDist[t] * mult(t))]),
+      TYPE_KEYS.map((t) => [t, Math.floor(rawDist[t])]),
     ) as Record<TypeKey, number>;
     const starGain = total > 0 ? examStar(i, total) : 0;
     for (const type of TYPE_KEYS) {
@@ -221,18 +214,7 @@ export function loadScheduleState(): ScheduleState {
         return converted;
       });
 
-      return {
-        lessons,
-        classTypes,
-        examScores,
-        idolPercent: {
-          vocal: 0,
-          dance: 0,
-          visual: 0,
-          ...((stored.idolPercent as Record<TypeKey, number> | undefined) ??
-            {}),
-        },
-      };
+      return { lessons, classTypes, examScores };
     }
   } catch {
     // 破損データは無視
@@ -393,13 +375,6 @@ export function useSchedule() {
     [],
   );
 
-  const setIdolPercent = useCallback((type: TypeKey, value: number) => {
-    setState((prev) => ({
-      ...prev,
-      idolPercent: { ...prev.idolPercent, [type]: Math.max(0, value) },
-    }));
-  }, []);
-
   /**
    * タイプ間の入れ替え（アイドル切替時の審査基準合わせ用）。
    * map[t] = 旧タイプtの踏み方・スコアの移動先タイプ。
@@ -435,7 +410,6 @@ export function useSchedule() {
     setPlan,
     setExamScore,
     setExamScores,
-    setIdolPercent,
     remapTypes,
     loaded: true,
   };

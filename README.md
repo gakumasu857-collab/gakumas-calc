@@ -23,7 +23,7 @@ Cloudflare Workers 1つで **SPA配信 + マスタ配信API + スプシ→R2同�
         ▼
 [Worker: GET /api/master(?name=xxx)]  Cache-Control: max-age=300
         ▼
-[React（src/useMaster.js）]
+[React（ビルド時同梱の generated/*.json）]
 ```
 
 R2 を使う理由: 全ユーザー共通の参照データを丸ごと配るだけ（実質ファイル配信）で、
@@ -39,7 +39,6 @@ worker/
   lib/sync.js        スプシ → R2 同期（batchGet → JSON化 → put、空タブは上書きしない）
 wrangler.toml       Worker設定（R2バインド・cron・assets・vars）
 src/
-  useMaster.js      useMaster(name) / useMasterIndex() フック
   ...               計算ツール本体
 ```
 
@@ -55,14 +54,26 @@ src/
 JSON は各タブの先頭行をキーにしたオブジェクト配列。数値は数値のまま
 （`valueRenderOption=UNFORMATTED_VALUE`）。空ヘッダー列は出力せず、全セル空の行は捨てる。
 
-## 自分の編集を反映する手順（チートシート）
+## アップデート手順まとめ（チートシート）
 
-「スプシ→R2」は cron が5分ごとに自動同期するが、**フロントはビルド時に
-JSON を同梱している**ので、サイトに反映するには gen → build → deploy が必要。
+大原則: **フロントはビルド時に JSON を同梱している**ので、スプシや画像を
+どう変えても、サイトに反映するには最後に `gen → build → deploy` が要る。
+まとめて1コマンドなら:
+
+```bash
+npm run gen:all && npm run release
+```
+
+（gen:all = スプシ→R2同期＋全データ再生成 / release = build＋deploy。合計2分弱）
+
+スプシ→R2 の同期は `.env.local` に `SYNC_SECRET` があれば gen:all が即時に打つ。
+未設定の場合はスキップされ、毎日3時(JST)の cron 同期を待ってから gen することになる
+（＝スプシ編集直後に反映したいなら SYNC_SECRET を設定しておくのが楽）。
 
 | 編集したもの | やること |
 |---|---|
-| スプシ（サポカDB / abilityValues / 発動回数 / Pアイドル） | `npm run gen:all` → `npm run release` |
+| スプシの数値だけ（サポカDB / abilityValues / 発動回数 / Pアイドル / 成長タグ） | `npm run gen:all` → `npm run release` |
+| 新カード・新Pアイドルの追加（フルコース） | ①スプシに行追加 ②画像をドライブに置いて `npm run sync:images`（またはR2へ直接アップ） ③`npm run gen:all` → `npm run release` |
 | 画像の追加（ドライブに置いた場合） | ①ドライブの画像フォルダにPNG/JPGを置く ②`npm run sync:images`（webp変換→R2アップまで自動） ③スプシに行/語を追記 ④`npm run gen:all` → `npm run release` |
 | サポカ画像の追加（R2直接） | ①スプシに行追加 ②R2 `gakumas-image` 直下に `<カード名>.webp` をアップ ③`npm run gen:all` → `npm run release` |
 | 前イベ画像の追加（R2直接） | ①R2 `preEvent/<前イベ名>.webp` にアップ ②スプシの Search_word に前イベ名（`,`区切り） ③`npm run gen:all` → `npm run release` |
@@ -150,25 +161,14 @@ curl "https://gkapps.hoppepan.com/api/master?name=supMaster"
 secret は `.dev.vars`（gitignore 済み）に `KEY=値` で書く。`.dev.vars.example` を参照。
 ※ `npm run dev`（vite）は SPA だけで `/api/*` は動かない。
 
-## フロントでの使用例
+## フロントのデータ取得
 
-```jsx
-import { useMaster, useMasterIndex } from "./useMaster";
-
-function SupportCardList() {
-  const { data, loading, error } = useMaster("supMaster");
-  if (loading) return <p>読み込み中…</p>;
-  if (error) return <p>取得に失敗: {String(error)}</p>;
-  return <ul>{data.map((row) => <li key={row.id}>{row.name}（{row.rarity}）</li>)}</ul>;
-}
-```
-
-※ 現状フロントはビルド時同梱の `src/data/generated/*.json` を使っている。
-`/api/master`（R2由来）へ切り替えるのは今後の作業。
+フロントはビルド時同梱の `src/data/generated/*.json` を使っている（実行時に /api/master は呼ばない）。
+/api/master（R2由来）への切り替えは今後の作業。切替時のフックは git履歴の src/useMaster.js を参照。
 
 ## 無料枠の要点
 
-- **Workers**: 10万リクエスト/日、Cron Trigger 追加課金なし。5分ごと=288回/日で余裕。
+- **Workers**: 10万リクエスト/日、Cron Trigger 追加課金なし（現在は日次1回）。
   `/api/master` は max-age=300 でキャッシュも効く。
 - **R2**: 10GB・Class A 100万/月・Class B 1000万/月。JSON数個の put/get は誤差。egress 無料。
 - **Sheets API**: 読み取り 300回/分。batchGet で全タブ1回なので余裕。

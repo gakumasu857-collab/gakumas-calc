@@ -602,7 +602,7 @@ export default function CalcPage() {
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-            {selected.slots.map((slot, i) => (
+            {selected.slots.map((_, i) => (
               <SupportSlot
                 key={i}
                 member={r.members[i]}

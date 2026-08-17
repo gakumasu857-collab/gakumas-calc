@@ -21,7 +21,7 @@ import { fetchTab } from "./_sheet.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const IMAGE_BASE =
   process.env.GAKUMAS_IMAGE_BASE ??
-  "https://pub-682e5459d444420f987d43ca384a3b0a.r2.dev";
+  "https://img.hoppepan.com";
 const CONCURRENCY = 20;
 
 // Search_word の全語（半角カンマ区切り）を候補にする

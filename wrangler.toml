@@ -20,7 +20,7 @@ not_found_handling = "single-page-application"
 binding = "MASTER_BUCKET"
 bucket_name = "gakumas-master"
 
-# 定期同期（5分ごと。間隔はここを編集）
+# 定期同期（間隔はここを編集）
 [triggers]
 crons = ["0 18 * * *"]  # 毎日3時(JST)の保険同期。通常は gen:all が同期を打つ
 

@@ -5,27 +5,6 @@
  * CSVのラベル表記ゆれは ABILITY_LABEL_ALIASES と normalizeLabel() で吸収する。
  */
 
-// プラン
-export const PlanName = {
-  free: "フリー",
-  sense: "センス",
-  logic: "ロジック",
-  anomaly: "アノマリー",
-} as const satisfies Record<string, string>;
-export type Plan = keyof typeof PlanName;
-
-// 効果
-export const EFFECT_NAMES = {
-  positive: "好調",
-  focus: "集中",
-  charm: "好印象",
-  vitality: "やる気",
-  charge: "温存",
-  aggressive: "強気",
-  burst: "全力",
-} as const satisfies Record<string, string>;
-export type EffectName = keyof typeof EFFECT_NAMES;
-
 // レアリティ（CSVの「配布SSR」は EventSSR として扱う）
 export const RARITY_NAMES = {
   R: "R",
@@ -61,7 +40,6 @@ export const IDLE_NAMES = {
   hataya_misuzu: "秦谷 美鈴",
   juo_sena: "十王 星南",
 } as const satisfies Record<string, string>;
-export type IdleName = keyof typeof IDLE_NAMES;
 
 // サポカのタイプ
 export const CARD_TYPE_NAMES = {

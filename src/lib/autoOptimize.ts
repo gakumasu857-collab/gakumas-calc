@@ -64,7 +64,6 @@ import {
   buildSeeds,
   EXAM_RATIOS_FINE,
   examScoresFromRatio,
-  examScoresUniform,
   sameExamScores,
   steppingAxes,
   uniformStepping,
@@ -194,7 +193,8 @@ export type AutoOptimizeResult = SteppingResult & {
   elapsedMs: number;
   /**
    * イベント予算で「発動しない」ことにした前イベ・後イベのカード別設定
-   * （取得OFF / 前イベ回数の削減 / 後イベ✕）。計算ページのイベント設定へ適用する。
+   * （取得OFF / 後イベ✕）。計算ページのイベント設定へ適用する。
+   * ※ pre（前イベ回数の削減）は現状の割当ロジックでは生成されない（将来用の予約）。
    */
   eventOps?: { id: string; pre?: number; acquire?: false; post?: 0 }[];
   /** 探索の内訳（/debug でどう選ばれたかを開示するため） */
@@ -758,11 +758,6 @@ export class OptimizeEngine {
           const exams = cur.examScores.map((_, k) =>
             examScoresFromRatio(k, ratio),
           );
-          if (
-            exams.every((e, k) => sameExamScores(e, cur.examScores[k])) &&
-            lessons[i].main === li.main
-          )
-            continue;
           const s: Stepping = { ...cur, lessons, examScores: exams };
           const ectx = this.buildEctx(s);
           const formation = this.buildFormation(ectx);
@@ -1004,7 +999,7 @@ export class OptimizeEngine {
     const memFixed = memTotals.fixed;
     const memPct = memTotals.pct;
 
-    // HIFの授業は最適充填する（踏み方に依らない）ので、理想編成の選定に使う baseStats では
+    // 変換前ベース(baseNoConv)とパラボ%(basePct)を分けて持ち、パラボ変換は後段でまとめて適用する
     const baseNoConv = {} as Record<TypeKey, number>;
     const basePct = {} as Record<TypeKey, number>;
     const baseStats = {} as Record<TypeKey, number>;

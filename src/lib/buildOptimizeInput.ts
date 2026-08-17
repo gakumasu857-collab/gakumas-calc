@@ -63,7 +63,3 @@ export function buildAutoOptimizeInput(
   };
 }
 
-/** 最低ステ条件の優先順（審査基準ランク昇順＝高いタイプ優先）。UIサマリー用にも使う */
-export function minStatPriority(ranks: Record<TypeKey, number>): TypeKey[] {
-  return [...TYPE_KEYS].sort((a, b) => ranks[a] - ranks[b]);
-}

@@ -16,11 +16,6 @@ export function normalizeForSearch(s: string): string {
 
 const READINGS = CARD_READINGS as Record<string, string>;
 
-/** カード名の読み仮名（ひらがな。無ければ undefined） */
-export function cardReadingOf(name: string): string | undefined {
-  return READINGS[name];
-}
-
 /** カード名 → 検索タグ（スプシ Search_word 列。正規化済み） */
 const SEARCH_WORDS_BY_NAME = new Map<string, string[]>(
   SUPPORT_CARD_DB.filter((c) => c.searchWords.length > 0).map((c) => [
