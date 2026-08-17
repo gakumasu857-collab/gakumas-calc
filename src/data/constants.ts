@@ -96,7 +96,7 @@ export const ABILITY_NAMES = {
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
   charm_8plus_ut4: "好印象8枚以上スキル獲得(4回まで)",
   up_SP_lesson_rate: "SPレッスン率アップ",
-  stage_finish_ut2: "試験終了時(2回まで)",
+  stage_finish_ut2: "試験・オーディション終了時(2回まで)",
   stage_finish: "試験・オーディション",
   initial: "初期値",
   bonus: "パラメータボーナス",
@@ -106,13 +106,14 @@ export const ABILITY_NAMES = {
   p_point_rate_lesson: "レッスンPポイント率",
   recovery_sp: "SPレッスン回復",
   recovery_type_sp: "タイプSPレッスン回復",
-  recovery_stage_finish: "試験終了時回復",
+  recovery_stage_finish: "試験・オーディション回復",
   // 現行スプシ(abilityValues)にあるが従来コード化していなかった非スコア寄りアビリティ。
   // スコアはrawラベル経由でperfに一致して計算済み（ここは表示・dev警告解消・アビリティ一覧の
   // 完全化のための登録で点数は不変）。回復・率・Pポイント系は発動回数0に解決＝非スコア。
   // ラベルは半角括弧（照合はnormalizeLabelで全角/半角・空白を吸収）。
   lesson_support_rate: "レッスンサポート率",
-  all_sp_lesson_rate_14: "全SPレッスン率(14%)",
+  // 旧「全SPレッスン率(14%)」。スプシ改名で%なし表記になった（perfにティア値あり）
+  all_sp_lesson_rate_14: "全SPレッスン率",
   all_sp_lesson_rate_28: "全SPレッスン率(28%)",
   meeting_drink_discount: "相談ドリンク割引",
   p_point_event: "Pポイントイベント",
@@ -121,6 +122,9 @@ export const ABILITY_NAMES = {
   recovery_supply: "差し入れ時回復",
   recovery_event: "回復イベント",
   max_hp_up: "最大体力上昇",
+  max_hp_up_1abi: "最大体力上昇(1アビ)",
+  charge_8plus_ut4: "温存8枚以上スキル獲得(4回まで)",
+  skill_exchange_ut5: "スキル交換(5回まで)",
   nothing: "なし",
 } as const satisfies Record<string, string>;
 export type AbilityName = keyof typeof ABILITY_NAMES;
@@ -134,6 +138,10 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   何もなし: "nothing",
   体力なし: "nothing",
   "試験終了時": "stage_finish_ut2",
+  // 2026-08 スプシ改名の旧ラベル（localStorage等の旧データ互換）
+  "試験終了時(2回まで)": "stage_finish_ut2",
+  "試験終了時回復": "recovery_stage_finish",
+  "全SPレッスン率(14%)": "all_sp_lesson_rate_14",
   // 前イベのトリガー列（triggered_by）は括弧なし表記
   特別指導: "extra_lecture_ut3",
   // supMaster で英語キーのまま残っているセルの受け皿（本来スプシ側で「差し入れ時回復」に直す）

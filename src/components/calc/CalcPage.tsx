@@ -249,8 +249,11 @@ export default function CalcPage() {
   const runAutoOptimize = () => {
     setOptBusy(true);
     setOptMsg(null);
-    // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える
-    const before = canShowRating ? r.rating : null;
+    // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
+    // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
+    // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない
+    const before =
+      canShowRating && !settings.examAssist ? r.rating : null;
     const beforeOk = before !== null && currentMeetsConditions();
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {

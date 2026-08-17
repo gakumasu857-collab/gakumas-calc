@@ -14,6 +14,7 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN",
-    "Noto Sans JP", Meiryo, sans-serif;
+  /* 定番の日本語フォント優先（Windows=メイリオ / Mac=ヒラギノ / それ以外=OS標準） */
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, "メイリオ",
+    "Noto Sans JP", sans-serif;
 }

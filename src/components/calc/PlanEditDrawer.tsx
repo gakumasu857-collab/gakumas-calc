@@ -168,7 +168,10 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
                 </span>{" "}
                 <b className="text-slate-800">
                   {Math.round(r.perType[t].current).toLocaleString()}
-                </b>
+                </b>{" "}
+                <span className="text-[11px] text-slate-400">
+                  (パラボ{r.perType[t].startPct}%)
+                </span>
               </span>
             ))}
             <span className="text-xs text-slate-500">

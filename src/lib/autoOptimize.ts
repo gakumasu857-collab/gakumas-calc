@@ -317,8 +317,36 @@ export function runFullOptimize(
 
   // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り」を
   // 収束するまで相互に詰め、まだ余れば焼きなましリスタートで局所解の脱出を試みる。
-  engine.deadline = finalDeadline;
+  // 末尾の「スワップ×踏み方の結合手」用に時間を予約しておく
+  const JOINT_RESERVE_MS = 1800;
+  engine.deadline = finalDeadline - JOINT_RESERVE_MS;
   best = engine.refineLoop(best);
+
+  // 結合手（保証枠）: グリーディ組成が出さないカードへの1枚スワップを正確評価し、
+  // 「惜しい」スワップにはレッスンflip＋選抜寄せを重ねて峠を越える。
+  // （例: Da特化パラボのアイドルで、Daカードを入れつつレッスン1日と選抜を
+  //   他タイプへ逃がすと溢れが消えて勝つ——3点同時でしか到達できない解）
+  engine.deadline = finalDeadline + 400;
+  if (engine.swapFormationMove(best, true)) {
+    // 当たったら軽く仕上げ直す（踏み方の山登り＋選抜の細分配）
+    const evalOf = (s: Stepping) =>
+      engine.preciseObjective(best.slots, engine.buildEctx(s)).obj;
+    const climbed = climbStepping(
+      best.stepping,
+      best.score,
+      evalOf,
+      engine.deadline,
+    );
+    if (climbed.score > best.score + 1e-9) {
+      best.stepping = climbed.stepping;
+      best.score = climbed.score;
+    }
+    const fine = engine.refineExams(best.slots, best.stepping, best.score);
+    if (fine && fine.score > best.score + 1e-9) {
+      best.stepping = fine.stepping;
+      best.score = fine.score;
+    }
+  }
   const phaseScores = {
     starts: Math.round(scoreAfterStarts),
     polish: Math.round(scoreAfterPolish),
@@ -343,6 +371,8 @@ export function runFullOptimize(
 
   // ---- 最終評価値の算出（勝者のみ・計算ページと同じ式） ----
   // 試験補助の加点（examAssist）は探索専用なので、表示する評価値からは外す
+  // 授業を流行タイプの閾値ルール（第1流行2100+/第3流行1100+/余りは第1流行）へ寄せる
+  finalEngine.applyClassPreference(best);
   const ectx = finalEngine.buildEctx(best.stepping);
   const { cappedSum, members } = finalEngine.preciseObjective(
     best.slots,
@@ -789,6 +819,263 @@ export class OptimizeEngine {
   }
 
   /**
+   * 編成の1枚スワップ局所探索（preciseObjective 直評価）。
+   * 通常の編成更新はグリーディ組成（buildFormation）経由のため、組成ヒューリスティックが
+   * 出さないカードには到達できない。ここでは候補プール上位との1枚入れ替えを
+   * 正確な目的関数で直接評価する。さらに「入れ替え＋レッスン1箇所のメイン変更」の
+   * 結合手も試す（例: Da特化パラボのアイドルで、Daカードを入れつつレッスンを
+   * 1日だけ他タイプへ逃がすと溢れが消えて勝つ——どちらか単独では悪化する峠越え）。
+   */
+  swapFormationMove(
+    best: {
+      stepping: Stepping;
+      slots: SelectedSlot[];
+      score: number;
+      spShortfall: number;
+    },
+    joint: boolean,
+  ): boolean {
+    const ectx = this.buildEctx(best.stepping);
+    const opts = {
+      flags: this.input.flags,
+      plan: this.input.plan,
+      noStageItems: this.input.noStageItems,
+    };
+    const owned = scoreOwnedCards(
+      this.input.getLevel,
+      ectx.ctx,
+      TYPE_SHEET_ROLE,
+      opts,
+    );
+    const rentals = scoreRentalCandidates(ectx.ctx, TYPE_SHEET_ROLE, opts);
+    // 候補: タイプごとの上位 + アシスト上位 + レンタル上位（点数順）
+    const byPoints = (a: ScoredCard, b: ScoredCard) => b.points - a.points;
+    const cands: { card: ScoredCard; rental: boolean }[] = [];
+    for (const type of TYPE_KEYS) {
+      owned
+        .filter((c) => c.type === type && !c.assist)
+        .sort(byPoints)
+        .slice(0, 12)
+        .forEach((card) => cands.push({ card, rental: false }));
+    }
+    owned
+      .filter((c) => c.assist)
+      .sort(byPoints)
+      .slice(0, 4)
+      .forEach((card) => cands.push({ card, rental: false }));
+    rentals
+      .sort(byPoints)
+      .slice(0, 6)
+      // 完凸所持のカードはレンタルにしても同一評価なので除外（重複試行の削減）
+      .filter((card) => this.input.getLevel(card.id) !== 4)
+      .forEach((card) => cands.push({ card, rental: true }));
+
+    const typeOf = new Map<string, TypeKey>();
+    for (const c of [...owned, ...rentals]) typeOf.set(c.id, c.type);
+    const ratioCons = this.input.typeRatio
+      ? typeConstraintFromRatio(this.input.typeRatio)
+      : {};
+    const violatesRatio = (slots: SelectedSlot[]): boolean => {
+      if (!ratioCons.typeCounts && !ratioCons.typeMinCounts) return false;
+      const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const s of slots) {
+        const t = typeOf.get(s.id);
+        if (t) counts[t]++;
+      }
+      for (const type of TYPE_KEYS) {
+        if (ratioCons.typeCounts && counts[type] !== ratioCons.typeCounts[type])
+          return true;
+        if (
+          ratioCons.typeMinCounts &&
+          counts[type] < ratioCons.typeMinCounts[type]
+        )
+          return true;
+      }
+      return false;
+    };
+
+    const inUse = new Set(best.slots.map((s) => s.id));
+    const pinned = this.input.flags.pinned;
+    // 結合手用の「惜しい」スワップ。順位付けは「即時obj＋溢れ量」——
+    // 溢れているスワップほど、踏み方を他タイプへ逃がしたときの回収余地が大きい
+    // （「溢れるように見えて実は入れて逃がすと勝つ」カードを狙い撃つための基準）
+    const nearMisses: {
+      slots: SelectedSlot[];
+      score: number;
+      potential: number;
+    }[] = [];
+    const NEAR_DELTA = 900;
+
+    let improved = false;
+    let bestTrial: { slots: SelectedSlot[]; score: number } | null = null;
+    for (let i = 0; i < best.slots.length; i++) {
+      if (pinned.has(best.slots[i].id)) continue;
+      for (const { card, rental } of cands) {
+        if (performance.now() > this.deadline) break;
+        if (inUse.has(card.id)) continue;
+        const trial = best.slots.map((s, j) =>
+          j === i ? { id: card.id, rental } : s,
+        );
+        if (trial.filter((s) => s.rental).length > 1) continue;
+        if (violatesRatio(trial)) continue;
+        const { obj, overflow } = this.preciseObjective(trial, ectx);
+        if (obj > (bestTrial?.score ?? best.score) + 1e-9) {
+          bestTrial = { slots: trial, score: obj };
+        } else if (joint && obj > best.score - NEAR_DELTA) {
+          nearMisses.push({ slots: trial, score: obj, potential: obj + overflow });
+        }
+      }
+    }
+    if (bestTrial) {
+      best.slots = bestTrial.slots;
+      best.score = bestTrial.score;
+      improved = true;
+    }
+
+    // 結合手: 惜しいスワップ上位に「レッスン1箇所のメイン/サブ変更」を重ね、
+    // さらに一番良かった形へ選抜スコアの細分配（refineExams）まで通して評価する。
+    // 実測では swap単体・swap+レッスンflipのどちらも現ベスト未満なのに、
+    // swap+flip+選抜再配分の3点同時なら勝つ谷がある（例: Da特化アイドルの無我採用）。
+    if (joint && best.stepping.kind === "hif") {
+      const cur = best.stepping as Stepping & { kind: "hif" };
+      nearMisses.sort((a, b) => b.potential - a.potential);
+      // このフェーズは収束後にだけ走るが、全体の時間予算を食い潰さないよう上限を切る
+      const jointDeadline = Math.min(
+        this.deadline,
+        performance.now() + 1600,
+      );
+      for (const miss of nearMisses.slice(0, 5)) {
+        if (performance.now() > jointDeadline) break;
+        // このスワップに対するレッスンflip候補（無flip含む）を全部採点する
+        const flips: { stepping: Stepping; score: number }[] = [
+          { stepping: cur, score: miss.score },
+        ];
+        for (let i = 0; i < cur.lessons.length; i++) {
+          const li = cur.lessons[i];
+          for (const newMain of TYPE_KEYS) {
+            if (newMain === li.main) continue;
+            for (const sub of TYPE_KEYS) {
+              if (sub === newMain) continue;
+              if (performance.now() > jointDeadline) break;
+              const lessons = cur.lessons.map((l, j) =>
+                j === i ? { ...l, main: newMain, sub } : l,
+              );
+              const s: Stepping = { ...cur, lessons };
+              const { obj } = this.preciseObjective(
+                miss.slots,
+                this.buildEctx(s),
+              );
+              flips.push({ stepping: s, score: obj });
+            }
+          }
+        }
+        // flipのサブ選択と選抜配分は相互依存（選抜を寄せ直すと勝つサブが変わる）ため、
+        // 上位flipそれぞれに粗い選抜変形（全選抜の単タイプ寄せ）を重ねて採否を判断する。
+        // 細かい比率はこの手が当たったあとの refineExams（採用時＋通常ラウンド）で詰まる
+        flips.sort((a, b) => b.score - a.score);
+        for (const flip of flips.slice(0, 3)) {
+          if (performance.now() > jointDeadline) break;
+          const base = flip.stepping as Stepping & { kind: "hif" };
+          const examVariants: Stepping[] = [base];
+          for (const type of TYPE_KEYS) {
+            const ratio: [number, number, number] = [
+              type === "vocal" ? 1 : 0,
+              type === "dance" ? 1 : 0,
+              type === "visual" ? 1 : 0,
+            ];
+            examVariants.push({
+              ...base,
+              examScores: base.examScores.map((_, k) =>
+                examScoresFromRatio(k, ratio),
+              ),
+            });
+          }
+          for (const trial of examVariants) {
+            const { obj } =
+              trial === base
+                ? { obj: flip.score }
+                : this.preciseObjective(miss.slots, this.buildEctx(trial));
+            if (obj > best.score + 1e-9) {
+              best.stepping = trial;
+              best.slots = miss.slots;
+              best.score = obj;
+              improved = true;
+            }
+          }
+        }
+      }
+      // 当たったら選抜の細分配で仕上げる（1回だけ）
+      if (improved) {
+        const fine = this.refineExams(best.slots, best.stepping, best.score);
+        if (fine && fine.score > best.score + 1e-9) {
+          best.stepping = fine.stepping;
+          best.score = fine.score;
+        }
+      }
+    }
+    return improved;
+  }
+
+  /**
+   * 授業を「第1流行タイプが2100以上・第3流行タイプが1100以上・両方満たすなら
+   * 第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
+   * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
+   * 全割当（3^授業数）を正確に評価し、合計最優先→閾値優先の辞書式で選ぶ。
+   */
+  applyClassPreference(best: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+  }): void {
+    const s = best.stepping;
+    if (s.kind !== "hif" && s.kind !== "hatsu") return;
+    const n = s.classTypes.length;
+    if (n === 0 || n > 6) return; // 3^6=729評価まで（パッケージ時に1回だけ）
+    const ranks = this.input.ranks;
+    const t1 = TYPE_KEYS.find((t) => ranks[t] === 1) ?? "vocal";
+    const t3 = TYPE_KEYS.find((t) => ranks[t] === 3) ?? "visual";
+    type Key = [number, number, number, number];
+    const better = (a: Key, b: Key) => {
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return a[i] > b[i];
+      }
+      return false;
+    };
+    let bestKey: Key | null = null;
+    let bestAssign: TypeKey[] | null = null;
+    const assign = new Array<TypeKey>(n);
+    const walk = (i: number): void => {
+      if (i === n) {
+        const trial: Stepping = { ...s, classTypes: [...assign] } as Stepping;
+        const { cappedSum, stats } = this.preciseObjective(
+          best.slots,
+          this.buildEctx(trial),
+          true,
+        );
+        const key: Key = [
+          Math.round(cappedSum),
+          Math.min(stats[t1], 2100),
+          Math.min(stats[t3], 1100),
+          stats[t1],
+        ];
+        if (!bestKey || better(key, bestKey)) {
+          bestKey = key;
+          bestAssign = [...assign];
+        }
+        return;
+      }
+      for (const t of TYPE_KEYS) {
+        assign[i] = t;
+        walk(i + 1);
+      }
+    };
+    walk(0);
+    if (bestAssign) {
+      best.stepping = { ...s, classTypes: bestAssign } as Stepping;
+    }
+  }
+
+  /**
    * レッスン2日分の踏み方（メイン/サブ/SP）をまるごと入れ替える2軸手。
    * 日ごとの獲得量が違うため「どの日をオフタイプにするか」で数点変わるが、
    * 1軸ずつの山登りでは中間状態が悪化して越えられない。編成固定なので速い。
@@ -1035,6 +1322,8 @@ export class OptimizeEngine {
     cappedSum: number;
     members: ScoredCard[];
     stats: Record<TypeKey, number>;
+    /** 上限を超えて溢れているステの合計（踏み方の逃しで回収し得る量） */
+    overflow: number;
   } {
     const members = scoreSelectedCards(
       slots,
@@ -1059,6 +1348,8 @@ export class OptimizeEngine {
     cappedSum: number;
     members: ScoredCard[];
     stats: Record<TypeKey, number>;
+    /** 上限を超えて溢れているステの合計（踏み方の逃しで回収し得る量） */
+    overflow: number;
   } {
     this.evaluated++;
     const budget = this.input.eventBudget;
@@ -1081,17 +1372,18 @@ export class OptimizeEngine {
     }
     let cappedSum = 0;
     let excess = 0;
+    let overflow = 0;
     const stats: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const type of TYPE_KEYS) {
-      stats[type] = Math.min(
-        this.caps[type],
+      const raw =
         ectx.baseNoConv[type] +
-          adj[type].support +
-          adj[type].conv -
-          itemCut[type],
-      );
+        adj[type].support +
+        adj[type].conv -
+        itemCut[type];
+      stats[type] = Math.min(this.caps[type], raw);
       cappedSum += stats[type];
       excess += Math.max(0, stats[type] - this.maxTargets[type]);
+      overflow += Math.max(0, raw - this.caps[type]);
     }
     const obj =
       cappedSum -
@@ -1104,7 +1396,7 @@ export class OptimizeEngine {
         : 0) +
       minStatBonus(stats, this.minStatCond) -
       spConditionShortfall(members, this.input.spMin) * SP_PENALTY;
-    return { obj, cappedSum, members, stats };
+    return { obj, cappedSum, members, stats, overflow };
   }
 
   /**

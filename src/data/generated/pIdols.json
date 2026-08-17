@@ -287,6 +287,17 @@
    "growthTag": "月村手毬SSRフェス"
   },
   {
+   "url": "skill/夏風邪の通り道.webp",
+   "idol": "月村手毬",
+   "cardName": "「ねえ、言っちゃうよ。」",
+   "skillName": "夏風邪の通り道",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "月村手毬「ねえ、言っちゃうよ。」",
+   "growthTag": "月村手毬SSR"
+  },
+  {
    "url": "skill/アルバイター.webp",
    "idol": "藤田ことね",
    "cardName": "学園生活",
@@ -1231,6 +1242,17 @@
    "effect": "強気",
    "key": "十王星南ENDLESS DANCE",
    "growthTag": "十王星南SSRシーズン"
+  },
+  {
+   "url": "skill/見惚れる横顔.webp",
+   "idol": "十王星南",
+   "cardName": "「ねえ、言っちゃうよ。」",
+   "skillName": "見惚れる横顔",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "十王星南「ねえ、言っちゃうよ。」",
+   "growthTag": "十王星南SSR"
   },
   {
    "url": "skill/のんびり屋さん.webp",

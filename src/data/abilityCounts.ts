@@ -22,6 +22,7 @@ export const ABILITY_CATEGORIES = [
       "vitality_skill_ac",
       "aggressive_skill_ac", // 強気
       "charge_skill_ac", // 温存
+      "charge_8plus_ut4", // 温存8枚以上(4回まで)
       "burst_skill_ac",
       "barrier_skill_ac",
       "SSR_skill_ac",
@@ -39,6 +40,7 @@ export const ABILITY_CATEGORIES = [
       "A_skill_del_ut3",
       "M_skill_del_ut3",
       "change_ut3",
+      "skill_exchange_ut5",
     ],
   },
   {
