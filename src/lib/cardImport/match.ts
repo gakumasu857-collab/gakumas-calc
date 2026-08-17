@@ -8,9 +8,9 @@
  *    行の高さは58..120pxを許容し、タイル幅は行高に比例（160:91）で検証する
  *    （ウィンドウ幅よりゲームが狭いPCキャプチャ等のスケール差に追従）。
  * 2. 各タイルを基準サイズ160x91へリサンプル。
- * 3. カード同定（2段階）: アート上部の20x8RGB指紋を全カードの固定窓（スケール4×位置
- *    最大10=40窓）と照合 → スコアが低ければ上位8候補だけ、サムネイル上の
- *    位置×スケール実探索（積分画像で高速化）で精査し、最大スコアを採用する。
+ * 3. カード同定（2段階）: アート上部の20x8RGB指紋を全カードの固定窓（スケール6×位置
+ *    最大10=58窓）と照合 → スコアが低ければ上位8候補だけ、サムネイル上の
+ *    位置×スケール実探索（積分画像＋山登りで高速化）で精査し、最大スコアを採用する。
  *    （ゲームのリスト切り抜きはカードごとにズーム・位置が大きく違うため）
  * 4. 凸数: Lvの桁数で開始位置が変わる4つの凸マークを、行内共有シフトで位置合わせし、
  *    タイル内の相対輝度で「点灯／すりガラス未点灯／暗色未点灯」を分離して数える。
@@ -48,8 +48,10 @@ const Y_OFFSETS = [0, 1 / 3, 2 / 3, 1] as const;
 const REF_W = 12;
 const REF_H = 5;
 const REF_LEN = REF_W * REF_H * 3;
-/** 精査の探索スケール（サムネ幅/窓幅。3倍近いズームまで拾う） */
-const REFINE_SCALES = [1.0, 1.25, 1.55, 1.9, 2.35, 2.9] as const;
+/** 精査の探索スケール（サムネ幅/窓幅）。
+ * Rカードや「白背景にキャラが小さい」アートのリスト切り抜きは4〜5倍ズームに
+ * なるため、そこまで探索する。 */
+const REFINE_SCALES = [1.0, 1.25, 1.55, 1.9, 2.35, 2.9, 3.6, 4.5] as const;
 
 export type TileMatch = {
   /** フレーム内でのタイル位置（表示・切り抜き用） */
@@ -198,6 +200,21 @@ export function buildLibrary(
         }
       }
     }
+    // 高倍率窓（顔アップ系のリスト切り抜き。Rカード等が該当）。
+    // 粗選別・固定窓の段階で正解カードを上位候補に残すために必要
+    // （精査は上位8候補にしか走らないため）。
+    for (const scale of [1.9, 2.4] as const) {
+      const winW = cellW / scale;
+      const winH = baseWinH / scale;
+      if (winH > cellH) continue;
+      for (const fx of [0.3, 0.5, 0.7]) {
+        const x0 = cellX + (cellW - winW) * fx;
+        for (const fy of [0, 0.25, 0.5]) {
+          const y0 = cellY + (cellH - winH) * fy;
+          fps.push(fpFromRegion(rgba, imgW, x0, y0, winW, winH));
+        }
+      }
+    }
     fine.push(fps);
     coarse.push(fps.map(coarseOf));
     // 積分画像（(w+1)x(h+1)）
@@ -304,7 +321,31 @@ export function findTileGrid(
       }
       x = next;
     }
-    if (rowTiles.length === 3) tiles.push(...rowTiles);
+    if (rowTiles.length === 3) {
+      // アートの白い縁が列間ギャップと誤認されるとタイルの端が食われて痩せる
+      // （例: 左22px欠け→横伸び表示）。幅が期待値から大きく外れた1枚を、
+      // 残り2枚の等間隔配置から幾何的に再構成する。
+      const devs = rowTiles.map((t) => Math.abs(t.w - expectW));
+      const worst = devs.indexOf(Math.max(...devs));
+      const others = [0, 1, 2].filter((i) => i !== worst);
+      if (devs[worst] > 8 && others.every((i) => devs[i] <= 6)) {
+        const [a, b, c] = rowTiles;
+        const tw = Math.round(
+          (rowTiles[others[0]].w + rowTiles[others[1]].w) / 2,
+        );
+        if (worst === 1) {
+          b.x = Math.round((a.x + c.x) / 2);
+          b.w = tw;
+        } else if (worst === 0) {
+          a.x = Math.max(0, 2 * b.x - c.x);
+          a.w = tw;
+        } else {
+          c.x = Math.min(w - tw, 2 * b.x - a.x);
+          c.w = tw;
+        }
+      }
+      tiles.push(...rowTiles);
+    }
   }
   return tiles;
 }
@@ -399,7 +440,10 @@ function boxAvg(
   return (d - b - c + a) / ((x1 - x0) * (y1 - y0));
 }
 
-/** 候補サムネ上で精査指紋を位置×スケール探索して最大NCC */
+/** 候補サムネ上で精査指紋を位置×スケール探索して最大NCC。
+ * 各スケールで粗い格子を走査したあと、そのスケールの最良位置から
+ * 1px刻みの山登りで詰める（数pxのズレでもNCCは大きく落ちるため、
+ * 粗い格子だけだと正解カードでも0.7台で頭打ちになる）。 */
 function refineScore(
   refFp: Float32Array,
   sat: CellSat,
@@ -408,55 +452,105 @@ function refineScore(
 ): number {
   let best = -2;
   const v = new Float32Array(REF_LEN);
+  const ncc = (ox: number, oy: number, winW: number, winH: number): number => {
+    for (let j = 0; j < REF_H; j++) {
+      const y0 = Math.round(oy + (j * winH) / REF_H);
+      const y1 = Math.max(y0 + 1, Math.round(oy + ((j + 1) * winH) / REF_H));
+      for (let i = 0; i < REF_W; i++) {
+        const x0 = Math.round(ox + (i * winW) / REF_W);
+        const x1 = Math.max(x0 + 1, Math.round(ox + ((i + 1) * winW) / REF_W));
+        const o = (j * REF_W + i) * 3;
+        v[o] = boxAvg(sat[0], cellW, x0, y0, x1, y1);
+        v[o + 1] = boxAvg(sat[1], cellW, x0, y0, x1, y1);
+        v[o + 2] = boxAvg(sat[2], cellW, x0, y0, x1, y1);
+      }
+    }
+    let mean = 0;
+    for (let i = 0; i < REF_LEN; i++) mean += v[i];
+    mean /= REF_LEN;
+    let ss = 0;
+    for (let i = 0; i < REF_LEN; i++) {
+      const t = v[i] - mean;
+      ss += t * t;
+    }
+    const norm = Math.sqrt(ss) || 1;
+    let d = 0;
+    for (let i = 0; i < REF_LEN; i++) d += ((v[i] - mean) / norm) * refFp[i];
+    return d;
+  };
   for (const scale of REFINE_SCALES) {
     const winW = cellW / scale;
     const winH = winW / FP_ASPECT;
     if (winH > cellH || winW < REF_W) continue;
-    const stepX = Math.max(1.5, (cellW - winW) / 7);
-    const stepY = Math.max(1.5, (cellH - winH) / 5);
-    for (let oy = 0; oy <= cellH - winH + 0.01; oy += stepY) {
-      for (let ox = 0; ox <= cellW - winW + 0.01; ox += stepX) {
-        for (let j = 0; j < REF_H; j++) {
-          const y0 = Math.round(oy + (j * winH) / REF_H);
-          const y1 = Math.max(y0 + 1, Math.round(oy + ((j + 1) * winH) / REF_H));
-          for (let i = 0; i < REF_W; i++) {
-            const x0 = Math.round(ox + (i * winW) / REF_W);
-            const x1 = Math.max(
-              x0 + 1,
-              Math.round(ox + ((i + 1) * winW) / REF_W),
-            );
-            const o = (j * REF_W + i) * 3;
-            v[o] = boxAvg(sat[0], cellW, x0, y0, x1, y1);
-            v[o + 1] = boxAvg(sat[1], cellW, x0, y0, x1, y1);
-            v[o + 2] = boxAvg(sat[2], cellW, x0, y0, x1, y1);
-          }
+    const maxX = cellW - winW;
+    const maxY = cellH - winH;
+    const stepX = Math.max(1.2, Math.min(maxX / 7, winW / 3));
+    const stepY = Math.max(1.2, Math.min(maxY / 5, winH / 3));
+    let sBest = -2;
+    let sx = 0;
+    let sy = 0;
+    for (let oy = 0; oy <= maxY + 0.01; oy += stepY) {
+      for (let ox = 0; ox <= maxX + 0.01; ox += stepX) {
+        const d = ncc(ox, oy, winW, winH);
+        if (d > sBest) {
+          sBest = d;
+          sx = ox;
+          sy = oy;
         }
-        let mean = 0;
-        for (let i = 0; i < REF_LEN; i++) mean += v[i];
-        mean /= REF_LEN;
-        let ss = 0;
-        for (let i = 0; i < REF_LEN; i++) {
-          const t = v[i] - mean;
-          ss += t * t;
-        }
-        const norm = Math.sqrt(ss) || 1;
-        let d = 0;
-        for (let i = 0; i < REF_LEN; i++) d += ((v[i] - mean) / norm) * refFp[i];
-        if (d > best) best = d;
       }
     }
+    // 山登り（1px刻み・最大6歩）
+    for (let step = 0; step < 6; step++) {
+      let moved = false;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = sx + dx;
+        const ny = sy + dy;
+        if (nx < 0 || ny < 0 || nx > maxX || ny > maxY) continue;
+        const d = ncc(nx, ny, winW, winH);
+        if (d > sBest) {
+          sBest = d;
+          sx = nx;
+          sy = ny;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    if (sBest > best) best = sBest;
   }
   return best;
 }
 
 /**
- * タイル1枚をライブラリと照合する（粗選別→固定窓→必要なら精査）。
+ * フレーム間で同一内容のタイルの再照合を避けるキャッシュ。
+ * 指紋同士の相関が0.995以上（=事実上同じ絵）のときだけ前回結果を返すので、
+ * 誤同定のリスクなしに、静止画面やスクロール中の残留行の精査をスキップできる。
+ */
+export type MatchCache = {
+  entries: { fp: Float32Array; index: number; score: number; margin: number }[];
+  cursor: number;
+};
+export function createMatchCache(): MatchCache {
+  return { entries: [], cursor: 0 };
+}
+const CACHE_MAX = 384;
+
+/**
+ * タイル1枚をライブラリと照合する（キャッシュ→粗選別→固定窓→必要なら精査）。
  */
 function matchTile(
   tile: Uint8ClampedArray,
   lib: Library,
+  cache?: MatchCache,
 ): { index: number; score: number; margin: number } {
   const fp = tileFingerprint(tile);
+  if (cache) {
+    for (const e of cache.entries) {
+      if (dot(fp, e.fp) >= 0.995) {
+        return { index: e.index, score: e.score, margin: e.margin };
+      }
+    }
+  }
   const cfp = coarseOf(fp);
   const coarseScores: { c: number; s: number }[] = [];
   for (let c = 0; c < lib.count; c++) {
@@ -478,39 +572,59 @@ function matchTile(
     fineScores.push({ c, s });
   }
   fineScores.sort((a, b) => b.s - a.s);
-  // 固定窓で十分確からしければ精査を省略
+  let result: { index: number; score: number; margin: number };
   if ((fineScores[0]?.s ?? -2) >= REFINE_SKIP) {
-    return {
+    // 固定窓で十分確からしければ精査を省略
+    result = {
       index: fineScores[0].c,
       score: fineScores[0].s,
       margin: fineScores[0].s - (fineScores[1]?.s ?? -2),
     };
+  } else {
+    // 精査: 上位候補をサムネ上の実探索で採点し、固定窓との最大値で決める
+    const refFp = refineFpFromTile(tile);
+    let best = { c: -1, s: -2 };
+    let second = -2;
+    for (const cand of fineScores.slice(0, REFINE_TOP)) {
+      const ref = refineScore(refFp, lib.sats[cand.c], lib.cellW, lib.cellH);
+      const s = Math.max(cand.s, ref);
+      if (s > best.s) {
+        second = best.s;
+        best = { c: cand.c, s };
+      } else if (s > second) {
+        second = s;
+      }
+    }
+    result = { index: best.c, score: best.s, margin: best.s - second };
   }
-  // 精査: 上位候補をサムネ上の実探索で採点し、固定窓との最大値で決める
-  const refFp = refineFpFromTile(tile);
-  let best = { c: -1, s: -2 };
-  let second = -2;
-  for (const cand of fineScores.slice(0, REFINE_TOP)) {
-    const ref = refineScore(refFp, lib.sats[cand.c], lib.cellW, lib.cellH);
-    const s = Math.max(cand.s, ref);
-    if (s > best.s) {
-      second = best.s;
-      best = { c: cand.c, s };
-    } else if (s > second) {
-      second = s;
+  if (cache) {
+    const entry = { fp, ...result };
+    if (cache.entries.length < CACHE_MAX) {
+      cache.entries.push(entry);
+    } else {
+      cache.entries[cache.cursor] = entry;
+      cache.cursor = (cache.cursor + 1) % CACHE_MAX;
     }
   }
-  return { index: best.c, score: best.s, margin: best.s - second };
+  return result;
 }
 
 /**
- * 凸マーク（4スター、左から埋まる）の判定。基準サイズ(160x91)タイルで、
+ * 凸マーク（4スター、左から埋まる）の判定 v5。基準サイズ(160x91)タイルで、
  * Lvが1桁なら x=30.5、2桁なら x=46.5 から間隔16.2で並ぶ。
- * - 行内共有シフトで位置合わせ（スロットごとに白いアートへ吸い付かないように）
- * - タイル内の相対輝度で「点灯／すりガラス未点灯／暗色未点灯」を分離
- *   （未点灯の見た目は環境で違う: 白い半透明 or 暗いシルエット）
- * - Lv数字を拾ってしまう仮説はスロット上下の白で検出して弾く
- * - 「上限解放可能」等のリボンがスターを覆っていたら判定不能(ok=false)
+ *
+ * 両ケースで共通の「共有スロット」x=46.6/62.8/79.0 は必ずスターなので、
+ * まずそこを相対輝度で 点灯/未点灯 に分類する
+ * （未点灯の見た目は環境で違う: すりガラス風の白半透明 or 灰色シルエット）。
+ * 次に排他位置 L(x≈30.5) を見る。ここは「1桁Lvの1個目スター」か
+ * 「2桁Lvの数字・背景」のどちらか:
+ * - Lが明るく太い塊(≥7px) → スター（点灯マークは中実の円形） → Lv1桁
+ * - Lが細い線(≤4px) → 数字のストロークや背景の格子線 → Lv2桁
+ * スターと数字グリフは高さ・明るさが同じで縦投影では区別できないが、
+ * ストローク幅だけは確実に違う（実測: スター8-11px / 数字・格子線2-5px）。
+ * 桁数が決まれば凸数は共有スロットの分類から一意に決まる
+ * （2桁Lvで共有3つが全点灯のときだけ、4個目 x≈95.2 の輝度で3凸/4凸を分ける）。
+ * 「上限解放可能」等のリボンがスターを覆っていたら判定不能(ok=false)。
  */
 export function analyzeStars(tile: Uint8ClampedArray): {
   count: number;
@@ -567,111 +681,172 @@ export function analyzeStars(tile: Uint8ClampedArray): {
     }
     return { white: wCnt / n, dark: dCnt / n, core: core / cn };
   };
-
-  type Hypo = {
-    lit: number[];
-    mono: boolean;
-    starness: number;
-    suspect: boolean;
-    quality: number;
+  /** ±r シフトのコア輝度最大（点灯コアの取りこぼし防止） */
+  const coreMaxAt = (cx0: number, sh: number, r = 2): number => {
+    let m = 0;
+    for (let d = -r; d <= r; d++) m = Math.max(m, slotAt(cx0, sh + d).core);
+    return m;
   };
-  const evalHypo = (start: number): Hypo => {
-    // 行内共有シフト（白/暗の星らしさ合計が最大の位置）
-    let bestShift = 0;
-    let bestScore = -1;
-    for (let sh = -5; sh <= 5; sh++) {
-      const score = [0, 1, 2, 3].reduce((a, k) => {
-        const s = slotAt(start + 16.2 * k, sh);
+
+  // 共有スロット（両ケースでスターの位置）で行内シフトを合わせる。
+  // 白/暗の星らしさが平坦な行でシフトが端に張り付かないよう |sh| に微ペナルティ
+  const SHARED = [46.6, 62.8, 79.0];
+  let shift = 0;
+  let shiftScore = -1;
+  for (let sh = -5; sh <= 5; sh++) {
+    const score =
+      SHARED.reduce((a, cx) => {
+        const s = slotAt(cx, sh);
         return a + Math.max(s.white, s.dark);
-      }, 0);
-      if (score > bestScore) {
-        bestScore = score;
-        bestShift = sh;
+      }, 0) -
+      0.015 * Math.abs(sh);
+    if (score > shiftScore) {
+      shiftScore = score;
+      shift = sh;
+    }
+  }
+
+  // 共有スロットの分類: 相対輝度のギャップ分割 → 不成立なら一様ルール
+  const shared = SHARED.map((cx) => {
+    let best = slotAt(cx, shift);
+    for (let d = -2; d <= 2; d++) {
+      const s = slotAt(cx, shift + d);
+      if (Math.max(s.white, s.dark) > Math.max(best.white, best.dark)) best = s;
+    }
+    return { ...best, coreMax: coreMaxAt(cx, shift) };
+  });
+  const lums = shared.map((s) => s.coreMax);
+  const sorted = [...lums].sort((a, b) => b - a);
+  const avgDark = shared.reduce((a, s) => a + s.dark, 0) / 3;
+  let lit: number[];
+  let clean = true;
+  const uniformRules = (): number[] => {
+    const mean = lums.reduce((a, b) => a + b, 0) / 3;
+    if (mean >= 234) return [1, 1, 1];
+    if (avgDark >= 0.28) return [0, 0, 0]; // 暗色シルエット
+    if (mean >= 185 && mean <= 232) return [0, 0, 0]; // すりガラス
+    return [-1, -1, -1];
+  };
+  if (shared.every((s) => s.dark >= 0.25)) {
+    // 全スロットが暗色シルエット。背景アートの明暗でコア輝度はばらつくため
+    // 輝度分割より先に判定する
+    lit = [0, 0, 0];
+  } else if (sorted[0] - sorted[2] >= 35) {
+    // 輝度差が大きい: ギャップの大きい方で点灯/未点灯グループに分割
+    let found: number[] | null = null;
+    const splits = [1, 2]
+      .map((at) => ({ at, gap: sorted[at - 1] - sorted[at] }))
+      .sort((a, b) => b.gap - a.gap);
+    for (const { at, gap } of splits) {
+      if (gap < 25 || sorted[at - 1] < 218) continue;
+      const cand = lums.map((v) => (v >= sorted[at - 1] - 0.001 ? 1 : 0));
+      if (cand[1] <= cand[0] && cand[2] <= cand[1]) {
+        found = cand;
+        break;
       }
     }
-    const slots = [0, 1, 2, 3].map((k) => {
-      let best: ReturnType<typeof slotAt> | null = null;
-      let coreMax = 0;
-      for (let d = -2; d <= 2; d++) {
-        const s = slotAt(start + 16.2 * k, bestShift + d);
-        if (!best || Math.max(s.white, s.dark) > Math.max(best.white, best.dark))
-          best = s;
-        if (s.core > coreMax) coreMax = s.core;
-      }
-      return { ...best!, coreMax };
-    });
-    const starness = slots.reduce((a, s) => a + Math.max(s.white, s.dark), 0) / 4;
-    const lums = slots.map((s) => s.coreMax);
-    const sorted = [...lums].sort((a, b) => b - a);
-    const avgDark = slots.reduce((a, s) => a + s.dark, 0) / 4;
-    const isMonoPrefix = (arr: number[]) => {
-      for (let i = 1; i < 4; i++) if (arr[i] > arr[i - 1]) return false;
-      return true;
-    };
-    const uniformRules = (): number[] => {
-      const mean = lums.reduce((a, b) => a + b, 0) / 4;
-      if (mean >= 234) return [1, 1, 1, 1];
-      if (avgDark >= 0.28) return [0, 0, 0, 0]; // 暗色シルエット
-      if (mean >= 185 && mean <= 232) return [0, 0, 0, 0]; // すりガラス
-      return [-1, -1, -1, -1];
-    };
-    let lit: number[];
-    let quality = 2;
-    if (sorted[0] - sorted[3] >= 35) {
-      // 輝度差が大きい: ギャップの大きい順に分割を試し、単調になるものを採用
-      const splits = [1, 2, 3]
-        .map((at) => ({ at, gap: sorted[at - 1] - sorted[at] }))
-        .sort((a, b) => b.gap - a.gap);
-      let found: number[] | null = null;
-      for (const { at, gap } of splits) {
-        if (gap < 25 || sorted[at - 1] < 218) continue;
-        const cand = lums.map((v) => (v >= sorted[at - 1] - 0.001 ? 1 : 0));
-        if (isMonoPrefix(cand)) {
-          found = cand;
-          break;
-        }
-      }
-      if (found) lit = found;
-      else {
-        lit = uniformRules();
-        quality = 1;
-      }
-    } else {
+    if (found) lit = found;
+    else {
       lit = uniformRules();
+      clean = false;
     }
-    const mono = isMonoPrefix(lit);
-    // スロット0の上下が白い＝Lv数字を拾っている疑い
-    const cx = Math.round(start + bestShift);
-    const whiteBand = (y0: number, y1: number) => {
-      let cnt = 0,
-        n = 0;
-      for (let y = y0; y <= y1; y++) {
-        for (let dx = -6; dx <= 6; dx++) {
-          const i = (y * imgW + cx + dx) * 4;
-          if (tile[i] > 225 && tile[i + 1] > 225 && tile[i + 2] > 225) cnt++;
-          n++;
-        }
-      }
-      return cnt / n;
-    };
-    const suspect = whiteBand(57, 62) > 0.45 || whiteBand(80, 85) > 0.45;
-    return { lit, mono, starness, suspect, quality };
+  } else {
+    lit = uniformRules();
+  }
+  if (lit.includes(-1) || lit[1] > lit[0] || lit[2] > lit[1]) {
+    // 分類不能 or 単調でない → 要確認。数はそれらしく丸める
+    const k = lit.filter((v) => v === 1).length;
+    return { count: k, ok: false };
+  }
+  const k = lit[0] + lit[1] + lit[2];
+  const litCores = lums.filter((_, i) => lit[i] === 1);
+  const unlitCores = lums.filter((_, i) => lit[i] === 0);
+
+  // 4個目スター（2桁Lvのみ存在。x≈95.2）の点灯判定。
+  // スター間隔の個体差が右端で累積するため探索は±4に広げる。
+  // 点灯(≥235)と未点灯(すりガラス~230以下/シルエット~150以下)の境界帯は要確認
+  const evalR = (): { lit: boolean; sure: boolean } => {
+    const coreR = coreMaxAt(95.2, shift, 4);
+    const threshold = Math.max(
+      227,
+      litCores.length > 0 ? Math.min(...litCores) - 15 : 0,
+    );
+    return { lit: coreR >= threshold, sure: Math.abs(coreR - threshold) > 6 };
   };
 
-  const hypos = [evalHypo(30.5), evalHypo(46.5)];
-  hypos.sort((a, b) => {
-    const okA = a.mono && !a.lit.includes(-1) ? 1 : 0;
-    const okB = b.mono && !b.lit.includes(-1) ? 1 : 0;
-    if (okA !== okB) return okB - okA;
-    if (a.suspect !== b.suspect) return (a.suspect ? 1 : 0) - (b.suspect ? 1 : 0);
-    if (a.quality !== b.quality) return b.quality - a.quality;
-    return b.starness - a.starness;
-  });
-  const h = hypos[0];
-  return {
-    count: h.lit.filter((v) => v === 1).length,
-    ok: h.mono && !h.lit.includes(-1),
-  };
+  // 排他位置 L（1桁Lvの1個目スター or 2桁Lvの数字・背景）の評価
+  const coreL = coreMaxAt(30.5, shift, 3);
+  // 点灯とみなす条件: 絶対的に明るく、未点灯スターより有意に明るく、
+  // 点灯スターがいるならその明るさに近い（点灯マークの描画は行内で同一）
+  let brightL = coreL >= 227;
+  if (unlitCores.length > 0 && coreL < Math.max(...unlitCores) + 18) brightL = false;
+  if (litCores.length > 0 && coreL < Math.min(...litCores) - 25) brightL = false;
+
+  let count: number;
+  let ok = clean;
+  if (!brightL) {
+    // Lにスターの点灯なし → 1桁Lvなら0凸のはず。共有に点灯があるなら2桁Lv確定
+    count = k;
+    if (k === 3) {
+      const r = evalR();
+      count = r.lit ? 4 : 3;
+      if (!r.sure) ok = false;
+    }
+  } else {
+    // Lが明るい: 太い塊ならスター（Lv1桁）、細い線なら数字/格子線（Lv2桁）。
+    // 中央行帯 y68..74 で「コア輝度に近い明るさ」の横ランのうち
+    // 中心列(cx±1)を通るものの長さの中央値を測る。中心を通す条件は、
+    // 隣の点灯スターの縁がL窓の端にかすったときの誤検出を防ぐ。
+    // 実測でスターは7px以上、数字ストローク・背景の格子線は5px以下に分離する
+    const cx = Math.round(30.5 + shift);
+    const centerRunAt = (y: number): number => {
+      let run = 0;
+      let runStart = -7;
+      let centerRun = 0;
+      for (let dx = -7; dx <= 8; dx++) {
+        const i = (y * imgW + cx + dx) * 4;
+        const lum = dx <= 7 ? (tile[i] + tile[i + 1] + tile[i + 2]) / 3 : -1;
+        if (lum >= coreL - 28) {
+          if (run === 0) runStart = dx;
+          run++;
+        } else {
+          if (run > centerRun && runStart <= 1 && runStart + run - 1 >= -1) {
+            centerRun = run;
+          }
+          run = 0;
+        }
+      }
+      return centerRun;
+    };
+    const runs: number[] = [];
+    for (let y = 68; y <= 74; y++) runs.push(centerRunAt(y));
+    runs.sort((a, b) => a - b);
+    const thickness = runs[Math.floor(runs.length / 2)];
+    if (thickness >= 13) {
+      // 窓幅いっぱいに明るい → 一様に明るい背景であってスターではない
+      // （実測のスターは中央値7..11）。桁数を決められないので要確認
+      count = k;
+      ok = false;
+      if (k === 3) {
+        const r = evalR();
+        count = r.lit ? 4 : 3;
+      }
+    } else if (thickness >= 7) {
+      // 中実の塊 → 1個目スター点灯 → Lv1桁
+      count = 1 + k;
+    } else {
+      // 細い線（数字ストローク・格子線）→ Lv2桁。
+      // 6は数字の横棒（5,7等）でも出るため2桁側に倒して要確認にする
+      count = k;
+      if (k === 3) {
+        const r = evalR();
+        count = r.lit ? 4 : 3;
+        if (!r.sure) ok = false;
+      }
+      if (thickness === 6) ok = false;
+    }
+  }
+  return { count, ok };
 }
 
 /** 1フレームぶんの解析: 格子検出 → タイル正規化 → 照合と凸判定 */
@@ -680,11 +855,12 @@ export function analyzeListFrame(
   w: number,
   h: number,
   lib: Library,
+  cache?: MatchCache,
 ): TileMatch[] {
   const out: TileMatch[] = [];
   for (const rect of findTileGrid(rgba, w, h)) {
     const tile = normalizeTile(rgba, w, rect);
-    const m = matchTile(tile, lib);
+    const m = matchTile(tile, lib, cache);
     const stars = analyzeStars(tile);
     out.push({
       rect,

@@ -3,7 +3,13 @@
  * init でスプライト画像からライブラリ指紋を構築し、frame ごとにタイル照合を返す。
  * フレームのバッファは transfer で受け取り、使い終わったら返す（再利用）。
  */
-import { analyzeListFrame, buildLibrary, type Library } from "./match";
+import {
+  analyzeListFrame,
+  buildLibrary,
+  createMatchCache,
+  type Library,
+  type MatchCache,
+} from "./match";
 
 type InitMsg = {
   type: "init";
@@ -18,6 +24,7 @@ type InitMsg = {
 type FrameMsg = { type: "frame"; rgba: ArrayBuffer; width: number; height: number };
 
 let lib: Library | null = null;
+let cache: MatchCache = createMatchCache();
 
 self.onmessage = (e: MessageEvent<InitMsg | FrameMsg>) => {
   const msg = e.data;
@@ -30,13 +37,14 @@ self.onmessage = (e: MessageEvent<InitMsg | FrameMsg>) => {
       msg.cellH,
       msg.cols,
     );
+    cache = createMatchCache();
     self.postMessage({ type: "ready", count: lib.count });
     return;
   }
   if (msg.type === "frame") {
     if (!lib) return;
     const rgba = new Uint8ClampedArray(msg.rgba);
-    const tiles = analyzeListFrame(rgba, msg.width, msg.height, lib);
+    const tiles = analyzeListFrame(rgba, msg.width, msg.height, lib, cache);
     // バッファは呼び出し側に返して再利用してもらう
     (self as unknown as Worker).postMessage({ type: "result", tiles, rgba: msg.rgba }, [
       msg.rgba,
