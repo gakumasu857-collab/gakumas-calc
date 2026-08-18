@@ -120,7 +120,8 @@ export function computeScheduleGains(state: {
     gains[pick.sub] += subGain;
     lessonGains[pick.main] += mainGain;
     lessonGains[pick.sub] += subGain;
-    lessonStar += lesson.star[spIndex];
+    // スター性は非SPでSPの半分（7.5等の小数は切り捨て）
+    lessonStar += Math.floor(lesson.star[spIndex]);
     pPoints += lesson.p;
   });
 

@@ -180,7 +180,19 @@ export function buildInput(): AutoOptimizeInput {
       pinned: collect("pin"),
       rentalNg: collect("rentalNg"),
     },
-    spMin: settings.spMin,
+    spMin: (() => {
+      // spTop（踏み上位2タイプ）をHIFレッスンの踏み回数で解決
+      const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      for (const p of hif.lessons) if (p.main) counts[p.main]++;
+      const ranks = typeRanksOf(settings.idol);
+      const order = (Object.keys(counts) as TypeKey[]).sort(
+        (a, b) => counts[b] - counts[a] || ranks[a] - ranks[b],
+      );
+      const out: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      out[order[0]] = settings.spTop.first;
+      out[order[1]] = settings.spTop.second;
+      return out;
+    })(),
     eventBudget: settings.eventBudget.enabled
       ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
       : undefined,

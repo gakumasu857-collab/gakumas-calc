@@ -55,6 +55,17 @@ export default function AbilityCountDrawer({
             getCount={r.ability.getCount}
             setCount={r.ability.setCount}
             formationKeys={formationKeys}
+            eventExtras={(() => {
+              // 編成サポカの前イベ・後イベによる回数上乗せをラベル別に合算
+              const out: Record<string, number> = {};
+              for (const m of r.members) {
+                if (!m) continue;
+                for (const [label, n] of Object.entries(m.eventContrib)) {
+                  out[label] = (out[label] ?? 0) + n;
+                }
+              }
+              return out;
+            })()}
             onDelete={() => r.ability.deleteSet(set.id)}
             onDuplicate={() => {
               r.ability.duplicateSet(set);

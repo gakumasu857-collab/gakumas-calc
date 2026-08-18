@@ -5,7 +5,7 @@ const TABS = [
   { href: "/calc", label: "計算" },
   { href: "/support", label: "所持状況" },
   { href: "/memory", label: "メモリー" },
-  { href: "/ability-counts", label: "発動回数" },
+  { href: "/ability-counts", label: "アビリティ発動回数" },
   { href: "/card-settings", label: "サポカ設定" },
   { href: "/card-scores", label: "サポカ点数表" },
   { href: "/database", label: "データベース" },

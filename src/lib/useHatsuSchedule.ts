@@ -16,7 +16,8 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 const STORAGE_KEY = "gakumas:hatsuSchedule:v1";
 
 export type HatsuLessonPick = {
-  main: TypeKey;
+  /** null = このレッスンを踏まない */
+  main: TypeKey | null;
   sp: boolean;
   perfect: boolean;
 };
@@ -40,7 +41,7 @@ const DEFAULT_STATE: HatsuState = {
   // 初回デフォルトは試験を上限寄りに（順位1位・スコアは高め）
   midRank: 1,
   finalRank: 1,
-  midScore: 250000,
+  midScore: 200000,
   finalScore: 2000000,
 };
 
@@ -69,14 +70,17 @@ export function loadHatsuState(): HatsuState {
       };
       return {
         lessons: HATSU_LESSONS.map((_, i) => ({
-          main: toType(lessonsRaw[i]?.main, "vocal"),
+          main:
+            lessonsRaw[i]?.main === null
+              ? null
+              : toType(lessonsRaw[i]?.main, "vocal"),
           sp: (lessonsRaw[i]?.sp as boolean | undefined) ?? true,
           perfect: (lessonsRaw[i]?.perfect as boolean | undefined) ?? true,
         })),
         classTypes: HATSU_CLASSES.map((_, i) => toType(classesRaw[i], "visual")),
         midRank: (stored.midRank as number | undefined) ?? 1,
         finalRank: (stored.finalRank as number | undefined) ?? 1,
-        midScore: (stored.midScore as number | undefined) ?? 0,
+        midScore: Math.min((stored.midScore as number | undefined) ?? 0, 200000),
         finalScore: (stored.finalScore as number | undefined) ?? 0,
       };
     }
@@ -99,7 +103,7 @@ export function useHatsuSchedule() {
     }
   }, [state, notifySave]);
 
-  const setLessonMain = useCallback((index: number, main: TypeKey) => {
+  const setLessonMain = useCallback((index: number, main: TypeKey | null) => {
     setState((prev) => ({
       ...prev,
       lessons: prev.lessons.map((l, i) => (i === index ? { ...l, main } : l)),
@@ -157,7 +161,10 @@ export function useHatsuSchedule() {
   const remapTypes = useCallback((map: Record<TypeKey, TypeKey>) => {
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l) => ({ ...l, main: map[l.main] })),
+      lessons: prev.lessons.map((l) => ({
+        ...l,
+        main: l.main ? map[l.main] : null,
+      })),
       classTypes: prev.classTypes.map((t) => map[t]),
     }));
   }, []);

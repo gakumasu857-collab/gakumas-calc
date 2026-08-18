@@ -412,12 +412,14 @@ export default function CardImportPage() {
       y: clamp(((e.clientY - rect.top) / rect.height) * videoSize.h, 0, videoSize.h),
     };
   };
-  const onMouseDown = (e: React.MouseEvent) => {
+  const onMouseDown = (e: React.PointerEvent) => {
     if (!capturing) return;
+    // ポインタキャプチャ: 枠外へカーソルが出てもドラッグを継続できる
+    e.currentTarget.setPointerCapture(e.pointerId);
     const p = toVideoCoords(e);
     if (p) setDrag({ sx: p.x, sy: p.y, cx: p.x, cy: p.y });
   };
-  const onMouseMove = (e: React.MouseEvent) => {
+  const onMouseMove = (e: React.PointerEvent) => {
     if (!drag) return;
     const p = toVideoCoords(e);
     if (p) setDrag({ ...drag, cx: p.x, cy: p.y });
@@ -532,11 +534,10 @@ export default function CardImportPage() {
 
   return (
     <div>
-      <p className="mb-3 text-sm text-slate-600">
-        ゲームの<b>サポートカード一覧</b>を読み取って、所持と凸数を一括入力します。
-        PCは画面共有してゆっくりスクロール、スマホの人は
-        <b>一覧のスクショをアップロード</b>してください。
-        <Link to="/support" className="ml-2 text-blue-600 underline">
+      <p className="mb-3 text-sm text-slate-700">
+        <b>ゲーム画面（サポートカード一覧）</b>を読み取って、所持と凸数を自動入力します。
+        PCは画面共有してゆっくりスクロール、スマホの人は画面のスクショをアップロードしてください。
+        <Link to="/support" className="ml-2 text-blue-600">
           ← 所持状況入力へ戻る
         </Link>
       </p>
@@ -627,10 +628,10 @@ export default function CardImportPage() {
             </summary>
             <div
               ref={wrapRef}
-              onMouseDown={onMouseDown}
-              onMouseMove={onMouseMove}
-              onMouseUp={onMouseUp}
-              onMouseLeave={onMouseUp}
+              onPointerDown={onMouseDown}
+              onPointerMove={onMouseMove}
+              onPointerUp={onMouseUp}
+              onPointerCancel={onMouseUp}
               className="relative mt-1 w-full cursor-crosshair select-none overflow-hidden rounded-lg border border-slate-300 bg-slate-900"
             >
               <video ref={videoRef} muted playsInline className="block w-full" />
@@ -668,10 +669,6 @@ export default function CardImportPage() {
               />
               検出されなかった{missing.length}枚を未所持にする
             </label>
-            <p className="mt-1 text-xs text-slate-400">
-              読み飛ばしがあると未所持になってしまうので、全カードを読み終えた
-              ときだけチェックしてください。
-            </p>
             <button
               type="button"
               onClick={apply}

@@ -50,23 +50,7 @@ const COUNT_KEY_OVERRIDES = {
   "SR活動支給・差し入れ(2回まで)": null,
 };
 
-/**
- * 回数固定アビリティの発動回数（試験・オーディションの回数がシナリオで変わる）。
- * スプシに無いアプリ固有の設定なのでここが源。"auto" はスケジュール自動集計。
- * 新しい固定回数アビリティを足すときはここに1行追加する。
- */
-const fixedCounts = {
-  レッスン: "auto",
-  SPレッスン: "auto",
-  通常レッスン: "auto",
-  初期値: { normal: 1, hatsu: 1, hif: 1 },
-  パラメータボーナス: { normal: 1, hatsu: 1, hif: 1 },
-  パラメータイベント: { normal: 1, hatsu: 1, hif: 1 },
-  SPレッスン率: { normal: 1, hatsu: 1, hif: 1 },
-  何もなし: { normal: 0, hatsu: 0, hif: 0 },
-  "試験終了時（2回まで）": { normal: 2, hatsu: 2, hif: 2 },
-  "試験・オーディション": { normal: 3, hatsu: 2, hif: 5 },
-};
+// 回数固定アビリティの発動回数は src/data/fixedAbilityCounts.ts に移設（アプリが直接参照）
 
 /** 1アビリティ行 → 回数キー3種（main1/main2/sub）。null は「回数キー無し＝非スコア」 */
 function countKeys(normKey, name, tag) {
@@ -133,10 +117,10 @@ try {
   /* supportCards.json 未生成なら警告スキップ */
 }
 
-const out = { perf, slotTier, fixedCounts };
+const out = { perf, slotTier };
 writeFileSync(outPath, JSON.stringify(out, null, 1), "utf8");
 console.log(
-  `✓ perf ${Object.keys(perf).length}件 / slotTier ${Object.keys(slotTier).length}レア / fixedCounts ${Object.keys(fixedCounts).length}件` +
+  `✓ perf ${Object.keys(perf).length}件 / slotTier ${Object.keys(slotTier).length}レア` +
     (dup ? `（正規化キー衝突 ${dup}件！ 括弧・空白の表記を確認）` : ""),
 );
 if (missing.length) {

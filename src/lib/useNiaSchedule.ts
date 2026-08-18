@@ -23,7 +23,8 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  */
 const STORAGE_KEY = "gakumas:niaSchedule:v1";
 
-export type NiaLessonPick = { main: TypeKey; sp: boolean };
+/** main: null = このレッスンを踏まない */
+export type NiaLessonPick = { main: TypeKey | null; sp: boolean };
 export type NiaSalePick = { type: TypeKey; resort: boolean; great: boolean };
 
 type NiaState = {
@@ -81,7 +82,10 @@ export function loadNiaState(): NiaState {
         {};
       return {
         lessons: NIA_LESSONS.map((_, i) => ({
-          main: toType(lessonsRaw[i]?.main, "vocal"),
+          main:
+            lessonsRaw[i]?.main === null
+              ? null
+              : toType(lessonsRaw[i]?.main, "vocal"),
           sp: (lessonsRaw[i]?.sp as boolean | undefined) ?? true,
         })),
         sales: NIA_SALES.map((_, i) => ({
@@ -123,7 +127,7 @@ export function useNiaSchedule() {
     }
   }, [state, notifySave]);
 
-  const setLessonMain = useCallback((index: number, main: TypeKey) => {
+  const setLessonMain = useCallback((index: number, main: TypeKey | null) => {
     setState((prev) => ({
       ...prev,
       lessons: prev.lessons.map((l, i) => (i === index ? { ...l, main } : l)),
@@ -210,7 +214,10 @@ export function useNiaSchedule() {
     };
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l) => ({ ...l, main: map[l.main] })),
+      lessons: prev.lessons.map((l) => ({
+        ...l,
+        main: l.main ? map[l.main] : null,
+      })),
       sales: prev.sales.map((s) => ({ ...s, type: map[s.type] })),
       auditions: prev.auditions.map(remapRecord),
       finalScores: remapRecord(prev.finalScores),

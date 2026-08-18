@@ -45,7 +45,7 @@ import {
   sumEventContrib,
   typeConstraintFromRatio,
 } from "@/lib/formation";
-import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
+import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import { IDOL_RANKS } from "@/lib/pIdol";
 import { produceRank } from "@/lib/produceRank";
 import {
@@ -148,7 +148,7 @@ export default function CalcPage() {
         // NIAでは札（スキルカード獲得→ファン投票数）の価値もステ換算で加点する
         const best = findBestFormation(owned, rentals, r.baseStats, {
           pinned: flags.pinned,
-          spMin: settings.spMin,
+          spMin: resolveSpMin(r, settings),
           cap: r.statCap,
           maxTargets: {
             vocal: Math.min(r.statCap, settings.maxStats.vocal || r.statCap),
@@ -217,14 +217,17 @@ export default function CalcPage() {
       )
         return false;
     }
-    for (const t of TYPE_KEYS) {
-      const need = settings.spMin[t] ?? 0;
-      if (
-        need > 0 &&
-        members.filter((m) => !m.assist && m.type === t && m.hasSpUp).length <
-          need
-      )
-        return false;
+    {
+      const resolved = resolveSpMin(r, settings);
+      for (const t of TYPE_KEYS) {
+        const need = resolved[t] ?? 0;
+        if (
+          need > 0 &&
+          members.filter((m) => !m.assist && m.type === t && m.hasSpUp).length <
+            need
+        )
+          return false;
+      }
     }
     if (settings.typeRatio.enabled) {
       const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -387,14 +390,24 @@ export default function CalcPage() {
                   <button
                     type="button"
                     onClick={() => setScenarioPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center gap-2 text-left`}
+                    className={`${INPUT} flex w-full items-center gap-2 text-left ${
+                      r.scenarioStore.chosen ? "" : "border-amber-400 bg-amber-50"
+                    }`}
                   >
-                    <span
-                      className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {SCENARIO_LABELS[r.scenario]}
-                    </span>
+                    {r.scenarioStore.chosen ? (
+                      <>
+                        <span
+                          className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {SCENARIO_LABELS[r.scenario]}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
+                        未選択（クリックして選ぶ）
+                      </span>
+                    )}
                     <ChevronDown size={14} className="shrink-0 text-slate-400" />
                   </button>
                 </Field>
@@ -405,8 +418,13 @@ export default function CalcPage() {
                     className={`${INPUT} flex w-full items-center justify-between gap-2 text-left`}
                   >
                     <span className="truncate">
-                      {settings.idol}
-                      {r.pMaster ? ` / ${r.pMaster.cardName}` : ""}
+                      {settings.pIdol && r.pMaster ? (
+                        `${settings.idol} / ${r.pMaster.cardName}`
+                      ) : (
+                        <b className="text-amber-700">
+                          {settings.idol}（Pアイドル未選択）
+                        </b>
+                      )}
                     </span>
                     <ChevronDown size={14} className="shrink-0 text-slate-400" />
                   </button>
@@ -418,9 +436,13 @@ export default function CalcPage() {
                       if (e.target.value !== r.ability.selectedSetId)
                         r.ability.selectSet(e.target.value);
                     }}
-                    className={`${INPUT} w-full`}
+                    className={`${INPUT} w-full ${
+                      r.ability.selectedSetId
+                        ? ""
+                        : "border-amber-400 bg-amber-50 font-bold text-amber-700"
+                    }`}
                   >
-                    <option value="">未選択</option>
+                    <option value="">未選択（クリックして選ぶ）</option>
                     {r.ability.sets
                       .filter((set) =>
                         setVisibleInScenario(set.id, r.scenario),
@@ -657,12 +679,12 @@ export default function CalcPage() {
               <b className="tabular-nums text-blue-700">
                 {formatProb(r.spLesson.prob)}
               </b>
-              {/* <span className="ml-1 text-slate-400">
-                （SP踏み{r.spLesson.spCount}回×メイン属性のSP率
-                {r.spLesson.subCount > 0 &&
-                  `、サブ属性の指定${r.spLesson.subCount}回×2択50%`}
-                ）
-              </span> */}
+              {r.scenario === "hif" && (
+                <span className="ml-2 tabular-nums text-slate-500">
+                  （選抜 {formatProb(r.spLesson.probSen)} ／ 本戦{" "}
+                  {formatProb(r.spLesson.probHon)}）
+                </span>
+              )}
             </p>
           </div>
         </Card>
@@ -1025,13 +1047,20 @@ export default function CalcPage() {
       )}
 
       {/* 使い方・計算式ヘルプ */}
-      {helpOpen && <CalcHelpModal onClose={() => setHelpOpen(false)} />}
+      {helpOpen && (
+        <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+      )}
 
       {/* シナリオ選択モーダル（色付き■3つ） */}
       {scenarioPickerOpen && (
         <ScenarioPickerModal
           current={r.scenario}
-          onPick={(key) => r.scenarioStore.setScenario(key)}
+          onPick={(key) => {
+            // シナリオが変わったら発動回数セットは選び直し（テンプレがシナリオ別のため）
+            if (key !== r.scenario || !r.scenarioStore.chosen)
+              r.ability.clearSelected();
+            r.scenarioStore.setScenario(key);
+          }}
           onClose={() => setScenarioPickerOpen(false)}
         />
       )}

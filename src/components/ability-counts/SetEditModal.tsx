@@ -7,7 +7,7 @@ import {
   type AbilityCountSet,
   type CategoryKey,
 } from "@/data/abilityCounts";
-import type { AbilityName } from "@/data/constants";
+import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import AbilityCounter from "./AbilityCounter";
 
 type Props = {
@@ -20,6 +20,8 @@ type Props = {
   setCount: (set: AbilityCountSet, key: AbilityName, value: number) => void;
   /** 渡すと「選択サポカのアビリティのみ」フィルターが使える（編成中のアビリティ集合） */
   formationKeys?: Set<AbilityName>;
+  /** 編成サポカの前イベ・後イベによる回数上乗せ（ラベル→回数。緑表示用） */
+  eventExtras?: Record<string, number>;
   onDelete: () => void;
   /** このセットを複製してユーザーセットとして追加 */
   onDuplicate: () => void;
@@ -38,6 +40,7 @@ export default function SetEditModal({
   getCount,
   setCount,
   formationKeys,
+  eventExtras,
   onDelete,
   onDuplicate,
   onRename,
@@ -176,6 +179,7 @@ export default function SetEditModal({
                   key={key}
                   abilityKey={key}
                   count={getCount(set, key)}
+                  extraCount={eventExtras?.[ABILITY_NAMES[key]] ?? 0}
                   onChange={(value) => setCount(set, key, value)}
                 />
               ))

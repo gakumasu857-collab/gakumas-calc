@@ -109,6 +109,7 @@ export function computeNiaGains(
 
   NIA_LESSONS.forEach((lesson, i) => {
     const pick = state.lessons[i];
+    if (!pick.main) return; // 踏まないレッスン
     lessons[pick.main] += lesson.value[pick.sp ? 1 : 0];
     pPoints += lesson.p;
   });
@@ -160,6 +161,7 @@ export function computeHatsuGains(state: HatsuStateLike) {
 
   HATSU_LESSONS.forEach((lesson, i) => {
     const pick = state.lessons[i];
+    if (!pick.main) return; // 踏まないレッスン
     const spIndex = pick.sp ? 1 : 0;
     if (pick.perfect) {
       for (const type of TYPE_KEYS) {

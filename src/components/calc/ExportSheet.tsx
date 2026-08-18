@@ -617,7 +617,7 @@ function HifPlan({ r }: { r: CalcResult }) {
       <h2 style={S.h2}>レッスン・授業・選抜</h2>
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
-          head={["日程", "メイン", "サブ", "SP"]}
+          head={["日程", "踏むタイプ", "2nd", "SP"]}
           rows={LESSONS.map((lesson, i) => {
             const pick = r.schedule.lessons[i];
             if (!pick.main) {
@@ -668,7 +668,7 @@ function NiaPlan({ r }: { r: CalcResult }) {
             const pick = nia.lessons[i];
             return [
               lesson.label,
-              <TypeValue key="t" type={pick.main} />,
+              pick.main ? <TypeValue key="t" type={pick.main} /> : "―",
               spMark(pick.sp),
             ];
           })}
@@ -705,7 +705,7 @@ function HatsuPlan({ r }: { r: CalcResult }) {
             const pick = hatsu.lessons[i];
             return [
               lesson.label,
-              <TypeValue key="t" type={pick.main} />,
+              pick.main ? <TypeValue key="t" type={pick.main} /> : "―",
               spMark(pick.sp),
               pick.perfect ? "パフェ" : "クリア",
             ];

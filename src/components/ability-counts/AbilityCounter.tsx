@@ -4,11 +4,18 @@ import { abilityMax } from "@/data/abilityCounts";
 type Props = {
   abilityKey: AbilityName;
   count: number;
+  /** 編成サポカの前イベ・後イベによる上乗せ回数（表示のみ・緑） */
+  extraCount?: number;
   onChange: (value: number) => void;
 };
 
 /** アビリティ1件のカード: 名前 + [-10][-1] 回数/max [+1][+10] */
-export default function AbilityCounter({ abilityKey, count, onChange }: Props) {
+export default function AbilityCounter({
+  abilityKey,
+  count,
+  extraCount = 0,
+  onChange,
+}: Props) {
   const max = abilityMax(abilityKey);
 
   return (
@@ -27,7 +34,16 @@ export default function AbilityCounter({ abilityKey, count, onChange }: Props) {
         ))}
         {/* 回数を大きく・上限は小さく薄く */}
         <span className="min-w-14 text-center tabular-nums">
-          <span className="text-lg font-semibold text-slate-800">{count}</span>
+          {extraCount > 0 ? (
+            <span
+              className="text-lg font-semibold text-emerald-600"
+              title={`セット${count}回＋編成サポカのイベントで＋${extraCount}回（上限${max}）`}
+            >
+              {Math.min(max, count + extraCount)}
+            </span>
+          ) : (
+            <span className="text-lg font-semibold text-slate-800">{count}</span>
+          )}
           <span className="ml-0.5 text-[10px] text-slate-400">/{max}</span>
         </span>
         {[+1, +10].map((step) => (

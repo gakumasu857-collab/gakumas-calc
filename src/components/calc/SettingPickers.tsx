@@ -89,22 +89,23 @@ export function TheorySettingsModal({
           </p>
         </section>
 
-        {/* SPレッスン率アップ持ちの最低枚数 */}
+        {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
         <section className="border-t border-slate-100 pt-3">
           <p className="font-semibold">SPレッスン率アップ持ちの最低枚数</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            {TYPE_KEYS.map((type) => (
-              <label key={type} className="flex items-center gap-1">
-                <span
-                  className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
-                >
-                  {TYPE_LABELS[type]}
-                </span>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {(
+              [
+                ["first", "レッスンを1番多く踏むタイプ"],
+                ["second", "2番目に多く踏むタイプ"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-600">{label}</span>
                 <select
-                  value={settings.spMin[type]}
+                  value={settings.spTop[key]}
                   onChange={(e) =>
                     onUpdate({
-                      spMin: { ...settings.spMin, [type]: Number(e.target.value) },
+                      spTop: { ...settings.spTop, [key]: Number(e.target.value) },
                     })
                   }
                   className="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-sm"
@@ -119,7 +120,7 @@ export function TheorySettingsModal({
             ))}
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            理想編成を組むとき、SPレッスン率アップ持ちのサポカをタイプごとに最低この枚数入れます。
+            理想編成を組むとき、現在の踏み方でレッスン回数が多い上位2タイプに、SPレッスン率アップ持ちのサポカを最低この枚数入れます（同数のときは審査基準が高いタイプを上位扱い）。
           </p>
         </section>
 

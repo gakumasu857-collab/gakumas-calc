@@ -124,7 +124,8 @@ const nextType = (type: TypeKey): TypeKey =>
 const replaceAt = <T>(arr: readonly T[], i: number, v: T): T[] =>
   arr.map((x, j) => (j === i ? v : x));
 
-const otherTypes = (t: TypeKey): TypeKey[] => TYPE_KEYS.filter((x) => x !== t);
+const otherTypes = (t: TypeKey | null | undefined): TypeKey[] =>
+  TYPE_KEYS.filter((x) => x !== t);
 
 /** レッスンの (メイン, サブ) の全組（メイン≠サブ） */
 const MAIN_SUB_PAIRS: [TypeKey, TypeKey][] = TYPE_KEYS.flatMap((main) =>
@@ -214,7 +215,7 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
     return [
       ...axesOver(s.lessons.length, 0.6, (cur, i) => {
         const c = cur as NiaStepping;
-        return otherTypes(c.lessons[i].main).map((main) => ({
+        return otherTypes(c.lessons[i].main ?? undefined).map((main) => ({
           ...c,
           lessons: replaceAt(c.lessons, i, { ...c.lessons[i], main }),
         }));
@@ -231,7 +232,7 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
   return [
     ...axesOver(s.lessons.length, 0.6, (cur, i) => {
       const c = cur as HatsuStepping;
-      return otherTypes(c.lessons[i].main).map((main) => ({
+      return otherTypes(c.lessons[i].main ?? undefined).map((main) => ({
         ...c,
         lessons: replaceAt(c.lessons, i, { ...c.lessons[i], main }),
       }));

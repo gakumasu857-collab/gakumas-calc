@@ -1,12 +1,20 @@
 ﻿import Modal from "@/components/Modal";
 import type { SupportCardData } from "@/data/supportCardsDb";
 import {
-  SHEET_ROLE_LABELS,
   sheetScoreBreakdown,
-  TIER_LABELS,
   type SheetRole,
   type SheetScoreContext,
 } from "@/lib/sheetScore";
+
+/** ロール→タイプ表記（ユーザー向け表示。内部のメイン/サブ語は出さない） */
+const ROLE_TYPE_SHORT: Record<SheetRole, string> = {
+  main1: "Vo",
+  main2: "Da",
+  sub: "Vi",
+};
+/** 回数キーの内部表記をタイプ表記へ（例: メイン1レッスン → Voレッスン） */
+const displayCountKey = (key: string) =>
+  key.replace(/^メイン1/, "Vo").replace(/^メイン2/, "Da").replace(/^サブ/, "Vi");
 
 /** 数値表示（小数は1桁まで） */
 const fmt = (n: number) =>
@@ -41,7 +49,7 @@ export default function ScoreDetailModal({
   const td = "border-b border-r border-slate-200 px-2 py-1.5";
   return (
     <Modal
-      title={`${card.name}｜${level}凸${rental ? "（レンタル）" : ""}・${SHEET_ROLE_LABELS[role]}${withEvents ? "・イベント補正込み" : ""}の内訳`}
+      title={`${card.name}｜${level}凸${rental ? "（レンタル）" : ""}・${ROLE_TYPE_SHORT[role]}${withEvents ? "・イベント補正込み" : ""}の内訳`}
       onClose={onClose}
       widthClass="max-w-3xl"
     >
@@ -52,7 +60,6 @@ export default function ScoreDetailModal({
               <tr>
                 <th className={`${th} text-center`}>枠</th>
                 <th className={`${th} text-left`}>アビリティ</th>
-                <th className={`${th} text-center`}>ティア</th>
                 <th className={`${th} text-right`}>効果量</th>
                 <th className={`${th} text-left`}>× 発動回数</th>
                 <th className={`${th} text-right`}>点数</th>
@@ -60,8 +67,13 @@ export default function ScoreDetailModal({
             </thead>
             <tbody>
               {bd.items.map((item) => {
+                // 発動参照が「何もなし」等で回数が付かないアビリティは — 表示
+                const noCount =
+                  item.kind === "count" &&
+                  (item.count ?? 0) === 0 &&
+                  (item.extraCount ?? 0) === 0;
                 const muted =
-                  item.kind === "excluded" || item.kind === "none";
+                  item.kind === "excluded" || item.kind === "none" || noCount;
                 return (
                   <tr
                     key={item.slot}
@@ -69,9 +81,6 @@ export default function ScoreDetailModal({
                   >
                     <td className={`${td} text-center`}>{item.slot}</td>
                     <td className={td}>{item.ability}</td>
-                    <td className={`${td} text-center`}>
-                      {item.tier === null ? "—" : TIER_LABELS[item.tier]}
-                    </td>
                     <td className={`${td} text-right`}>
                       {item.kind === "parabo"
                         ? `${fmt((item.value ?? 0) * 100)}%`
@@ -83,7 +92,8 @@ export default function ScoreDetailModal({
                             : fmt(item.value)}
                     </td>
                     <td className={td}>
-                      {item.kind === "count" && (
+                      {item.kind === "count" && noCount && "—"}
+                      {item.kind === "count" && !noCount && (
                         <>
                           × {item.count}回
                           {(item.extraCount ?? 0) > 0 && (
@@ -92,7 +102,7 @@ export default function ScoreDetailModal({
                             </b>
                           )}
                           <span className="ml-1 text-slate-400">
-                            （{item.countKey}）
+                            （{displayCountKey(item.countKey ?? "")}）
                           </span>
                         </>
                       )}
@@ -108,7 +118,7 @@ export default function ScoreDetailModal({
                     <td
                       className={`${td} text-right font-semibold ${muted ? "" : "text-slate-800"}`}
                     >
-                      {item.kind === "excluded" ? "—" : fmt(item.points)}
+                      {item.kind === "excluded" || noCount ? "—" : fmt(item.points)}
                     </td>
                   </tr>
                 );
@@ -117,7 +127,6 @@ export default function ScoreDetailModal({
                 <tr className="text-slate-700">
                   <td className={`${td} text-center`}>—</td>
                   <td className={td}>アイテム補正（パラメ系Pアイテム）</td>
-                  <td className={`${td} text-center`}>—</td>
                   <td className={`${td} text-right`}>
                     {fmt(bd.itemBonus.perActivation)}
                   </td>
@@ -135,7 +144,7 @@ export default function ScoreDetailModal({
                 </tr>
               )}
               <tr className="font-bold text-slate-900">
-                <td className={`${td} bg-slate-50`} colSpan={5}>
+                <td className={`${td} bg-slate-50`} colSpan={4}>
                   {withEvents
                     ? "合計（イベント相互作用・アイテム補正込みの最終値）"
                     : bd.itemBonus
@@ -149,7 +158,7 @@ export default function ScoreDetailModal({
             </tbody>
           </table>
           <p className="text-[11px] text-slate-400">
-            ※ ティアは凸数と枠位置から（強化段階表）、効果量はレアリティ×アビリティのティア列。回数はレッスンページ・発動回数セット・固定回数・イベント回数設定（点数表）から。
+            ※ 効果量は凸数と枠位置に応じた段階の値。回数はレッスンページ・発動回数セット・固定回数・イベント回数設定（点数表）から。発動参照が無いアビリティ（Pポイント等）は—表示。
             {withEvents ? (
               <>
                 <b className="text-emerald-600">＋イベントn回</b>
@@ -162,7 +171,7 @@ export default function ScoreDetailModal({
         </div>
       ) : (
         <p className="text-sm text-slate-500">
-          このカードは計算不能です（Rカード等、ティア表が未提供）。
+          このカードは計算不能です（Rカード等、効果量の段階表が未提供）。
         </p>
       )}
     </Modal>

@@ -23,6 +23,7 @@ import {
   HATSU_EXAMS,
   HATSU_LESSONS,
   NIA_AUDITION_CAPS,
+  type ScenarioKey,
   NIA_AUDITIONS,
   NIA_LESSONS,
   NIA_SALES,
@@ -192,7 +193,9 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
           {r.scenario === "hif" && <HifEditor r={r} />}
           {r.scenario === "niaMaster" && <NiaEditor r={r} />}
           {r.scenario === "hatsuLegend" && <HatsuEditor r={r} />}
-          {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+          {helpOpen && (
+            <HelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+          )}
         </Modal>
       )}
     </>
@@ -207,15 +210,15 @@ function HifEditor({ r }: { r: CalcResult }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <BulkRow
           groups={[
-            { label: "メイン一括", onPick: (t) => schedule.applyAllMain(t) },
-            { label: "サブ一括", onPick: (t) => schedule.applyAllSubs(t) },
+            { label: "踏むタイプ一括", onPick: (t) => schedule.applyAllMain(t) },
+            { label: "2ndタイプ一括", onPick: (t) => schedule.applyAllSubs(t) },
             { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
           ]}
         />
         <button
           type="button"
           onClick={() => schedule.clearAllLessons()}
-          title="全レッスンを「踏まない」に戻す（メインの選択を解除）"
+          title="全レッスンを「踏まない」に戻す（踏むタイプの選択を解除）"
           className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
         >
           レッスン全クリア
@@ -234,7 +237,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                   <MiniTypeButton
                     type={type}
                     selected={pick.main === type}
-                    value={lesson.main[spIndex]}
+                    value={pick.main === type ? lesson.main[spIndex] : 0}
                     title={
                       pick.main === type
                         ? "もう一度クリックで「踏まない」に戻す"
@@ -256,7 +259,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                           others[(others.indexOf(pick.sub) + 1) % others.length];
                         schedule.setLessonSub(i, next);
                       }}
-                      title={`サブ: ${TYPE_LABELS[pick.sub]}（クリックで切替）`}
+                      title={`2ndタイプ: ${TYPE_LABELS[pick.sub]}（クリックで切替）`}
                       className={`absolute -bottom-1 -right-1.5 z-10 flex h-4 min-w-6 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-2 ring-white ${TYPE_STYLE[pick.sub].on}`}
                     >
                       {lesson.sub[spIndex]}
@@ -281,7 +284,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                 key={type}
                 type={type}
                 selected={schedule.classTypes[i] === type}
-                value={cls.gain}
+                value={schedule.classTypes[i] === type ? cls.gain : 0}
                 onClick={() => schedule.setClassType(i, type)}
               />
             )),
@@ -412,8 +415,15 @@ function NiaEditor({ r }: { r: CalcResult }) {
                   key={type}
                   type={type}
                   selected={pick.main === type}
-                  value={value}
-                  onClick={() => nia.setLessonMain(i, type)}
+                  value={pick.main === type ? value : 0}
+                  title={
+                    pick.main === type
+                      ? "もう一度クリックで「踏まない」に戻す"
+                      : undefined
+                  }
+                  onClick={() =>
+                    nia.setLessonMain(i, pick.main === type ? null : type)
+                  }
                 />
               )),
               <MiniSpToggle
@@ -435,7 +445,7 @@ function NiaEditor({ r }: { r: CalcResult }) {
                   key={type}
                   type={type}
                   selected={pick.type === type}
-                  value={sale.value}
+                  value={pick.type === type ? sale.value : 0}
                   onClick={() => nia.setSale(i, { type })}
                 />
               )),
@@ -568,9 +578,12 @@ function HatsuEditor({ r }: { r: CalcResult }) {
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
             const spIndex = pick.sp ? 1 : 0;
-            const value = pick.perfect
+            const mainValue = pick.perfect
               ? lesson.perfectMain[spIndex]
               : lesson.clear[spIndex];
+            // パーフェクト時は踏んでいないタイプにも perfectSub が入る
+            const offValue =
+              pick.main && pick.perfect ? lesson.perfectSub[spIndex] : 0;
             return [
               lesson.label,
               ...TYPE_KEYS.map((type) => (
@@ -578,8 +591,15 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                   key={type}
                   type={type}
                   selected={pick.main === type}
-                  value={value}
-                  onClick={() => hatsu.setLessonMain(i, type)}
+                  value={pick.main === type ? mainValue : offValue}
+                  title={
+                    pick.main === type
+                      ? "もう一度クリックで「踏まない」に戻す"
+                      : undefined
+                  }
+                  onClick={() =>
+                    hatsu.setLessonMain(i, pick.main === type ? null : type)
+                  }
                 />
               )),
               <MiniSpToggle
@@ -607,7 +627,7 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                 key={type}
                 type={type}
                 selected={hatsu.classTypes[i] === type}
-                value={cls.gain}
+                value={hatsu.classTypes[i] === type ? cls.gain : 0}
                 onClick={() => hatsu.setClassType(i, type)}
               />
             )),
@@ -655,9 +675,14 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                   <NumberField
                     value={score}
                     onChange={(v) =>
-                      hatsu.update(isMid ? { midScore: v } : { finalScore: v })
+                      hatsu.update(
+                        isMid
+                          ? { midScore: Math.min(v, 200000) }
+                          : { finalScore: v },
+                      )
                     }
-                    sliderMax={isMid ? 250000 : 2000000}
+                    max={isMid ? 200000 : undefined}
+                    sliderMax={isMid ? 200000 : 2000000}
                     className="w-28"
                   />
                 </label>
@@ -670,17 +695,33 @@ function HatsuEditor({ r }: { r: CalcResult }) {
   );
 }
 
-/** 数値表と計算式の開示モーダル（旧レッスンページから移植。H.I.F.用） */
-function HelpModal({ onClose }: { onClose: () => void }) {
+/** 数値表と計算式の開示モーダル（シナリオ別） */
+function HelpModal({
+  onClose,
+  scenario,
+}: {
+  onClose: () => void;
+  scenario: ScenarioKey;
+}) {
   return (
     <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
-      <NumbersTables />
+      <NumbersTables scenario={scenario} />
     </Modal>
   );
 }
 
-/** レッスン・授業・本戦・選抜の数値表本体（ヘルプモーダルからも使う） */
-export function NumbersTables() {
+/** レッスン・授業・試験の数値表本体（ヘルプモーダルからも使う）。シナリオ別 */
+export function NumbersTables({
+  scenario = "hif",
+}: {
+  scenario?: ScenarioKey;
+}) {
+  if (scenario === "niaMaster") return <NiaNumbers />;
+  if (scenario === "hatsuLegend") return <HatsuNumbers />;
+  return <HifNumbers />;
+}
+
+function HifNumbers() {
   const th = "border border-slate-300 bg-slate-100 px-2 py-1";
   const td = "border border-slate-200 px-2 py-1";
   const tdC = `${td} text-center`;
@@ -696,7 +737,7 @@ export function NumbersTables() {
       <table className="mb-4 w-full border-collapse text-xs tabular-nums">
         <thead>
           <tr>
-            {["日程", "種別", "メイン(非SP/SP)", "サブ(非SP/SP)", "★(非SP/SP)", "P"].map(
+            {["日程", "種別", "踏むタイプ(非SP/SP)", "2ndタイプ(非SP/SP)", "★(非SP/SP)", "P"].map(
               (h) => (
                 <th key={h} className={th}>
                   {h}
@@ -717,7 +758,7 @@ export function NumbersTables() {
                 {lesson.sub[0]} / {lesson.sub[1]}
               </td>
               <td className={tdC}>
-                {lesson.star[0]} / {lesson.star[1]}
+                {Math.floor(lesson.star[0])} / {lesson.star[1]}
               </td>
               <td className={tdC}>{lesson.p}</td>
             </tr>
@@ -788,6 +829,171 @@ export function NumbersTables() {
         </p>
         <p className="mt-1 text-slate-400">
           ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
+        </p>
+      </div>
+    </>
+  );
+}
+
+const NUM_TH = "border border-slate-300 bg-slate-100 px-2 py-1";
+const NUM_TD = "border border-slate-200 px-2 py-1";
+const NUM_TDC = `${NUM_TD} text-center`;
+
+/** N.I.A.（マスター）の数値表と計算式 */
+function NiaNumbers() {
+  return (
+    <>
+      <p className="mb-3 text-xs text-slate-500">
+        ※ コミュニティ調べの暫定値・近似式です。パラメータボーナス%はここでは適用せず、計算ページで反映します。
+      </p>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">自主レッスン（選んだ1タイプのみ上昇）</h3>
+      <table className="mb-4 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["時期", "通常/SP", "P"].map((h) => (
+              <th key={h} className={NUM_TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {NIA_LESSONS.map((l, i) => (
+            <tr key={i}>
+              <td className={NUM_TD}>{l.label}</td>
+              <td className={NUM_TDC}>{l.value[0]} / {l.value[1]}</td>
+              <td className={NUM_TDC}>{l.p}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">営業（選んだ1タイプのみ上昇・パラボ無効）</h3>
+      <table className="mb-4 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["時期", "ステ", "リゾート(成功/大成功)", "その他(成功/大成功)"].map((h) => (
+              <th key={h} className={NUM_TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {NIA_SALES.map((sale, i) => (
+            <tr key={i}>
+              <td className={NUM_TD}>{sale.label}</td>
+              <td className={NUM_TDC}>+{sale.value}</td>
+              <td className={NUM_TDC}>{sale.votes.resort[0].toLocaleString()} / {sale.votes.resort[1].toLocaleString()}票</td>
+              <td className={NUM_TDC}>{sale.votes.other[0].toLocaleString()} / {sale.votes.other[1].toLocaleString()}票</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">オーディションのステ上限（流行順位別）</h3>
+      <table className="mb-2 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["審査タイプ", "回", "流行1位", "2位", "3位"].map((h) => (
+              <th key={h} className={NUM_TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {(["flat", "skew"] as const).flatMap((tag) =>
+            NIA_AUDITION_CAPS[tag].map((caps, i) => (
+              <tr key={tag + i}>
+                <td className={NUM_TD}>{i === 0 ? (tag === "flat" ? "バランス" : "特化") : ""}</td>
+                <td className={NUM_TDC}>{["1次", "2次", "最終"][i]}</td>
+                {caps.map((c, j) => (
+                  <td key={j} className={NUM_TDC}>{c}</td>
+                ))}
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
+      <div className="mb-2 text-xs leading-relaxed text-slate-600">
+        <p>評価値 = floor(Σmin(2600, ステ) × 2.3) ＋ ファン投票数換算。</p>
+        <p className="mt-1">
+          ファン投票数換算: 〜2万 ×0.1 ／ 〜4万 ×0.085+300 ／ 〜6万 ×0.07+900 ／ 〜8万 ×0.065+1,200 ／
+          〜10万 ×0.06+1,600 ／ 〜12万 ×0.05+2,600 ／ 〜14万 ×0.04+3,800 ／ それ以上 ×0.03+5,200（切り捨て）
+        </p>
+        <p className="mt-1">札（スキルカード獲得）2枚ごとに+3,000票（端数の1枚は無効）。</p>
+        <p className="mt-1">最終オーディションはスコアからステ素点（流行順位別の式）と投票数を自動導出。</p>
+      </div>
+    </>
+  );
+}
+
+/** 定期公演『初』（レジェンド）の数値表と計算式 */
+function HatsuNumbers() {
+  return (
+    <>
+      <p className="mb-3 text-xs text-slate-500">
+        ※ コミュニティ調べの暫定値・近似式です。パラメータボーナス%はここでは適用せず、計算ページで反映します。
+      </p>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">レジェンドレッスン</h3>
+      <table className="mb-2 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["時期", "クリア(非SP/SP)", "パフェ踏みタイプ(非SP/SP)", "パフェ他タイプ(非SP/SP)", "P"].map((h) => (
+              <th key={h} className={NUM_TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {HATSU_LESSONS.map((l, i) => (
+            <tr key={i}>
+              <td className={NUM_TD}>{l.label}</td>
+              <td className={NUM_TDC}>{l.clear[0]} / {l.clear[1]}</td>
+              <td className={NUM_TDC}>{l.perfectMain[0]} / {l.perfectMain[1]}</td>
+              <td className={NUM_TDC}>{l.perfectSub[0]} / {l.perfectSub[1]}</td>
+              <td className={NUM_TDC}>{l.p}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mb-4 text-xs text-slate-500">
+        ※ パーフェクト時は踏んだタイプ以外にも「パフェ他タイプ」の値が入る。パフェ値はチャレンジPアイテムでレッスン上限を最大(+90)にした時の数値。
+      </p>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">授業（選んだ1タイプ）</h3>
+      <table className="mb-4 w-full border-collapse text-xs tabular-nums">
+        <tbody>
+          {HATSU_CLASSES.map((cls, i) => (
+            <tr key={i}>
+              <td className={NUM_TD}>{cls.label}</td>
+              <td className={NUM_TDC}>+{cls.gain}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">試験（順位で全タイプ一律上昇）</h3>
+      <table className="mb-2 w-full border-collapse text-xs tabular-nums">
+        <thead>
+          <tr>
+            {["試験", "1位", "2位", "3位", "4位以下"].map((h) => (
+              <th key={h} className={NUM_TH}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {HATSU_EXAMS.map((exam) => (
+            <tr key={exam.name}>
+              <td className={NUM_TD}>{exam.name}</td>
+              {[0, 1, 2, 3].map((i) => (
+                <td key={i} className={NUM_TDC}>
+                  {exam.rankGains[i] !== undefined ? `+${exam.rankGains[i]}` : "—"}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mb-2 text-xs leading-relaxed text-slate-600">
+        <p>評価値 = floor(Σmin(3000, ステ) × 2.1) ＋ 最終順位分（1位1,700／2位900／3位500）＋ 試験スコア換算。</p>
+        <p className="mt-1">
+          中間スコア換算: 〜1万 ×0.11 ／ 〜2万 ×0.08+300 ／ 〜3万 ×0.05+900 ／ 〜4万 ×0.008+2,160 ／
+          〜5万 ×0.003+2,360 ／ 〜6万 ×0.002+2,410 ／ 〜20万 ×0.001+2,470（上限2,670）
+        </p>
+        <p className="mt-1">
+          最終スコア換算: 〜30万 ×0.015 ／ 〜50万 ×0.01+1,500 ／ 〜60万 ×0.008+2,500 ／
+          〜200万 ×0.001+6,700（上限8,700）
         </p>
       </div>
     </>

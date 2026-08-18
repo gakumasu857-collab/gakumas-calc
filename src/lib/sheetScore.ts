@@ -13,6 +13,7 @@
  */
 import perfData from "@/data/generated/abilityPerf.json";
 import { SLOT_TIER } from "@/data/abilityValues";
+import { FIXED_ABILITY_COUNTS } from "@/data/fixedAbilityCounts";
 import { ABILITY_NAMES, type Rarity } from "@/data/constants";
 import type { SupportCardData } from "@/data/supportCardsDb";
 
@@ -49,12 +50,8 @@ function perfOf(rarity: string, abiName: string): PerfEntry | undefined {
   return entry;
 }
 
-/** 回数変更なしアビリティの固定回数（"auto"はスケジュール自動集計） */
-const FIXED_COUNTS = (
-  perfData as {
-    fixedCounts: Record<string, "auto" | { normal: number; hatsu: number; hif: number }>;
-  }
-).fixedCounts;
+/** 回数変更なしアビリティの固定回数（src/data/fixedAbilityCounts.ts が源） */
+const FIXED_COUNTS = FIXED_ABILITY_COUNTS;
 
 /** 回数変更なしアビリティの固定回数を引くシナリオ（試験・オーディションの回数が変わる） */
 export type CountScenario = "normal" | "hatsu" | "hif";

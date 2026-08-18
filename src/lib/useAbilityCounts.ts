@@ -111,6 +111,18 @@ export function useAbilityCounts() {
     [],
   );
 
+  /** セット選択を解除する（シナリオ変更時など） */
+  const clearSelected = useCallback(() => {
+    setSelectedSetId(null);
+  }, []);
+
+  /** 全て初期状態に戻す（回数の変更・追加セット・選択をすべて破棄） */
+  const resetEverything = useCallback(() => {
+    setOverrides({});
+    setUserSets([]);
+    setSelectedSetId(null);
+  }, []);
+
   /**
    * 全テンプレセットを初期値に戻す（間違えて全部消した人向けの救済ボタン）。
    * ユーザー追加セットの回数は overrides が実体なので消さない。
@@ -214,6 +226,8 @@ export function useAbilityCounts() {
     setCount,
     isOverridden,
     resetAllDefaults,
+    resetEverything,
+    clearSelected,
     addSet,
     deleteSet,
     duplicateSet,

@@ -192,11 +192,6 @@ export default function SupportCardOwnership() {
         onImport={importCsv}
       />
 
-      {/* 操作説明 */}
-      <p className="text-xs text-slate-500">
-        「未」で未所持(モノクロ)、0〜4のボタンで凸数を設定。
-      </p>
-
       {/* カード一覧（コンパクト行・スマホ1列〜PC3列） */}
       {visible.length > 0 ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">

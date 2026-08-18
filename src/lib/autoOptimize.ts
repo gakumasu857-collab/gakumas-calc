@@ -1290,14 +1290,17 @@ export class OptimizeEngine {
     const baseNoConv = {} as Record<TypeKey, number>;
     const basePct = {} as Record<TypeKey, number>;
     const baseStats = {} as Record<TypeKey, number>;
+    // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定
+    const hifFixed = input.scenario === "hif" ? 100 : 0;
+    const hifPct = input.scenario === "hif" ? 10 : 0;
     for (const type of TYPE_KEYS) {
       basePct[type] =
-        memPct[type] + (input.pStats?.parabo[type] ?? 0) + 10;
+        memPct[type] + (input.pStats?.parabo[type] ?? 0) + hifPct;
       baseNoConv[type] =
         bd.classes[type] +
         memFixed[type] +
         (input.pStats?.fixed[type] ?? 0) +
-        100 +
+        hifFixed +
         bd.lessons[type] +
         bd.exams[type];
       const g = ctx.gains[TYPE_SHEET_ROLE[type]];

@@ -161,7 +161,7 @@ export function useCalcResult() {
       lessonP = nia.pPoints;
       NIA_LESSONS.forEach((lesson, i) => {
         const pick = niaSchedule.lessons[i];
-        if (pick?.sp) typeSpP[pick.main] += lesson.p;
+        if (pick?.sp && pick.main) typeSpP[pick.main] += lesson.p;
       });
       ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks);
     } else if (scenario === "hatsuLegend") {
@@ -171,7 +171,7 @@ export function useCalcResult() {
       lessonP = hatsu.pPoints;
       HATSU_LESSONS.forEach((lesson, i) => {
         const pick = hatsuSchedule.lessons[i];
-        if (pick?.sp) typeSpP[pick.main] += lesson.p;
+        if (pick?.sp && pick.main) typeSpP[pick.main] += lesson.p;
       });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
@@ -242,9 +242,12 @@ export function useCalcResult() {
     // ---- タイプごとの集計 ----
     // パラボは全ソース（メモリー＋Pアイドル＋サポカ）を合算してから1回で変換する
     // （カードごとに個別変換すると切り捨てが多く発生して実際より低く出る）
+    // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定
+    const hifFixed = scenario === "hif" ? 100 : 0;
+    const hifPct = scenario === "hif" ? 10 : 0;
     const basePct = {} as Record<TypeKey, number>;
     for (const type of TYPE_KEYS) {
-      basePct[type] = memPct[type] + (pStats?.parabo[type] ?? 0) + 10;
+      basePct[type] = memPct[type] + (pStats?.parabo[type] ?? 0) + hifPct;
     }
     const adj = summedParaboByType(
       activeCards,
@@ -258,8 +261,8 @@ export function useCalcResult() {
     const perType = {} as Record<TypeKey, PerTypeResult>;
     const baseNoConv = {} as Record<TypeKey, number>;
     for (const type of TYPE_KEYS) {
-      const idolFixed = (pStats?.fixed[type] ?? 0) + 100;
-      const idolPct = (pStats?.parabo[type] ?? 0) + 10;
+      const idolFixed = (pStats?.fixed[type] ?? 0) + hifFixed;
+      const idolPct = (pStats?.parabo[type] ?? 0) + hifPct;
       const picks = activeCards.filter((p) => p.type === type);
       const supportPoints = teamEval.totals[type].raw;
       const supportInitial = picks.reduce((sum, p) => {
@@ -405,18 +408,27 @@ export function useCalcResult() {
       let prob = 1;
       let spCount = 0;
       let subCount = 0;
-      for (const pick of picks) {
-        if (!pick?.main) continue;
+      // HIFは選抜（先頭6回）と本戦（後2回）に分けた確率も出す
+      let probSen = 1;
+      let probHon = 1;
+      picks.forEach((pick, i) => {
+        if (!pick?.main) return;
+        let p = 1;
         if ("sub" in pick) {
-          prob *= 0.5;
+          p *= 0.5;
           subCount++;
         }
         if (pick.sp) {
-          prob *= rates[pick.main];
+          p *= rates[pick.main];
           spCount++;
         }
-      }
-      return { bonus, rates, prob, spCount, subCount };
+        prob *= p;
+        if (scenario === "hif") {
+          if (i < 6) probSen *= p;
+          else probHon *= p;
+        }
+      });
+      return { bonus, rates, prob, probSen, probHon, spCount, subCount };
     })();
 
     // ---- スター性・本戦・評価値（シナリオ別） ----

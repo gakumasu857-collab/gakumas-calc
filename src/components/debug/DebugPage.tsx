@@ -4,7 +4,7 @@ import {
   runFullOptimize,
   type AutoOptimizeResult,
 } from "@/lib/autoOptimize";
-import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
+import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
   findBestFormation,
   scoreOwnedCards,
@@ -69,7 +69,7 @@ export default function DebugPage() {
     const rentals = scoreRentalCandidates(r.ctx, r.roles.typeRole, opts);
     const best = findBestFormation(owned, rentals, r.baseStats, {
       pinned: flags.pinned,
-      spMin: r.calc.settings.spMin,
+      spMin: resolveSpMin(r, r.calc.settings),
       cap: r.statCap,
       extraScore: r.niaFudaExtra,
     });
@@ -278,7 +278,7 @@ export default function DebugPage() {
         {!formation ? (
           <p className="text-xs text-slate-400">
             ボタンを押すと、候補プール・タイプ別上位カード・採用結果を表示します。ベース=サポカ抜き基礎ステ（baseStats）、上限{r.statCap}
-            、SP条件 {TYPE_KEYS.map((t) => `${TYPE_LABELS[t]}${r.calc.settings.spMin[t]}`).join("/")}
+            、SP条件 上位{r.calc.settings.spTop.first}/{r.calc.settings.spTop.second}
             、固定{flags.pinned.size}枚・BAN{flags.banned.size}枚・レンタルNG{flags.rentalNg.size}枚。
           </p>
         ) : (

@@ -32,7 +32,8 @@ export type CalcSettings = {
   /** 合計スター性 */
   totalStar: number;
   /** 理想編成の条件: タイプごとのSPレッスン率アップ持ちサポカの最低枚数 */
-  spMin: Record<TypeKey, number>;
+  /** レッスンを多く踏む上位2タイプへのSPレッスン率アップ持ち最低枚数（1位/2位） */
+  spTop: { first: number; second: number };
   /**
    * 全自動最適化の条件: 前イベの取得枚数（カード1枚=1）・後イベの発動回数の上限
    * （enabled=false なら制限なし）
@@ -84,7 +85,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   memory: "",
   trainingSetId: "",
   totalStar: 0,
-  spMin: { vocal: 0, dance: 0, visual: 0 },
+  spTop: { first: 0, second: 0 },
   eventBudget: { enabled: false, pre: 6, post: 6 },
   typeRatio: { enabled: false, vocal: 1, dance: 1, visual: 1 },
   examAssist: false,
@@ -131,7 +132,7 @@ function loadCurrentSettings(): CalcSettings {
     ...DEFAULT_SETTINGS,
     ...stored,
     idol,
-    spMin: { ...DEFAULT_SETTINGS.spMin, ...(stored.spMin ?? {}) },
+    spTop: { ...DEFAULT_SETTINGS.spTop, ...(stored.spTop ?? {}) },
     eventBudget: {
       ...DEFAULT_SETTINGS.eventBudget,
       ...(stored.eventBudget ?? {}),
@@ -216,7 +217,7 @@ export function useCalcSettings() {
     setSettings({
       ...DEFAULT_SETTINGS,
       ...save.settings,
-      spMin: { ...DEFAULT_SETTINGS.spMin, ...(save.settings.spMin ?? {}) },
+      spTop: { ...DEFAULT_SETTINGS.spTop, ...(save.settings.spTop ?? {}) },
       eventBudget: {
         ...DEFAULT_SETTINGS.eventBudget,
         ...(save.settings.eventBudget ?? {}),

@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from "react";
-import { Pencil, Plus, RotateCcw, X } from "lucide-react";
+import { Pencil, Plus, RotateCcw, X, Trash2 } from "lucide-react";
 import {
   ABILITY_CATEGORIES,
   abilityMax,
@@ -12,6 +12,7 @@ import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { useScenario } from "@/lib/useScenario";
 import { useSelectedSupports } from "@/lib/useSelectedSupports";
+import Modal from "@/components/Modal";
 import SetEditModal from "./SetEditModal";
 
 /** 列幅(rem): アビリティ名列 / セット列（プランはチップ表示になったぶん少し狭める） */
@@ -60,10 +61,15 @@ export default function AbilityCountManager() {
   const [addingName, setAddingName] = useState<string | null>(null);
   const [addingPlan, setAddingPlan] = useState("");
   const [onlyFormation, setOnlyFormation] = useState(false);
+  const [hideTemplates, setHideTemplates] = useState(false);
+  const [dupSource, setDupSource] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Set<string> | null>(null);
 
   // シナリオに合うテンプレだけ表示（HIF用/NIA用。ユーザーセットは常に表示）
-  const visibleSets = store.sets.filter((s) =>
-    setVisibleInScenario(s.id, scenario),
+  const visibleSets = store.sets.filter(
+    (s) =>
+      setVisibleInScenario(s.id, scenario) &&
+      (!hideTemplates || store.isUserSet(s.id)),
   );
   const selectedSet = store.sets.find((s) => s.id === store.selectedSetId);
   const editingSet = store.sets.find((s) => s.id === editingSetId);
@@ -94,16 +100,14 @@ export default function AbilityCountManager() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <p className="text-xs text-slate-500">
-          セルクリックで回数を編集、セット名クリックで一括編集。
-          <b className="text-slate-600">
-            回数にはサポカの前イベ・後イベによる発動分は含めないでください（編成に応じて自動で上乗せされます）。
+        <p>
+          <b className="text-xs text-red-500">
+            サポカの前イベ・後イベによる発動分は含めないでください。
           </b>
           {!selectedSet && (
-            <span className="font-medium text-blue-600">
-              {" "}
+            <b className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
               参照セット未選択です。セット名の上のチェックで選んでください。
-            </span>
+            </b>
           )}
         </p>
         <div className="ml-auto flex items-center gap-1.5">
@@ -121,6 +125,72 @@ export default function AbilityCountManager() {
             編成中のアビリティのみ
             {onlyFormation && `（${visibleAbilities.length}件）`}
           </button>
+          {/* テンプレセットの表示/非表示 */}
+          <button
+            type="button"
+            onClick={() => setHideTemplates((v) => !v)}
+            title="テンプレセット（スプシ由来）を隠して、自分で追加したセットだけを表示します"
+            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+              hideTemplates
+                ? "border-blue-600 bg-blue-600 text-white"
+                : "border-slate-300 text-slate-500 hover:bg-slate-100"
+            }`}
+          >
+            テンプレ非表示
+          </button>
+          {/* 複製して新規作成 */}
+          {dupSource === null ? (
+            <button
+              type="button"
+              onClick={() => setDupSource(visibleSets[0]?.id ?? "")}
+              className="flex items-center gap-1 rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+            >
+              <Plus size={13} />
+              複製で新規
+            </button>
+          ) : (
+            <>
+              <select
+                value={dupSource}
+                onChange={(e) => setDupSource(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
+              >
+                {visibleSets.map((set) => (
+                  <option key={set.id} value={set.id}>
+                    {set.plan ? `【${set.plan}】` : ""}
+                    {set.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  const src = store.sets.find((x) => x.id === dupSource);
+                  if (src) store.duplicateSet(src);
+                  setDupSource(null);
+                }}
+                className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
+              >
+                複製する
+              </button>
+              <button
+                type="button"
+                onClick={() => setDupSource(null)}
+                className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                キャンセル
+              </button>
+            </>
+          )}
+          {/* 追加セットの削除（複数選択） */}
+          <button
+            type="button"
+            onClick={() => setDeleting(new Set())}
+            className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
+          >
+            <Trash2 size={13} />
+            セット削除
+          </button>
           {/* 全部消してしまった人向けの救済リセット */}
           <button
             type="button"
@@ -137,6 +207,22 @@ export default function AbilityCountManager() {
           >
             <RotateCcw size={13} />
             テンプレを初期値に戻す
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "回数の変更・追加したセット・選択をすべて消して初期状態に戻します。よろしいですか？（追加セットも消えます）",
+                )
+              ) {
+                store.resetEverything();
+              }
+            }}
+            className="flex items-center gap-1 rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <RotateCcw size={13} />
+            全て初期状態に戻す
           </button>
           {addingName === null ? (
             <button
@@ -399,12 +485,62 @@ export default function AbilityCountManager() {
         />
       )}
 
+      {deleting !== null && (
+        <Modal title="追加セットの削除" onClose={() => setDeleting(null)}>
+          {store.sets.filter((x) => store.isUserSet(x.id)).length === 0 ? (
+            <p className="text-sm text-slate-500">
+              削除できるのは自分で追加したセットだけです（まだありません）。
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-slate-500">
+                削除するセットを選んでください（複数選択できます）。テンプレセットは削除できません。
+              </p>
+              {store.sets
+                .filter((x) => store.isUserSet(x.id))
+                .map((set) => (
+                  <label
+                    key={set.id}
+                    className="flex items-center gap-2 text-sm text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={deleting.has(set.id)}
+                      onChange={(e) => {
+                        const next = new Set(deleting);
+                        if (e.target.checked) next.add(set.id);
+                        else next.delete(set.id);
+                        setDeleting(next);
+                      }}
+                      className="accent-red-500"
+                    />
+                    {set.plan ? `【${set.plan}】` : ""}
+                    {set.name}
+                  </label>
+                ))}
+              <button
+                type="button"
+                disabled={deleting.size === 0}
+                onClick={() => {
+                  for (const id of deleting) store.deleteSet(id);
+                  setDeleting(null);
+                }}
+                className="mt-1 self-start rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                選択した{deleting.size}件を削除
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+
       {editingSet && (
         <SetEditModal
           set={editingSet}
           deletable={store.isUserSet(editingSet.id)}
           getCount={store.getCount}
           setCount={store.setCount}
+          formationKeys={onlyFormation ? formationAbilities : undefined}
           onDelete={() => store.deleteSet(editingSet.id)}
           onDuplicate={() => {
             store.duplicateSet(editingSet);

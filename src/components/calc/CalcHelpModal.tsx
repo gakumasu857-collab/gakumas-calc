@@ -8,6 +8,7 @@ import { CalendarCheck, ListOrdered, MousePointerClick, Sparkles } from "lucide-
 import { Link } from "react-router-dom";
 import Modal from "@/components/Modal";
 import { NumbersTables } from "@/components/calc/PlanEditDrawer";
+import type { ScenarioKey } from "@/data/scenarios";
 
 const H = "mb-2 mt-6 text-base font-bold text-slate-800 first:mt-0";
 const LI = "text-sm leading-relaxed text-slate-600";
@@ -53,7 +54,13 @@ function Step({
   );
 }
 
-export default function CalcHelpModal({ onClose }: { onClose: () => void }) {
+export default function CalcHelpModal({
+  onClose,
+  scenario = "hif",
+}: {
+  onClose: () => void;
+  scenario?: ScenarioKey;
+}) {
   return (
     <Modal title="使い方・計算式ヘルプ" onClose={onClose} widthClass="max-w-3xl">
       <h3 className={H}>使い方の流れ</h3>
@@ -193,7 +200,7 @@ export default function CalcHelpModal({ onClose }: { onClose: () => void }) {
         <li className={LI}>
           <b>SPレッスン率</b>＝ 表記外推定SP率 ＋ サポカのSPレッスン率（枠の属性へ）＋
           PアイドルのSP率（特訓2・特訓6など）。
-          <b>踏み方の実現確率</b>＝ SP踏みの日は「メイン属性のSP率」を全部掛け合わせたもの。
+          <b>踏み方の実現確率</b>＝ SP踏みの日は「踏むタイプのSP率」を全部掛け合わせたもの。
           H.I.F.だけはサブ属性を指定した日も「2択で50%」を掛ける
           （N.I.A.と初のレッスンにはサブ属性が無いのでSP率どおり）。
         </li>
@@ -204,9 +211,9 @@ export default function CalcHelpModal({ onClose }: { onClose: () => void }) {
         </li>
       </ul>
 
-      <h3 className={H}>数値表（レッスン・授業・本戦・選抜）</h3>
+      <h3 className={H}>数値表（選択中のシナリオ）</h3>
       <div className="mt-2">
-        <NumbersTables />
+        <NumbersTables scenario={scenario} />
       </div>
     </Modal>
   );
