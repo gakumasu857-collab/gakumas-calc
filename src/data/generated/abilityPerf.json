@@ -20,9 +20,9 @@
     0.04,
     0.043
    ],
-   "main1": "パラメータボーナス",
-   "main2": "パラメータボーナス",
-   "sub": "パラメータボーナス"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "Rレッスンサポート率": {
    "tiers": [
@@ -32,9 +32,9 @@
     0.872,
     1
    ],
-   "main1": "レッスンサポート率",
-   "main2": "レッスンサポート率",
-   "sub": "レッスンサポート率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "Rレッスン": {
    "tiers": [
@@ -140,9 +140,9 @@
     null,
     null
    ],
-   "main1": "Pポイント",
-   "main2": "Pポイント",
-   "sub": "Pポイント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "R何もなし": {
    "tiers": [
@@ -152,9 +152,9 @@
     0,
     0
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SR初期値": {
    "tiers": [
@@ -176,9 +176,9 @@
     0.059,
     0.064
    ],
-   "main1": "パラメータボーナス",
-   "main2": "パラメータボーナス",
-   "sub": "パラメータボーナス"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRレッスンサポート率": {
    "tiers": [
@@ -188,9 +188,9 @@
     0.898,
     1
    ],
-   "main1": "レッスンサポート率",
-   "main2": "レッスンサポート率",
-   "sub": "レッスンサポート率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRレッスン": {
    "tiers": [
@@ -512,9 +512,9 @@
     null,
     null
    ],
-   "main1": null,
-   "main2": null,
-   "sub": null
+   "main1": "活動支給・差し入れ（2回まで）",
+   "main2": "活動支給・差し入れ（2回まで）",
+   "sub": "活動支給・差し入れ（2回まで）"
   },
   "SR相談": {
    "tiers": [
@@ -584,9 +584,9 @@
     null,
     null
    ],
-   "main1": "相談ドリンク割引",
-   "main2": "相談ドリンク割引",
-   "sub": "相談ドリンク割引"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SR20枚以上SPレッスン(4回まで)": {
    "tiers": [
@@ -632,9 +632,9 @@
     null,
     null
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SR全SPレッスン率": {
    "tiers": [
@@ -644,9 +644,9 @@
     null,
     null
    ],
-   "main1": "全SPレッスン率",
-   "main2": "全SPレッスン率",
-   "sub": "全SPレッスン率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRPポイント": {
    "tiers": [
@@ -656,9 +656,9 @@
     null,
     null
    ],
-   "main1": "Pポイント",
-   "main2": "Pポイント",
-   "sub": "Pポイント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRレッスンPポイント率": {
    "tiers": [
@@ -668,9 +668,9 @@
     null,
     null
    ],
-   "main1": "レッスンPポイント率",
-   "main2": "レッスンPポイント率",
-   "sub": "レッスンPポイント率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRPポイントイベント": {
    "tiers": [
@@ -680,9 +680,9 @@
     null,
     null
    ],
-   "main1": "Pポイントイベント",
-   "main2": "Pポイントイベント",
-   "sub": "Pポイントイベント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SRタイプSPレッスン時回復": {
    "tiers": [
@@ -692,9 +692,9 @@
     null,
     null
    ],
-   "main1": "タイプSPレッスン時回復",
-   "main2": "タイプSPレッスン時回復",
-   "sub": "タイプSPレッスン時回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SR最大体力上昇": {
    "tiers": [
@@ -704,9 +704,9 @@
     null,
     null
    ],
-   "main1": "最大体力上昇",
-   "main2": "最大体力上昇",
-   "sub": "最大体力上昇"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SR何もなし": {
    "tiers": [
@@ -716,9 +716,9 @@
     0,
     0
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR初期値": {
    "tiers": [
@@ -740,9 +740,9 @@
     0.08,
     0.085
    ],
-   "main1": "パラメータボーナス",
-   "main2": "パラメータボーナス",
-   "sub": "パラメータボーナス"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRレッスンサポート率": {
    "tiers": [
@@ -752,9 +752,9 @@
     0.915,
     1
    ],
-   "main1": "レッスンサポート率",
-   "main2": "レッスンサポート率",
-   "sub": "レッスンサポート率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRレッスン": {
    "tiers": [
@@ -1028,9 +1028,9 @@
     null,
     null
    ],
-   "main1": "スキル削除(4回まで)",
-   "main2": "スキル削除(4回まで)",
-   "sub": "スキル削除(4回まで)"
+   "main1": "スキル削除（4回まで）",
+   "main2": "スキル削除（4回まで）",
+   "sub": "スキル削除（4回まで）"
   },
   "SSRチェンジ(3回まで)": {
    "tiers": [
@@ -1076,9 +1076,9 @@
     null,
     null
    ],
-   "main1": "お出かけ(2回まで)",
-   "main2": "お出かけ(2回まで)",
-   "sub": "お出かけ(2回まで)"
+   "main1": "お出かけ（2回まで）",
+   "main2": "お出かけ（2回まで）",
+   "sub": "お出かけ（2回まで）"
   },
   "SSR授業・営業": {
    "tiers": [
@@ -1112,9 +1112,9 @@
     null,
     null
    ],
-   "main1": "活動支給・差し入れ(2回まで)",
-   "main2": "活動支給・差し入れ(2回まで)",
-   "sub": "活動支給・差し入れ(2回まで)"
+   "main1": "活動支給・差し入れ（2回まで）",
+   "main2": "活動支給・差し入れ（2回まで）",
+   "sub": "活動支給・差し入れ（2回まで）"
   },
   "SSR相談": {
    "tiers": [
@@ -1136,9 +1136,9 @@
     null,
     null
    ],
-   "main1": "相談(2回まで)",
-   "main2": "相談(2回まで)",
-   "sub": "相談(2回まで)"
+   "main1": "相談（2回まで）",
+   "main2": "相談（2回まで）",
+   "sub": "相談（2回まで）"
   },
   "SSR休む": {
    "tiers": [
@@ -1208,9 +1208,9 @@
     null,
     null
    ],
-   "main1": "相談ドリンク割引",
-   "main2": "相談ドリンク割引",
-   "sub": "相談ドリンク割引"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR20枚以上SPレッスン(4回まで)": {
    "tiers": [
@@ -1256,9 +1256,9 @@
     null,
     null
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR全SPレッスン率": {
    "tiers": [
@@ -1268,9 +1268,9 @@
     null,
     null
    ],
-   "main1": "全SPレッスン率",
-   "main2": "全SPレッスン率",
-   "sub": "全SPレッスン率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR全SPレッスン率(28%)": {
    "tiers": [
@@ -1280,9 +1280,9 @@
     0.265,
     0.28
    ],
-   "main1": "全SPレッスン率（28%）",
-   "main2": "全SPレッスン率（28%）",
-   "sub": "全SPレッスン率（28%）"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRPポイント": {
    "tiers": [
@@ -1292,9 +1292,9 @@
     null,
     null
    ],
-   "main1": "Pポイント",
-   "main2": "Pポイント",
-   "sub": "Pポイント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRレッスンPポイント率": {
    "tiers": [
@@ -1304,9 +1304,9 @@
     null,
     null
    ],
-   "main1": "レッスンPポイント率",
-   "main2": "レッスンPポイント率",
-   "sub": "レッスンPポイント率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRタイプSPレッスンPポイント率": {
    "tiers": [
@@ -1316,9 +1316,9 @@
     null,
     null
    ],
-   "main1": "タイプSPレッスンPポイント率",
-   "main2": "タイプSPレッスンPポイント率",
-   "sub": "タイプSPレッスンPポイント率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRPポイントイベント": {
    "tiers": [
@@ -1328,9 +1328,9 @@
     null,
     null
    ],
-   "main1": "Pポイントイベント",
-   "main2": "Pポイントイベント",
-   "sub": "Pポイントイベント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRSPレッスン時回復": {
    "tiers": [
@@ -1340,9 +1340,9 @@
     null,
     null
    ],
-   "main1": "SPレッスン時回復",
-   "main2": "SPレッスン時回復",
-   "sub": "SPレッスン時回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR試験・オーディション回復": {
    "tiers": [
@@ -1352,9 +1352,9 @@
     null,
     null
    ],
-   "main1": "試験・オーディション回復",
-   "main2": "試験・オーディション回復",
-   "sub": "試験・オーディション回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSRタイプSPレッスン時回復": {
    "tiers": [
@@ -1364,9 +1364,9 @@
     null,
     null
    ],
-   "main1": "タイプSPレッスン時回復",
-   "main2": "タイプSPレッスン時回復",
-   "sub": "タイプSPレッスン時回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR最大体力上昇(1アビ)": {
    "tiers": [
@@ -1376,9 +1376,9 @@
     9,
     9
    ],
-   "main1": "最大体力上昇（1アビ）",
-   "main2": "最大体力上昇（1アビ）",
-   "sub": "最大体力上昇（1アビ）"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR最大体力上昇": {
    "tiers": [
@@ -1388,9 +1388,9 @@
     9,
     9
    ],
-   "main1": "最大体力上昇",
-   "main2": "最大体力上昇",
-   "sub": "最大体力上昇"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR回復イベント": {
    "tiers": [
@@ -1400,9 +1400,9 @@
     null,
     null
    ],
-   "main1": "回復イベント",
-   "main2": "回復イベント",
-   "sub": "回復イベント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "SSR何もなし": {
    "tiers": [
@@ -1412,9 +1412,9 @@
     0,
     0
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSR初期値": {
    "tiers": [
@@ -1436,9 +1436,9 @@
     0.08,
     0.085
    ],
-   "main1": "パラメータボーナス",
-   "main2": "パラメータボーナス",
-   "sub": "パラメータボーナス"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSRレッスンサポート率": {
    "tiers": [
@@ -1448,9 +1448,9 @@
     0.915,
     1
    ],
-   "main1": "レッスンサポート率",
-   "main2": "レッスンサポート率",
-   "sub": "レッスンサポート率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSRレッスン": {
    "tiers": [
@@ -1736,9 +1736,9 @@
     null,
     null
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSRPポイント": {
    "tiers": [
@@ -1748,9 +1748,9 @@
     null,
     null
    ],
-   "main1": "Pポイント",
-   "main2": "Pポイント",
-   "sub": "Pポイント"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSRタイプSPレッスンPポイント率": {
    "tiers": [
@@ -1760,9 +1760,9 @@
     null,
     null
    ],
-   "main1": "タイプSPレッスンPポイント率",
-   "main2": "タイプSPレッスンPポイント率",
-   "sub": "タイプSPレッスンPポイント率"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSRタイプSPレッスン時回復": {
    "tiers": [
@@ -1772,9 +1772,9 @@
     null,
     null
    ],
-   "main1": "タイプSPレッスン時回復",
-   "main2": "タイプSPレッスン時回復",
-   "sub": "タイプSPレッスン時回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSR試験・オーディション回復": {
    "tiers": [
@@ -1784,9 +1784,9 @@
     null,
     null
    ],
-   "main1": "試験・オーディション回復",
-   "main2": "試験・オーディション回復",
-   "sub": "試験・オーディション回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSR差し入れ時回復": {
    "tiers": [
@@ -1796,9 +1796,9 @@
     null,
     null
    ],
-   "main1": "差し入れ時回復",
-   "main2": "差し入れ時回復",
-   "sub": "差し入れ時回復"
+   "main1": null,
+   "main2": null,
+   "sub": null
   },
   "配布SSR何もなし": {
    "tiers": [
@@ -1808,9 +1808,9 @@
     0,
     0
    ],
-   "main1": "何もなし",
-   "main2": "何もなし",
-   "sub": "何もなし"
+   "main1": null,
+   "main2": null,
+   "sub": null
   }
  },
  "slotTier": {

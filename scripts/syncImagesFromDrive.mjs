@@ -149,6 +149,9 @@ try {
         const buf = Buffer.from(await res.arrayBuffer());
         const out = join(tmp, `${uploaded}.webp`);
         writeFileSync(out, await sharp(buf).webp({ quality: 90 }).toBuffer());
+        // shell:true は引数をクォートせず空白で連結するため、空白や記号を含む引数
+        // （cache-control値・カード名）は自前で二重引用符に包む
+        const q = (a) => (/[\s&()^"]/.test(a) ? `"${a.replaceAll('"', '\\"')}"` : a);
         execFileSync(
           "npx",
           [
@@ -165,7 +168,7 @@ try {
             "--cache-control",
             "public, max-age=31536000, immutable",
             "--remote",
-          ],
+          ].map(q),
           { cwd: root, stdio: "pipe", shell: true },
         );
         uploaded++;

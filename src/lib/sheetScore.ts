@@ -67,10 +67,23 @@ export function buildCountResolver(
   lessonCount: (label: string) => number | undefined,
   scenario: CountScenario,
 ): (label: string) => number {
-  return (label) => {
+  const resolve = (label: string): number | undefined => {
     const fixed = FIXED_COUNTS[label];
     if (fixed !== undefined && fixed !== "auto") return fixed[scenario];
-    return lessonCount(label) ?? manualCount(label) ?? 0;
+    return lessonCount(label) ?? manualCount(label);
+  };
+  return (label) => {
+    const direct = resolve(label);
+    if (direct !== undefined) return direct;
+    // 「◯◯（N回まで）」が発動回数セットの行として存在しないときは、
+    // 基準ラベル◯◯の回数を上限Nで丸めて解決する（スプシに上限付きアビリティを
+    // 追加しても、trigger_tag に基準名さえあればアプリ側の定数追加なしで動く）。
+    const m = label.match(/^(.+?)\s*[（(](\d+)回まで[)）]\s*$/);
+    if (m) {
+      const base = resolve(m[1].trim());
+      if (base !== undefined) return Math.min(Number(m[2]), base);
+    }
+    return 0;
   };
 }
 
@@ -864,10 +877,10 @@ export function cardResources(
       if (typeof value !== "number") return;
       const countKey = perf[role];
       const countOf = (key: string | null) => {
-        if (!key) return 0;
-        const n = ctx.counts(key);
-        // ランダムイベント系は回数セットに無ければ1回扱い
-        return n === 0 && key.endsWith("イベント") ? 1 : n;
+        const n = key ? ctx.counts(key) : 0;
+        // ランダムイベント系（回復イベント等）は回数指定が無ければ1回扱い
+        // （trigger_tag未入力で回数キーがnullでも、アビリティ名で判定する）
+        return n === 0 && abiName.endsWith("イベント") ? 1 : n;
       };
       // Pポイント（固定値）は初期値と同じく1回発動、Pポイントイベントも1育成1回
       if (P_FLAT_LABELS.has(abiName)) out.p += value;

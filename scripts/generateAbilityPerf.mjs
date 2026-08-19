@@ -8,13 +8,15 @@
  * - 旧 abilityPerf.json は一切読まない。スプシ＋このスクリプト内の明示ルールだけで決定的に生成する。
  * - tiers      = abilityValues.level1..5（新＝リベース済み）。
  * - perfキー   = 正規化名（全角括弧→半角・空白除去）。sheetScore.perfOf も同じ正規化で引く。
- * - main1/main2/sub（回数キー）は下記ルールで導出:
- *     ・レッスン系（trigger_tag ∈ LESSON_TAGS）  → ロール別 `メイン1/2/サブ{tag}`
- *     ・それ以外                                → アビリティ名そのもの（回数キー = 名前）
- *     ・例外だけ COUNT_KEY_OVERRIDES で上書き（実行時リゾルバに合わせた括弧幅・非スコア化）
- *   → 新アビリティは基本この規則で自動的に正しい回数キーになる。特殊挙動のときだけ1行追加する。
+ * - main1/main2/sub（回数キー）はスプシの trigger_tag 列から導出:
+ *     ・レッスン系（trigger_tag ∈ LESSON_TAGS）→ ロール別 `メイン1/2/サブ{tag}`
+ *     ・trigger_tag あり → trigger_tag そのもの。ただしアビリティ名に「（N回まで）」が
+ *       付くときは回数キーにも付加する（参照は基準回数・上限は名前のN。
+ *       例: 活動支給・差し入れ（2回まで）+ tag 活動支給・差し入れ → 活動支給・差し入れ（2回まで））
+ *     ・trigger_tag 空 → 発動参照なし＝非スコア（null。内訳モーダルで—表示）。
+ *       例外: EMPTY_TAG_FIXED（初期値等、アプリ側の固定回数1で採点するもの）は名前で引く。
+ *   → スプシに行を足すときは trigger_tag に基準名を書けばそのまま動く。
  * - slotTier   = abilityEvolutions の 凸→レベル番号(1..5) を index(0..4)。tiers とペアで使う。
- * - fixedCounts= 回数固定アビリティの発動回数（スプシに無いアプリ側の設定）。ここで定義する。
  */
 import { writeFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -33,32 +35,29 @@ const numOrNull = (v) => (typeof v === "number" ? v : v === "" || v == null ? nu
 const LESSON_TAGS = new Set(["レッスン", "SPレッスン", "通常レッスン"]);
 
 /**
- * 回数キーの例外表（キー = 正規化した "レアリティ+アビリティ名"）。
- * 既定は「回数キー = アビリティ名」。実行時リゾルバに合わせて上書きが要るものだけ列挙する。
- * - お出かけ/相談/活動支給/スキル削除(4回まで): スプシ名は全角括弧だがスケジュール解決は半角括弧。
- * - SPレッスン率: 点数計算では回数キー「何もなし」＝非スコア（率はパラボ計算側で使う）。
- * - SR活動支給・差し入れ(2回まで): 回数キー無し＝非スコア（null）。
+ * trigger_tag が空でも採点するアビリティ（アプリ側 FIXED_ABILITY_COUNTS が固定回数で解決）。
+ * パラメータボーナスは専用の%変換で回数キーを使わないため列挙不要。
  */
-const COUNT_KEY_OVERRIDES = {
-  "SSRお出かけ(2回まで)": "お出かけ(2回まで)",
-  "SSR相談(2回まで)": "相談(2回まで)",
-  "SSR活動支給・差し入れ(2回まで)": "活動支給・差し入れ(2回まで)",
-  "SSRスキル削除(4回まで)": "スキル削除(4回まで)",
-  "SRSPレッスン率": "何もなし",
-  "SSRSPレッスン率": "何もなし",
-  "配布SSRSPレッスン率": "何もなし",
-  "SR活動支給・差し入れ(2回まで)": null,
-};
+const EMPTY_TAG_FIXED = new Set(["初期値", "パラメータイベント"]);
 
 // 回数固定アビリティの発動回数は src/data/fixedAbilityCounts.ts に移設（アプリが直接参照）
 
+/** アビリティ名末尾の「（N回まで）」（全角/半角どちらでも） */
+const CAP_SUFFIX_RE = /[（(]\d+回まで[)）]\s*$/;
+
 /** 1アビリティ行 → 回数キー3種（main1/main2/sub）。null は「回数キー無し＝非スコア」 */
-function countKeys(normKey, name, tag) {
+function countKeys(name, tag) {
   if (LESSON_TAGS.has(tag)) {
     return { main1: `メイン1${tag}`, main2: `メイン2${tag}`, sub: `サブ${tag}` };
   }
-  // 既定は名前そのもの。例外表にあればそれ（null 含む）で上書き。
-  const key = normKey in COUNT_KEY_OVERRIDES ? COUNT_KEY_OVERRIDES[normKey] : name;
+  let key;
+  if (!tag) {
+    key = EMPTY_TAG_FIXED.has(name) ? name : null;
+  } else {
+    // 参照は trigger_tag。名前に（N回まで）があれば上限として回数キーに付加する
+    const cap = name.match(CAP_SUFFIX_RE)?.[0];
+    key = cap && !CAP_SUFFIX_RE.test(tag) ? `${tag}${cap}` : tag;
+  }
   return { main1: key, main2: key, sub: key };
 }
 
@@ -78,7 +77,7 @@ for (const row of abilityValues) {
   if (key in perf) dup++;
   const tiers = [1, 2, 3, 4, 5].map((i) => numOrNull(row[`level${i}`]));
   const tag = (row.trigger_tag ?? "").trim();
-  perf[key] = { tiers, ...countKeys(key, name, tag) };
+  perf[key] = { tiers, ...countKeys(name, tag) };
 }
 
 // ---- slotTier（凸→ティアindex）----
