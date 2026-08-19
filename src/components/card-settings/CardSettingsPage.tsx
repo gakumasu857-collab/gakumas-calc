@@ -29,9 +29,8 @@ import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { useCardFlags } from "@/lib/useCardFlags";
 import { useEventCounts } from "@/lib/useEventCounts";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
-import { typeRanksOf } from "@/lib/useCalcResult";
-import { useCalcSettings, type TypeKey } from "@/lib/useCalcSettings";
 import { useSchedule } from "@/lib/useSchedule";
+import { type TypeKey } from "@/lib/useCalcSettings";
 
 const IMAGE_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c.image]));
 const TYPE_OF_CARD: Record<string, TypeKey> = {
@@ -50,9 +49,6 @@ export default function CardSettingsPage() {
   const schedule = useSchedule();
   const flags = useCardFlags();
   const events = useEventCounts();
-  // 2ndタイプの75%/25%分配は計算ページ選択中アイドルの審査基準で決める
-  const { settings } = useCalcSettings();
-  const typeRanks = useMemo(() => typeRanksOf(settings.idol), [settings.idol]);
 
   const [rarityFilter, setRarityFilter] = useState("すべて");
   const [typeFilter, setTypeFilter] = useState("すべて");
@@ -68,13 +64,12 @@ export default function CardSettingsPage() {
     () =>
       buildSheetScoreContext(
         schedule,
-        typeRanks,
         manualCountFromSet(
           selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
         ),
         events.get,
       ),
-    [ability, selectedSet, schedule, events.get, typeRanks],
+    [ability, selectedSet, schedule, events.get],
   );
 
   // 計算ページのサポカ選択と同じ「点数の高い順」で並べる（所持凸、未所持は完凸想定）

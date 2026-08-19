@@ -7,7 +7,6 @@ import {
   examStar,
   LESSONS,
 } from "@/data/schedule";
-import type { TypeRanks } from "./scenarioGains";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 
 /**
@@ -17,36 +16,30 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  * （ロール（メイン1/メイン2/サブ）の概念は廃止。アイドルを切り替えたときは
  * 審査基準ランクの対応でタイプ間の入れ替え（remapTypes）を行う）。
  *
- * - lessons: 各公開レッスンの踏むタイプとSP有無
- *   （2ndタイプはユーザー選択ではなく、審査基準順の75%/25%抽選を期待値で計算）
+ * - lessons: 各公開レッスンの メイン/サブ タイプとSP有無
  * - classTypes: 各授業で上げるタイプ
  * - examScores: 選抜ごとのタイプ別スコア
  */
 const STORAGE_KEY = "gakumas:schedule:v1";
 
 /** main=null は「このレッスンを踏まない」（獲得・スター性・Pポイントなし） */
-export type LessonPick = { main: TypeKey | null; sp: boolean };
+export type LessonPick = { main: TypeKey | null; sub: TypeKey; sp: boolean };
+export type ExamScores = Record<TypeKey, number>;
 
 /**
- * HIFレッスンの2ndタイプ（サブ枠）の期待値ウェイト。
- * 踏んだタイプ以外の2タイプに、審査基準が高い方75% / 低い方25%で入る。
- * （例: 咲季のDaレッスン → Vi 75% / Vo 25%）
+ * 2ndタイプ（サブ枠）に指定したタイプが出現する確率。
+ * 踏むタイプ以外の2タイプのうち、審査基準が高い方が75%・低い方が25%で抽選される
+ * （例: 咲季[Vi>Da>Vo]のDaレッスン → サブVi=75% / サブVo=25%）。
+ * 実現確率（SPレッスン確率）の計算に使う。ステ計算は選択したサブに全額入る想定のまま。
  */
-export const SUB_WEIGHT_HI = 0.75;
-export const SUB_WEIGHT_LO = 0.25;
-export function subWeights(
+export function subAppearProb(
   main: TypeKey,
-  ranks: TypeRanks,
-): [{ type: TypeKey; w: number }, { type: TypeKey; w: number }] {
-  const others = TYPE_KEYS.filter((t) => t !== main).sort(
-    (a, b) => ranks[a] - ranks[b],
-  );
-  return [
-    { type: others[0], w: SUB_WEIGHT_HI },
-    { type: others[1], w: SUB_WEIGHT_LO },
-  ];
+  sub: TypeKey,
+  ranks: Record<TypeKey, number>,
+): number {
+  const other = TYPE_KEYS.find((t) => t !== main && t !== sub)!;
+  return ranks[sub] <= ranks[other] ? 0.75 : 0.25;
 }
-export type ExamScores = Record<TypeKey, number>;
 
 type ScheduleState = {
   lessons: LessonPick[];
@@ -61,13 +54,17 @@ const EMPTY_EXAM: ExamScores = { vocal: 0, dance: 0, visual: 0 };
 const DEFAULT_EXAM_EACH = [5000, 50000, 140000];
 
 const DEFAULT_STATE: ScheduleState = {
-  lessons: LESSONS.map(() => ({ main: "vocal", sp: true })),
+  lessons: LESSONS.map(() => ({ main: "vocal", sub: "dance", sp: true })),
   classTypes: CLASSES.map(() => "visual"),
   examScores: EXAMS.map((_, i) => {
     const each = DEFAULT_EXAM_EACH[i] ?? 0;
     return { vocal: each, dance: each, visual: each };
   }),
 };
+
+function otherType(type: TypeKey): TypeKey {
+  return TYPE_KEYS.find((t) => t !== type)!;
+}
 
 const isTypeKey = (v: unknown): v is TypeKey =>
   TYPE_KEYS.includes(v as TypeKey);
@@ -114,16 +111,12 @@ export function roleToTypeFromCalcStorage(): Record<string, TypeKey> {
 /**
  * スケジュール入力からタイプ別上昇量・スター性・Pポイントを集計する（純関数）。
  * パラメータボーナスはここでは掛けない（sheetScore 側でまとめて変換する）。
- * 2ndタイプ（サブ枠）の獲得は subWeights の75%/25%期待値で2タイプに分配する。
  */
-export function computeScheduleGains(
-  state: {
-    lessons: LessonPick[];
-    classTypes: TypeKey[];
-    examScores: ExamScores[];
-  },
-  ranks: TypeRanks,
-) {
+export function computeScheduleGains(state: {
+  lessons: LessonPick[];
+  classTypes: TypeKey[];
+  examScores: ExamScores[];
+}) {
   const gains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const lessonGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const classGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -139,11 +132,9 @@ export function computeScheduleGains(
     const mainGain = lesson.main[spIndex];
     const subGain = lesson.sub[spIndex];
     gains[pick.main] += mainGain;
+    gains[pick.sub] += subGain;
     lessonGains[pick.main] += mainGain;
-    for (const { type, w } of subWeights(pick.main, ranks)) {
-      gains[type] += subGain * w;
-      lessonGains[type] += subGain * w;
-    }
+    lessonGains[pick.sub] += subGain;
     // スター性は非SPでSPの半分（7.5等の小数は切り捨て）
     lessonStar += Math.floor(lesson.star[spIndex]);
     pPoints += lesson.p;
@@ -207,11 +198,12 @@ export function loadScheduleState(): ScheduleState {
 
       const lessons: LessonPick[] = LESSONS.map((_, i) => {
         const l = lessonsRaw[i] ?? {};
-        // main=null（踏まない）は保存値をそのまま復元。さらに古い形式（l.type）にも対応。
-        // 旧形式の sub（2ndタイプの手動選択）は廃止したので読み捨てる
+        // main=null（踏まない）は保存値をそのまま復元。さらに古い形式（l.type）にも対応
         const main =
           l.main === null ? null : toType(l.main ?? l.type, "vocal");
-        return { main, sp: (l.sp as boolean | undefined) ?? true };
+        let sub = toType(l.sub ?? l.subType, "dance");
+        if (main !== null && sub === main) sub = otherType(main);
+        return { main, sub, sp: (l.sp as boolean | undefined) ?? true };
       });
 
       // 授業: 新形式 classTypes（タイプ）／ロール形式 classRoles を吸収
@@ -259,11 +251,18 @@ export function useSchedule() {
     }
   }, [state, notifySave]);
 
-  /** 踏むタイプを変更 */
+  /** メインのタイプを変更（サブと衝突したら入れ替え） */
   const setLessonMain = useCallback((index: number, main: TypeKey) => {
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l, i) => (i === index ? { ...l, main } : l)),
+      lessons: prev.lessons.map((l, i) => {
+        if (i !== index) return l;
+        return {
+          ...l,
+          main,
+          sub: l.sub === main ? (l.main ?? otherType(main)) : l.sub,
+        };
+      }),
     }));
   }, []);
 
@@ -285,6 +284,17 @@ export function useSchedule() {
     }));
   }, []);
 
+  /** サブのタイプを変更（メインと衝突したら入れ替え） */
+  const setLessonSub = useCallback((index: number, sub: TypeKey) => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l, i) => {
+        if (i !== index) return l;
+        return { ...l, sub, main: l.main === sub ? l.sub : l.main };
+      }),
+    }));
+  }, []);
+
   const toggleLessonSp = useCallback((index: number) => {
     setState((prev) => ({
       ...prev,
@@ -294,11 +304,27 @@ export function useSchedule() {
     }));
   }, []);
 
-  /** 全レッスンの踏むタイプを一括変更（SPは維持） */
+  /** 全レッスンのメインを一括変更（サブが被ったら入れ替え・SPは維持） */
   const applyAllMain = useCallback((main: TypeKey) => {
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l) => ({ ...l, main })),
+      lessons: prev.lessons.map((l) => ({
+        ...l,
+        main,
+        sub: l.sub === main ? (l.main ?? otherType(main)) : l.sub,
+      })),
+    }));
+  }, []);
+
+  /** 全レッスンのサブを一括変更（メインが被ったら入れ替え・SPは維持） */
+  const applyAllSubs = useCallback((sub: TypeKey) => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l) => ({
+        ...l,
+        sub,
+        main: l.main === sub ? l.sub : l.main,
+      })),
     }));
   }, []);
 
@@ -375,6 +401,7 @@ export function useSchedule() {
       lessons: prev.lessons.map((l) => ({
         ...l,
         main: l.main ? map[l.main] : null,
+        sub: map[l.sub],
       })),
       classTypes: prev.classTypes.map((t) => map[t]),
       examScores: prev.examScores.map((s) => {
@@ -390,8 +417,10 @@ export function useSchedule() {
     setLessonMain,
     clearLessonMain,
     clearAllLessons,
+    setLessonSub,
     toggleLessonSp,
     applyAllMain,
+    applyAllSubs,
     setClassType,
     applyAllClasses,
     setPlan,

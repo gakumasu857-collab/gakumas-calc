@@ -69,7 +69,12 @@ import { useNiaSchedule } from "./useNiaSchedule";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
 import { useScenario } from "./useScenario";
-import { computeScheduleGains, useSchedule } from "./useSchedule";
+import {
+  computeScheduleGains,
+  subAppearProb,
+  useSchedule,
+  type LessonPick,
+} from "./useSchedule";
 import { useSelectedSupports } from "./useSelectedSupports";
 
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
@@ -175,7 +180,7 @@ export function useCalcResult() {
       });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
-      const sched = computeScheduleGains(schedule, typeRanks);
+      const sched = computeScheduleGains(schedule);
       bd = sched.breakdown;
       schedGains = sched.gains;
       hifStar = {
@@ -187,7 +192,7 @@ export function useCalcResult() {
         const pick = schedule.lessons[i];
         if (pick?.main && pick.sp) typeSpP[pick.main] += lesson.p;
       });
-      ctx = buildSheetScoreContext(schedule, typeRanks, manual, events.get);
+      ctx = buildSheetScoreContext(schedule, manual, events.get);
     }
 
     // ---- メモリー（メモリーページのスロット4枚） ----
@@ -397,8 +402,8 @@ export function useCalcResult() {
         rates[t] = Math.min(1, Math.max(0, base + bonus[t]));
       }
       // 実現確率: SP踏みは「メイン属性のSP率」、サブ属性の指定があるレッスン（HIF）は
-      // 2択（残り2属性からランダム）で50%。
-      // 例: DaSP率30%で Da（サブVo）のSP踏み = 30% × 50% = 15%
+      // 残り2属性から審査基準が高い方75%・低い方25%の抽選（subAppearProb）。
+      // 例: DaSP率30%で Da（サブVi=審査基準上位）のSP踏み = 30% × 75% = 22.5%
       const picks =
         scenario === "niaMaster"
           ? niaSchedule.lessons
@@ -415,7 +420,7 @@ export function useCalcResult() {
         if (!pick?.main) return;
         let p = 1;
         if ("sub" in pick) {
-          p *= 0.5;
+          p *= subAppearProb(pick.main, (pick as LessonPick).sub, typeRanks);
           subCount++;
         }
         if (pick.sp) {

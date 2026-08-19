@@ -117,12 +117,20 @@ export function examScoresUniform(i: number): ExamScores {
 
 // ---- 小道具 ----
 
+const nextType = (type: TypeKey): TypeKey =>
+  TYPE_KEYS[(TYPE_KEYS.indexOf(type) + 1) % TYPE_KEYS.length];
+
 /** 配列の i 番目だけ差し替えた新しい配列 */
 const replaceAt = <T>(arr: readonly T[], i: number, v: T): T[] =>
   arr.map((x, j) => (j === i ? v : x));
 
 const otherTypes = (t: TypeKey | null | undefined): TypeKey[] =>
   TYPE_KEYS.filter((x) => x !== t);
+
+/** レッスンの (メイン, サブ) の全組（メイン≠サブ） */
+const MAIN_SUB_PAIRS: [TypeKey, TypeKey][] = TYPE_KEYS.flatMap((main) =>
+  otherTypes(main).map((sub): [TypeKey, TypeKey] => [main, sub]),
+);
 
 /** n個を3タイプへ割り振る全分割 [nVo, nDa, nVi] */
 function partitions3(n: number): [number, number, number][] {
@@ -175,13 +183,15 @@ function axesOver(
 export function steppingAxes(s: Stepping): SteppingAxis[] {
   if (s.kind === "hif") {
     return [
-      // レッスン: 踏むタイプを入れ替える（2ndタイプは審査基準75%/25%で自動）
+      // レッスン: メイン×サブの組を入れ替える
       ...axesOver(s.lessons.length, 0.6, (cur, i) => {
         const c = cur as HifStepping;
         const l = c.lessons[i];
-        return otherTypes(l.main ?? undefined).map((main) => ({
+        return MAIN_SUB_PAIRS.filter(
+          ([main, sub]) => main !== l.main || sub !== l.sub,
+        ).map(([main, sub]) => ({
           ...c,
-          lessons: replaceAt(c.lessons, i, { ...l, main }),
+          lessons: replaceAt(c.lessons, i, { ...l, main, sub }),
         }));
       }),
       // 選抜: スコアの分配比を入れ替える
@@ -266,7 +276,11 @@ export function uniformStepping(
   if (base.kind === "hif") {
     return {
       ...base,
-      lessons: base.lessons.map((l) => ({ ...l, main: lessonType })),
+      lessons: base.lessons.map((l) => ({
+        ...l,
+        main: lessonType,
+        sub: nextType(lessonType),
+      })),
       classTypes: base.classTypes.map(() => secondType),
       // 選抜スコアは初期状態に依存しない一様配分から始める
       examScores: base.examScores.map((_, i) => examScoresUniform(i)),
@@ -299,17 +313,21 @@ export function buildSeeds(current: Stepping): Stepping[] {
     );
 
   if (current.kind === "hif") {
-    // 一様: 踏むタイプの全3パターン（2ndタイプは審査基準75%/25%で自動）
-    for (const main of TYPE_KEYS) {
+    // 一様: メイン×サブの全6パターン
+    for (const [main, sub] of MAIN_SUB_PAIRS) {
       seeds.push({
         ...current,
-        lessons: current.lessons.map((l) => ({ ...l, main })),
+        lessons: current.lessons.map((l) => ({ ...l, main, sub })),
       });
     }
-    // タイプ別の踏む枚数の全分割（45通り）
+    // タイプ別メイン枚数の全分割（45通り）。サブは隣のタイプで仮置き（山登りで直す）
     lessonPartitionSeeds((mains) => ({
       ...current,
-      lessons: current.lessons.map((l, i) => ({ ...l, main: mains[i] })),
+      lessons: current.lessons.map((l, i) => ({
+        ...l,
+        main: mains[i],
+        sub: nextType(mains[i]),
+      })),
     }));
     return seeds;
   }

@@ -16,10 +16,8 @@ import {
   type SheetRole,
   type SheetScoreContext,
 } from "./sheetScore";
-import type { TypeRanks } from "./scenarioGains";
 import {
   computeScheduleGains,
-  subWeights,
   type ExamScores,
   type LessonPick,
 } from "./useSchedule";
@@ -94,26 +92,24 @@ export type ScheduleStateLike = {
  * - タイプ別レッスン回数: レッスンページの選択から集計（メイン踏みのみ）
  * - 手動アビリティ回数: 発動回数ページの参照セット（manualCount経由）
  * - パラボ母数: タイプごとのレッスン獲得＋試験獲得
- *   （2ndタイプは審査基準順の75%/25%抽選の期待値ぶんを母数に入れる）
  * - eventCounts: カードごとの前イベ・後イベ発動回数の手動指定（サポカ設定ページ）
  */
 export function buildSheetScoreContext(
   schedule: ScheduleStateLike,
-  ranks: TypeRanks,
   manualCount: (label: string) => number | undefined,
   eventCounts?: SheetScoreContext["eventCounts"],
 ): SheetScoreContext {
   const lessonCounts = typeLessonCounts(schedule.lessons);
 
-  const { examRows } = computeScheduleGains(schedule, ranks);
+  const { examRows } = computeScheduleGains(schedule);
   const gains = {} as SheetScoreContext["gains"];
   for (const type of TYPE_KEYS) {
     const lessons = schedule.lessons.map((pick, i) => {
       if (!pick.main) return 0; // 踏まないレッスン
       const spIndex = pick.sp ? 1 : 0;
       if (pick.main === type) return LESSONS[i].main[spIndex];
-      const sub = subWeights(pick.main, ranks).find((s) => s.type === type);
-      return sub ? LESSONS[i].sub[spIndex] * sub.w : 0;
+      if (pick.sub === type) return LESSONS[i].sub[spIndex];
+      return 0;
     });
     const exams = examRows.map((row) => row.dist[type]);
     gains[TYPE_SHEET_ROLE[type]] = { lessons, exams };

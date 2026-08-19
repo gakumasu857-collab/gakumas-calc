@@ -228,7 +228,7 @@ export function runOnce() {
     cappedSum: Math.round(res.cappedSum),
     names: res.slots.map((s) => idToName(s.id) + (s.rental ? "(R)" : "")),
     lessons: res.hif?.lessons.map(
-      (l) => `${l.main ?? "―"}${l.sp ? "■" : ""}`,
+      (l) => `${l.main ?? "―"}/${l.sub}${l.sp ? "■" : ""}`,
     ),
     exams: res.hif?.examScores.map(
       (e) => `Vo${e.vocal}/Da${e.dance}/Vi${e.visual}`,
@@ -300,7 +300,7 @@ export function optimizeFor(names: string[], rentalName?: string) {
   return {
     ...e,
     lessons: res.hif.lessons.map(
-      (l) => `${l.main ?? "―"}${l.sp ? "■" : ""}`,
+      (l) => `${l.main ?? "―"}/${l.sub}${l.sp ? "■" : ""}`,
     ),
     classTypes: res.hif.classTypes.join(","),
     exams: res.hif.examScores.map(

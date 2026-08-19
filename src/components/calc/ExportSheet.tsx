@@ -29,7 +29,6 @@ import { imageUrl } from "@/lib/config";
 import { sumEventContrib } from "@/lib/formation";
 import { clampExtraCount } from "@/lib/sheetScore";
 import type { useCalcResult } from "@/lib/useCalcResult";
-import { subWeights } from "@/lib/useSchedule";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
@@ -618,21 +617,16 @@ function HifPlan({ r }: { r: CalcResult }) {
       <h2 style={S.h2}>レッスン・授業・選抜</h2>
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
-          head={["日程", "踏むタイプ", "2nd(75%/25%)", "SP"]}
+          head={["日程", "踏むタイプ", "2nd", "SP"]}
           rows={LESSONS.map((lesson, i) => {
             const pick = r.schedule.lessons[i];
             if (!pick.main) {
               return [lesson.label, <span key="n" style={{ color: FAINT }}>踏まない</span>, "", ""];
             }
-            const subs = subWeights(pick.main, r.typeRanks);
             return [
               lesson.label,
               <TypeValue key="m" type={pick.main} />,
-              <span key="s">
-                <TypeValue type={subs[0].type} />
-                <span style={{ color: FAINT }}> / </span>
-                <TypeValue type={subs[1].type} />
-              </span>,
+              <TypeValue key="s" type={pick.sub} />,
               spMark(pick.sp),
             ];
           })}

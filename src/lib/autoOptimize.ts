@@ -220,6 +220,7 @@ export type OptimizeDebug = {
     | {
         label: string;
         main: TypeKey | null;
+        sub: TypeKey;
         sp: boolean;
       }[]
     | null;
@@ -1234,14 +1235,9 @@ export class OptimizeEngine {
         classTypes: s.classTypes,
         examScores: s.examScores,
       };
-      const sched = computeScheduleGains(state, input.ranks);
+      const sched = computeScheduleGains(state);
       bd = sched.breakdown;
-      ctx = buildSheetScoreContext(
-        state,
-        input.ranks,
-        input.manual,
-        input.eventCounts,
-      );
+      ctx = buildSheetScoreContext(state, input.manual, input.eventCounts);
     } else if (s.kind === "nia") {
       const state: NiaStateLike = {
         ...input.nia,
@@ -1573,14 +1569,11 @@ export class OptimizeEngine {
       );
     }
     const s = stepping as Stepping & { kind: "hif" };
-    const sched = computeScheduleGains(
-      {
-        lessons: s.lessons,
-        classTypes: s.classTypes,
-        examScores: s.examScores,
-      },
-      input.ranks,
-    );
+    const sched = computeScheduleGains({
+      lessons: s.lessons,
+      classTypes: s.classTypes,
+      examScores: s.examScores,
+    });
     const finalStar = FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0);
     // ワッペン発動回数 = 札取得回数（セットのスキル獲得＋編成サポカのスキル獲得分）。最大20回
     const wappen = Math.min(WAPPEN_MAX, this.fudaBase + this.supportFudaOf(members));
@@ -1631,12 +1624,13 @@ export class OptimizeEngine {
       steppingSummary = { lessonMains, classTypes, examBias };
     }
 
-    // 勝ち踏み方の詳細（HIFのみ。レッスンごとの踏むタイプ/SPと選抜の実配分）
+    // 勝ち踏み方の詳細（HIFのみ。レッスンごとのメイン/サブ/SPと選抜の実配分）
     const lessonDetail =
       stepping.kind === "hif"
         ? stepping.lessons.map((l, i) => ({
             label: LESSONS[i].label,
             main: l.main,
+            sub: l.sub,
             sp: l.sp,
           }))
         : null;

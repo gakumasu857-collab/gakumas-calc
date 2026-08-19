@@ -449,7 +449,7 @@ function SearchDebug({
           {d.lessonDetail && (
             <div className="rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
               <p className="mb-1 font-semibold text-slate-700">
-                レッスン詳細（踏むタイプ・SPは■。2ndは審査基準75%/25%で自動）
+                レッスン詳細（メイン／サブ・SPは■）
               </p>
               <div className="flex flex-wrap gap-x-3 gap-y-1 tabular-nums">
                 {d.lessonDetail.map((l) => (
@@ -460,6 +460,9 @@ function SearchDebug({
                     ) : (
                       <>
                         <b>{TYPE_LABELS[l.main]}</b>
+                        <span className="text-slate-400">
+                          /{TYPE_LABELS[l.sub]}
+                        </span>
                         {l.sp && <b className="text-slate-800">■</b>}
                       </>
                     )}
