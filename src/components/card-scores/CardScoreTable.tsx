@@ -19,8 +19,9 @@ import {
 import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { useEventCounts } from "@/lib/useEventCounts";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
+import { typeRanksOf } from "@/lib/useCalcResult";
+import { useCalcSettings, type TypeKey } from "@/lib/useCalcSettings";
 import { useSchedule } from "@/lib/useSchedule";
-import { type TypeKey } from "@/lib/useCalcSettings";
 
 /** ソート状態の保存先（並べ替えはページを離れても維持する） */
 const SORT_STORAGE_KEY = "gakumas:cardScoreSort:v1";
@@ -119,17 +120,22 @@ export default function CardScoreTable() {
   // カードは自タイプの踏み回数を参照（固定対応）
   const typeRole = TYPE_SHEET_ROLE;
 
+  // 2ndタイプの75%/25%分配は計算ページ選択中アイドルの審査基準で決める
+  const { settings } = useCalcSettings();
+  const typeRanks = useMemo(() => typeRanksOf(settings.idol), [settings.idol]);
+
   // スプシ準拠の計算コンテキスト（発動回数＋パラボ母数＋イベント回数設定）
   const ctx: SheetScoreContext = useMemo(
     () =>
       buildSheetScoreContext(
         schedule,
+        typeRanks,
         manualCountFromSet(
           selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
         ),
         events.get,
       ),
-    [ability, selectedSet, schedule, events.get],
+    [ability, selectedSet, schedule, events.get, typeRanks],
   );
 
   const rows: Row[] = useMemo(() => {

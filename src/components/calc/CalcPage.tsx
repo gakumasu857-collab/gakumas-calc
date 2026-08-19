@@ -654,7 +654,7 @@ export default function CalcPage() {
                   <span className={`font-bold ${TYPE_TEXT[type]}`}>
                     {TYPE_LABELS[type]}
                   </span>{" "}
-                  +{(r.spLesson.bonus[type] * 100).toFixed(1)}%
+                  +{((r.spLesson.bonus[type] + 0.05) * 100).toFixed(1)}%
                 </span>
               ))}
               <span className="flex items-center gap-1 text-slate-400">

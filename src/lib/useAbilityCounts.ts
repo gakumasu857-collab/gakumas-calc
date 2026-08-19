@@ -124,14 +124,15 @@ export function useAbilityCounts() {
   }, []);
 
   /**
-   * 全テンプレセットを初期値に戻す（間違えて全部消した人向けの救済ボタン）。
-   * ユーザー追加セットの回数は overrides が実体なので消さない。
+   * 指定セットを初期値に戻す（差分を全部消す）。
+   * テンプレはスプシ由来のデフォルトへ、ユーザー追加セットは全0へ戻る。
    */
-  const resetAllDefaults = useCallback(() => {
+  const resetSets = useCallback((setIds: Iterable<string>) => {
+    const targets = new Set(setIds);
     setOverrides((prev) => {
       const next: Overrides = {};
       for (const [setId, counts] of Object.entries(prev)) {
-        if (setId.startsWith("uset-")) next[setId] = counts;
+        if (!targets.has(setId)) next[setId] = counts;
       }
       return next;
     });
@@ -225,7 +226,7 @@ export function useAbilityCounts() {
     getCount,
     setCount,
     isOverridden,
-    resetAllDefaults,
+    resetSets,
     resetEverything,
     clearSelected,
     addSet,

@@ -67,13 +67,14 @@ export default function ScoreDetailModal({
             </thead>
             <tbody>
               {bd.items.map((item) => {
-                // 発動参照が「何もなし」等で回数が付かないアビリティは — 表示
-                const noCount =
-                  item.kind === "count" &&
-                  (item.count ?? 0) === 0 &&
-                  (item.extraCount ?? 0) === 0;
+                // 発動参照（trigger_tag）が未入力のアビリティだけ — 表示。
+                // 参照はあるが回数0のもの（差し入れ等）は「×0回」と出す。
                 const muted =
-                  item.kind === "excluded" || item.kind === "none" || noCount;
+                  item.kind === "excluded" ||
+                  item.kind === "none" ||
+                  (item.kind === "count" &&
+                    (item.count ?? 0) === 0 &&
+                    (item.extraCount ?? 0) === 0);
                 return (
                   <tr
                     key={item.slot}
@@ -92,8 +93,7 @@ export default function ScoreDetailModal({
                             : fmt(item.value)}
                     </td>
                     <td className={td}>
-                      {item.kind === "count" && noCount && "—"}
-                      {item.kind === "count" && !noCount && (
+                      {item.kind === "count" && (
                         <>
                           × {item.count}回
                           {(item.extraCount ?? 0) > 0 && (
@@ -118,7 +118,9 @@ export default function ScoreDetailModal({
                     <td
                       className={`${td} text-right font-semibold ${muted ? "" : "text-slate-800"}`}
                     >
-                      {item.kind === "excluded" || noCount ? "—" : fmt(item.points)}
+                      {item.kind === "excluded" || item.kind === "none"
+                        ? "—"
+                        : fmt(item.points)}
                     </td>
                   </tr>
                 );
@@ -158,7 +160,7 @@ export default function ScoreDetailModal({
             </tbody>
           </table>
           <p className="text-[11px] text-slate-400">
-            ※ 効果量は凸数と枠位置に応じた段階の値。回数はレッスンページ・発動回数セット・固定回数・イベント回数設定（点数表）から。発動参照が無いアビリティ（Pポイント等）は—表示。
+            ※ 効果量は凸数と枠位置に応じた段階の値。回数はレッスンページ・発動回数セット・固定回数・イベント回数設定（点数表）から。発動参照（trigger_tag）が未入力のアビリティは—表示。
             {withEvents ? (
               <>
                 <b className="text-emerald-600">＋イベントn回</b>

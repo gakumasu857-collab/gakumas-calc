@@ -54,6 +54,8 @@ export default function SetEditModal({
   const [onlyFormation, setOnlyFormation] = useState(
     formationKeys !== undefined,
   );
+  // 編成サポカの前イベ・後イベによる上乗せ回数（緑表示）を反映するか
+  const [withEvents, setWithEvents] = useState(true);
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
   // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する
   const visibleAbilities =
@@ -157,16 +159,37 @@ export default function SetEditModal({
 
         {/* 右: 選択中の分類のアビリティだけ表示（少ない分類では下が余白になる） */}
         <div className="flex min-h-0 flex-1 flex-col gap-2">
-          {formationKeys && (
-            <label className="flex shrink-0 items-center gap-1.5 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={onlyFormation}
-                onChange={(e) => setOnlyFormation(e.target.checked)}
-                className="accent-blue-600"
-              />
-              選択サポカのアビリティのみ（全体で{formationKeys.size}種）
-            </label>
+          {(formationKeys || eventExtras) && (
+            <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1">
+              {formationKeys && (
+                <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={onlyFormation}
+                    onChange={(e) => setOnlyFormation(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  選択サポカのアビリティのみ（全体で{formationKeys.size}種）
+                </label>
+              )}
+              {eventExtras && (
+                <label
+                  className="flex items-center gap-1.5 text-xs text-slate-600"
+                  title="編成サポカ6枚の前イベ・後イベ（スキル獲得・強化・チェンジ等）による回数の上乗せを緑の数字で表示します"
+                >
+                  <input
+                    type="checkbox"
+                    checked={withEvents}
+                    onChange={(e) => setWithEvents(e.target.checked)}
+                    className="accent-emerald-600"
+                  />
+                  サポカのイベントを反映
+                  {withEvents && (
+                    <span className="font-bold text-emerald-600">（緑）</span>
+                  )}
+                </label>
+              )}
+            </div>
           )}
           <div className="grid min-h-0 flex-1 content-start grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
             {visibleAbilities.length === 0 ? (
@@ -179,7 +202,9 @@ export default function SetEditModal({
                   key={key}
                   abilityKey={key}
                   count={getCount(set, key)}
-                  extraCount={eventExtras?.[ABILITY_NAMES[key]] ?? 0}
+                  extraCount={
+                    withEvents ? (eventExtras?.[ABILITY_NAMES[key]] ?? 0) : 0
+                  }
                   onChange={(value) => setCount(set, key, value)}
                 />
               ))

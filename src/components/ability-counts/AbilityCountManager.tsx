@@ -1,11 +1,12 @@
-﻿import { useMemo, useState } from "react";
-import { Pencil, Plus, RotateCcw, X, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Pencil, Plus, RotateCcw, Settings2, X, Trash2 } from "lucide-react";
 import {
   ABILITY_CATEGORIES,
   abilityMax,
   DEFAULT_MAX,
   SET_PLAN_OPTIONS,
   setVisibleInScenario,
+  type AbilityCountSet,
 } from "@/data/abilityCounts";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -51,6 +52,7 @@ type ActiveCell = {
  * 表: 縦=アビリティ全件、横=セット（固定幅・あふれたら横スクロール）。
  * ヘッダーは2段（上段=参照チェックボックス、下段=セット名）。
  * チェックしたセットはアビリティ名の右隣の参照列にコピー表示される。
+ * 操作は「追加」「削除&リセット」「その他の操作」の3ボタン（それぞれモーダル）。
  */
 export default function AbilityCountManager() {
   const store = useAbilityCounts();
@@ -58,18 +60,18 @@ export default function AbilityCountManager() {
   const selectedSupports = useSelectedSupports();
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
-  const [addingName, setAddingName] = useState<string | null>(null);
-  const [addingPlan, setAddingPlan] = useState("");
   const [onlyFormation, setOnlyFormation] = useState(false);
   const [hideTemplates, setHideTemplates] = useState(false);
-  const [dupSource, setDupSource] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<Set<string> | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [delResetOpen, setDelResetOpen] = useState(false);
+  const [otherOpen, setOtherOpen] = useState(false);
 
-  // シナリオに合うテンプレだけ表示（HIF用/NIA用。ユーザーセットは常に表示）
-  const visibleSets = store.sets.filter(
-    (s) =>
-      setVisibleInScenario(s.id, scenario) &&
-      (!hideTemplates || store.isUserSet(s.id)),
+  // シナリオに合うセットだけ（HIF用/NIA用/初用テンプレ＋ユーザーセット）
+  const scenarioSets = store.sets.filter((s) =>
+    setVisibleInScenario(s.id, scenario),
+  );
+  const visibleSets = scenarioSets.filter(
+    (s) => !hideTemplates || store.isUserSet(s.id),
   );
   const selectedSet = store.sets.find((s) => s.id === store.selectedSetId);
   const editingSet = store.sets.find((s) => s.id === editingSetId);
@@ -90,12 +92,7 @@ export default function AbilityCountManager() {
     ? ALL_ABILITIES.filter((key) => formationAbilities.has(key))
     : ALL_ABILITIES;
 
-  const submitNewSet = () => {
-    if (addingName === null) return;
-    store.addSet(addingName.trim(), addingPlan);
-    setAddingName(null);
-    setAddingPlan("");
-  };
+  const filterActive = onlyFormation || hideTemplates;
 
   return (
     <div>
@@ -111,168 +108,38 @@ export default function AbilityCountManager() {
           )}
         </p>
         <div className="ml-auto flex items-center gap-1.5">
-          {/* 編成中サポカのアビリティだけに絞る */}
           <button
             type="button"
-            onClick={() => setOnlyFormation((v) => !v)}
-            title="計算ページの選択サポカ6枚が持つアビリティだけを表示します"
-            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
-              onlyFormation
-                ? "border-blue-600 bg-blue-600 text-white"
-                : "border-slate-300 text-slate-500 hover:bg-slate-100"
-            }`}
+            onClick={() => setAddOpen(true)}
+            title="セットを新しく作る／既存のセットを複製する"
+            className="flex items-center gap-1 rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
           >
-            編成中のアビリティのみ
-            {onlyFormation && `（${visibleAbilities.length}件）`}
+            <Plus size={13} />
+            追加
           </button>
-          {/* テンプレセットの表示/非表示 */}
           <button
             type="button"
-            onClick={() => setHideTemplates((v) => !v)}
-            title="テンプレセット（スプシ由来）を隠して、自分で追加したセットだけを表示します"
-            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
-              hideTemplates
-                ? "border-blue-600 bg-blue-600 text-white"
-                : "border-slate-300 text-slate-500 hover:bg-slate-100"
-            }`}
-          >
-            テンプレ非表示
-          </button>
-          {/* 複製して新規作成 */}
-          {dupSource === null ? (
-            <button
-              type="button"
-              onClick={() => setDupSource(visibleSets[0]?.id ?? "")}
-              className="flex items-center gap-1 rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
-            >
-              <Plus size={13} />
-              複製で新規
-            </button>
-          ) : (
-            <>
-              <select
-                value={dupSource}
-                onChange={(e) => setDupSource(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
-              >
-                {visibleSets.map((set) => (
-                  <option key={set.id} value={set.id}>
-                    {set.plan ? `【${set.plan}】` : ""}
-                    {set.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => {
-                  const src = store.sets.find((x) => x.id === dupSource);
-                  if (src) store.duplicateSet(src);
-                  setDupSource(null);
-                }}
-                className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
-              >
-                複製する
-              </button>
-              <button
-                type="button"
-                onClick={() => setDupSource(null)}
-                className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
-              >
-                キャンセル
-              </button>
-            </>
-          )}
-          {/* 追加セットの削除（複数選択） */}
-          <button
-            type="button"
-            onClick={() => setDeleting(new Set())}
+            onClick={() => setDelResetOpen(true)}
+            title="セットの削除・初期値へのリセット・全初期化"
             className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
           >
             <Trash2 size={13} />
-            セット削除
-          </button>
-          {/* 全部消してしまった人向けの救済リセット */}
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "テンプレセットの回数をすべて初期値に戻します。よろしいですか？（追加したセットは影響を受けません）",
-                )
-              ) {
-                store.resetAllDefaults();
-              }
-            }}
-            className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100"
-          >
-            <RotateCcw size={13} />
-            テンプレを初期値に戻す
+            削除&リセット
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "回数の変更・追加したセット・選択をすべて消して初期状態に戻します。よろしいですか？（追加セットも消えます）",
-                )
-              ) {
-                store.resetEverything();
-              }
-            }}
-            className="flex items-center gap-1 rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+            onClick={() => setOtherOpen(true)}
+            title="表示の絞り込み（編成中のアビリティのみ・テンプレ非表示）"
+            className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+              filterActive
+                ? "border-blue-600 bg-blue-600 text-white"
+                : "border-slate-300 text-slate-500 hover:bg-slate-100"
+            }`}
           >
-            <RotateCcw size={13} />
-            全て初期状態に戻す
+            <Settings2 size={13} />
+            その他の操作
+            {filterActive && "（絞り込み中）"}
           </button>
-          {addingName === null ? (
-            <button
-              type="button"
-              onClick={() => setAddingName("")}
-              className="flex items-center gap-1 rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
-            >
-              <Plus size={13} />
-              セット追加
-            </button>
-          ) : (
-            <>
-              <input
-                type="text"
-                autoFocus
-                value={addingName}
-                onChange={(e) => setAddingName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submitNewSet()}
-                placeholder="セット名"
-                className="w-40 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
-              />
-              <select
-                value={addingPlan}
-                onChange={(e) => setAddingPlan(e.target.value)}
-                title="プラン/スタイル（試験補助を強めるときのアイテム評価の判定に使います）"
-                className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
-              >
-                <option value="">プランなし</option>
-                {SET_PLAN_OPTIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={submitNewSet}
-                className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
-              >
-                追加
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddingName(null)}
-                className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
-              >
-                キャンセル
-              </button>
-            </>
-          )}
         </div>
       </div>
 
@@ -311,12 +178,20 @@ export default function AbilityCountManager() {
                       選択されているセット
                     </span>
                     <div className="flex w-full items-center gap-0.5">
-                      <span
-                        title={selectedSet.name}
-                        className="min-w-0 flex-1 truncate text-center text-xs font-bold text-blue-800"
+                      <button
+                        type="button"
+                        onClick={() => setEditingSetId(selectedSet.id)}
+                        title={`${selectedSet.name} を編集（クリックで発動回数モーダル）`}
+                        className="group flex min-w-0 flex-1 items-center justify-center gap-0.5 text-center text-xs font-bold text-blue-800 hover:text-blue-600"
                       >
-                        {selectedSet.name}
-                      </span>
+                        <span className="min-w-0 truncate group-hover:underline">
+                          {selectedSet.name}
+                        </span>
+                        <Pencil
+                          size={10}
+                          className="shrink-0 text-blue-300 group-hover:text-blue-600"
+                        />
+                      </button>
                       <button
                         type="button"
                         onClick={() => store.selectSet(selectedSet.id)}
@@ -485,52 +360,70 @@ export default function AbilityCountManager() {
         />
       )}
 
-      {deleting !== null && (
-        <Modal title="追加セットの削除" onClose={() => setDeleting(null)}>
-          {store.sets.filter((x) => store.isUserSet(x.id)).length === 0 ? (
-            <p className="text-sm text-slate-500">
-              削除できるのは自分で追加したセットだけです（まだありません）。
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-slate-500">
-                削除するセットを選んでください（複数選択できます）。テンプレセットは削除できません。
-              </p>
-              {store.sets
-                .filter((x) => store.isUserSet(x.id))
-                .map((set) => (
-                  <label
-                    key={set.id}
-                    className="flex items-center gap-2 text-sm text-slate-700"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={deleting.has(set.id)}
-                      onChange={(e) => {
-                        const next = new Set(deleting);
-                        if (e.target.checked) next.add(set.id);
-                        else next.delete(set.id);
-                        setDeleting(next);
-                      }}
-                      className="accent-red-500"
-                    />
-                    {set.plan ? `【${set.plan}】` : ""}
-                    {set.name}
-                  </label>
-                ))}
-              <button
-                type="button"
-                disabled={deleting.size === 0}
-                onClick={() => {
-                  for (const id of deleting) store.deleteSet(id);
-                  setDeleting(null);
-                }}
-                className="mt-1 self-start rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                選択した{deleting.size}件を削除
-              </button>
-            </div>
-          )}
+      {addOpen && (
+        <AddSetModal
+          sets={scenarioSets}
+          onCreate={(name, plan) => {
+            store.addSet(name, plan);
+            setAddOpen(false);
+          }}
+          onDuplicate={(set) => {
+            store.duplicateSet(set);
+            setAddOpen(false);
+          }}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
+
+      {delResetOpen && (
+        <DeleteResetModal
+          sets={scenarioSets}
+          isUserSet={store.isUserSet}
+          onDelete={(ids) => {
+            for (const id of ids) store.deleteSet(id);
+          }}
+          onReset={(ids) => store.resetSets(ids)}
+          onResetEverything={() => {
+            store.resetEverything();
+            setDelResetOpen(false);
+          }}
+          onClose={() => setDelResetOpen(false)}
+        />
+      )}
+
+      {otherOpen && (
+        <Modal title="その他の操作" onClose={() => setOtherOpen(false)}>
+          <div className="flex flex-col gap-3">
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={onlyFormation}
+                onChange={(e) => setOnlyFormation(e.target.checked)}
+                className="mt-0.5 accent-blue-600"
+              />
+              <span>
+                編成中のアビリティのみ表示
+                <span className="block text-xs text-slate-400">
+                  計算ページの選択サポカ6枚が持つアビリティ（
+                  {formationAbilities.size}種）だけを表に出します。
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={hideTemplates}
+                onChange={(e) => setHideTemplates(e.target.checked)}
+                className="mt-0.5 accent-blue-600"
+              />
+              <span>
+                テンプレ非表示
+                <span className="block text-xs text-slate-400">
+                  テンプレセット（スプシ由来）を隠して、自分で追加したセットだけを表示します。
+                </span>
+              </span>
+            </label>
+          </div>
         </Modal>
       )}
 
@@ -556,6 +449,216 @@ export default function AbilityCountManager() {
         />
       )}
     </div>
+  );
+}
+
+/** 「追加」モーダル: 新規作成 or 既存セットの複製 */
+function AddSetModal({
+  sets,
+  onCreate,
+  onDuplicate,
+  onClose,
+}: {
+  sets: AbilityCountSet[];
+  onCreate: (name: string, plan: string) => void;
+  onDuplicate: (set: AbilityCountSet) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [plan, setPlan] = useState("");
+  const [dupSource, setDupSource] = useState(sets[0]?.id ?? "");
+
+  return (
+    <Modal title="セットを追加" onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        <section className="flex flex-col gap-2">
+          <h3 className="text-xs font-bold text-slate-600">
+            新しく作る（回数はすべて0から）
+          </h3>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <input
+              type="text"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onCreate(name.trim(), plan)}
+              placeholder="セット名"
+              className="w-44 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
+            />
+            <select
+              value={plan}
+              onChange={(e) => setPlan(e.target.value)}
+              title="プラン/スタイル（試験補助を強めるときのアイテム評価の判定に使います）"
+              className="rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
+            >
+              <option value="">プランなし</option>
+              {SET_PLAN_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => onCreate(name.trim(), plan)}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
+            >
+              作成
+            </button>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-2 border-t border-slate-200 pt-3">
+          <h3 className="text-xs font-bold text-slate-600">
+            既存のセットを複製する（回数・プランをコピー）
+          </h3>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <select
+              value={dupSource}
+              onChange={(e) => setDupSource(e.target.value)}
+              className="min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-1.5 py-1.5 text-xs text-slate-700"
+            >
+              {sets.map((set) => (
+                <option key={set.id} value={set.id}>
+                  {set.plan ? `【${set.plan}】` : ""}
+                  {set.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const src = sets.find((x) => x.id === dupSource);
+                if (src) onDuplicate(src);
+              }}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
+            >
+              複製する
+            </button>
+          </div>
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
+/** 「削除&リセット」モーダル: セット複数選択 → 削除 or 初期値リセット。全初期化も */
+function DeleteResetModal({
+  sets,
+  isUserSet,
+  onDelete,
+  onReset,
+  onResetEverything,
+  onClose,
+}: {
+  sets: AbilityCountSet[];
+  isUserSet: (setId: string) => boolean;
+  onDelete: (ids: string[]) => void;
+  onReset: (ids: string[]) => void;
+  onResetEverything: () => void;
+  onClose: () => void;
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const checkedUserSets = [...checked].filter((id) => isUserSet(id));
+
+  const toggle = (id: string, on: boolean) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  return (
+    <Modal title="セットの削除&リセット" onClose={onClose}>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-slate-500">
+          対象のセットを選んで（複数可）、下のボタンで操作してください。
+          テンプレセットは削除できません（リセットのみ）。
+        </p>
+        <div className="flex max-h-[45vh] flex-col gap-1.5 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          {sets.map((set) => (
+            <label
+              key={set.id}
+              className="flex items-center gap-2 text-sm text-slate-700"
+            >
+              <input
+                type="checkbox"
+                checked={checked.has(set.id)}
+                onChange={(e) => toggle(set.id, e.target.checked)}
+                className="accent-blue-600"
+              />
+              <span className="min-w-0 truncate">
+                {set.plan ? `【${set.plan}】` : ""}
+                {set.name}
+              </span>
+              {!isUserSet(set.id) && (
+                <span className="shrink-0 rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-400">
+                  テンプレ
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            disabled={checkedUserSets.length === 0}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `選択した追加セット${checkedUserSets.length}件を削除します。よろしいですか？`,
+                )
+              ) {
+                onDelete(checkedUserSets);
+                setChecked(new Set());
+              }
+            }}
+            className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 size={13} />
+            選択した{checkedUserSets.length}件を削除
+          </button>
+          <button
+            type="button"
+            disabled={checked.size === 0}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `選択した${checked.size}件の回数を初期値に戻します。よろしいですか？（テンプレはスプシの初期値、追加セットは全て0に戻ります）`,
+                )
+              ) {
+                onReset([...checked]);
+                setChecked(new Set());
+              }
+            }}
+            className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <RotateCcw size={13} />
+            選択した{checked.size}件を初期値に戻す
+          </button>
+        </div>
+        <div className="mt-1 border-t border-slate-200 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "回数の変更・追加したセット・選択をすべて消して初期状態に戻します。よろしいですか？（追加セットも消えます）",
+                )
+              ) {
+                onResetEverything();
+              }
+            }}
+            className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50"
+          >
+            <RotateCcw size={13} />
+            全て初期状態に戻す（追加セットも削除）
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

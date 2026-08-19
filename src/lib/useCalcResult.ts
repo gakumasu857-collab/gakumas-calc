@@ -175,7 +175,7 @@ export function useCalcResult() {
       });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
-      const sched = computeScheduleGains(schedule);
+      const sched = computeScheduleGains(schedule, typeRanks);
       bd = sched.breakdown;
       schedGains = sched.gains;
       hifStar = {
@@ -187,7 +187,7 @@ export function useCalcResult() {
         const pick = schedule.lessons[i];
         if (pick?.main && pick.sp) typeSpP[pick.main] += lesson.p;
       });
-      ctx = buildSheetScoreContext(schedule, manual, events.get);
+      ctx = buildSheetScoreContext(schedule, typeRanks, manual, events.get);
     }
 
     // ---- メモリー（メモリーページのスロット4枚） ----

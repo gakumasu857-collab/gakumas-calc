@@ -2,7 +2,7 @@
  * 計算ページの左端タブ（発動回数タブの下）から開く、レッスン・授業（営業）・選抜エディタ。
  * レッスンページと同じストアを共有していて、どちらで編集しても同期する。
  * シナリオごとに内容が変わる:
- * - H.I.F.: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
+ * - H.I.F.: 公開レッスン（踏むタイプ＋SP。2ndタイプは審査基準75%/25%で自動）・授業・選抜スコア
  * - N.I.A.: 自主レッスン（単タイプ＋SP）・営業（営業先/成功度）・オーディション
  * - 初: レジェンドレッスン（単タイプ＋SP＋パーフェクト）・授業・試験
  */
@@ -35,6 +35,7 @@ import { optimizeSteppingForSlots } from "@/lib/autoOptimize";
 import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
 import type { SelectedSlot } from "@/lib/formation";
 import type { useCalcResult } from "@/lib/useCalcResult";
+import { subWeights } from "@/lib/useSchedule";
 import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
 const TYPE_STYLE: Record<TypeKey, { on: string; off: string; head: string; chip: string }> = {
@@ -202,7 +203,7 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
   );
 }
 
-/** H.I.F.: 公開レッスン（メイン＋サブ切替＋SP）・授業・選抜スコア */
+/** H.I.F.: 公開レッスン（踏むタイプ＋SP。2ndタイプは審査基準75%/25%の自動抽選）・授業・選抜スコア */
 function HifEditor({ r }: { r: CalcResult }) {
   const schedule = r.schedule;
   return (
@@ -211,7 +212,6 @@ function HifEditor({ r }: { r: CalcResult }) {
         <BulkRow
           groups={[
             { label: "踏むタイプ一括", onPick: (t) => schedule.applyAllMain(t) },
-            { label: "2ndタイプ一括", onPick: (t) => schedule.applyAllSubs(t) },
             { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
           ]}
         />
@@ -248,22 +248,29 @@ function HifEditor({ r }: { r: CalcResult }) {
                       else schedule.setLessonMain(i, type);
                     }}
                   />
-                  {/* サブバッジ: クリックで残り2タイプを交互に切替 */}
+                  {/* 2ndタイプバッジ: 審査基準が高い方75% / 低い方25%の抽選（期待値で計算） */}
                   {pick.main === type && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const others = TYPE_KEYS.filter((t) => t !== type);
-                        const next =
-                          others[(others.indexOf(pick.sub) + 1) % others.length];
-                        schedule.setLessonSub(i, next);
-                      }}
-                      title={`2ndタイプ: ${TYPE_LABELS[pick.sub]}（クリックで切替）`}
-                      className={`absolute -bottom-1 -right-1.5 z-10 flex h-4 min-w-6 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-2 ring-white ${TYPE_STYLE[pick.sub].on}`}
+                    <span
+                      title={`2ndタイプ（獲得${lesson.sub[spIndex]}）: ${subWeights(
+                        type,
+                        r.typeRanks,
+                      )
+                        .map(
+                          (s) =>
+                            `${TYPE_LABELS[s.type]}${Math.round(s.w * 100)}%`,
+                        )
+                        .join(" / ")}（審査基準順の抽選・期待値で計算）`}
+                      className="absolute -bottom-1 -right-1.5 z-10 flex h-4 items-center overflow-hidden rounded text-[8px] font-bold ring-2 ring-white"
                     >
-                      {lesson.sub[spIndex]}
-                    </button>
+                      {subWeights(type, r.typeRanks).map((s) => (
+                        <span
+                          key={s.type}
+                          className={`flex h-full items-center px-0.5 ${TYPE_STYLE[s.type].on}`}
+                        >
+                          {Math.round(s.w * 100)}
+                        </span>
+                      ))}
+                    </span>
                   )}
                 </span>
               )),
@@ -729,7 +736,7 @@ function HifNumbers() {
     <>
       <p className="mb-3 text-xs text-slate-500">
         ※ コミュニティ調べの暫定値・近似式です。
-        サブパラメータは選択した1タイプに入ります。
+        2ndタイプは踏んだタイプ以外の2タイプへの抽選（審査基準が高い方75%／低い方25%）で、計算は期待値で行います。
         パラメータボーナス%はここでは適用せず、計算ページで反映します。
       </p>
 

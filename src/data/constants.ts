@@ -96,7 +96,7 @@ export const ABILITY_NAMES = {
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
   charm_8plus_ut4: "好印象8枚以上スキル獲得(4回まで)",
   up_SP_lesson_rate: "SPレッスン率アップ",
-  stage_finish_ut2: "試験・オーディション終了時(2回まで)",
+  stage_finish_ut2: "試験・オーディション(2回まで)",
   stage_finish: "試験・オーディション",
   initial: "初期値",
   bonus: "パラメータボーナス",
@@ -138,8 +138,10 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   何もなし: "nothing",
   体力なし: "nothing",
   "試験終了時": "stage_finish_ut2",
-  // 2026-08 スプシ改名の旧ラベル（localStorage等の旧データ互換）
+  // 2026-08 スプシ改名の旧ラベル（localStorage・発動回数タブの旧行名等の互換）
   "試験終了時(2回まで)": "stage_finish_ut2",
+  "試験・オーディション終了時": "stage_finish_ut2",
+  "試験・オーディション終了時(2回まで)": "stage_finish_ut2",
   "試験終了時回復": "recovery_stage_finish",
   "全SPレッスン率(14%)": "all_sp_lesson_rate_14",
   // 前イベのトリガー列（triggered_by）は括弧なし表記

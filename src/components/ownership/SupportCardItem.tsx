@@ -91,9 +91,9 @@ export default function SupportCardItem({ card, level, onChange }: Props) {
               title={`${n}凸にする`}
               className={`h-7 w-7 rounded-md text-xs font-bold transition ${
                 owned && level === n
-                  ? "bg-blue-400 text-white"
+                  ? "bg-blue-500 text-white"
                   : owned && level > n
-                    ? "bg-blue-100 text-blue-500"
+                    ? "bg-slate-100 text-blue-500"
                     : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
               }`}
             >
