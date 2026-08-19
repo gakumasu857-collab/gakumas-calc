@@ -733,9 +733,10 @@ export default function CalcPage() {
               <button
                 type="button"
                 onClick={() => {
-                  calc.saveNew(saveName);
+                  calc.saveNew(saveName, r.ownedLevels.levels);
                   setSaveName("");
                 }}
+                title="計算ページの入力と、サポカ所持状況（凸）も一緒に保存します"
                 className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
               >
                 <Save size={13} />
@@ -758,7 +759,15 @@ export default function CalcPage() {
               <button
                 type="button"
                 disabled={!selectedSave}
-                onClick={() => selectedSave && calc.loadSave(selectedSave)}
+                onClick={() => {
+                  if (!selectedSave) return;
+                  calc.loadSave(selectedSave);
+                  // 所持状況込みのセーブなら所持状況も復元（旧セーブは変更しない）
+                  if (selectedSave.ownedLevels) {
+                    r.ownedLevels.replaceAll(selectedSave.ownedLevels);
+                  }
+                }}
+                title="入力を読み込みます。所持状況込みのセーブならサポカ所持状況（凸）も復元します"
                 className={SMALL_BTN}
               >
                 <FolderOpen size={13} />
@@ -767,7 +776,11 @@ export default function CalcPage() {
               <button
                 type="button"
                 disabled={!selectedSave}
-                onClick={() => selectedSave && calc.overwrite(selectedSave.id)}
+                onClick={() =>
+                  selectedSave &&
+                  calc.overwrite(selectedSave.id, r.ownedLevels.levels)
+                }
+                title="今の入力とサポカ所持状況（凸）で上書きします"
                 className={SMALL_BTN}
               >
                 <Save size={13} />

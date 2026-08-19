@@ -111,8 +111,7 @@ export default function ScoreDetailModal({
                           レッスン・試験の獲得×%を個別にfloorして合算
                         </span>
                       )}
-                      {item.kind === "excluded" &&
-                        "点数計算対象外（アビリティ3。効果量のみ表示）"}
+                      {item.kind === "excluded" && "—"}
                       {item.kind === "none" && "—"}
                     </td>
                     <td

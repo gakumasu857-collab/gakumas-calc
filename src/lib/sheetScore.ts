@@ -384,8 +384,9 @@ export function eventCountContributionSplit(
     }
   }
 
-  // 前イベ=アイテム: 取得自体が「Pアイテム獲得」アビリティの発動になる（デフォルト取得）
-  if (card.preEventType === "アイテム" && (ov?.acquire ?? true)) {
+  // 前イベ=アイテム: 取得自体が「Pアイテム獲得」アビリティの発動になる（デフォルト取得）。
+  // ただしカウント対象のアイテムのみ（item_nameだけのアイテムはカウントされない）
+  if (card.extras["Pアイテム獲得対象"] === "TRUE" && (ov?.acquire ?? true)) {
     add("Pアイテム獲得（6回まで）", 1);
   }
 

@@ -88,5 +88,18 @@ export function useOwnedLevels() {
     });
   }, []);
 
-  return { getLevel, setLevel, setManyLevels, applyLevels, loaded: true };
+  /** 所持状況をまるごと置き換える（セーブデータの読み込み用） */
+  const replaceAll = useCallback((snapshot: LevelMap) => {
+    setLevels({ ...snapshot });
+  }, []);
+
+  return {
+    levels,
+    getLevel,
+    setLevel,
+    setManyLevels,
+    applyLevels,
+    replaceAll,
+    loaded: true,
+  };
 }

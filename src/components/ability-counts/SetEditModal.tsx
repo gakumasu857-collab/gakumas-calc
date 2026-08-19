@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
-import { Copy, Trash2 } from "lucide-react";
+import { CalendarDays, Copy, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
+import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   ABILITY_CATEGORIES,
   SET_PLAN_OPTIONS,
@@ -8,6 +9,7 @@ import {
   type CategoryKey,
 } from "@/data/abilityCounts";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
+import { useScenario } from "@/lib/useScenario";
 import AbilityCounter from "./AbilityCounter";
 
 type Props = {
@@ -56,6 +58,9 @@ export default function SetEditModal({
   );
   // 編成サポカの前イベ・後イベによる上乗せ回数（緑表示）を反映するか
   const [withEvents, setWithEvents] = useState(true);
+  // スケジュール表（何週/日に何があるか）のモーダル
+  const [schedOpen, setSchedOpen] = useState(false);
+  const { scenario } = useScenario();
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
   // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する
   const visibleAbilities =
@@ -131,6 +136,16 @@ export default function SetEditModal({
           ))}
 
           <div className="flex flex-row flex-wrap gap-1.5 sm:mt-auto sm:flex-col">
+            {/* スケジュール表 */}
+            <button
+              type="button"
+              onClick={() => setSchedOpen(true)}
+              title="このシナリオの育成スケジュール（何週/日に何があるか）を見る"
+              className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              <CalendarDays size={13} />
+              スケジュール
+            </button>
             {/* 複製 */}
             <button
               type="button"
@@ -201,6 +216,7 @@ export default function SetEditModal({
                 <AbilityCounter
                   key={key}
                   abilityKey={key}
+                  scenario={scenario}
                   count={getCount(set, key)}
                   extraCount={
                     withEvents ? (eventExtras?.[ABILITY_NAMES[key]] ?? 0) : 0
@@ -212,6 +228,16 @@ export default function SetEditModal({
           </div>
         </div>
       </div>
+
+      {schedOpen && (
+        <Modal
+          title="育成スケジュール"
+          onClose={() => setSchedOpen(false)}
+          widthClass="max-w-3xl"
+        >
+          <ScheduleCalendarView scenario={scenario} />
+        </Modal>
+      )}
     </Modal>
   );
 }

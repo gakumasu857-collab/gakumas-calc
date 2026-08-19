@@ -106,6 +106,11 @@ export type CalcSave = {
   name: string;
   savedAt: string; // YYYY/MM/DD
   settings: CalcSettings;
+  /**
+   * 保存時点のサポカ所持状況（カードID→凸レベル。useOwnedLevelsのスナップショット）。
+   * 旧セーブには無い（undefined）ので、読み込み時は所持状況を変更しない。
+   */
+  ownedLevels?: Record<string, number>;
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -180,23 +185,24 @@ export function useCalcSettings() {
     [settings],
   );
 
-  /** 現在の状態を新しいセーブデータとして保存 */
+  /** 現在の状態を新しいセーブデータとして保存（所持状況スナップショット込み） */
   const saveNew = useCallback(
-    (name: string) => {
+    (name: string, ownedLevels?: Record<string, number>) => {
       const save: CalcSave = {
         id: `save-${crypto.randomUUID()}`,
         name: buildSaveName(name),
         savedAt: new Date().toLocaleDateString("ja-JP"),
         settings,
+        ownedLevels,
       };
       setSaves((prev) => [...prev, save]);
     },
     [settings, buildSaveName],
   );
 
-  /** 既存スロットへ上書き保存 */
+  /** 既存スロットへ上書き保存（所持状況スナップショット込み） */
   const overwrite = useCallback(
-    (saveId: string) => {
+    (saveId: string, ownedLevels?: Record<string, number>) => {
       setSaves((prev) =>
         prev.map((s) =>
           s.id === saveId
@@ -204,6 +210,7 @@ export function useCalcSettings() {
                 ...s,
                 savedAt: new Date().toLocaleDateString("ja-JP"),
                 settings,
+                ownedLevels: ownedLevels ?? s.ownedLevels,
               }
             : s,
         ),

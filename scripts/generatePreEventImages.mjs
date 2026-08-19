@@ -24,10 +24,13 @@ const IMAGE_BASE =
   "https://img.hoppepan.com";
 const CONCURRENCY = 20;
 
-// Search_word の全語（半角カンマ区切り）を候補にする
+// item_name（前イベで得るアイテム/スキルの正式名）を第一候補に、
+// 旧データ用に Search_word の全語（半角カンマ区切り）も候補にする
 const rows = await fetchTab("supMaster");
 const candidates = new Set();
 for (const r of rows) {
+  const itemName = String(r.item_name ?? "").trim();
+  if (itemName) candidates.add(itemName);
   for (const word of String(r.Search_word ?? "").split(",")) {
     const w = word.trim();
     if (w) candidates.add(w);

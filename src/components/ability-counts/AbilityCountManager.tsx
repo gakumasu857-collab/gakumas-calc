@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, RotateCcw, Settings2, X, Trash2 } from "lucide-react";
+import {
+  CalendarDays,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Settings2,
+  X,
+  Trash2,
+} from "lucide-react";
 import {
   ABILITY_CATEGORIES,
   abilityMax,
@@ -14,6 +22,7 @@ import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { useScenario } from "@/lib/useScenario";
 import { useSelectedSupports } from "@/lib/useSelectedSupports";
 import Modal from "@/components/Modal";
+import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import SetEditModal from "./SetEditModal";
 
 /** 列幅(rem): アビリティ名列 / セット列（プランはチップ表示になったぶん少し狭める） */
@@ -65,6 +74,7 @@ export default function AbilityCountManager() {
   const [addOpen, setAddOpen] = useState(false);
   const [delResetOpen, setDelResetOpen] = useState(false);
   const [otherOpen, setOtherOpen] = useState(false);
+  const [schedOpen, setSchedOpen] = useState(false);
 
   // シナリオに合うセットだけ（HIF用/NIA用/初用テンプレ＋ユーザーセット）
   const scenarioSets = store.sets.filter((s) =>
@@ -108,6 +118,15 @@ export default function AbilityCountManager() {
           )}
         </p>
         <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSchedOpen(true)}
+            title="このシナリオの育成スケジュール（何週/日に何があるか）を見る"
+            className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100"
+          >
+            <CalendarDays size={13} />
+            スケジュール
+          </button>
           <button
             type="button"
             onClick={() => setAddOpen(true)}
@@ -271,7 +290,7 @@ export default function AbilityCountManager() {
           </thead>
           <tbody>
             {visibleAbilities.map((ability) => {
-              const max = abilityMax(ability);
+              const max = abilityMax(ability, scenario);
               return (
                 <tr key={ability}>
                   {/* アビリティ名（左固定） */}
@@ -330,7 +349,7 @@ export default function AbilityCountManager() {
                   {visibleSets.map((set) => (
                     <CountCell
                       key={set.id}
-                      ability={ability}
+                      max={max}
                       highlighted={set.id === store.selectedSetId}
                       count={store.getCount(set, ability)}
                       isActive={
@@ -358,6 +377,16 @@ export default function AbilityCountManager() {
           className="fixed inset-0 z-20"
           onClick={() => setActiveCell(null)}
         />
+      )}
+
+      {schedOpen && (
+        <Modal
+          title="育成スケジュール"
+          onClose={() => setSchedOpen(false)}
+          widthClass="max-w-3xl"
+        >
+          <ScheduleCalendarView scenario={scenario} />
+        </Modal>
       )}
 
       {addOpen && (
@@ -713,7 +742,7 @@ function CountPopover({
 }
 
 function CountCell({
-  ability,
+  max,
   highlighted,
   count,
   isActive,
@@ -721,7 +750,8 @@ function CountCell({
   onClose,
   onChange,
 }: {
-  ability: AbilityName;
+  /** 最大回数（ラベルの(N回まで)とシナリオのスケジュール回数の小さい方） */
+  max: number;
   highlighted: boolean;
   count: number;
   isActive: boolean;
@@ -729,8 +759,6 @@ function CountCell({
   onClose: () => void;
   onChange: (value: number) => void;
 }) {
-  const max = abilityMax(ability);
-
   return (
     <td
       className={`relative border-b border-r border-slate-200 p-0 ${

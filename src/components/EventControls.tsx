@@ -109,7 +109,7 @@ export function AcquireToggle({
         <img
           src={image}
           alt=""
-          title={`前イベで${card.preEventType}を獲得`}
+          title={`前イベで${card.preEventType}${card.itemName ? `「${card.itemName}」` : ""}を獲得`}
           loading="lazy"
           className={`${imgClass} shrink-0 object-contain ${acquired ? "" : "opacity-30 grayscale"}`}
         />

@@ -6,6 +6,8 @@
  */
 import generatedCounts from "./generated/abilityCounts.json";
 import { ABILITY_NAMES, abilityKeyFromLabel, type AbilityName } from "./constants";
+import { SCENARIO_KEYS, type ScenarioKey } from "./scenarios";
+import { calendarEventCounts, type CalendarEvent } from "./scheduleCalendar";
 
 /** 4つの分類とそこに属するアビリティ（表示順のまま） */
 export const ABILITY_CATEGORIES = [
@@ -83,12 +85,45 @@ export type CategoryKey = (typeof ABILITY_CATEGORIES)[number]["key"];
 export const DEFAULT_MAX = 99;
 
 /**
- * アビリティの最大発動回数。
- * ラベル中の「(N回まで)」からNを取り、なければ DEFAULT_MAX。
+ * スケジュール（scheduleCalendar）由来のシナリオ別上限を持つアビリティ。
+ * 値 = そのシナリオでこの行動が起こる回数（例: HIFのお出かけは5回）。
  */
-export function abilityMax(key: AbilityName): number {
+const SCHEDULE_CAP_EVENTS: Partial<Record<AbilityName, CalendarEvent[]>> = {
+  date: ["date"],
+  date_ut2: ["date"],
+  meeting: ["meeting"],
+  meeting_ut2: ["meeting"],
+  supply: ["supply"],
+  supply_ut2: ["supply"],
+  extra_lecture_ut3: ["lecture"],
+  study: ["class", "sale"],
+};
+
+/** シナリオ別のスケジュール上限表（アビリティ→回数）。モジュール読み込み時に1回だけ数える */
+const SCHEDULE_CAPS: Record<ScenarioKey, Partial<Record<AbilityName, number>>> =
+  Object.fromEntries(
+    SCENARIO_KEYS.map((scenario) => {
+      const counts = calendarEventCounts(scenario);
+      const caps: Partial<Record<AbilityName, number>> = {};
+      for (const [key, events] of Object.entries(SCHEDULE_CAP_EVENTS)) {
+        caps[key as AbilityName] = events.reduce((sum, e) => sum + counts[e], 0);
+      }
+      return [scenario, caps];
+    }),
+  ) as Record<ScenarioKey, Partial<Record<AbilityName, number>>>;
+
+/**
+ * アビリティの最大発動回数。
+ * ラベル中の「(N回まで)」のNと、シナリオのスケジュール上の回数
+ * （お出かけ・相談・差し入れ・特別指導・授業/営業）の小さい方。
+ * どちらも無ければ DEFAULT_MAX。scenario 省略時はラベルのみで判定。
+ */
+export function abilityMax(key: AbilityName, scenario?: ScenarioKey): number {
   const match = ABILITY_NAMES[key].match(/\((\d+)回まで\)/);
-  return match ? Number(match[1]) : DEFAULT_MAX;
+  const labelCap = match ? Number(match[1]) : DEFAULT_MAX;
+  const scheduleCap =
+    (scenario ? SCHEDULE_CAPS[scenario][key] : undefined) ?? DEFAULT_MAX;
+  return Math.min(labelCap, scheduleCap);
 }
 
 /**

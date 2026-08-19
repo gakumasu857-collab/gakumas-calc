@@ -606,6 +606,7 @@ export function useCalcResult() {
     events,
     getLevel,
     setLevel: ownedLevels.setLevel,
+    ownedLevels,
     levelsLoaded,
     selectedSet,
     ...result,

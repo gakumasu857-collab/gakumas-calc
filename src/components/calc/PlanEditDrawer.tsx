@@ -10,6 +10,7 @@ import { useState } from "react";
 import { CalendarCheck, Info, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
+import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   CLASSES,
   distributeExam,
@@ -717,9 +718,21 @@ export function NumbersTables({
 }: {
   scenario?: ScenarioKey;
 }) {
-  if (scenario === "niaMaster") return <NiaNumbers />;
-  if (scenario === "hatsuLegend") return <HatsuNumbers />;
-  return <HifNumbers />;
+  return (
+    <>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">スケジュール</h3>
+      <div className="mb-4">
+        <ScheduleCalendarView scenario={scenario} />
+      </div>
+      {scenario === "niaMaster" ? (
+        <NiaNumbers />
+      ) : scenario === "hatsuLegend" ? (
+        <HatsuNumbers />
+      ) : (
+        <HifNumbers />
+      )}
+    </>
+  );
 }
 
 function HifNumbers() {

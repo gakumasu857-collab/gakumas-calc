@@ -70,6 +70,8 @@ export type SupportCardData = {
   preEvent: PreEventInfo;
   /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
   searchWords: string[];
+  /** 前イベで得るアイテム/スキルの正式名（スプシ item_name 列。無ければ""） */
+  itemName: string;
   /**
    * アイテム評価（スプシ strongest 列）。前イベで得るアイテム/スキルが
    * 試験中どれだけ強いかの評点（-5〜7程度）。空欄は null＝試験の助けにならない。
@@ -232,7 +234,10 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
   );
 
   const isSkill = numOf(row.is_skill) > 0;
-  const isItem = numOf(row.p_item_get_ut3) > 0;
+  const itemName = str(row.item_name);
+  // 前イベがアイテムを与えるか。p_item_get_ut3 は「Pアイテム獲得(6回まで)にカウント
+  // されるか」のフラグで、カウントされないアイテム（近年のカード）は item_name 列で判定する
+  const isItem = numOf(row.p_item_get_ut3) > 0 || (!isSkill && itemName !== "");
   const param = numOf(row.param);
 
   // sheetScore が読む extras を「アプリが期待する日本語キー」で組み立てる
@@ -269,6 +274,9 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
   if (row.is_sp !== undefined) extras["枠"] = numOf(row.is_sp) > 0 ? "SP枠" : "ステ枠";
   if (str(row.attribute)) extras["属性"] = str(row.attribute).replace("Assist", "アシスト");
   setNum("アイテムPポ", numOf(row.p_point));
+  // このアイテムの取得が「Pアイテム獲得(6回まで)」アビリティにカウントされるか
+  // （sheetScore のイベント相互作用が参照。item_name だけのアイテムはカウントされない）
+  if (numOf(row.p_item_get_ut3) > 0) extras["Pアイテム獲得対象"] = "TRUE";
 
   const preEventType = isSkill ? "スキル" : isItem ? "アイテム" : "何もなし";
   const postEventType = LATER_EVENT_MAP[str(row.later_event)] ?? "何もなし";
@@ -291,10 +299,12 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
       .split(",")
       .map((w) => w.trim())
       .filter(Boolean),
+    itemName,
     preEventImage: (() => {
-      const hit = str(row.Search_word)
-        .split(",")
-        .map((w) => w.trim())
+      // item_name（前イベで得るアイテム/スキルの正式名）を優先し、
+      // 旧データ用に Search_word との突合もフォールバックで残す
+      const hit = [itemName, ...str(row.Search_word).split(",").map((w) => w.trim())]
+        .filter(Boolean)
         .find((w) => PRE_EVENT_IMAGE_SET.has(w));
       return hit ? `preEvent/${hit}.webp` : null;
     })(),

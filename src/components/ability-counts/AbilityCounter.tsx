@@ -1,8 +1,11 @@
 ﻿import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import { abilityMax } from "@/data/abilityCounts";
+import type { ScenarioKey } from "@/data/scenarios";
 
 type Props = {
   abilityKey: AbilityName;
+  /** 渡すと上限にシナリオのスケジュール回数（お出かけ等）も反映する */
+  scenario?: ScenarioKey;
   count: number;
   /** 編成サポカの前イベ・後イベによる上乗せ回数（表示のみ・緑） */
   extraCount?: number;
@@ -12,11 +15,12 @@ type Props = {
 /** アビリティ1件のカード: 名前 + [-10][-1] 回数/max [+1][+10] */
 export default function AbilityCounter({
   abilityKey,
+  scenario,
   count,
   extraCount = 0,
   onChange,
 }: Props) {
-  const max = abilityMax(abilityKey);
+  const max = abilityMax(abilityKey, scenario);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-2">
