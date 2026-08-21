@@ -62,9 +62,11 @@ export default function ParaboTableModal({
     <Modal title="パラボ変換表" onClose={onClose} widthClass="max-w-3xl">
       <p className="mb-3 text-xs leading-relaxed text-slate-500">
         今の踏み方で、パラメータボーナス%が最終的に何点ぶんのステータスになるかの表です。
-        パラボはレッスン・試験の獲得ごとに「獲得量×%」を切り捨てて足すので、
-        同じ%でも他のパラボと重なったときに端数が繰り上がるぶん幅が出ます
-        （最小＝端数が全部切り捨てられた場合／最大＝全部繰り上がった場合）。
+        パラボはレッスン・試験の獲得ごとに「獲得量×%」を切り捨てて足します。
+        <b className="text-slate-600">合計</b>
+        は全部の%を合算してから1回で変換するので値が1つに決まります（＝実際にステへ足されている値）。
+        1枠ずつの表は「その枠を足したときに増える量」で、他のパラボと重なると端数が繰り上がるため
+        幅が出ます（最小＝他にパラボが無いとき／最大＝端数が全部繰り上がったとき）。
         レッスンや選抜スコアを変えると母数が変わるので、この表の値も変わります。
       </p>
 
@@ -81,13 +83,13 @@ export default function ParaboTableModal({
             </td>
             {TYPE_KEYS.map((type) => (
               <td key={type} className={td}>
+                {/* 合計は全ソースの%を足してから1回だけ変換するので値が1つに決まる。
+                    表示ブレを避けるため、計算に使っている変換値そのものを出す */}
                 <b className="text-blue-700">
-                  {formatRange(
-                    paraboRange(r.perType[type].startPct, gains[type]),
-                  )}
+                  {r.paraboDetail[type].conv.toLocaleString()}
                 </b>
                 <span className="ml-1 text-[10px] text-slate-400">
-                  (+{r.perType[type].startPct}%)
+                  (+{r.paraboDetail[type].totalPct}%)
                 </span>
               </td>
             ))}
@@ -152,6 +154,7 @@ export default function ParaboTableModal({
       </table>
       <p className="mt-2 text-[11px] text-slate-400">
         ※ 段階（Ⅰ〜Ⅴ）はアビリティ枠と凸数で決まります（凸ごとの段階は点数表の内訳モーダルで確認できます）。
+        1枠ずつの幅はごくまれに1点だけ外れることがあります（小数計算の丸めの都合）。
       </p>
     </Modal>
   );

@@ -18,24 +18,23 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 const PERF = (perfData as { perf: Record<string, { tiers: (number | null)[] }> })
   .perf;
 
-/** 浮動小数の誤差（0.028×1000 が 28.000000000000004 になる類）を吸収する */
-const EPS = 1e-9;
-
 export type ParaboRange = { min: number; max: number };
 
 /**
  * パラボ pct%（例: 2.8）を固定値へ変換したときの範囲。
+ * min は「他にパラボが無いときの実値」で、計算エンジン（sheetScore.paraboConvert）と
+ * 同じ式・同じ丸めで求める（g × (pct/100) を floor。誤差の補正もしない＝実装と一致させる）。
+ * max は他のパラボに乗ったときに端数が全部繰り上がった場合。
  * @param gains %が掛かる獲得量の一覧（そのタイプのレッスン＋試験）
  */
 export function paraboRange(pct: number, gains: number[]): ParaboRange {
   let min = 0;
   let max = 0;
   for (const g of gains) {
-    const x = (g * pct) / 100;
-    const floored = Math.floor(x + EPS);
-    const isInt = Math.abs(x - Math.round(x)) < EPS;
+    const x = g * (pct / 100);
+    const floored = Math.floor(x);
     min += floored;
-    max += isInt ? floored : floored + 1;
+    max += x === floored ? floored : floored + 1;
   }
   return { min, max };
 }
