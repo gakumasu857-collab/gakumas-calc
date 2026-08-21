@@ -3,10 +3,17 @@ import { Link } from "react-router-dom";
 import { Camera } from "lucide-react";
 import SupportCardOwnership from "@/components/ownership/SupportCardOwnership";
 import PIdolOwnership from "@/components/ownership/PIdolOwnership";
+import OwnedSaveBar from "@/components/ownership/OwnedSaveBar";
+import { useOwnedLevels } from "@/lib/useOwnedLevels";
+import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 
 /** 所持状況入力ページ（サポカ／Pアイドルの切り替え式） */
 export default function OwnershipPage() {
   const [tab, setTab] = useState<"support" | "pidol">("support");
+  // 所持ストアはこのページで1つだけ持って子へ配る
+  // （フックごとに独立したstateなので、複数箇所で呼ぶと保存の読み込みが同期しない）
+  const levels = useOwnedLevels();
+  const pIdols = useOwnedPIdols();
 
   return (
     <div className="flex flex-col gap-4">
@@ -40,7 +47,13 @@ export default function OwnershipPage() {
           画面キャプチャで所持入力（β版。PCのみ）
         </Link>
       </div>
-      {tab === "support" ? <SupportCardOwnership /> : <PIdolOwnership />}
+      {/* 所持状況を名前をつけて保存・読み込み（サポカ凸＋Pアイドル特訓/開花） */}
+      <OwnedSaveBar levels={levels} pIdols={pIdols} />
+      {tab === "support" ? (
+        <SupportCardOwnership store={levels} />
+      ) : (
+        <PIdolOwnership store={pIdols} />
+      )}
     </div>
   );
 }

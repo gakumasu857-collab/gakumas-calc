@@ -22,7 +22,7 @@ export type HatsuLessonPick = {
   perfect: boolean;
 };
 
-type HatsuState = {
+export type HatsuState = {
   lessons: HatsuLessonPick[];
   classTypes: TypeKey[];
   midRank: number;
@@ -180,6 +180,23 @@ export function useHatsuSchedule() {
     [],
   );
 
+  /**
+   * 入力状態をまるごと置き換える（セーブデータの読み込み用）。
+   * マスタの件数が保存時と違っても壊れないよう、現行の件数に合わせて詰め直す。
+   */
+  const replaceAll = useCallback((snapshot: HatsuState) => {
+    setState({
+      ...DEFAULT_STATE,
+      ...snapshot,
+      lessons: HATSU_LESSONS.map(
+        (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
+      ),
+      classTypes: HATSU_CLASSES.map(
+        (_, i) => snapshot.classTypes[i] ?? DEFAULT_STATE.classTypes[i],
+      ),
+    });
+  }, []);
+
   return {
     ...state,
     setLessonMain,
@@ -191,6 +208,7 @@ export function useHatsuSchedule() {
     setPlan,
     remapTypes,
     update,
+    replaceAll,
     loaded: true,
   };
 }

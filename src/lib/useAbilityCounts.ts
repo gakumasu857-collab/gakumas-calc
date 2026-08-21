@@ -27,8 +27,11 @@ const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 /** setId -> (アビリティキー -> 上書き回数) */
 type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
 
-/** ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定 */
-type UserSet = { id: string; name: string; plan?: string };
+/**
+ * ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定。
+ * saveId 付きは計算ページのセーブデータから作られたもの（発動回数ページでは既定で隠す）。
+ */
+type UserSet = { id: string; name: string; plan?: string; saveId?: string };
 
 function clamp(value: number, max: number): number {
   return Math.min(max, Math.max(0, value));
@@ -189,6 +192,67 @@ export function useAbilityCounts() {
     setSelectedSetId((prev) => (prev === setId ? null : setId));
   }, []);
 
+  /** 参照セットを指定IDに設定する（トグルしない。セーブデータの読み込み用） */
+  const setSelectedSet = useCallback((setId: string | null) => {
+    setSelectedSetId(setId);
+  }, []);
+
+  /**
+   * 計算ページのセーブデータ用セットを作る/上書きして、そのIDを返す（1セーブにつき1件）。
+   * counts は実効回数そのもの（ユーザーセットは defaults が空なので全部を差分として持つ）。
+   */
+  const upsertSaveSet = useCallback(
+    (
+      saveId: string,
+      name: string,
+      plan: string,
+      counts: Partial<Record<AbilityName, number>>,
+    ): string => {
+      // IDは更新関数の外で確定させる（setStateの更新関数は遅延実行されるので、
+      // その中でIDを決めると呼び出し側へ返すIDがズレる）
+      const existing = userSets.find((s) => s.saveId === saveId);
+      const id = existing?.id ?? `uset-${crypto.randomUUID()}`;
+      setUserSets((prev) =>
+        prev.some((s) => s.id === id)
+          ? prev.map((s) => (s.id === id ? { ...s, name, plan, saveId } : s))
+          : [...prev, { id, name, plan, saveId }],
+      );
+      const clamped: Partial<Record<AbilityName, number>> = {};
+      for (const [key, value] of Object.entries(counts)) {
+        const k = key as AbilityName;
+        if (value) clamped[k] = clamp(value, abilityMax(k));
+      }
+      setOverrides((prev) => ({ ...prev, [id]: clamped }));
+      return id;
+    },
+    [userSets],
+  );
+
+  /** セーブデータに紐づくセットの名前を変える（セーブ名の変更に追従） */
+  const renameSaveSet = useCallback((saveId: string, name: string) => {
+    setUserSets((prev) =>
+      prev.map((s) => (s.saveId === saveId ? { ...s, name } : s)),
+    );
+  }, []);
+
+  /** セーブデータに紐づくセットを消す（回数データも一緒に消す） */
+  const deleteSetsBySaveId = useCallback(
+    (saveId: string) => {
+      const targets = userSets
+        .filter((s) => s.saveId === saveId)
+        .map((s) => s.id);
+      if (targets.length === 0) return;
+      setUserSets((prev) => prev.filter((s) => !targets.includes(s.id)));
+      setOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of targets) delete next[id];
+        return next;
+      });
+      setSelectedSetId((cur) => (cur && targets.includes(cur) ? null : cur));
+    },
+    [userSets],
+  );
+
   /** ユーザーセットの名前を変更（デフォルトセットは不可） */
   const renameSet = useCallback((setId: string, name: string) => {
     if (!setId.startsWith("uset-")) return;
@@ -211,7 +275,7 @@ export function useAbilityCounts() {
     ...NIA_DEFAULT_SETS,
     ...HATSU_DEFAULT_SETS,
     // 旧データ（plan未保存）は名前から推定
-    ...userSets.map((s) => ({
+    ...userSets.map(({ saveId: _saveId, ...s }) => ({
       ...s,
       plan: s.plan ?? planFromSetName(s.name),
       defaults: {},
@@ -220,6 +284,24 @@ export function useAbilityCounts() {
 
   /** ユーザーがUIで追加したセットか（削除可能か） */
   const isUserSet = (setId: string) => setId.startsWith("uset-");
+  /** 計算ページのセーブデータから作られたセットか（発動回数ページでは既定で隠す） */
+  const saveIdOf = (setId: string): string | undefined =>
+    userSets.find((s) => s.id === setId)?.saveId;
+
+  /** セットの実効回数を丸ごと取り出す（セーブデータのスナップショット用） */
+  const snapshotCounts = useCallback(
+    (set: AbilityCountSet): Partial<Record<AbilityName, number>> => {
+      const out: Partial<Record<AbilityName, number>> = {};
+      for (const category of ABILITY_CATEGORIES) {
+        for (const ability of category.abilities) {
+          const value = getCount(set, ability);
+          if (value !== 0) out[ability] = value;
+        }
+      }
+      return out;
+    },
+    [getCount],
+  );
 
   return {
     sets,
@@ -235,8 +317,14 @@ export function useAbilityCounts() {
     renameSet,
     setPlan,
     isUserSet,
+    saveIdOf,
+    snapshotCounts,
+    upsertSaveSet,
+    renameSaveSet,
+    deleteSetsBySaveId,
     selectedSetId,
     selectSet,
+    setSelectedSet,
     loaded: true,
   };
 }

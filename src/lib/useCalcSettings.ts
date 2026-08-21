@@ -1,6 +1,14 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useSaveNotifier } from "./storeSync";
-import { IDLE_NAMES } from "@/data/constants";
+import { IDLE_NAMES, type AbilityName } from "@/data/constants";
+import type { ScenarioKey } from "@/data/scenarios";
+import type { SelectedSlot } from "./formation";
+import type { Memory } from "./memoryTypes";
+import type { EventCountOverride } from "./sheetScore";
+import type { PIdolOwnership } from "./useOwnedPIdols";
+import type { HatsuState } from "./useHatsuSchedule";
+import type { NiaState } from "./useNiaSchedule";
+import type { ScheduleState } from "./useSchedule";
 
 /**
  * 計算ページの入力状態とセーブデータのストア。
@@ -101,16 +109,53 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   userName: "",
 };
 
+/**
+ * セーブデータが持つ「その育成の全状態」。読み込みはこれが唯一の正（linkedのセット類は控え）。
+ * 旧セーブ（v1）には無いので、その場合は settings と ownedLevels だけ復元する。
+ */
+export type CalcSaveSnapshot = {
+  scenario: ScenarioKey;
+  /** シナリオ別の踏み方（3つとも保存して、どのシナリオに戻しても再現できるように） */
+  schedule: ScheduleState;
+  nia: NiaState;
+  hatsu: HatsuState;
+  /** メモリースロット4枚のID＋実体（ライブラリから消えていても復元できるように） */
+  memoryIds: string[];
+  memories: Memory[];
+  /** 参照していた発動回数セットの実効回数と名前・プラン */
+  abilityCounts: Partial<Record<AbilityName, number>>;
+  abilitySetName: string;
+  abilitySetPlan: string;
+  /** 選択サポカ6枠 */
+  slots: (SelectedSlot | null)[];
+  /** 計算ページの前イベ・後イベ設定 */
+  eventCounts: Record<string, EventCountOverride>;
+  /** 所持状況（サポカ凸・Pアイドルの特訓/開花） */
+  ownedLevels: Record<string, number>;
+  pIdols: Record<string, PIdolOwnership>;
+};
+
 export type CalcSave = {
   id: string;
   name: string;
   savedAt: string; // YYYY/MM/DD
   settings: CalcSettings;
   /**
-   * 保存時点のサポカ所持状況（カードID→凸レベル。useOwnedLevelsのスナップショット）。
-   * 旧セーブには無い（undefined）ので、読み込み時は所持状況を変更しない。
+   * 保存時点のサポカ所持状況（カードID→凸レベル）。
+   * v1形式の名残。v2では snapshot.ownedLevels を使う（読み込みは両対応）。
    */
   ownedLevels?: Record<string, number>;
+  /** v2: その育成の全状態（これがあれば完全に再現できる） */
+  snapshot?: CalcSaveSnapshot;
+  /** 保存時の評価値・合計ステ（一覧表示用） */
+  rating?: number;
+  cappedSum?: number;
+  /** 一緒に作った「セーブデータ用」の控え（メモリーセット・発動回数セット・所持状況） */
+  linked?: {
+    memorySetId?: string;
+    abilitySetId?: string;
+    ownedSaveId?: string;
+  };
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -123,10 +168,12 @@ function load<T>(key: string, fallback: T): T {
   return fallback;
 }
 
-/** 現在の入力をlocalStorageから同期読み込み（旧形式の補完・移行込み） */
-function loadCurrentSettings(): CalcSettings {
-  // 古い保存に無いキーは DEFAULT_SETTINGS で補完する
-  const stored = load<Partial<CalcSettings>>(CURRENT_KEY, {});
+/**
+ * 保存値を現行の形に整える（欠けているキーの補完＋旧形式の移行）。
+ * 自動保存の読み込みとセーブデータの読み込みの両方で使う
+ * （どちらか片方だけ移行すると、古いセーブでアイドル名が英語キーのままになる）。
+ */
+function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
   // 旧形式（IDLE_NAMESの英語キー）は日本語名（空白なし）へ移行
   const idolRaw = stored.idol ?? DEFAULT_SETTINGS.idol;
   const idol =
@@ -149,6 +196,11 @@ function loadCurrentSettings(): CalcSettings {
     minStats: { ...DEFAULT_SETTINGS.minStats, ...(stored.minStats ?? {}) },
     maxStats: { ...DEFAULT_SETTINGS.maxStats, ...(stored.maxStats ?? {}) },
   };
+}
+
+/** 現在の入力をlocalStorageから同期読み込み（旧形式の補完・移行込み） */
+function loadCurrentSettings(): CalcSettings {
+  return normalizeSettings(load<Partial<CalcSettings>>(CURRENT_KEY, {}));
 }
 
 export function useCalcSettings() {
@@ -185,24 +237,30 @@ export function useCalcSettings() {
     [settings],
   );
 
-  /** 現在の状態を新しいセーブデータとして保存（所持状況スナップショット込み） */
+  /** セーブに同梱する全状態（スナップショット・評価値・控えセットのID） */
+  type SaveExtras = Pick<CalcSave, "snapshot" | "rating" | "cappedSum" | "linked">;
+
+  /** 新しいセーブデータのIDだけ先に払い出す（控えセットの紐づけに使う） */
+  const newSaveId = useCallback(() => `save-${crypto.randomUUID()}`, []);
+
+  /** 現在の状態を新しいセーブデータとして保存（全状態のスナップショット込み） */
   const saveNew = useCallback(
-    (name: string, ownedLevels?: Record<string, number>) => {
+    (name: string, extras: SaveExtras, id?: string) => {
       const save: CalcSave = {
-        id: `save-${crypto.randomUUID()}`,
+        id: id ?? `save-${crypto.randomUUID()}`,
         name: buildSaveName(name),
         savedAt: new Date().toLocaleDateString("ja-JP"),
         settings,
-        ownedLevels,
+        ...extras,
       };
       setSaves((prev) => [...prev, save]);
     },
     [settings, buildSaveName],
   );
 
-  /** 既存スロットへ上書き保存（所持状況スナップショット込み） */
+  /** 既存スロットへ上書き保存（全状態のスナップショット込み） */
   const overwrite = useCallback(
-    (saveId: string, ownedLevels?: Record<string, number>) => {
+    (saveId: string, extras: SaveExtras) => {
       setSaves((prev) =>
         prev.map((s) =>
           s.id === saveId
@@ -210,7 +268,8 @@ export function useCalcSettings() {
                 ...s,
                 savedAt: new Date().toLocaleDateString("ja-JP"),
                 settings,
-                ownedLevels: ownedLevels ?? s.ownedLevels,
+                ...extras,
+                linked: { ...s.linked, ...extras.linked },
               }
             : s,
         ),
@@ -219,25 +278,16 @@ export function useCalcSettings() {
     [settings],
   );
 
-  /** セーブデータを現在の入力へ読み込む */
+  /** セーブ名の変更 */
+  const renameSave = useCallback((saveId: string, name: string) => {
+    setSaves((prev) =>
+      prev.map((s) => (s.id === saveId ? { ...s, name: name.trim() || s.name } : s)),
+    );
+  }, []);
+
+  /** セーブデータを現在の入力へ読み込む（旧形式の移行も自動保存と同じ規則で行う） */
   const loadSave = useCallback((save: CalcSave) => {
-    setSettings({
-      ...DEFAULT_SETTINGS,
-      ...save.settings,
-      spTop: { ...DEFAULT_SETTINGS.spTop, ...(save.settings.spTop ?? {}) },
-      eventBudget: {
-        ...DEFAULT_SETTINGS.eventBudget,
-        ...(save.settings.eventBudget ?? {}),
-      },
-      typeRatio: {
-        ...DEFAULT_SETTINGS.typeRatio,
-        ...(save.settings.typeRatio ?? {}),
-      },
-      minStats: {
-        ...DEFAULT_SETTINGS.minStats,
-        ...(save.settings.minStats ?? {}),
-      },
-    });
+    setSettings(normalizeSettings(save.settings));
   }, []);
 
   const deleteSave = useCallback((saveId: string) => {
@@ -248,8 +298,10 @@ export function useCalcSettings() {
     settings,
     saves,
     update,
+    newSaveId,
     saveNew,
     overwrite,
+    renameSave,
     loadSave,
     deleteSave,
     loaded: true,

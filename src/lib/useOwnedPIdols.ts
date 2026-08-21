@@ -103,13 +103,20 @@ export function useOwnedPIdols() {
     [],
   );
 
+  /** 所持状況をまるごと置き換える（セーブデータの読み込み用） */
+  const replaceAll = useCallback((snapshot: OwnershipMap) => {
+    setMap({ ...snapshot });
+  }, []);
+
   return {
+    map,
     getOwnership,
     setOwnership,
     setUnowned,
     setManyOwnership,
     setManyUnowned,
     applyOwnership,
+    replaceAll,
     loaded: true,
   };
 }

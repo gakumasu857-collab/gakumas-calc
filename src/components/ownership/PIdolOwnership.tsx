@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState } from "react";
 import { P_IDOL_MASTERS, type PIdolMaster } from "@/lib/pIdol";
 import { imageUrl } from "@/lib/config";
-import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
+import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import CsvTransfer from "./CsvTransfer";
 
 const IDOLS = [...new Set(P_IDOL_MASTERS.map((m) => m.idol))];
@@ -15,7 +15,12 @@ type BulkKaika = "keep" | number;
  * 画像＋特訓段階・才能開花のボタンで1セット。
  * レアリティ・プラン・おすすめ効果・計算後ステはデータベースページで見られる。
  */
-export default function PIdolOwnership() {
+export default function PIdolOwnership({
+  store,
+}: {
+  /** 所持ストアは親（OwnershipPage）が1つだけ持って配る（別インスタンスだと同期しない） */
+  store: ReturnType<typeof useOwnedPIdols>;
+}) {
   const {
     getOwnership,
     setOwnership,
@@ -24,7 +29,7 @@ export default function PIdolOwnership() {
     setManyUnowned,
     applyOwnership,
     loaded,
-  } = useOwnedPIdols();
+  } = store;
   const [idolFilter, setIdolFilter] = useState("すべて");
 
   /** 現在の所持状況をCSVにする（このまま編集して読み込める） */

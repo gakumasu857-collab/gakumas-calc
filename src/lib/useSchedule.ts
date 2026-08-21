@@ -41,7 +41,7 @@ export function subAppearProb(
   return ranks[sub] <= ranks[other] ? 0.75 : 0.25;
 }
 
-type ScheduleState = {
+export type ScheduleState = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
@@ -412,8 +412,28 @@ export function useSchedule() {
     }));
   }, []);
 
+  /**
+   * 入力状態をまるごと置き換える（セーブデータの読み込み用）。
+   * マスタ（LESSONS/CLASSES/EXAMS）の件数が保存時と違っても壊れないよう、
+   * 現行の件数に合わせて詰め直す。
+   */
+  const replaceAll = useCallback((snapshot: ScheduleState) => {
+    setState({
+      lessons: LESSONS.map(
+        (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
+      ),
+      classTypes: CLASSES.map(
+        (_, i) => snapshot.classTypes[i] ?? DEFAULT_STATE.classTypes[i],
+      ),
+      examScores: EXAMS.map(
+        (_, i) => snapshot.examScores[i] ?? DEFAULT_STATE.examScores[i],
+      ),
+    });
+  }, []);
+
   return {
     ...state,
+    replaceAll,
     setLessonMain,
     clearLessonMain,
     clearAllLessons,

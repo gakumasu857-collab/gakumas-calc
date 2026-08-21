@@ -27,7 +27,7 @@ const STORAGE_KEY = "gakumas:niaSchedule:v1";
 export type NiaLessonPick = { main: TypeKey | null; sp: boolean };
 export type NiaSalePick = { type: TypeKey; resort: boolean; great: boolean };
 
-type NiaState = {
+export type NiaState = {
   lessons: NiaLessonPick[];
   sales: NiaSalePick[];
   auditions: Record<TypeKey, number>[];
@@ -224,6 +224,26 @@ export function useNiaSchedule() {
     }));
   }, []);
 
+  /**
+   * 入力状態をまるごと置き換える（セーブデータの読み込み用）。
+   * マスタの件数が保存時と違っても壊れないよう、現行の件数に合わせて詰め直す。
+   */
+  const replaceAll = useCallback((snapshot: NiaState) => {
+    setState({
+      lessons: NIA_LESSONS.map(
+        (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
+      ),
+      sales: NIA_SALES.map((_, i) => snapshot.sales[i] ?? DEFAULT_STATE.sales[i]),
+      auditions: NIA_AUDITIONS.map(
+        (_, i) => snapshot.auditions[i] ?? DEFAULT_STATE.auditions[i],
+      ),
+      auditionVotes: NIA_AUDITIONS.map(
+        (_, i) => snapshot.auditionVotes[i] ?? DEFAULT_STATE.auditionVotes[i],
+      ),
+      finalScores: { ...DEFAULT_STATE.finalScores, ...snapshot.finalScores },
+    });
+  }, []);
+
   return {
     ...state,
     setLessonMain,
@@ -236,6 +256,7 @@ export function useNiaSchedule() {
     setFinalScore,
     setPlan,
     remapTypes,
+    replaceAll,
     loaded: true,
   };
 }

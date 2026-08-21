@@ -2,14 +2,12 @@
 import { Link } from "react-router-dom";
 import {
   ChevronDown,
-  FolderOpen,
   HelpCircle,
   ImageDown,
-  Save,
   Settings,
   Settings2,
   Sparkles,
-  Trash2,
+  Table2,
 } from "lucide-react";
 import { setVisibleInScenario } from "@/data/abilityCounts";
 import { FINAL_ROUNDS } from "@/data/schedule";
@@ -18,7 +16,9 @@ import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
+import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
+import SaveDataPanel from "@/components/calc/SaveDataPanel";
 import {
   IdolPickerModal,
   ScenarioPickerModal,
@@ -100,8 +100,6 @@ export default function CalcPage() {
   const { calc, selected } = r;
   const { settings } = calc;
 
-  const [saveName, setSaveName] = useState("");
-  const [selectedSaveId, setSelectedSaveId] = useState("");
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [idealMsg, setIdealMsg] = useState<string | null>(null);
   const [idealBusy, setIdealBusy] = useState(false);
@@ -120,8 +118,8 @@ export default function CalcPage() {
   const [theoryOpen, setTheoryOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const [paraboOpen, setParaboOpen] = useState(false);
 
-  const selectedSave = calc.saves.find((s) => s.id === selectedSaveId);
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
     r.members.every((m) => m !== null) && !!r.selectedSet;
@@ -443,16 +441,34 @@ export default function CalcPage() {
                     }`}
                   >
                     <option value="">未選択（クリックして選ぶ）</option>
-                    {r.ability.sets
-                      .filter((set) =>
+                    {/* セーブデータ用のセットは数が増えるので別グループにまとめる */}
+                    {(() => {
+                      const visible = r.ability.sets.filter((set) =>
                         setVisibleInScenario(set.id, r.scenario),
-                      )
-                      .map((set) => (
+                      );
+                      const option = (set: (typeof visible)[number]) => (
                         <option key={set.id} value={set.id}>
                           {set.plan ? `【${set.plan}】` : ""}
                           {set.name}
                         </option>
-                      ))}
+                      );
+                      const normal = visible.filter(
+                        (s) => !r.ability.saveIdOf(s.id),
+                      );
+                      const saveSets = visible.filter((s) =>
+                        r.ability.saveIdOf(s.id),
+                      );
+                      return (
+                        <>
+                          {normal.map(option)}
+                          {saveSets.length > 0 && (
+                            <optgroup label="セーブデータ用">
+                              {saveSets.map(option)}
+                            </optgroup>
+                          )}
+                        </>
+                      );
+                    })()}
                   </select>
                 </Field>
               </div>
@@ -721,90 +737,7 @@ export default function CalcPage() {
             </span>
           }
         >
-          <div className="flex flex-col gap-2.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <input
-                type="text"
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                placeholder="セーブ名（空欄なら 名前＋Pアイドル＋日付）"
-                className={`${INPUT} w-72`}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  calc.saveNew(saveName, r.ownedLevels.levels);
-                  setSaveName("");
-                }}
-                title="計算ページの入力と、サポカ所持状況（凸）も一緒に保存します"
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
-              >
-                <Save size={13} />
-                新しく保存
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <select
-                value={selectedSaveId}
-                onChange={(e) => setSelectedSaveId(e.target.value)}
-                className={`${INPUT} w-72`}
-              >
-                <option value="">セーブデータを選択</option>
-                {calc.saves.map((save) => (
-                  <option key={save.id} value={save.id}>
-                    {save.name}（{save.savedAt}）
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!selectedSave}
-                onClick={() => {
-                  if (!selectedSave) return;
-                  calc.loadSave(selectedSave);
-                  // 所持状況込みのセーブなら所持状況も復元（旧セーブは変更しない）
-                  if (selectedSave.ownedLevels) {
-                    r.ownedLevels.replaceAll(selectedSave.ownedLevels);
-                  }
-                }}
-                title="入力を読み込みます。所持状況込みのセーブならサポカ所持状況（凸）も復元します"
-                className={SMALL_BTN}
-              >
-                <FolderOpen size={13} />
-                読み込む
-              </button>
-              <button
-                type="button"
-                disabled={!selectedSave}
-                onClick={() =>
-                  selectedSave &&
-                  calc.overwrite(selectedSave.id, r.ownedLevels.levels)
-                }
-                title="今の入力とサポカ所持状況（凸）で上書きします"
-                className={SMALL_BTN}
-              >
-                <Save size={13} />
-                上書き保存
-              </button>
-              <button
-                type="button"
-                disabled={!selectedSave}
-                onClick={() => {
-                  if (
-                    selectedSave &&
-                    window.confirm(`「${selectedSave.name}」を削除しますか？`)
-                  ) {
-                    calc.deleteSave(selectedSave.id);
-                    setSelectedSaveId("");
-                  }
-                }}
-                className={`${SMALL_BTN} hover:bg-red-50! hover:text-red-600!`}
-              >
-                <Trash2 size={13} />
-                削除
-              </button>
-            </div>
-          </div>
+          <SaveDataPanel r={r} />
         </Card>
       </div>
 
@@ -983,7 +916,20 @@ export default function CalcPage() {
         </Card>
 
         {/* プロデュース開始時のステ */}
-        <Card title="プロデュース開始時のステータス">
+        <Card
+          title="プロデュース開始時のステータス"
+          action={
+            <button
+              type="button"
+              onClick={() => setParaboOpen(true)}
+              title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
+              className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              <Table2 size={13} />
+              パラボ変換表
+            </button>
+          }
+        >
           <div className="grid grid-cols-3 gap-2">
             {TYPE_KEYS.map((type) => (
               <div
@@ -1062,6 +1008,11 @@ export default function CalcPage() {
       {/* 使い方・計算式ヘルプ */}
       {helpOpen && (
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+      )}
+
+      {/* パラボ%→固定値の変換表 */}
+      {paraboOpen && (
+        <ParaboTableModal r={r} onClose={() => setParaboOpen(false)} />
       )}
 
       {/* シナリオ選択モーダル（色付き■3つ） */}

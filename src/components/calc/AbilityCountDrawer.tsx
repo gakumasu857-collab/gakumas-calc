@@ -3,7 +3,7 @@ import { ListOrdered } from "lucide-react";
 import { Link } from "react-router-dom";
 import SetEditModal from "@/components/ability-counts/SetEditModal";
 import Modal from "@/components/Modal";
-import type { AbilityName } from "@/data/constants";
+import { abilityKeyFromLabel, type AbilityName } from "@/data/constants";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
@@ -33,6 +33,23 @@ export default function AbilityCountDrawer({
     return keys;
   }, [r.selected.slots]);
 
+  /**
+   * 編成サポカの前イベ・後イベによる回数上乗せをアビリティキー別に合算する。
+   * 上乗せ側のラベルは全角括弧（例「Pアイテム獲得（6回まで）」）、
+   * アプリのラベルは半角括弧なので、キーへ正規化してから突き合わせる。
+   */
+  const eventExtras = useMemo(() => {
+    const out: Partial<Record<AbilityName, number>> = {};
+    for (const m of r.members) {
+      if (!m) continue;
+      for (const [label, n] of Object.entries(m.eventContrib)) {
+        const key = abilityKeyFromLabel(label);
+        if (key) out[key] = (out[key] ?? 0) + n;
+      }
+    }
+    return out;
+  }, [r.members]);
+
   return (
     <>
       {/* 左端の開くハンドル（上半分・縦書き。下半分はレッスン） */}
@@ -55,17 +72,7 @@ export default function AbilityCountDrawer({
             getCount={r.ability.getCount}
             setCount={r.ability.setCount}
             formationKeys={formationKeys}
-            eventExtras={(() => {
-              // 編成サポカの前イベ・後イベによる回数上乗せをラベル別に合算
-              const out: Record<string, number> = {};
-              for (const m of r.members) {
-                if (!m) continue;
-                for (const [label, n] of Object.entries(m.eventContrib)) {
-                  out[label] = (out[label] ?? 0) + n;
-                }
-              }
-              return out;
-            })()}
+            eventExtras={eventExtras}
             onDelete={() => r.ability.deleteSet(set.id)}
             onDuplicate={() => {
               r.ability.duplicateSet(set);

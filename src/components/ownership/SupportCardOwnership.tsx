@@ -8,7 +8,7 @@ import {
 } from "@/data/supportCardCatalog";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import { matchesCardQuery } from "@/lib/cardSearch";
-import { useOwnedLevels } from "@/lib/useOwnedLevels";
+import type { useOwnedLevels } from "@/lib/useOwnedLevels";
 import CsvTransfer from "./CsvTransfer";
 import SupportCardItem from "./SupportCardItem";
 
@@ -17,8 +17,13 @@ const RARITIES: Rarity[] = ["R", "SR", "SSR", "EventSSR"];
 /** 一括入力の選択肢: keep=変更しない / -1=未所持 / 0〜4=凸数 */
 type BulkLevel = "keep" | number;
 
-export default function SupportCardOwnership() {
-  const { getLevel, setLevel, setManyLevels, applyLevels } = useOwnedLevels();
+export default function SupportCardOwnership({
+  store,
+}: {
+  /** 所持ストアは親（OwnershipPage）が1つだけ持って配る（別インスタンスだと同期しない） */
+  store: ReturnType<typeof useOwnedLevels>;
+}) {
+  const { getLevel, setLevel, setManyLevels, applyLevels } = store;
   const [rarityFilter, setRarityFilter] = useState<"すべて" | Rarity>("すべて");
   const [typeFilter, setTypeFilter] = useState<
     "すべて" | (typeof CARD_TYPES)[number]

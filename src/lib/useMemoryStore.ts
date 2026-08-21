@@ -137,6 +137,54 @@ export function useMemoryStore() {
     setSets((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  /**
+   * 計算ページのセーブデータ用セットを作る/上書きする（1セーブにつき1件）。
+   * セーブを読み込むときはここではなくスナップショットから展開するので、
+   * このセットは「あとで手動で呼び出せる控え」として置いておく用。
+   */
+  const upsertSaveSet = useCallback(
+    (saveId: string, name: string, memoryIds: string[]) => {
+      // IDは更新関数の外で確定させる（更新関数は遅延実行されるため）
+      const existing = sets.find((s) => s.saveId === saveId);
+      const id = existing?.id ?? `set-${crypto.randomUUID()}`;
+      setSets((prev) =>
+        prev.some((s) => s.id === id)
+          ? prev.map((s) =>
+              s.id === id ? { ...s, name, memoryIds, saveId } : s,
+            )
+          : [...prev, { id, name, memoryIds, saveId }],
+      );
+      return id;
+    },
+    [sets],
+  );
+
+  const deleteSetsBySaveId = useCallback((saveId: string) => {
+    setSets((prev) => prev.filter((s) => s.saveId !== saveId));
+  }, []);
+
+  /** スロットの中身を直接置き換える（セーブデータの読み込み用） */
+  const setSelection = useCallback((memoryIds: string[]) => {
+    setSelected(memoryIds.slice(0, SLOT_SIZE));
+  }, []);
+
+  /**
+   * ライブラリに無いメモリーを補充する（セーブデータの読み込み用）。
+   * セーブ時点のメモリーが後で削除されていても復元できるようにする。
+   */
+  const ensureMemories = useCallback((memories: Memory[]) => {
+    setLibrary((prev) => {
+      const known = new Set([
+        ...prev.map((m) => m.id),
+        ...TEMPLATE_MEMORIES.map((m) => m.id),
+      ]);
+      const missing = memories
+        .filter((m) => !known.has(m.id))
+        .map(normalizeMemory);
+      return missing.length > 0 ? [...prev, ...missing] : prev;
+    });
+  }, []);
+
   return {
     loaded: true,
     allMemories,
@@ -151,5 +199,9 @@ export function useMemoryStore() {
     applySet,
     addSet,
     deleteSet,
+    upsertSaveSet,
+    deleteSetsBySaveId,
+    setSelection,
+    ensureMemories,
   };
 }

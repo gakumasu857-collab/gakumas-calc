@@ -71,15 +71,20 @@ export default function AbilityCountManager() {
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
   const [onlyFormation, setOnlyFormation] = useState(false);
   const [hideTemplates, setHideTemplates] = useState(false);
+  // 計算ページのセーブデータ用セットは既定で隠す（増えても表が広がらないように）
+  const [showSaveSets, setShowSaveSets] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [delResetOpen, setDelResetOpen] = useState(false);
   const [otherOpen, setOtherOpen] = useState(false);
   const [schedOpen, setSchedOpen] = useState(false);
 
   // シナリオに合うセットだけ（HIF用/NIA用/初用テンプレ＋ユーザーセット）
-  const scenarioSets = store.sets.filter((s) =>
-    setVisibleInScenario(s.id, scenario),
+  const scenarioSets = store.sets.filter(
+    (s) =>
+      setVisibleInScenario(s.id, scenario) &&
+      (showSaveSets || !store.saveIdOf(s.id)),
   );
+  const saveSetCount = store.sets.filter((s) => store.saveIdOf(s.id)).length;
   const visibleSets = scenarioSets.filter(
     (s) => !hideTemplates || store.isUserSet(s.id),
   );
@@ -102,6 +107,7 @@ export default function AbilityCountManager() {
     ? ALL_ABILITIES.filter((key) => formationAbilities.has(key))
     : ALL_ABILITIES;
 
+  // 「絞り込み中」はセットや行を隠しているときだけ（セーブ用の追加表示は絞り込みではない）
   const filterActive = onlyFormation || hideTemplates;
 
   return (
@@ -449,6 +455,21 @@ export default function AbilityCountManager() {
                 テンプレ非表示
                 <span className="block text-xs text-slate-400">
                   テンプレセット（スプシ由来）を隠して、自分で追加したセットだけを表示します。
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={showSaveSets}
+                onChange={(e) => setShowSaveSets(e.target.checked)}
+                className="mt-0.5 accent-blue-600"
+              />
+              <span>
+                セーブデータ用のセットも表示（{saveSetCount}件）
+                <span className="block text-xs text-slate-400">
+                  計算ページのセーブデータと一緒に保存された発動回数セットです。
+                  普段は邪魔にならないよう隠しています。
                 </span>
               </span>
             </label>

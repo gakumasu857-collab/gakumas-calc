@@ -104,5 +104,19 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     [map],
   );
 
-  return { get, set, setTarget, setAssign, setAcquire, loaded: true, map };
+  /** まるごと置き換える（セーブデータの読み込み用） */
+  const replaceAll = useCallback((snapshot: OverrideMap) => {
+    setMap({ ...snapshot });
+  }, []);
+
+  return {
+    get,
+    set,
+    setTarget,
+    setAssign,
+    setAcquire,
+    replaceAll,
+    loaded: true,
+    map,
+  };
 }

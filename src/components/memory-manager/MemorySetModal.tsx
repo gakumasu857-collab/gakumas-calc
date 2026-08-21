@@ -169,15 +169,36 @@ function LoadView({
   onDeleteSet: (id: string) => void;
   onClose: () => void;
 }) {
+  // 計算ページのセーブデータ用セットは既定で畳む（増えても一覧が埋まらないように）
+  const [showSaveSets, setShowSaveSets] = useState(false);
+  const saveSets = sets.filter((s) => s.saveId);
+  const ownSets = sets.filter((s) => !s.saveId);
+  const visible = showSaveSets ? [...ownSets, ...saveSets] : ownSets;
   return (
     <Modal title="メモリーセットから選択" onClose={onClose}>
-      {sets.length === 0 ? (
+      {saveSets.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowSaveSets((v) => !v)}
+          title="計算ページのセーブデータと一緒に保存されたメモリーセットです"
+          className={`mb-3 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+            showSaveSets
+              ? "border-blue-600 bg-blue-600 text-white"
+              : "border-slate-300 text-slate-500 hover:bg-slate-100"
+          }`}
+        >
+          セーブデータ用も表示（{saveSets.length}件）
+        </button>
+      )}
+      {visible.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-          保存済みのメモリーセットはありません。「メモリーセットを作成」から作れます。
+          {saveSets.length > 0
+            ? "自分で作ったメモリーセットはありません（セーブデータ用は上のボタンで表示できます）。"
+            : "保存済みのメモリーセットはありません。「メモリーセットを作成」から作れます。"}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {sets.map((set) => (
+          {visible.map((set) => (
             <div
               key={set.id}
               className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3"
@@ -186,6 +207,11 @@ function LoadView({
                 <span className="text-sm font-bold text-slate-900">
                   {set.name}
                 </span>
+                {set.saveId && (
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                    セーブデータ用
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => onDeleteSet(set.id)}
