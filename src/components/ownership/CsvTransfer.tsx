@@ -10,6 +10,7 @@ export default function CsvTransfer({
   exportName,
   buildCsv,
   onImport,
+  bare = false,
 }: {
   /** 形式の説明（例: カード名,凸数（-1=未所持〜4）） */
   formatNote: string;
@@ -19,6 +20,8 @@ export default function CsvTransfer({
   buildCsv: () => string;
   /** CSV本文を取り込み、反映件数と不一致名を返す */
   onImport: (text: string) => { applied: number; unmatched: string[] };
+  /** モーダルの中に置くとき用（枠と背景を外す） */
+  bare?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,8 +60,12 @@ export default function CsvTransfer({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
-      <span className="font-bold text-slate-700">CSV</span>
+    <div
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${
+        bare ? "" : "rounded-xl border border-slate-200 bg-white px-3 py-2"
+      }`}
+    >
+      {!bare && <span className="font-bold text-slate-700">CSV</span>}
       <button
         type="button"
         onClick={() => fileRef.current?.click()}

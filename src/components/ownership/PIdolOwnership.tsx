@@ -2,7 +2,6 @@
 import { P_IDOL_MASTERS, type PIdolMaster } from "@/lib/pIdol";
 import { imageUrl } from "@/lib/config";
 import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
-import CsvTransfer from "./CsvTransfer";
 
 const IDOLS = [...new Set(P_IDOL_MASTERS.map((m) => m.idol))];
 
@@ -27,60 +26,10 @@ export default function PIdolOwnership({
     setUnowned,
     setManyOwnership,
     setManyUnowned,
-    applyOwnership,
     loaded,
   } = store;
   const [idolFilter, setIdolFilter] = useState("すべて");
 
-  /** 現在の所持状況をCSVにする（このまま編集して読み込める） */
-  const buildCsv = () =>
-    ["アイドル,Pアイドル名,特訓,開花"]
-      .concat(
-        P_IDOL_MASTERS.map((m) => {
-          const o = getOwnership(m.key);
-          return `"${m.idol}","${m.cardName}",${o ? o.kunren : -1},${o ? o.kaika : 0}`;
-        }),
-      )
-      .join("\r\n");
-
-  /** CSVを読み込んで所持状況に反映（特訓-1または「未」=未所持） */
-  const importCsv = (text: string) => {
-    const unq = (s: string) => s.trim().replace(/^"|"$/g, "").trim();
-    const entries: { key: string; kunren: number; kaika: number }[] = [];
-    const unmatched: string[] = [];
-    for (const rawLine of text.split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (!line) continue;
-      const cols = line.split(",");
-      if (cols.length < 4) continue;
-      // 名前にカンマが入っても大丈夫なように、後ろ2列と先頭列を先に取る
-      const kaikaStr = unq(cols.pop()!);
-      const kunrenStr = unq(cols.pop()!);
-      const idol = unq(cols.shift()!);
-      const name = unq(cols.join(","));
-      if (kunrenStr === "特訓" || !name) continue; // ヘッダー行
-      const kunren =
-        kunrenStr === "未" || kunrenStr === "未所持"
-          ? -1
-          : Number.parseInt(kunrenStr, 10);
-      const kaika = Number.parseInt(kaikaStr, 10) || 0;
-      if (Number.isNaN(kunren)) {
-        unmatched.push(name);
-        continue;
-      }
-      const master =
-        P_IDOL_MASTERS.find(
-          (m) => m.idol === idol && m.cardName === name,
-        ) ?? P_IDOL_MASTERS.find((m) => m.cardName === name);
-      if (!master) {
-        unmatched.push(name);
-        continue;
-      }
-      entries.push({ key: master.key, kunren, kaika });
-    }
-    applyOwnership(entries);
-    return { applied: entries.length, unmatched };
-  };
   const [rarityFilter, setRarityFilter] = useState("すべて");
   const [planFilter, setPlanFilter] = useState("すべて");
   const [ownedOnly, setOwnedOnly] = useState(false);
@@ -182,14 +131,6 @@ export default function PIdolOwnership({
           表示中の{visible.length}枚に適用
         </button>
       </div>
-
-      {/* CSVで一括入出力 */}
-      <CsvTransfer
-        formatNote="アイドル,Pアイドル名,特訓,開花（特訓-1または未=未所持。まず書き出して編集するのが確実）"
-        exportName="Pアイドル所持状況.csv"
-        buildCsv={buildCsv}
-        onImport={importCsv}
-      />
 
       <p className="-mt-1 text-xs text-slate-500">
         特訓の「未」で未所持に。レアリティ・プラン・計算後のステータスは

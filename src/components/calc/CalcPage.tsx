@@ -46,6 +46,10 @@ import {
   typeConstraintFromRatio,
 } from "@/lib/formation";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
+import {
+  missingCalcInputs,
+  notReadyTitle as notReadyTitleOf,
+} from "@/lib/optimizeReady";
 import { IDOL_RANKS } from "@/lib/pIdol";
 import { produceRank } from "@/lib/produceRank";
 import {
@@ -123,6 +127,12 @@ export default function CalcPage() {
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
     r.members.every((m) => m !== null) && !!r.selectedSet;
+
+  // 最適化（理想編成・サポカ編成・踏み方）は、計算の前提がそろうまで押せない。
+  // 足りない項目はボタンの下に出す（判定は踏み方ドロワーと共通）。
+  const missingInputs = missingCalcInputs(r);
+  const optimizeReady = missingInputs.length === 0;
+  const notReadyTitle = notReadyTitleOf(missingInputs);
 
   /**
    * 理想編成を計算して選択サポカへ一括設定。
@@ -519,21 +529,15 @@ export default function CalcPage() {
         </Card>
 
         {/* 全自動最適化 */}
-        <Card
-          title=""
-          hint={
-            <span className="font-semibold text-amber-600">
-              ↓シナリオ・名前・Pアイドル・育成セット・メモリーを選んでから押す
-            </span>
-          }
-        >
+        <Card title="">
           {/* 求めるボタンの右隣に設定ボタン */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={runAutoOptimize}
-              disabled={optBusy}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60"
+              disabled={optBusy || !optimizeReady}
+              title={notReadyTitle}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles size={15} />
               {optBusy ? "計算中…" : "理想の評価値編成を求める（サポカ編成＋踏み方を自動探索）"}
@@ -547,6 +551,22 @@ export default function CalcPage() {
               条件設定
             </button>
           </div>
+          {!optimizeReady && (
+            <p className="mt-2 text-xs font-semibold text-amber-600">
+              ↑の設定で {missingInputs.join("・")} を選ぶと押せます
+            </p>
+          )}
+          {/* 所持サポカ・Pアイドルの登録がないと理想編成が組めないので導線を置く */}
+          <p className="mt-2 text-xs text-slate-500">
+            探索は
+            <Link
+              to="/support"
+              className="mx-1 font-bold text-blue-600 underline hover:text-blue-500"
+            >
+              所持状況（サポカ凸・Pアイドル）
+            </Link>
+            をもとに組みます。未登録なら先に入力してください。
+          </p>
           {optMsg && (
             <p className="mt-2 text-xs font-semibold text-blue-600">{optMsg}</p>
           )}
@@ -610,8 +630,9 @@ export default function CalcPage() {
               <button
                 type="button"
                 onClick={applyIdealFormation}
-                disabled={idealBusy}
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
+                disabled={idealBusy || !optimizeReady}
+                title={notReadyTitle}
+                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Sparkles size={13} />
                 {idealBusy ? "計算中…" : "今の踏み方でサポカ編成を最適化"}
@@ -634,6 +655,11 @@ export default function CalcPage() {
             </div>
           }
         >
+          {!optimizeReady && (
+            <p className="mb-2 text-xs font-semibold text-amber-600">
+              最適化には {missingInputs.join("・")} の選択が必要です
+            </p>
+          )}
           {idealMsg && <p className="mb-2 text-xs text-red-500">{idealMsg}</p>}
           {r.members.filter((m) => m?.rental).length >= 2 && (
             <p className="mb-2 text-xs font-semibold text-amber-600">

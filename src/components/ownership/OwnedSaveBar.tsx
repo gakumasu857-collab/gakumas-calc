@@ -13,10 +13,13 @@ import { useOwnedSaves } from "@/lib/useOwnedSaves";
 export default function OwnedSaveBar({
   levels,
   pIdols,
+  bare = false,
 }: {
   /** 所持ストアは親（OwnershipPage）が1つだけ持って配る（別インスタンスだと同期しない） */
   levels: ReturnType<typeof useOwnedLevels>;
   pIdols: ReturnType<typeof useOwnedPIdols>;
+  /** モーダルの中に置くとき用（枠と背景を外す） */
+  bare?: boolean;
 }) {
   const store = useOwnedSaves();
   const [selectedId, setSelectedId] = useState("");
@@ -48,8 +51,14 @@ export default function OwnedSaveBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
-      <span className="font-bold text-slate-700">所持状況の保存</span>
+    <div
+      className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs ${
+        bare
+          ? ""
+          : "rounded-xl border border-slate-200 bg-white px-3 py-2"
+      }`}
+    >
+      {!bare && <span className="font-bold text-slate-700">所持状況の保存</span>}
       <button
         type="button"
         onClick={() => setDialogOpen(true)}

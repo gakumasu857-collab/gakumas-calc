@@ -9,7 +9,6 @@ import {
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import { matchesCardQuery } from "@/lib/cardSearch";
 import type { useOwnedLevels } from "@/lib/useOwnedLevels";
-import CsvTransfer from "./CsvTransfer";
 import SupportCardItem from "./SupportCardItem";
 
 const RARITIES: Rarity[] = ["R", "SR", "SSR", "EventSSR"];
@@ -23,7 +22,7 @@ export default function SupportCardOwnership({
   /** 所持ストアは親（OwnershipPage）が1つだけ持って配る（別インスタンスだと同期しない） */
   store: ReturnType<typeof useOwnedLevels>;
 }) {
-  const { getLevel, setLevel, setManyLevels, applyLevels } = store;
+  const { getLevel, setLevel, setManyLevels } = store;
   const [rarityFilter, setRarityFilter] = useState<"すべて" | Rarity>("すべて");
   const [typeFilter, setTypeFilter] = useState<
     "すべて" | (typeof CARD_TYPES)[number]
@@ -67,47 +66,6 @@ export default function SupportCardOwnership({
       visible.map((card) => card.id),
       bulkLevel,
     );
-  };
-
-  /** 現在の所持状況をCSVにする（このまま編集して読み込める） */
-  const buildCsv = () =>
-    ["カード名,凸数"]
-      .concat(
-        SUPPORT_CATALOG.map((card) => `"${card.name}",${getLevel(card.id)}`),
-      )
-      .join("\r\n");
-
-  /** CSVを読み込んで所持状況に反映（名前一致・-1または「未」=未所持） */
-  const importCsv = (text: string) => {
-    const nameToId = new Map(SUPPORT_CATALOG.map((c) => [c.name, c.id]));
-    const entries: Record<string, number> = {};
-    const unmatched: string[] = [];
-    for (const rawLine of text.split(/\r?\n/)) {
-      const line = rawLine.trim();
-      if (!line) continue;
-      // 名前にカンマが入っても大丈夫なように、最後のカンマで分ける
-      const idx = line.lastIndexOf(",");
-      if (idx < 0) continue;
-      const name = line.slice(0, idx).trim().replace(/^"|"$/g, "").trim();
-      const levelStr = line.slice(idx + 1).trim().replace(/^"|"$/g, "");
-      if (!name || name === "カード名") continue; // ヘッダー行
-      const level =
-        levelStr === "未" || levelStr === "未所持"
-          ? -1
-          : Number.parseInt(levelStr, 10);
-      if (Number.isNaN(level)) {
-        unmatched.push(name);
-        continue;
-      }
-      const id = nameToId.get(name);
-      if (!id) {
-        unmatched.push(name);
-        continue;
-      }
-      entries[id] = Math.max(-1, Math.min(4, level));
-    }
-    applyLevels(entries);
-    return { applied: Object.keys(entries).length, unmatched };
   };
 
   return (
@@ -188,14 +146,6 @@ export default function SupportCardOwnership({
           表示中の{visible.length}枚に適用
         </button>
       </div>
-
-      {/* CSVで一括入出力 */}
-      <CsvTransfer
-        formatNote="カード名,凸数（-1または未=未所持、0〜4=凸数。まず書き出して編集するのが確実）"
-        exportName="サポカ所持状況.csv"
-        buildCsv={buildCsv}
-        onImport={importCsv}
-      />
 
       {/* カード一覧（コンパクト行・スマホ1列〜PC3列） */}
       {visible.length > 0 ? (

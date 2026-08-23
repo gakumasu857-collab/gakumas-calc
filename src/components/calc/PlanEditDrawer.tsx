@@ -34,6 +34,7 @@ import {
 } from "@/data/scenarios";
 import { optimizeSteppingForSlots } from "@/lib/autoOptimize";
 import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
+import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
 import type { SelectedSlot } from "@/lib/formation";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { subAppearProb } from "@/lib/useSchedule";
@@ -70,6 +71,9 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [optMsg, setOptMsg] = useState<string | null>(null);
   const [optBusy, setOptBusy] = useState(false);
+  // 踏み方の最適化も、シナリオ・Pアイドル・育成セット・メモリーがそろうまで押せない
+  const missingInputs = missingCalcInputs(r);
+  const optimizeReady = missingInputs.length === 0;
   const title =
     r.scenario === "niaMaster"
       ? "自主レッスン・営業・オーディション"
@@ -134,13 +138,21 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
             <button
               type="button"
               onClick={optimizePlan}
-              disabled={optBusy}
-              title="編成は変えずに、今の選択サポカ6枚で合計ステが最大になる踏み方・授業（営業）を探して適用します"
-              className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:opacity-60"
+              disabled={optBusy || !optimizeReady}
+              title={
+                notReadyTitle(missingInputs) ??
+                "編成は変えずに、今の選択サポカ6枚で合計ステが最大になる踏み方・授業（営業）を探して適用します"
+              }
+              className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles size={13} />
               {optBusy ? "計算中…" : "今のサポカ編成で踏み方を最適化"}
             </button>
+            {!optimizeReady && (
+              <span className="text-xs font-semibold text-amber-600">
+                最適化には {missingInputs.join("・")} の選択が必要です
+              </span>
+            )}
             {r.scenario === "hif" && (
               <button
                 type="button"
