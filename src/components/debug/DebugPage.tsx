@@ -48,7 +48,7 @@ export default function DebugPage() {
 
   /**
    * 「理論評価値を求める」と同じ探索を回して、選定過程だけ表示する（設定は変更しない）。
-   * 焼きなましは乱数がシード非固定なので、押すたびに少し違う結果になることがある。
+   * 探索は決定的（乱数なし）なので、同じ入力なら毎回同じ結果になる。
    */
   const runSearch = () => {
     setSearching(true);
@@ -117,9 +117,9 @@ export default function DebugPage() {
       >
         {!search ? (
           <p className="text-xs text-slate-400">
-            ボタンを押すと、実際の全自動最適化（焼きなまし法＋各タイプ別の候補プール）を回して、
+            ボタンを押すと、実際の全自動最適化（候補出し→配分列挙→編成ビーム→結合仕上げ）を回して、
             どのサポカが候補で・どの踏み方で・どの6枚が選ばれたのかを表示します。設定・選択サポカは変更しません。
-            乱数はシード非固定なので、押すたびに結果が少し変わることがあります。
+            探索は決定的（乱数なし）なので、同じ入力なら毎回同じ結果になります。
           </p>
         ) : (
           <SearchDebug res={search} num={num} />
@@ -393,7 +393,7 @@ function SearchDebug({
           <b className="text-blue-600">{num(res.rating)}</b>
         </span>
         <span>合計ステ {num(res.cappedSum)}</span>
-        <span>起点 {d?.starts ?? "—"}個</span>
+        <span>下見配分 {d?.starts ?? "—"}件</span>
         <span>評価した踏み方 {num(res.evaluated)}通り</span>
         <span>{res.elapsedMs.toFixed(0)}ms</span>
         {res.spShortfall > 0 && (
@@ -405,10 +405,10 @@ function SearchDebug({
 
       {d && (
         <>
-          {/* 起点別スコア（初期値非依存・ばらつきの確認） */}
+          {/* 配分下見の上位スコア（どの配分が有望と見たか） */}
           <div className="text-xs text-slate-500">
-            <span className="font-semibold text-slate-700">起点別の到達スコア</span>
-            （9通りの起点から焼きなまし。値が近いほど初期値に依存していない）:{" "}
+            <span className="font-semibold text-slate-700">配分上位の推定スコア</span>
+            （レッスン枚数の分割を下見した結果。上位ほど有望な配分）:{" "}
             <span className="tabular-nums">
               {d.startScores.map((s) => num(s)).join(" / ")}
             </span>
@@ -584,7 +584,7 @@ function SearchDebug({
           )}
 
           <p className="text-[11px] text-slate-400">
-            ※ 探索は「踏み方（レッスン・授業・選抜）⇄ 理想編成」を9起点から焼きなましで交互に詰め、
+            ※ 探索は決定的パイプライン（候補出し→配分列挙→編成ビーム→結合仕上げ）で、
             一番評価値が高かった組み合わせを表示しています。選抜スコアはサポカ編成を軸に、
             メイン2タイプのうち余裕がある方へ寄せています。上の値を反映するには計算ページの「理論評価値を求める」を押してください。
           </p>

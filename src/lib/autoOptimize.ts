@@ -1,16 +1,17 @@
 /**
  * 全自動最適化: レッスン（営業・授業）の踏み方 × サポカ編成 をまとめて探索する。
  *
- * 踏み方（レッスンのメイン/サブ・授業・選抜スコアの分配）は焼きなまし法で最適化する。
+ * 決定的パイプライン（乱数なし。毎回同じ入力なら同じ答えになる）:
+ * 1. 候補出し（buildShortlist）: 代表踏み方でプールを採点し、素点上位・配り屋・
+ *    SP率持ちをタイプ別に絞る（人間の「このサポカ強そう」に相当）
+ * 2. 配分列挙（deterministicSearch）: レッスンのタイプ別枚数の全分割
+ *    （HIF45/NIA36/初21通り）を小ビームで下見 → 上位配分だけ編成ビームサーチ。
+ *    編成候補は選抜の寄せ方プリセットでも評価して「寄せると勝つ」結合解を拾う
+ * 3. 仕上げ: 選抜プリセット×日入替の結合手（refineDayExamJoint）→
+ *    相互詰め（refineExams・climbStepping・swapLessonPicks・編成組み直し）→
+ *    スワップ×レッスンflipの結合手（swapFormationMove）
  * 目的は素直に「Σmin(上限, タイプ別ステ)を最大化」。溢れた分は上限で頭打ちになるだけで
- * ペナルティは無いので、溢れても合計が高くなる配分ならそれを選ぶ。授業も他と同じく
- * 踏んだとおりに評価し、焼きなまし・山登りの中で一緒に最適化する（特別扱いしない）。
- *
- * 探索は「踏み方 ⇄ 編成」の交互反復を、初期値非依存の固定9起点から回す:
- * 1. 固定9起点（レッスン偏重×授業寄せの格子。現在の踏み方は含めない）
- * 2. 各起点で焼きなまし法（乱数はシード非固定＝実行のたびに少し違う解）＋仕上げ山登り
- *    でレッスン・授業・選抜を同時に探索 ⇄ その踏み方で理想編成（findBestFormation）を組み直す
- * 3. 全起点の最良を採用
+ * ペナルティは無いので、溢れても合計が高くなる配分ならそれを選ぶ。
  *
  * 評価は計算ページと同じ流儀:
  * - パラメータボーナスは全ソース合算→1回変換（summedParaboByType）
@@ -20,6 +21,7 @@
  *    比較は Σmin(上限, ステ)＋NIA札換算 で行い、最終的な評価値は勝者だけ算出する。
  */
 import {
+  CLASSES,
   EXAMS,
   FINAL_ROUNDS,
   finalRoundValue,
@@ -27,10 +29,14 @@ import {
   WAPPEN_MAX,
 } from "@/data/schedule";
 import {
+  HATSU_CLASSES,
+  HATSU_LESSONS,
   HATSU_PARAM_RATE,
   HATSU_RANK_VALUES,
   hatsuExamValue,
+  NIA_LESSONS,
   NIA_PARAM_RATE,
+  NIA_SALES,
   niaFanValue,
   niaFudaVotes,
   type NiaTag,
@@ -59,11 +65,12 @@ import {
 } from "./formation";
 import { calcMemoryTotals, resolveParaboMemory } from "./memoryTotals";
 import type { Memory } from "./memoryTypes";
-import { annealStepping, climbStepping } from "./optimize/anneal";
+import { climbStepping } from "./optimize/anneal";
 import {
   buildSeeds,
   EXAM_RATIOS_FINE,
   examScoresFromRatio,
+  examScoresUniform,
   sameExamScores,
   steppingAxes,
   uniformStepping,
@@ -93,24 +100,39 @@ import {
   type LessonPick,
 } from "./useSchedule";
 
-/**
- * 焼きなましのシード数。乱数はシードを固定しない（Math.random）ので実行のたびに
- * 少し違う解が出るが、初期の踏み方には依存しない（固定9起点＋各起点から焼きなまし）。
- * 反復回数・温度は optimize/anneal.ts 側。
- */
-const SA_STARTS = 6;
-/** 「踏み方探索 ⇄ 編成組み直し」の最大ラウンド数 */
-const MAX_ROUNDS = 2;
-/** 全体の探索時間の上限（約5秒。超えたら新しい起点・ラウンドを始めない） */
-const TIME_BUDGET_MS = 4800;
-/**
- * 広域探索（9起点＋踏み方の詰め直し）に使う時間の割合。
- * 残りは仕上げの相互詰め直し（選抜細分配⇄編成⇄踏み方）と
- * 余り時間の焼きなましリスタートに確保する。
- */
-const MAIN_PHASE_RATIO = 0.62;
+/** 踏み方探索（編成固定）で山登りをかけるシード数（決定的） */
+const CLIMB_STARTS = 4;
+/** 全体の探索時間の上限（約5秒。超えたら新しい段階・ラウンドを始めない） */
+const TIME_BUDGET_MS = 5200;
+/** 決定的探索（分割列挙＋編成ビーム）に使う時間 */
+const SEARCH_PHASE_MS = 2200;
+/** 末尾の結合手（スワップ×レッスンflip）用に予約する時間 */
+const JOINT_RESERVE_MS = 1200;
 
 const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+
+/**
+ * 編成候補を評価するときの選抜スコアの寄せ方プリセット（HIF）。
+ * [Vo,Da,Vi]の整数比。細かい配分は最後に refineExams が詰めるので、
+ * ここでは「どのタイプに寄せるか」の方向だけ見る。
+ */
+/** 非HIFでグリーディ組成を回す分割数（下見上位から。1回 ~50-100ms） */
+const GREEDY_PARTS = 12;
+/** 詰め直し（polish）まで持ち越す「カードセットの異なる」候補数 */
+const SEARCH_FINALISTS = 4;
+
+const EXAM_PRESET_RATIOS: [number, number, number][] = [
+  [1, 1, 1],
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+  [2, 1, 0],
+  [2, 0, 1],
+  [1, 2, 0],
+  [0, 2, 1],
+  [1, 0, 2],
+  [0, 1, 2],
+];
 
 export type AutoOptimizeInput = {
   scenario: ScenarioKey;
@@ -203,15 +225,15 @@ export type AutoOptimizeResult = SteppingResult & {
 
 /** /debug 用: 探索の起点・勝ち踏み方・候補プール・採用理由 */
 export type OptimizeDebug = {
-  /** 起点数（固定9） */
+  /** 下見した配分の数（＝startScoresの件数） */
   starts: number;
-  /** 全起点合わせて評価した踏み方の候補数 */
+  /** 評価した編成・踏み方の候補数 */
   evaluated: number;
-  /** 各起点から焼きなましで到達したスコア（初期値非依存・ばらつきの確認用） */
+  /** 配分（レッスン枚数の分割）上位の推定スコア（決定的探索の下見結果） */
   startScores: number[];
   /**
    * フェーズ別の到達スコア。
-   * starts=9起点の交互反復後 / polish=踏み方の詰め直し後 /
+   * starts=決定的探索（分割×編成ビーム）後 / polish=踏み方の詰め直し後 /
    * refine=仕上げの相互詰め直し（選抜細分配・結合手・リスタート）後。
    */
   phaseScores: { starts: number; polish: number; refine: number };
@@ -275,7 +297,7 @@ type Ectx = {
 
 /**
  * 踏み方（レッスン・授業・選抜）と理想編成をまとめて探索する本体。
- * 固定9起点から「踏み方⇄編成」を交互反復し、最後に勝ち編成の踏み方を詰め直す。
+ * 決定的探索（候補出し→配分列挙→編成ビーム/グリーディ）→ 詰め直し → 結合仕上げ。
  * 結果はそのまま計算ページの各ストアへ適用できる形で返す。
  */
 export function runFullOptimize(
@@ -284,42 +306,50 @@ export function runFullOptimize(
   const t0 = performance.now();
   const engine = new OptimizeEngine(input);
   const finalDeadline = t0 + TIME_BUDGET_MS;
-  // 広域探索は時間の一部で切り上げ、残りを仕上げの詰め直しに確保する
-  engine.deadline = t0 + TIME_BUDGET_MS * MAIN_PHASE_RATIO;
+  // 決定的探索は前半で切り上げ、残りを仕上げ（日入替・選抜細分配・結合手）に使う
+  engine.deadline = t0 + SEARCH_PHASE_MS;
 
-  // 「踏み方⇄編成」の交互反復を、初期値非依存の固定9起点から回す。
-  // 各起点で焼きなまし法により局所解を脱出する（乱数はシード非固定）。
-  let best: {
-    stepping: Stepping;
-    slots: SelectedSlot[];
-    score: number;
-    spShortfall: number;
-  } | null = null;
-  const startScores: number[] = [];
-  for (const start of engine.startCandidates()) {
-    // 1起点は必ず回すが、以降は時間上限を超えたら打ち切る
-    if (best && performance.now() > engine.deadline) break;
-    const settled = engine.alternate(start);
-    if (!settled) continue;
-    startScores.push(Math.round(settled.score));
-    if (!best || settled.score > best.score) best = settled;
-  }
+  // 決定的パイプライン:
+  //   1. 候補出し（代表踏み方でプールを採点→タイプ別ショートリスト）
+  //   2. レッスン配分の全列挙（授業・選抜は後段で解析的に決める）→ 軽量評価で絞る
+  //   3. 上位配分ごとに編成のビームサーチ（増分サロゲート）＋上位のみ正確評価
+  // 乱数を使わないので毎回同じ答えになり、配分×編成の大域構造を取りこぼさない。
+  engine.buildShortlist();
+  let best = engine.deterministicSearch();
+  const startScores = engine.lastPartitionEsts;
   if (!best) return null;
   const scoreAfterStarts = best.score;
 
-  // 勝った編成に対して踏み方を9起点から入念に詰め直す（交互反復の取りこぼしを補う）。
-  const polished = engine.optimizeStepping(best.slots);
-  if (polished && polished.score > best.score) {
-    best.stepping = polished.stepping;
-    best.score = polished.score;
+  // 勝った編成に対して踏み方を詰め直す。
+  // 非HIFは「カードセットの異なる」上位候補それぞれを新しいデッドラインで
+  // 入念に詰めてから勝者を選ぶ（詰める前の優劣が詰めた後に逆転するため。
+  // 1候補 ~250ms）。HIFはここに時間を使うと後段の相互詰めが痩せて損なので、
+  // 探索フェーズの期限のまま軽く流す（従来どおり）
+  if (input.scenario !== "hif" && engine.searchFinalists.length > 1) {
+    engine.deadline = finalDeadline - JOINT_RESERVE_MS;
+    for (const f of engine.searchFinalists) {
+      const cand = { ...f };
+      const p = engine.optimizeStepping(cand.slots);
+      if (p && p.score > cand.score) {
+        cand.stepping = p.stepping;
+        cand.score = p.score;
+      }
+      if (cand.score > best.score) best = cand;
+    }
+  } else {
+    const polished = engine.optimizeStepping(best.slots);
+    if (polished && polished.score > best.score) {
+      best.stepping = polished.stepping;
+      best.score = polished.score;
+    }
   }
   const scoreAfterPolish = best.score;
 
-  // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り」を
-  // 収束するまで相互に詰め、まだ余れば焼きなましリスタートで局所解の脱出を試みる。
-  // 末尾の「スワップ×踏み方の結合手」用に時間を予約しておく
-  const JOINT_RESERVE_MS = 1800;
+  // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り・日入替」を
+  // 収束するまで相互に詰める。末尾の「スワップ×踏み方の結合手」用に時間を予約しておく
   engine.deadline = finalDeadline - JOINT_RESERVE_MS;
+  // まず「選抜の寄せ方 × レッスン日の入れ替え」の2手谷を越えてから相互詰めに入る
+  engine.refineDayExamJoint(best);
   best = engine.refineLoop(best);
 
   // 結合手（保証枠）: グリーディ組成が出さないカードへの1枚スワップを正確評価し、
@@ -426,7 +456,8 @@ export function optimizeSteppingForSlots(
  * 探索の実装本体（入力を束ねて使い回すためのクラス）。
  * メソッドは次の順に並べている:
  * 1. 起点づくり  : initialStepping / toSteppingResult / startCandidates
- * 2. 探索        : alternate / optimizeStepping / searchStepping
+ * 2. 探索        : buildShortlist / deterministicSearch / bestFormationBeam /
+ *                  optimizeStepping / searchStepping
  * 3. 評価        : buildEctx / preciseObjective / preciseMembers
  * 4. 編成・仕上げ: allocateEvents / buildFormation / fullRating / buildDebug
  * 踏み方そのものの定義と局所探索は optimize/stepping.ts・optimize/anneal.ts 側。
@@ -569,54 +600,8 @@ export class OptimizeEngine {
   }
 
   /**
-   * 1起点分の「踏み方の広域探索 ⇄ 編成組み直し」を改善が止まるまで反復する。
-   */
-  alternate(start: Stepping): {
-    stepping: Stepping;
-    slots: SelectedSlot[];
-    score: number;
-    spShortfall: number;
-  } | null {
-    let stepping = start;
-    let ectx = this.buildEctx(stepping);
-    const first = this.buildFormation(ectx);
-    if (!first) return null;
-    let slots = first.picks.map((p) => ({ id: p.id, rental: p.rental }));
-    let spShortfall = first.spShortfall;
-    let score = this.preciseObjective(slots, ectx).obj;
-
-    for (let round = 0; round < MAX_ROUNDS; round++) {
-      if (round > 0 && performance.now() > this.deadline) break;
-      let improved = false;
-      const searched = this.searchStepping(slots, stepping);
-      if (searched.score > score + 1e-9) {
-        stepping = searched.stepping;
-        score = searched.score;
-        improved = true;
-      }
-      ectx = this.buildEctx(stepping);
-      const formation = this.buildFormation(ectx);
-      if (formation) {
-        const newSlots = formation.picks.map((p) => ({
-          id: p.id,
-          rental: p.rental,
-        }));
-        const { obj } = this.preciseObjective(newSlots, ectx);
-        if (obj > score + 1e-9) {
-          slots = newSlots;
-          score = obj;
-          spShortfall = formation.spShortfall;
-          improved = true;
-        }
-      }
-      if (!improved) break;
-    }
-    return { stepping, slots, score, spShortfall };
-  }
-
-  /**
    * 編成を固定して踏み方（レッスン・授業・選抜）を最適化する。
-   * 初期値非依存の固定9起点それぞれから焼きなまし＋山登りし、一番良い踏み方を返す。
+   * 編成固定で踏み方を入念に詰め直す（シード群→決定的山登り）。
    * 現在の踏み方は起点に含めない（事前の踏み方に結果が左右されないように）。
    */
   optimizeStepping(
@@ -633,7 +618,7 @@ export class OptimizeEngine {
 
   /**
    * 踏み方の広域探索（編成固定）。
-   * 全シード（現在＋一様＋タイプ別枚数の全分割）を評価 → 上位を焼きなましで詰める。
+   * 全シード（現在＋一様＋タイプ別枚数の全分割）を評価 → 上位から決定的な山登り。
    */
   searchStepping(
     slots: SelectedSlot[],
@@ -646,15 +631,16 @@ export class OptimizeEngine {
       .map((s) => ({ stepping: s, score: evalOf(s) }))
       .sort((a, b) => b.score - a.score);
 
+    // 上位シードから決定的な山登り（全軸の近傍を総当たり）。乱数は使わない
     let best = scored[0];
-    for (const seed of scored.slice(0, SA_STARTS)) {
-      const annealed = annealStepping(
+    for (const seed of scored.slice(0, CLIMB_STARTS)) {
+      const climbed = climbStepping(
         seed.stepping,
         seed.score,
         evalOf,
         this.deadline,
       );
-      if (annealed.score > best.score) best = annealed;
+      if (climbed.score > best.score) best = climbed;
     }
     return best;
   }
@@ -1128,7 +1114,7 @@ export class OptimizeEngine {
    * 仕上げの相互詰め直し。勝ち解に対して
    * 1) 選抜スコアの細分配 → 2) 踏み方の山登り＋レッスン日の入れ替え
    * → 3) 編成の組み直し → 4) レッスン×編成の結合手（改善が無いときだけ）
-   * を収束するまで反復し、時間が余れば焼きなましリスタートで局所解の脱出を試みる。
+   * を収束するまで反復し、時間が余れば踏み方の広域再探索で局所解の脱出を試みる。
    * （「レッスンを1タイプに寄せてサポカも寄せる」ような結合解はこの反復で詰まる）
    */
   refineLoop(best: {
@@ -1170,6 +1156,13 @@ export class OptimizeEngine {
 
       if (this.swapLessonPicks(best)) changed = true;
 
+      // 選抜の寄せ方×日入替の2手谷（refineExamsの微調整後に改めて試す）
+      {
+        const before = best.score;
+        this.refineDayExamJoint(best);
+        if (best.score > before + 1e-9) changed = true;
+      }
+
       const ectx = this.buildEctx(best.stepping);
       const formation = this.buildFormation(ectx);
       if (formation) {
@@ -1189,16 +1182,11 @@ export class OptimizeEngine {
       if (!changed && !this.jointLessonFormationMove(best)) break;
     }
 
-    // 余り時間で焼きなましリスタート（改善したら編成・選抜も追い詰め直す）。
-    // 焼きなましは確率的なので、1回外れても数回は再挑戦して時間を使い切る。
-    let misses = 0;
-    while (performance.now() < this.deadline - 150 && misses < 3) {
+    // 余り時間で踏み方の広域再探索（改善したら編成・選抜も追い詰め直す）。
+    // 探索は決定的なので、外れたら再挑戦しても同じ結果＝即終了する
+    while (performance.now() < this.deadline - 150) {
       const searched = this.searchStepping(best.slots, best.stepping);
-      if (searched.score <= best.score + 1e-9) {
-        misses++;
-        continue;
-      }
-      misses = 0;
+      if (searched.score <= best.score + 1e-9) break;
       best.stepping = searched.stepping;
       best.score = searched.score;
       const fine = this.refineExams(best.slots, best.stepping, best.score);
@@ -1517,20 +1505,624 @@ export class OptimizeEngine {
   }
 
   /** 理想編成を1回組む（現在の踏み方前提） */
-  buildFormation(ectx: Ectx) {
+  /** 探索対象のショートリスト（buildShortlistで作る。null=全プール） */
+  private shortlistIds: Set<string> | null = null;
+  private rentalShortlistIds: Set<string> | null = null;
+  /** /debug用: 決定的探索の分割別推定スコア（上位から） */
+  lastPartitionEsts: number[] = [];
+  /** 決定的探索が残した「カードセットの異なる」上位候補（詰め直し用） */
+  searchFinalists: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  }[] = [];
+
+  private formationOpts() {
     const { input } = this;
-    const opts = {
+    return {
       flags: input.flags,
       plan: input.plan,
       noStageItems: input.noStageItems,
     };
-    const owned = scoreOwnedCards(
-      input.getLevel,
+  }
+
+  /**
+   * 候補出し（人間の「このサポカ強そう」に相当する絞り込み）。
+   * 代表的な踏み方（単タイプ×3＋バランス）でプール全体を採点し、タイプごとに
+   * - 素点上位
+   * - 配り屋上位（前イベ・後イベで編成全体の発動回数を増やすカード。
+   *   ドリンク獲得・スキル獲得持ちなどがここで拾われる）
+   * - SP率持ち上位（SP枚数条件用）
+   * を合流させる（試験補助ON時はその加点も順位に効かせる）。
+   * 以降の探索はこのリストだけを見る（採点が数倍速くなり、反復を深くできる）。
+   */
+  buildShortlist(): void {
+    const ids = new Set<string>();
+    const rentalIds = new Set<string>();
+    const opts = this.formationOpts();
+    for (const s of this.representativeSteppings()) {
+      const ectx = this.buildEctx(s);
+      const owned = scoreOwnedCards(
+        this.input.getLevel,
+        ectx.ctx,
+        TYPE_SHEET_ROLE,
+        opts,
+      );
+      const rentals = scoreRentalCandidates(ectx.ctx, TYPE_SHEET_ROLE, opts);
+      // 受け手価値の目安: 回数キーごとの最大効果量（配り屋の価値づけ用）
+      const keyValue: Record<string, number> = {};
+      for (const c of owned) {
+        for (const k in c.valuesByKey) {
+          keyValue[k] = Math.max(keyValue[k] ?? 0, c.valuesByKey[k]);
+        }
+      }
+      const giveValue = (c: ScoredCard) => {
+        let v = 0;
+        for (const k in c.eventContrib) {
+          v += c.eventContrib[k] * (keyValue[k] ?? 0) * 5;
+        }
+        return v;
+      };
+      const assistOf = (c: ScoredCard) =>
+        this.input.examAssist
+          ? examAssistSum([c], this.input.examStyleTags)
+          : 0;
+      for (const type of TYPE_KEYS) {
+        const group = owned.filter((c) => c.type === type && !c.assist);
+        const byPoints = [...group].sort((a, b) => b.points - a.points);
+        byPoints.slice(0, 12).forEach((c) => ids.add(c.id));
+        [...group]
+          .sort(
+            (a, b) =>
+              b.points + giveValue(b) + assistOf(b) -
+              (a.points + giveValue(a) + assistOf(a)),
+          )
+          .slice(0, 6)
+          .forEach((c) => ids.add(c.id));
+        byPoints
+          .filter((c) => c.hasSpUp)
+          .slice(0, 3)
+          .forEach((c) => ids.add(c.id));
+        [...rentals.filter((c) => c.type === type)]
+          .sort((a, b) => b.points - a.points)
+          .slice(0, 2)
+          .forEach((c) => rentalIds.add(c.id));
+      }
+      owned
+        .filter((c) => c.assist)
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 4)
+        .forEach((c) => ids.add(c.id));
+    }
+    // 固定カードは必ず候補に含める
+    for (const id of this.input.flags.pinned) ids.add(id);
+    this.shortlistIds = ids;
+    this.rentalShortlistIds = rentalIds;
+  }
+
+  /** 候補出しに使う代表踏み方（単タイプ×3＋バランス） */
+  private representativeSteppings(): Stepping[] {
+    const parts: [number, number, number][] =
+      this.input.scenario === "hif"
+        ? [
+            [8, 0, 0],
+            [0, 8, 0],
+            [0, 0, 8],
+            [3, 3, 2],
+          ]
+        : this.input.scenario === "niaMaster"
+          ? [
+              [7, 0, 0],
+              [0, 7, 0],
+              [0, 0, 7],
+              [3, 2, 2],
+            ]
+          : [
+              [5, 0, 0],
+              [0, 5, 0],
+              [0, 0, 5],
+              [2, 2, 1],
+            ];
+    return parts.map((p) => this.steppingFromPartition(p));
+  }
+
+  /**
+   * レッスンのタイプ別枚数（分割）→ 踏み方。
+   * 授業/営業は後段（climbStepping・applyClassPreference）が決めるのでここでは一様、
+   * 選抜は均等（refineExamsが詰める）、全SP（非SP・踏まないは結合手が試す）。
+   */
+  private steppingFromPartition(part: [number, number, number]): Stepping {
+    // 日割り当ての初期配置: 枚数の多いタイプから順に、獲得の大きい日を取る
+    // （少数タイプは小さい日に置くのが概ね最適。細部は swapLessonPicks が詰める）
+    const dayGains: number[] =
+      this.input.scenario === "hif"
+        ? LESSONS.map((l) => l.main[1])
+        : this.input.scenario === "niaMaster"
+          ? NIA_LESSONS.map((l) => l.value[1])
+          : HATSU_LESSONS.map((l) => l.perfectMain[1]);
+    const dayOrder = dayGains
+      .map((g, i) => ({ g, i }))
+      .sort((a, b) => b.g - a.g)
+      .map((x) => x.i);
+    const typeOrder = TYPE_KEYS.map((t, i) => ({ t, c: part[i] })).sort(
+      (a, b) => b.c - a.c,
+    );
+    const mains: TypeKey[] = new Array(dayGains.length);
+    let cursor = 0;
+    for (const { t, c } of typeOrder) {
+      for (let k = 0; k < c; k++) mains[dayOrder[cursor++]] = t;
+    }
+    if (this.input.scenario === "niaMaster") {
+      const sales =
+        this.input.nia.sales.length > 0
+          ? this.input.nia.sales
+          : NIA_SALES.map(() => ({
+              type: "visual" as TypeKey,
+              resort: true,
+              great: true,
+            }));
+      return {
+        kind: "nia",
+        lessons: NIA_LESSONS.map((_, i) => ({
+          main: mains[i] ?? null,
+          sp: true,
+        })),
+        sales: sales.map((sale) => ({ ...sale })),
+      };
+    }
+    if (this.input.scenario === "hatsuLegend") {
+      return {
+        kind: "hatsu",
+        lessons: HATSU_LESSONS.map((_, i) => ({
+          main: mains[i] ?? null,
+          sp: true,
+          perfect: this.input.hatsu.lessons[i]?.perfect ?? true,
+        })),
+        classTypes: HATSU_CLASSES.map(() => "visual" as TypeKey),
+      };
+    }
+    // サブ枠は「メイン以外で審査基準が高い方」へ（パラボ母数の大きいタイプに
+    // 寄せるのが概ね最適。細部は climbStepping が微調整する）
+    const subFor = (main: TypeKey): TypeKey => {
+      const others = TYPE_KEYS.filter((t) => t !== main);
+      return this.input.ranks[others[0]] <= this.input.ranks[others[1]]
+        ? others[0]
+        : others[1];
+    };
+    return {
+      kind: "hif",
+      lessons: LESSONS.map((_, i) => ({
+        main: mains[i] ?? null,
+        sub: subFor(mains[i] ?? "vocal"),
+        sp: true,
+      })),
+      classTypes: CLASSES.map(() => "visual" as TypeKey),
+      examScores: EXAMS.map((_, i) => examScoresUniform(i)),
+    };
+  }
+
+  /** レッスン数nの3タイプ分割の全列挙（HIF=45 / NIA=36 / 初=21通り） */
+  private lessonPartitions(): [number, number, number][] {
+    const n =
+      this.input.scenario === "hif"
+        ? LESSONS.length
+        : this.input.scenario === "niaMaster"
+          ? NIA_LESSONS.length
+          : HATSU_LESSONS.length;
+    const out: [number, number, number][] = [];
+    for (let a = 0; a <= n; a++) {
+      for (let b = 0; b <= n - a; b++) out.push([a, b, n - a - b]);
+    }
+    return out;
+  }
+
+  /** ショートリストだけを採点する（全プール採点の数分の一のコスト） */
+  private scorePool(ectx: Ectx): {
+    owned: ScoredCard[];
+    rentals: ScoredCard[];
+  } {
+    if (!this.shortlistIds) {
+      const opts = this.formationOpts();
+      return {
+        owned: scoreOwnedCards(
+          this.input.getLevel,
+          ectx.ctx,
+          TYPE_SHEET_ROLE,
+          opts,
+        ),
+        rentals: scoreRentalCandidates(ectx.ctx, TYPE_SHEET_ROLE, opts),
+      };
+    }
+    const owned = scoreSelectedCards(
+      [...this.shortlistIds].map((id) => ({ id, rental: false })),
+      this.input.getLevel,
       ectx.ctx,
       TYPE_SHEET_ROLE,
-      opts,
+    ).filter((c): c is ScoredCard => c !== null && !c.rental);
+    const ownedAt4 = new Set(
+      owned.filter((c) => c.level >= 4).map((c) => c.id),
     );
-    const rentals = scoreRentalCandidates(ectx.ctx, TYPE_SHEET_ROLE, opts);
+    const rentals = scoreSelectedCards(
+      [...(this.rentalShortlistIds ?? [])]
+        .filter((id) => !ownedAt4.has(id))
+        .map((id) => ({ id, rental: true })),
+      this.input.getLevel,
+      ectx.ctx,
+      TYPE_SHEET_ROLE,
+    ).filter((c): c is ScoredCard => c !== null);
+    return { owned, rentals };
+  }
+
+  /**
+   * 編成のビームサーチ（1枚ずつ追加。順位づけは増分サロゲート、上位のみ正確評価）。
+   * サロゲート = 素点＋アイテム補正＋ペアシナジー（配布回数×受け手効果量の双方向）
+   *   ＋試験補助加点＋NIA札の単体価値。上限・合算パラボ・SP条件は正確評価側で効く。
+   * 決定的（乱数なし）。レンタルは1枚まで・同名重複なし・固定カードは必ず入れる。
+   */
+  bestFormationBeam(
+    ectx: Ectx,
+    opts?: {
+      beamWidth?: number;
+      exactTop?: number;
+      /** 渡すと最終候補を選抜スコアのプリセット（寄せ方7種）でも評価して、
+       *  「この編成はDaに寄せると勝つ」型の結合解を拾う（HIFのみ） */
+      stepping?: Stepping;
+      examFinalists?: number;
+    },
+  ): { members: ScoredCard[]; obj: number; stepping?: Stepping } | null {
+    const beamWidth = opts?.beamWidth ?? 220;
+    const exactTop = opts?.exactTop ?? 240;
+    const { owned, rentals } = this.scorePool(ectx);
+    const pinnedIds = this.input.flags.pinned;
+    const pool: ScoredCard[] = [...owned, ...rentals];
+    if (pool.length < 6) return null;
+
+    const assistExtra = (c: ScoredCard) =>
+      this.input.examAssist ? examAssistSum([c], this.input.examStyleTags) : 0;
+    const soloExtra = this.extraScore
+      ? (c: ScoredCard) => this.extraScore!([c])
+      : () => 0;
+    const baseValue = pool.map(
+      (c) => c.points + c.itemBonus + assistExtra(c) + soloExtra(c),
+    );
+
+    type Node = {
+      picks: number[];
+      ids: Set<string>;
+      rentalUsed: boolean;
+      surrogate: number;
+      /** 選択済みの受け手効果量の累積（回数キー→合計） */
+      recv: Record<string, number>;
+      /** 選択済みの配布回数の累積（回数キー→合計） */
+      give: Record<string, number>;
+      typeCount: Record<TypeKey, number>;
+    };
+    const mkRoot = (): Node => ({
+      picks: [],
+      ids: new Set(),
+      rentalUsed: false,
+      surrogate: 0,
+      recv: {},
+      give: {},
+      typeCount: { vocal: 0, dance: 0, visual: 0 },
+    });
+    const addTo = (node: Node, idx: number): Node => {
+      const c = pool[idx];
+      let inc = baseValue[idx];
+      for (const k in c.eventContrib) {
+        inc +=
+          c.eventContrib[k] * ((node.recv[k] ?? 0) + (c.valuesByKey[k] ?? 0));
+      }
+      for (const k in c.valuesByKey) {
+        inc += (c.valuesByKey[k] ?? 0) * (node.give[k] ?? 0);
+      }
+      const recv = { ...node.recv };
+      for (const k in c.valuesByKey) {
+        recv[k] = (recv[k] ?? 0) + c.valuesByKey[k];
+      }
+      const give = { ...node.give };
+      for (const k in c.eventContrib) {
+        give[k] = (give[k] ?? 0) + c.eventContrib[k];
+      }
+      const typeCount = { ...node.typeCount };
+      if (!c.assist) typeCount[c.type]++;
+      return {
+        picks: [...node.picks, idx],
+        ids: new Set(node.ids).add(c.id),
+        rentalUsed: node.rentalUsed || c.rental,
+        surrogate: node.surrogate + inc,
+        recv,
+        give,
+        typeCount,
+      };
+    };
+
+    // 固定カードを最初に強制投入
+    let beam: Node[] = [mkRoot()];
+    for (const id of pinnedIds) {
+      const idx = pool.findIndex((c) => c.id === id);
+      if (idx < 0) continue;
+      beam = beam.map((nd) =>
+        nd.ids.has(id) || nd.picks.length >= 6 ? nd : addTo(nd, idx),
+      );
+    }
+
+    // タイプ割合の制約（固定枚数指定のときは超過を弾く）
+    const ratioConstraint = this.input.typeRatio
+      ? typeConstraintFromRatio(this.input.typeRatio)
+      : {};
+    const fixedCounts = (
+      ratioConstraint as { typeCounts?: Record<TypeKey, number> }
+    ).typeCounts;
+    const allowedByType = (nd: Node, c: ScoredCard): boolean => {
+      if (c.assist) return true;
+      if (fixedCounts && nd.typeCount[c.type] >= fixedCounts[c.type]) {
+        return false;
+      }
+      return true;
+    };
+
+    // 候補は「親ノード＋追加index＋サロゲート」だけ持ち、上位beamWidth件だけ実体化する
+    // （ノードの複製が支配コストになるのを避ける）
+    const seen = new Set<string>();
+    while (beam.length > 0 && beam[0].picks.length < 6) {
+      const cands: { nd: Node; i: number; surrogate: number }[] = [];
+      for (const nd of beam) {
+        for (let i = 0; i < pool.length; i++) {
+          const c = pool[i];
+          if (nd.ids.has(c.id)) continue;
+          if (c.rental && nd.rentalUsed) continue;
+          if (!allowedByType(nd, c)) continue;
+          let inc = baseValue[i];
+          for (const k in c.eventContrib) {
+            inc +=
+              c.eventContrib[k] *
+              ((nd.recv[k] ?? 0) + (c.valuesByKey[k] ?? 0));
+          }
+          for (const k in c.valuesByKey) {
+            inc += (c.valuesByKey[k] ?? 0) * (nd.give[k] ?? 0);
+          }
+          cands.push({ nd, i, surrogate: nd.surrogate + inc });
+        }
+      }
+      cands.sort((a, b) => b.surrogate - a.surrogate);
+      beam = [];
+      seen.clear();
+      for (const cand of cands) {
+        const key = [...cand.nd.picks, cand.i].sort((a, b) => a - b).join(",");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        beam.push(addTo(cand.nd, cand.i));
+        if (beam.length >= beamWidth) break;
+      }
+    }
+    if (beam.length === 0) return null;
+
+    // 上位候補だけ正確評価（合算パラボ・上限・SP条件・最低ステはここで効く）
+    let best: { members: ScoredCard[]; obj: number; stepping?: Stepping } | null =
+      null;
+    const finalists: { members: ScoredCard[]; obj: number }[] = [];
+    for (const nd of beam.slice(0, exactTop)) {
+      const members = nd.picks.map((i) => pool[i]);
+      const { obj } = this.preciseMembers(members, ectx);
+      finalists.push({ members, obj });
+      if (!best || obj > best.obj) best = { members, obj };
+    }
+
+    // 編成⇄選抜の結合: 上位の編成候補を「選抜の寄せ方」プリセットでも評価する。
+    // 均等選抜では2位でも、Daに寄せると1位になる編成（上限溢れの解消型）を拾う。
+    const baseStepping = opts?.stepping;
+    if (baseStepping && baseStepping.kind === "hif" && best) {
+      finalists.sort((a, b) => b.obj - a.obj);
+      const top = finalists.slice(0, opts?.examFinalists ?? 10);
+      for (const ratio of EXAM_PRESET_RATIOS) {
+        const stepping: Stepping = {
+          ...baseStepping,
+          examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+        };
+        const varEctx = this.buildEctx(stepping);
+        for (const f of top) {
+          // 選抜配分が変わるとパラボ母数が変わるので採点し直す
+          const slots = f.members.map((m) => ({ id: m.id, rental: m.rental }));
+          const { obj } = this.preciseObjective(slots, varEctx);
+          if (obj > best.obj) {
+            best = {
+              members: f.members,
+              obj,
+              stepping,
+            };
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * 決定的探索の本体。
+   * レッスン配分（分割）を全列挙 → グリーディ編成の正確評価で足切り →
+   * 上位配分だけ編成ビームサーチ。乱数を一切使わないので毎回同じ答えになる。
+   */
+  deterministicSearch(): {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  } | null {
+    // 1. 分割の下見（小さいビームで編成まで見て順位づけする）
+    const parts = this.lessonPartitions();
+    const scored: { est: number; stepping: Stepping }[] = [];
+    for (const part of parts) {
+      const stepping = this.steppingFromPartition(part);
+      const ectx = this.buildEctx(stepping);
+      const r = this.bestFormationBeam(ectx, {
+        beamWidth: 30,
+        exactTop: 8,
+        stepping,
+        examFinalists: 2,
+      });
+      if (!r) continue;
+      // 本気ビームは下見で勝った選抜の寄せ方から始める
+      scored.push({ est: r.obj, stepping: r.stepping ?? stepping });
+      // 下見は件数有限（最大45件）なので、大幅超過時のみ非常停止する
+      if (performance.now() > this.deadline + 800) break;
+    }
+    if (scored.length === 0) return null;
+    scored.sort((a, b) => b.est - a.est);
+
+    // 候補は「カードセットごとの最良」も残す（searchFinalists）。
+    // 詰める前の優劣は詰めた後に逆転し得るので、勝者1つに絞らず
+    // 上位数セットを polish 段階まで持ち越して選ばせる
+    type Cand = {
+      stepping: Stepping;
+      slots: SelectedSlot[];
+      score: number;
+      spShortfall: number;
+    };
+    let best: Cand | null = null;
+    const bySet = new Map<string, Cand>();
+    const consider = (cand: Cand): void => {
+      const key = cand.slots
+        .map((x) => x.id + (x.rental ? "*" : ""))
+        .sort()
+        .join("|");
+      const cur = bySet.get(key);
+      if (!cur || cand.score > cur.score) bySet.set(key, cand);
+      if (!best || cand.score > best.score) best = cand;
+    };
+
+    // 2. 非HIFはグリーディ組成でも補強する。ビームの増分サロゲートは
+    //    削除・投票札型（クールダウン等）の価値を取りこぼして正解編成に
+    //    届かないことがあるが、グリーディ（正確評価で1枚ずつ成長）は拾える。
+    //    さらに見つけた編成群（ポートフォリオ）を全分割で正確評価し直して
+    //    下見の順位づけ自体を補正する（勝ち分割が31位に沈む型の対策）。
+    const greedied = new Set<Stepping>();
+    if (this.input.scenario !== "hif") {
+      const portfolio: SelectedSlot[][] = [];
+      for (const p of scored.slice(0, GREEDY_PARTS)) {
+        const ectx = this.buildEctx(p.stepping);
+        const g = this.buildFormation(ectx);
+        greedied.add(p.stepping);
+        if (!g) continue;
+        const slots = g.picks.map((x) => ({ id: x.id, rental: x.rental }));
+        const { obj, members } = this.preciseObjective(slots, ectx);
+        portfolio.push(slots);
+        if (obj > p.est) p.est = obj;
+        consider({
+          stepping: p.stepping,
+          slots,
+          score: obj,
+          spShortfall: spConditionShortfall(members, this.input.spMin),
+        });
+      }
+      // ポートフォリオ×全分割の正確評価で est を引き上げて再ランク
+      for (const p of scored) {
+        const ectx = this.buildEctx(p.stepping);
+        for (const slots of portfolio) {
+          const { obj, members } = this.preciseObjective(slots, ectx);
+          if (obj > p.est) p.est = obj;
+          consider({
+            stepping: p.stepping,
+            slots,
+            score: obj,
+            spShortfall: spConditionShortfall(members, this.input.spMin),
+          });
+        }
+      }
+      scored.sort((a, b) => b.est - a.est);
+    }
+    this.lastPartitionEsts = scored.slice(0, 9).map((p) => Math.round(p.est));
+
+    // 3. 上位配分だけ本気のビームサーチ（非HIFは未実施ならグリーディも）。
+    //    選抜プリセット込みで評価して「寄せると勝つ」編成も拾う
+    // 最初のGUARANTEED_PARTS件は時計に関係なく必ず見る（結果が時計に依らず
+    // 決定的になるように）。余裕があればTOP_PARTSまで広げる
+    const TOP_PARTS = 10;
+    const GUARANTEED_PARTS = 8;
+    let searched = 0;
+    for (const p of scored.slice(0, TOP_PARTS)) {
+      const ectx = this.buildEctx(p.stepping);
+      const r = this.bestFormationBeam(ectx, {
+        stepping: p.stepping,
+      });
+      searched++;
+      if (r) {
+        consider({
+          stepping: r.stepping ?? p.stepping,
+          slots: r.members.map((m) => ({ id: m.id, rental: m.rental })),
+          score: r.obj,
+          spShortfall: spConditionShortfall(r.members, this.input.spMin),
+        });
+      }
+      if (this.input.scenario !== "hif" && !greedied.has(p.stepping)) {
+        const g = this.buildFormation(ectx);
+        greedied.add(p.stepping);
+        if (g) {
+          const slots = g.picks.map((x) => ({ id: x.id, rental: x.rental }));
+          const { obj, members } = this.preciseObjective(slots, ectx);
+          consider({
+            stepping: p.stepping,
+            slots,
+            score: obj,
+            spShortfall: spConditionShortfall(members, this.input.spMin),
+          });
+        }
+      }
+      if (searched >= GUARANTEED_PARTS && performance.now() > this.deadline) {
+        break;
+      }
+    }
+    this.searchFinalists = [...bySet.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, SEARCH_FINALISTS);
+    return best;
+  }
+
+  /**
+   * 編成を固定して「選抜の寄せ方 × レッスン日の入れ替え」を同時に詰める（HIFのみ）。
+   * どちらか一方ずつの山登りでは越えられない2手谷
+   * （例: 選抜を全部Viに寄せる＋Viレッスンを小さい日へ移す）をプリセット総当たりで越える。
+   */
+  refineDayExamJoint(best: {
+    stepping: Stepping;
+    slots: SelectedSlot[];
+    score: number;
+    spShortfall: number;
+  }): void {
+    const base = best.stepping;
+    if (base.kind !== "hif") return;
+    // まず各プリセットを素で評価し、有望な上位だけ日入替まで回す（時間節約）
+    const rated = EXAM_PRESET_RATIOS.map((ratio) => {
+      const trial: Stepping = {
+        ...base,
+        examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+      };
+      return {
+        stepping: trial,
+        score: this.preciseObjective(best.slots, this.buildEctx(trial)).obj,
+      };
+    }).sort((a, b) => b.score - a.score);
+    for (const seed of rated.slice(0, 3)) {
+      const cand: { stepping: Stepping; slots: SelectedSlot[]; score: number } = {
+        stepping: seed.stepping,
+        slots: best.slots,
+        score: seed.score,
+      };
+      // このプリセット前提での日入替（ペア交換の山登り・正確評価）
+      this.swapLessonPicks(cand);
+      if (cand.score > best.score + 1e-9) {
+        best.stepping = cand.stepping;
+        best.score = cand.score;
+      }
+    }
+  }
+
+  buildFormation(ectx: Ectx) {
+    const { input } = this;
+    // ショートリストがあればそれだけを採点する（探索の反復で編成を
+    // 組み直すときの主コストがここ。62ms→十数msに短縮）
+    const { owned, rentals } = this.scorePool(ectx);
     return findBestFormation(owned, rentals, ectx.baseStats, {
       pinned: input.flags.pinned,
       spMin: input.spMin,
