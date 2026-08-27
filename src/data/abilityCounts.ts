@@ -67,9 +67,11 @@ export const ABILITY_CATEGORIES = [
     abilities: [
       "drink_exchange",
       "drink_get",
+      "drink_get_ut10", // ドリンク獲得(10回まで)
       "custom_ut6",
       "SP_lesson_20s_ut4",
       "charm_8plus_ut4",
+      "focus_8plus_ut4", // 集中8枚以上スキル獲得(4回まで)
       "p_item_get_ut6",
     ],
   },
@@ -175,6 +177,7 @@ const DERIVED_CAPS = [
   { key: "meeting_ut2", base: "meeting", cap: 2 }, // 相談(2回まで)
   { key: "supply_ut2", base: "supply", cap: 2 }, // 活動支給・差し入れ(2回まで)
   { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
+  { key: "drink_get_ut10", base: "drink_get", cap: 10 }, // ドリンク獲得(10回まで)
 ] as const satisfies readonly { key: AbilityName; base: AbilityName; cap: number }[];
 
 type CountTable = {

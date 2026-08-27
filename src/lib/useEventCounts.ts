@@ -45,6 +45,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     o.enhance === undefined &&
     o.preEnhanceM === undefined &&
     o.preDelM === undefined &&
+    o.preSkillTags === undefined &&
     o.statEvent === undefined;
 
   /** 1項目の更新（null でデフォルトに戻す）共通処理 */
@@ -91,6 +92,30 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     [patch],
   );
 
+  /**
+   * 任意スキル獲得のi回目の分類タグを設定する。
+   * 全回ぶんが空になったら preSkillTags 自体を消してデフォルト（分類なし）に戻す。
+   */
+  const setSkillTags = useCallback(
+    (id: string, index: number, tags: string[]) => {
+      setMap((prev) => {
+        const current = { ...(prev[id] ?? {}) };
+        const list = [...(current.preSkillTags ?? [])];
+        while (list.length <= index) list.push([]);
+        list[index] = tags;
+        // 末尾の空配列を落とし、全部空なら未指定へ戻す
+        while (list.length > 0 && list[list.length - 1].length === 0) list.pop();
+        if (list.length === 0) delete current.preSkillTags;
+        else current.preSkillTags = list;
+        const next = { ...prev };
+        if (isEmpty(current)) delete next[id];
+        else next[id] = current;
+        return next;
+      });
+    },
+    [],
+  );
+
   /** Pアイテムを取得したか（null でデフォルト=取得する に戻す） */
   const setAcquire = useCallback(
     (id: string, value: boolean | null) => {
@@ -115,6 +140,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     setTarget,
     setAssign,
     setAcquire,
+    setSkillTags,
     replaceAll,
     loaded: true,
     map,

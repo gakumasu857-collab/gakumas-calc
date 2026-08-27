@@ -8,6 +8,8 @@ import { Minus, Plus } from "lucide-react";
 import type { SupportCardData } from "@/data/supportCardsDb";
 import { imageUrl } from "@/lib/config";
 import {
+  ANY_SKILL_TAG_KEYS,
+  anySkillAcPer,
   defaultDelTarget,
   defaultEnhanceTarget,
   hasPostDelete,
@@ -32,6 +34,8 @@ export type EventStoreLike = {
     value: number | null,
   ) => void;
   setAcquire: (id: string, value: boolean | null) => void;
+  /** 任意スキル獲得のi回目の分類タグを設定 */
+  setSkillTags: (id: string, index: number, tags: string[]) => void;
 };
 
 /** カードがステイベ（パラメータイベント）を持つか */
@@ -153,12 +157,13 @@ export function PreAssign({
   const delPer = Number(card.extras["スキル削除"] ?? 0) || 0;
   const enhTotal = hasPreEnhance(card) ? enhPer * preCount : 0;
   const delTotal = hasPreDelete(card) ? delPer * preCount : 0;
-  if (enhTotal <= 0 && delTotal <= 0) {
+  const anyAcTotal = anySkillAcPer(card) * preCount;
+  if (enhTotal <= 0 && delTotal <= 0 && anyAcTotal <= 0) {
     return <span className="text-slate-300">—</span>;
   }
 
   return (
-    <span className="inline-flex items-center gap-3">
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
       {enhTotal > 0 && (
         <MSplitStepper
           label="強化"
@@ -183,6 +188,101 @@ export function PreAssign({
           onChange={(v) => events.setAssign(card.id, "preDelM", v)}
         />
       )}
+      {anyAcTotal > 0 && (
+        <AnySkillTagPicker
+          card={card}
+          override={override}
+          events={events}
+          total={anyAcTotal}
+        />
+      )}
+    </span>
+  );
+}
+
+/** タグの短縮表示（チップに載せるラベル） */
+const TAG_SHORT: Record<string, string> = {
+  Aスキル獲得: "A",
+  Mスキル獲得: "M",
+  好調スキル獲得: "好調",
+  集中スキル獲得: "集中",
+  好印象スキル獲得: "好印象",
+  やる気スキル獲得: "やる気",
+  強気スキル獲得: "強気",
+  温存スキル獲得: "温存",
+  全力スキル獲得: "全力",
+  元気スキル獲得: "元気",
+  SSRスキル獲得: "SSR",
+};
+
+/**
+ * 任意スキル獲得の分類ピッカー。
+ * 獲得1回ごとに「そのスキルがどの分類として数えられるか」をチップで選ぶ
+ * （例: 1回目=M＋温存＋SSR＋元気、2回目=A＋全力）。AとMだけは排他。
+ * 未選択の回は汎用スキル獲得としてだけ数える。
+ */
+function AnySkillTagPicker({
+  card,
+  override,
+  events,
+  total,
+}: {
+  card: SupportCardData;
+  override: EventCountOverride | undefined;
+  events: EventStoreLike;
+  total: number;
+}) {
+  const picks = override?.preSkillTags ?? [];
+  const toggle = (index: number, tag: string) => {
+    const current = picks[index] ?? [];
+    let next: string[];
+    if (current.includes(tag)) {
+      next = current.filter((t) => t !== tag);
+    } else {
+      // AとMは排他（1枚のスキルが両方であることはない）
+      next =
+        tag === "Aスキル獲得"
+          ? [...current.filter((t) => t !== "Mスキル獲得"), tag]
+          : tag === "Mスキル獲得"
+            ? [...current.filter((t) => t !== "Aスキル獲得"), tag]
+            : [...current, tag];
+    }
+    // 表示順（ANY_SKILL_TAG_KEYS順）に整えて保存
+    events.setSkillTags(
+      card.id,
+      index,
+      ANY_SKILL_TAG_KEYS.filter((t) => next.includes(t)),
+    );
+  };
+
+  return (
+    <span
+      className="inline-flex flex-col gap-0.5"
+      title="任意スキル獲得: 獲得したスキルの分類を回ごとに選びます（発動回数の集計に反映）。未選択の回は汎用スキル獲得のみ"
+    >
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className="inline-flex items-center gap-0.5 whitespace-nowrap">
+          <span className="text-[10px] text-slate-400">獲得{i + 1}</span>
+          {ANY_SKILL_TAG_KEYS.map((tag) => {
+            const on = (picks[i] ?? []).includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggle(i, tag)}
+                title={tag}
+                className={`rounded px-1 py-0.5 text-[10px] font-bold transition ${
+                  on
+                    ? "bg-violet-600 text-white"
+                    : "bg-slate-100 text-slate-400 hover:bg-violet-100 hover:text-violet-600"
+                }`}
+              >
+                {TAG_SHORT[tag] ?? tag}
+              </button>
+            );
+          })}
+        </span>
+      ))}
     </span>
   );
 }

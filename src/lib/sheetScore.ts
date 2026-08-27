@@ -265,6 +265,22 @@ const SKILL_FLAG_KEYS = [
   "SSRスキル獲得",
 ];
 
+/**
+ * 任意スキル獲得で選べる分類タグ（＝スキル獲得の分類フラグと同じキー）。
+ * A/Mは排他、それ以外は組み合わせ可（例: M＋温存＋SSR＋元気）。
+ */
+export const ANY_SKILL_TAG_KEYS: string[] = [...SKILL_FLAG_KEYS];
+
+/** 前イベに「任意スキル獲得」（分類をユーザーが選ぶスキル獲得）があるか */
+export function hasAnySkillAc(card: SupportCardData): boolean {
+  return (Number(card.extras["任意スキル獲得"] ?? 0) || 0) > 0;
+}
+
+/** 任意スキル獲得の1発動あたりの回数 */
+export function anySkillAcPer(card: SupportCardData): number {
+  return Number(card.extras["任意スキル獲得"] ?? 0) || 0;
+}
+
 /** 前イベのアクション列（値 × 発動回数 がそのキーの発動回数に上乗せされる） */
 const NUMERIC_ACTION_KEYS = [
   "スキル強化",
@@ -354,6 +370,16 @@ export function eventCountContributionSplit(
     if (skillGain > 0) {
       for (const key of SKILL_FLAG_KEYS) {
         if (card.extras[key] === "TRUE") add(key, skillGain);
+      }
+    }
+    // 任意スキル獲得: 1回ごとにユーザーが選んだ分類タグを+1（汎用は上のスキル獲得に含まれる）
+    const anyGain = num("任意スキル獲得") * n;
+    if (anyGain > 0) {
+      const picks = ov?.preSkillTags ?? [];
+      for (let i = 0; i < anyGain; i++) {
+        for (const tag of picks[i] ?? []) {
+          if (ANY_SKILL_TAG_KEYS.includes(tag)) add(tag, 1);
+        }
       }
     }
     // 前イベのアクション列（強化・削除はM枚数→残りA の割り振り込み）
@@ -527,6 +553,8 @@ export function cardBonusPercent(card: SupportCardData, level: number): number {
  * - enhance: 後イベ（ランダム強化）がA/Mどちらのスキルを強化したか
  * - preEnhanceM: 前イベの強化のうちM側に割り振った回数（残りはA。未指定はデフォルト規則で全振り）
  * - preDelM: 前イベの削除のうちM側に割り振った回数（残りはA。トラブル削除は例外で汎用のみ+1）
+ * - preSkillTags: 任意スキル獲得の1回ごとの分類タグ（獲得i回目 → フラグキーの配列。
+ *   例: ["Mスキル獲得","温存スキル獲得","SSRスキル獲得"]）。未指定の回は分類なし（汎用のみ）
  */
 export type EventCountOverride = {
   pre?: number;
@@ -535,6 +563,7 @@ export type EventCountOverride = {
   enhance?: "A" | "M";
   preEnhanceM?: number;
   preDelM?: number;
+  preSkillTags?: string[][];
   /**
    * ステイベ（パラメータイベント）の発動有無（0=発動しない / 1=発動）。
    * 前イベ・後イベ同様ランダム発動で、1育成に1回しか起こらない。

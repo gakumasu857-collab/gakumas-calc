@@ -107,6 +107,67 @@ const COL = {
   plan: "plan",
 } as const;
 
+/**
+ * 2026-08にスプシのヘッダーが日本語へ変わった。コード内部は従来の英語キーのまま、
+ * ここで日本語ヘッダー→英語キーへ写して吸収する（旧ヘッダーのJSONもそのまま通る）。
+ * アビリティ枠（1アビ/1タイプ…）は normalizeRow で個別に写す。
+ */
+const HEADER_ALIASES: Record<string, string> = {
+  サポカ名: "name",
+  レアリティ: "rarity",
+  タイプ: "type",
+  プラン: "plan",
+  SP: "is_sp",
+  後イベ: "later_event",
+  役割: "attribute",
+  前イベ名: "item_name",
+  スキルかどうか: "is_skill",
+  ステージ用アイテムかどうか: "is_stage_item",
+  強さ: "strongest",
+  おすすめプラン: "recommend_plan",
+  前イベ起動タグ: "triggered_by",
+  最大発動回数: "max",
+  パラメータ: "param",
+  スキル獲得: "skill_ac",
+  Aスキル獲得: "A_skill_ac",
+  Mスキル獲得: "M_skill_ac",
+  好調スキル獲得: "positive_skill_ac",
+  集中スキル獲得: "focus_skill_ac",
+  好印象スキル獲得: "charm_skill_ac",
+  やる気スキル獲得: "vitality_skill_ac",
+  強気スキル獲得: "aggressive_skill_ac",
+  温存スキル獲得: "charge_skill_ac",
+  全力スキル獲得: "burst_skill_ac",
+  元気スキル獲得: "barrier_skill_ac",
+  SSRスキル獲得: "SSR_skill_ac",
+  スキル強化: "skill_enhance",
+  Aスキル強化: "A_skill_enhance",
+  Mスキル強化: "M_skill_enhance",
+  スキル削除: "skill_del",
+  Aスキル削除: "A_skill_del_ut3",
+  Mスキル削除: "M_skill_del_ut3",
+  チェンジ: "change_ut3",
+  ドリンク獲得: "drink_get",
+  Pアイテム獲得: "p_item_get_ut3",
+  Pポイント: "p_point",
+  回復: "recovery",
+  検索ワード: "Search_word",
+};
+
+/** 日本語ヘッダーの行を英語キーの行へ写す（英語キーが既にあれば触らない） */
+function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...row };
+  for (const [jp, en] of Object.entries(HEADER_ALIASES)) {
+    if (jp in row && !(en in out)) out[en] = row[jp];
+  }
+  for (let i = 1; i <= 6; i++) {
+    if (`${i}アビ` in row && !(`ability${i}` in out)) out[`ability${i}`] = row[`${i}アビ`];
+    if (`${i}タイプ` in row && !(`abi_type${i}` in out))
+      out[`abi_type${i}`] = row[`${i}タイプ`];
+  }
+  return out;
+}
+
 /** サポカのタイプ（英語）→ アプリ内の表記 */
 const CARD_TYPE_JP: Record<string, string> = {
   Vocal: "Vocal",
@@ -220,7 +281,8 @@ const str = (v: unknown): string =>
 /** R2にある前イベ画像の名前一覧（Search_word との突合用） */
 const PRE_EVENT_IMAGE_SET = new Set<string>(preEventImageNames as string[]);
 
-function convert(row: Record<string, unknown>): SupportCardData | null {
+function convert(rawRow: Record<string, unknown>): SupportCardData | null {
+  const row = normalizeRow(rawRow);
   const name = str(row[COL.name]);
   // 名前のない行やシート用のダミー行（固定用）はスキップ
   if (!name || name === "固定用") return null;
@@ -261,14 +323,25 @@ function convert(row: Record<string, unknown>): SupportCardData | null {
     setNum("最大発動回数", numOf(row.max));
     if (str(row.triggered_by)) extras["前イベ発動参照回数"] = str(row.triggered_by);
   }
+  // 任意スキル○○: どの分類のスキルに作用するかをユーザーが選ぶアクション。
+  // 合計回数は max(汎用列, 任意列)（スプシは行によって片方だけに書かれている）。
+  const anyAc = numOf(row["任意スキル獲得"]);
+  const anyEnhance = numOf(row["任意スキル強化"]);
+  const anyDel = numOf(row["任意スキル削除"]);
+
   // スキル獲得（総数）＋分類フラグ
-  setNum("スキル獲得", numOf(row.skill_ac));
+  setNum("スキル獲得", Math.max(numOf(row.skill_ac), anyAc));
   for (const [col, key] of Object.entries(SKILL_FLAG_MAP)) {
     if (numOf(row[col]) > 0) extras[key] = "TRUE";
   }
+  // 任意スキル獲得: 1回ごとの分類（A/M・プラン属性・SSR等）は回数設定UIで選ぶ
+  setNum("任意スキル獲得", anyAc);
   // 前イベの数値アクション（強化・削除・チェンジ・ドリンク・回復）
   for (const [col, key] of Object.entries(NUMERIC_ACTION_MAP)) {
-    setNum(key, numOf(row[col]));
+    const base = numOf(row[col]);
+    if (col === "skill_enhance") setNum(key, Math.max(base, anyEnhance));
+    else if (col === "skill_del") setNum(key, Math.max(base, anyDel));
+    else setNum(key, base);
   }
   // 表示・互換用
   if (row.is_sp !== undefined) extras["枠"] = numOf(row.is_sp) > 0 ? "SP枠" : "ステ枠";

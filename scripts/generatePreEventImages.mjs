@@ -29,9 +29,10 @@ const CONCURRENCY = 20;
 const rows = await fetchTab("supMaster");
 const candidates = new Set();
 for (const r of rows) {
-  const itemName = String(r.item_name ?? "").trim();
+  // 2026-08 ヘッダー日本語化: 前イベ名(旧item_name)・検索ワード(旧Search_word)
+  const itemName = String(r["前イベ名"] ?? r.item_name ?? "").trim();
   if (itemName) candidates.add(itemName);
-  for (const word of String(r.Search_word ?? "").split(",")) {
+  for (const word of String(r["検索ワード"] ?? r.Search_word ?? "").split(",")) {
     const w = word.trim();
     if (w) candidates.add(w);
   }

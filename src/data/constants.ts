@@ -124,6 +124,8 @@ export const ABILITY_NAMES = {
   max_hp_up: "最大体力上昇",
   max_hp_up_1abi: "最大体力上昇(1アビ)",
   charge_8plus_ut4: "温存8枚以上スキル獲得(4回まで)",
+  focus_8plus_ut4: "集中8枚以上スキル獲得(4回まで)",
+  drink_get_ut10: "ドリンク獲得(10回まで)",
   skill_exchange_ut5: "スキル交換(5回まで)",
   nothing: "なし",
 } as const satisfies Record<string, string>;
