@@ -10,7 +10,8 @@ import { useSaveNotifier } from "./storeSync";
  *    0 = 所持・0凸（ひし形は全消灯・画像はカラー）
  *  1〜4 = 所持・凸数（ひし形が左から点灯）
  *
- * マップに存在しないカードは -1（未所持）扱い。
+ * マップに存在しないカード（＝保存後に実装された新カード）は 4（完凸）扱い。
+ * 未所持は -1 を明示的に保存する（キー削除で表すと新カードと区別できないため）。
  */
 const STORAGE_KEY = "gakumas:ownedLevels:v1";
 
@@ -59,7 +60,7 @@ export function useOwnedLevels() {
   }, [levels, notifySave]);
 
   const getLevel = useCallback(
-    (id: string): number => (id in levels ? levels[id] : -1),
+    (id: string): number => (id in levels ? levels[id] : 4),
     [levels],
   );
 
@@ -76,13 +77,12 @@ export function useOwnedLevels() {
     });
   }, []);
 
-  /** カードごとに異なるレベルを一括反映（CSVインポート用）。-1未満は未所持=エントリ削除 */
+  /** カードごとに異なるレベルを一括反映（CSVインポート用）。負数は未所持(-1)として保存 */
   const applyLevels = useCallback((entries: Record<string, number>) => {
     setLevels((prev) => {
       const next = { ...prev };
       for (const [id, level] of Object.entries(entries)) {
-        if (level < 0) delete next[id];
-        else next[id] = Math.min(4, level);
+        next[id] = level < 0 ? -1 : Math.min(4, level);
       }
       return next;
     });

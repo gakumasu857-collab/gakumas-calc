@@ -168,6 +168,13 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+/** 「SP枠」判定に使う SPレッスン率アップ系のアビリティキー（自タイプ・全タイプ） */
+const SP_UP_ABILITY_KEYS = new Set<string>([
+  "up_SP_lesson_rate",
+  "all_sp_lesson_rate_14",
+  "all_sp_lesson_rate_28",
+]);
+
 /** サポカのタイプ（英語）→ アプリ内の表記 */
 const CARD_TYPE_JP: Record<string, string> = {
   Vocal: "Vocal",
@@ -213,7 +220,8 @@ const NUMERIC_ACTION_MAP: Record<string, string> = {
 const LATER_EVENT_MAP: Record<string, string> = {
   スキル強化: "強化",
   チェンジ: "チェンジ",
-  trouble_delete: "トラブル削除",
+  トラブル削除: "トラブル削除",
+  trouble_delete: "トラブル削除", // 旧英語値のJSON互換
   スキル削除: "スキル削除",
   Pポイント: "Pポイント",
 };
@@ -343,9 +351,19 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     else if (col === "skill_del") setNum(key, Math.max(base, anyDel));
     else setNum(key, base);
   }
-  // 表示・互換用
-  if (row.is_sp !== undefined) extras["枠"] = numOf(row.is_sp) > 0 ? "SP枠" : "ステ枠";
-  if (str(row.attribute)) extras["属性"] = str(row.attribute).replace("Assist", "アシスト");
+  // 表示用の「枠」「属性」。スプシの SP / 役割 列は廃止（2026-09）のため、
+  // SPレッスン率アップ系アビリティの有無 と 使用制限＋タイプ から派生させる
+  // （役割 = 使用制限 + タイプ(英語) + 枠。例: 共通VisualSP枠 / センスDanceステ枠）
+  const slot = abilities.some(
+    (a) => a !== null && "key" in a && SP_UP_ABILITY_KEYS.has(a.key),
+  )
+    ? "SP枠"
+    : "ステ枠";
+  extras["枠"] = slot;
+  extras["属性"] = `${str(row[COL.plan])}${str(row[COL.cardType])}${slot}`.replace(
+    "Assist",
+    "アシスト",
+  );
   setNum("アイテムPポ", numOf(row.p_point));
   // このアイテムの取得が「Pアイテム獲得(6回まで)」アビリティにカウントされるか
   // （sheetScore のイベント相互作用が参照。item_name だけのアイテムはカウントされない）

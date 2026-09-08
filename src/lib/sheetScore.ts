@@ -312,6 +312,15 @@ export function postEventStatRelevant(card: SupportCardData): boolean {
   );
 }
 
+/**
+ * 後イベの発動〇/✕をユーザーが切り替えられるか。
+ * ステータスに影響する種類に加え、Pポイント（Rサポカ等）も「発動したか」を
+ * 記録できるようにする（集計・エクスポート用。ステ計算には影響しない）
+ */
+export function postEventToggleable(card: SupportCardData): boolean {
+  return postEventStatRelevant(card) || card.postEventType === "Pポイント";
+}
+
 /** ステータスに影響する前イベか（パラメPアイテム or アビリティを発動させるアクションあり） */
 export function preEventStatRelevant(card: SupportCardData): boolean {
   if (preEventMax(card) <= 0) return false;

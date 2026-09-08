@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Funnel } from "lucide-react";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -58,15 +58,15 @@ type Row = {
   plan: string;
   /** このカードの点数計算に使うロール（タイプ→踏み方から自動） */
   role: SheetRole | undefined;
-  roleSlot: string;
   scores: (number | null)[];
   itemBonus: number;
-  maxStat: number | null;
   ownedLevel: number;
   ownedStat: number | null;
+  /** 既定の並び順に使う点数（所持凸、未所持は完凸想定。サポカ設定ページと同じ） */
+  points: number;
 };
 
-type SortKey = "c0" | "c1" | "c2" | "c3" | "c4" | "max" | "owned";
+type SortKey = "c0" | "c1" | "c2" | "c3" | "c4" | "owned";
 
 /**
  * サポカ点数表。スプシ検証済みエンジン（sheetScore）で点数を表示する。
@@ -92,7 +92,13 @@ export default function CardScoreTable() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SORT_STORAGE_KEY);
-      if (raw) setSort(JSON.parse(raw) as { key: SortKey; desc: boolean });
+      if (raw) {
+        const parsed = JSON.parse(raw) as { key: string; desc: boolean };
+        // 廃止した列（最大ステ）の並び順は無視して既定の点数順に戻す
+        if (/^(c[0-4]|owned)$/.test(parsed.key)) {
+          setSort(parsed as { key: SortKey; desc: boolean });
+        }
+      }
     } catch {
       // 破損データは無視
     }
@@ -149,12 +155,14 @@ export default function CardScoreTable() {
       const itemBonus = role
         ? (itemCorrectionAuto(card, role, ctx)?.points ?? 0)
         : 0;
-      const maxStat = scores[4] === null ? null : scores[4] + itemBonus;
       const ownedLevel = loaded ? getLevel(card.id) : -1;
       const ownedStat =
         ownedLevel >= 0 && scores[ownedLevel] !== null
           ? scores[ownedLevel] + itemBonus
           : null;
+      // 既定の並び順: サポカ設定ページと同じ「点数の高い順」（未所持は完凸想定）
+      const pointsBase = scores[ownedLevel >= 0 ? ownedLevel : 4];
+      const points = pointsBase === null ? -Infinity : pointsBase + itemBonus;
       return {
         id: card.id,
         name: card.name,
@@ -163,12 +171,11 @@ export default function CardScoreTable() {
         cardType: card.cardType,
         plan: card.plan,
         role,
-        roleSlot: card.extras["枠"] ?? "",
         scores,
         itemBonus,
-        maxStat,
         ownedLevel,
         ownedStat,
+        points,
       };
     });
   }, [ctx, typeRole, getLevel, loaded]);
@@ -184,7 +191,6 @@ export default function CardScoreTable() {
     });
     if (sort) {
       const value = (row: Row): number => {
-        if (sort.key === "max") return row.maxStat ?? -Infinity;
         if (sort.key === "owned")
           return row.ownedStat ?? (row.ownedLevel >= 0 ? 0 : -Infinity);
         const i = Number(sort.key.slice(1));
@@ -193,6 +199,9 @@ export default function CardScoreTable() {
       list = [...list].sort((a, b) =>
         sort.desc ? value(b) - value(a) : value(a) - value(b),
       );
+    } else {
+      // 列見出しで並べ替えていないときは点数順（サポカ設定ページと同じ）
+      list = [...list].sort((a, b) => b.points - a.points);
     }
     return list;
   }, [rows, rarityFilter, typeFilter, planFilter, ownedOnly, sort]);
@@ -213,6 +222,10 @@ export default function CardScoreTable() {
     <div>
       {/* フィルター */}
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <FilterSelect
           label="レアリティ"
           options={["R", "SR", "SSR", "配布SSR"]}
@@ -278,10 +291,8 @@ export default function CardScoreTable() {
               <Th title="パラメ系Pアイテムの上昇量×発動回数（前イベ回数の設定に連動）">
                 アイテム補正
               </Th>
-              <SortTh label="最大ステ" sortKey="max" sort={sort} onToggle={toggleSort} />
               <Th>使用制限</Th>
-              <Th>役割</Th>
-              <SortTh label="所持ステ" sortKey="owned" sort={sort} onToggle={toggleSort} />
+              <SortTh label="所持" sortKey="owned" sort={sort} onToggle={toggleSort} />
             </tr>
           </thead>
           <tbody>
@@ -353,18 +364,12 @@ export default function CardScoreTable() {
                   >
                     {row.itemBonus}
                   </td>
-                  <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center font-bold text-slate-900">
-                    {row.maxStat === null ? "—" : Math.round(row.maxStat)}
-                  </td>
                   <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1 py-1 text-center">
                     <span
                       className={`rounded px-1.5 py-0.5 font-semibold ${PLAN_CHIP[row.plan] ?? "bg-slate-100 text-slate-500"}`}
                     >
                       {row.plan || "—"}
                     </span>
-                  </td>
-                  <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center text-slate-800">
-                    {row.roleSlot}
                   </td>
                   <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center">
                     {row.ownedStat !== null ? (

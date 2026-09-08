@@ -892,41 +892,19 @@ export default function CalcPage() {
                 </span> */}
               </p>
             )}
-            {/* この育成で得られるPポイント（サポカ・前イベ・メモリー込み） */}
-            <p>
-              Pポイント:{" "}
+            {/* サポカ由来のPポイントだけをまとめて出す（固定P・前イベP・P率換算・
+                タイプSPレッスンP率）。開始時230や差し入れ・レッスン・メモリー分は含めない
+                （内訳はヘルプに記載） */}
+            <p
+              title="サポカ由来のPポイント（固定P・前イベP・レッスンP率換算・タイプSPレッスンP率）。開始時230（HIFボーナス200＋STEP3の30。選抜・本戦とも）・差し入れ80×5・レッスン・メモリー分は含みません"
+            >
+              Pポイント（サポカ分）:{" "}
               <b className="text-cyan-700">
-                {Math.round(r.resources.pTotal).toLocaleString()}
+                {Math.round(r.resources.pCards).toLocaleString()}
               </b>
-              {r.scenario === "hif" ? (
-                <>
-                  <span className="ml-1 tabular-nums">
-                    （選抜{" "}
-                    <b className="text-cyan-700">
-                      {Math.round(r.resources.pSenbatsu).toLocaleString()}
-                    </b>
-                    ／本戦{" "}
-                    <b className="text-cyan-700">
-                      {Math.round(r.resources.pHonsen).toLocaleString()}
-                    </b>
-                    ）
-                  </span>
-                  {/* <span className="block text-[10px] text-slate-400">
-                    選抜＝開始時230＋差し入れ{r.resources.pFixedSenbatsu - 230}
-                    ＋レッスン{r.resources.pLessonSenbatsu}＋メモリー
-                    {r.resources.pMemory}＋サポカ
-                    {Math.round(r.resources.pCardsSenbatsu)}
-                    ／本戦＝開始時200＋差し入れ{r.resources.pFixedHonsen - 200}
-                    ＋レッスン{r.resources.pLessonHonsen}＋サポカP率
-                    {Math.round(r.resources.pCardsHonsen)}
-                  </span> */}
-                </>
-              ) : (
-                <span className="ml-1 text-[10px] text-slate-400">
-                  （レッスン{r.resources.pLesson}＋メモリー{r.resources.pMemory}
-                  ＋サポカ{Math.round(r.resources.pCards)}）
-                </span>
-              )}
+              <span className="ml-1 text-[10px] text-slate-400">
+                ※開始時230・差し入れ・レッスン・メモリー分は含まず（詳細はヘルプ）
+              </span>
             </p>
             <p>
               体力:{" "}

@@ -79,6 +79,9 @@ import { useSelectedSupports } from "./useSelectedSupports";
 
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
+/** HIFの選抜・本戦それぞれの開始時Pポイント（HIFボーナス200＋STEP3の30） */
+export const P_FIXED_START = 230;
+
 export type SelectedMember = ScoredCard & {
   /** イベント相互作用によるこのカードの追加点 */
   synergy: number;
@@ -305,9 +308,11 @@ export function useCalcResult() {
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
     const resources = (() => {
-      // HIFのレッスン・サポカ以外の固定取得: 選抜開始時230・本戦開始時200・
-      // 差し入れ80×5（うち1回は本戦）。サポカ固定P・メモリーは選抜期間に計上し、
-      // レッスンP率・タイプSPレッスンP率の換算は対象レッスンの期間（選抜/本戦）に入れる
+      // HIFのレッスン・サポカ以外の固定取得: 選抜・本戦とも開始時230
+      // （HIFボーナス200＋STEP3の30）・差し入れ80×5（うち1回は本戦）。
+      // 画面には「サポカ分」だけを出す（固定分は計算ページのヘルプに記載）。
+      // サポカ固定P・メモリーは選抜期間に計上し、レッスンP率・タイプSPレッスンP率の
+      // 換算は対象レッスンの期間（選抜/本戦）に入れる
       const isHifP = scenario === "hif";
       let lessonPSenbatsu = 0;
       let lessonPHonsen = 0;
@@ -350,8 +355,8 @@ export function useCalcResult() {
       const ratePSen = Math.floor(rateLesson * lessonPSenbatsu + rateTypeSpSen);
       const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
-      const pFixedSenbatsu = isHifP ? 230 + 80 * 4 : 0;
-      const pFixedHonsen = isHifP ? 200 + 80 : 0;
+      const pFixedSenbatsu = isHifP ? P_FIXED_START + 80 * 4 : 0;
+      const pFixedHonsen = isHifP ? P_FIXED_START + 80 : 0;
       const pCardsSenbatsu = cardP + ratePSen;
       const pCardsHonsen = ratePHon;
       const pSenbatsu =

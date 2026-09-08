@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import NavBar from "@/components/NavBar";
-import StatusBar from "@/components/StatusBar";
 import AbilityCountManager from "@/components/ability-counts/AbilityCountManager";
 import CalcPage from "@/components/calc/CalcPage";
 import CardImportPage from "@/components/card-import/CardImportPage";
@@ -48,7 +47,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
-  // ホーム（/）とイベントカウンターは計算機のナビバー・ステータスバーを出さない
+  // ホーム（/）とイベントカウンターは計算機のナビバーを出さない
   // （別ツール。イベントカウンターは自前のヘッダーを持つ）
   const { pathname } = useLocation();
   const standalone = pathname === "/" || pathname === "/event-counter";
@@ -56,8 +55,7 @@ export default function App() {
     <>
       <ScrollToTop />
       {!standalone && <NavBar />}
-      {/* 下部のステータスバーに隠れないよう余白を確保 */}
-      <div className={standalone ? "flex-1" : "flex-1 pb-20"}>
+      <div className="flex-1">
         <Routes>
           {/* ホーム: ツールの入口 */}
           <Route path="/" element={<HomePage />} />
@@ -89,7 +87,6 @@ export default function App() {
           ))}
         </Routes>
       </div>
-      {!standalone && <StatusBar />}
     </>
   );
 }

@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState } from "react";
+import { Funnel } from "lucide-react";
 import type { Rarity } from "@/data/constants";
 import {
   CARD_PLANS,
@@ -35,7 +36,8 @@ export default function SupportCardOwnership({
   const [bulkLevel, setBulkLevel] = useState<BulkLevel>("keep");
 
   // 現在のフィルターで表示するカード。
-  // 並びは SSR →配布SSR→ SR → R、各レアリティ内は実装順（スプシの順）
+  // 並びは SSR →配布SSR→ SR → R、各レアリティ内は追加が新しい順
+  // （スプシの行順＝実装順。新カードが上に来るので入力しやすい）
   const visible = useMemo(() => {
     const rarityOrder: Record<string, number> = {
       SSR: 0,
@@ -43,6 +45,7 @@ export default function SupportCardOwnership({
       SR: 2,
       R: 3,
     };
+    const addedIndex = new Map(SUPPORT_CATALOG.map((c, i) => [c.id, i]));
     return SUPPORT_CATALOG.filter((card) => {
       if (rarityFilter !== "すべて" && card.rarity !== rarityFilter)
         return false;
@@ -55,7 +58,9 @@ export default function SupportCardOwnership({
         return false;
       return true;
     }).sort(
-      (a, b) => (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9),
+      (a, b) =>
+        (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9) ||
+        (addedIndex.get(b.id) ?? 0) - (addedIndex.get(a.id) ?? 0),
     );
   }, [rarityFilter, typeFilter, planFilter, abilityFilter, nameQuery]);
 
@@ -72,6 +77,10 @@ export default function SupportCardOwnership({
     <section className="flex flex-col gap-3">
       {/* フィルター（Pアイドルページと同じプルダウン形式） */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <FilterSelect
           label="レアリティ"
           options={RARITIES.map((r) => (r === "EventSSR" ? "配布SSR" : r))}

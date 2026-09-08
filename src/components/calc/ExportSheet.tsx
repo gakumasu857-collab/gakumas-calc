@@ -537,7 +537,14 @@ function SupportCardCell({
           hasStatEvent ? (statEventCount > 0 ? "〇" : "✕") : null,
         )}
         {eventRow("前イベ", preKind ? `${preKind}×${m.preActs}` : null)}
-        {eventRow("後イベ", postKind ? `${postKind}×${postCount}` : null)}
+        {eventRow(
+          "後イベ",
+          postKind
+            ? postCount > 0
+              ? `${postKind}×${postCount}`
+              : `${postKind}（発動なし）`
+            : null,
+        )}
       </div>
     </div>
   );

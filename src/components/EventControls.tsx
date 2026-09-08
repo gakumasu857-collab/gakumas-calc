@@ -4,7 +4,9 @@
  * - PreAssign: 前イベの強化・削除の割り振り。Mの枚数を決めると残りが自動でAになる
  * - PostEventButtons: 後イベ。ランダム強化=［M/A/✕］ボタン、チェンジ等=発動トグル
  */
-import { Minus, Plus } from "lucide-react";
+import { useState } from "react";
+import { Minus, Plus, Settings2 } from "lucide-react";
+import Modal from "@/components/Modal";
 import type { SupportCardData } from "@/data/supportCardsDb";
 import { imageUrl } from "@/lib/config";
 import {
@@ -17,7 +19,7 @@ import {
   hasPreDelete,
   hasPreEnhance,
   POST_DELETE_DEFAULT_TARGET,
-  postEventStatRelevant,
+  postEventToggleable,
   type EventCountOverride,
 } from "@/lib/sheetScore";
 
@@ -200,33 +202,28 @@ export function PreAssign({
   );
 }
 
+/** タグの短縮表示（チップ・まとめ表示に載せるラベル） */
+const TAG_SHORT: Record<string, string> = {
+  Aスキル獲得: "A",
+  Mスキル獲得: "M",
+  好調スキル獲得: "好調",
+  集中スキル獲得: "集中",
+  好印象スキル獲得: "好印象",
+  やる気スキル獲得: "やる気",
+  強気スキル獲得: "強気",
+  温存スキル獲得: "温存",
+  全力スキル獲得: "全力",
+  元気スキル獲得: "元気",
+  SSRスキル獲得: "SSR",
+};
+
 /**
  * 任意スキル獲得の分類ピッカー。
- * 獲得1回ごとに「そのスキルがどの分類として数えられるか」を選ぶ
- * （例: 1回目=M＋温存＋SSR＋元気、2回目=A＋全力）。
- * 排他のグループ（A/M・状態）はプルダウン、独立フラグ（SSR・元気）はトグル。
+ * 一覧側には「獲得1: M温存SSR元気」のようなまとめボタンだけを置き、
+ * 押すとモーダルで回ごとにチップで選ぶ（好調＋集中のように複数の分類に
+ * 反応するスキルがあるため、複数選択できるチップ形式）。AとMだけは排他。
  * 未選択の回は汎用スキル獲得としてだけ数える。
  */
-const PLAN_OPTIONS: readonly (readonly [string, string])[] = [
-  ["", "A/M —"],
-  ["Aスキル獲得", "A"],
-  ["Mスキル獲得", "M"],
-];
-const STATUS_OPTIONS: readonly (readonly [string, string])[] = [
-  ["", "状態 —"],
-  ["好調スキル獲得", "好調"],
-  ["集中スキル獲得", "集中"],
-  ["好印象スキル獲得", "好印象"],
-  ["やる気スキル獲得", "やる気"],
-  ["強気スキル獲得", "強気"],
-  ["温存スキル獲得", "温存"],
-  ["全力スキル獲得", "全力"],
-];
-const FLAG_OPTIONS: readonly (readonly [string, string])[] = [
-  ["SSRスキル獲得", "SSR"],
-  ["元気スキル獲得", "元気"],
-];
-
 function AnySkillTagPicker({
   card,
   override,
@@ -238,107 +235,101 @@ function AnySkillTagPicker({
   events: EventStoreLike;
   total: number;
 }) {
+  const [open, setOpen] = useState(false);
   const picks = override?.preSkillTags ?? [];
-  // 表示順（ANY_SKILL_TAG_KEYS順）に整えて保存
-  const save = (index: number, next: string[]) =>
+  const toggle = (index: number, tag: string) => {
+    const current = picks[index] ?? [];
+    let next: string[];
+    if (current.includes(tag)) {
+      next = current.filter((t) => t !== tag);
+    } else {
+      // AとMは排他（1枚のスキルが両方であることはない）
+      next =
+        tag === "Aスキル獲得"
+          ? [...current.filter((t) => t !== "Mスキル獲得"), tag]
+          : tag === "Mスキル獲得"
+            ? [...current.filter((t) => t !== "Aスキル獲得"), tag]
+            : [...current, tag];
+    }
+    // 表示順（ANY_SKILL_TAG_KEYS順）に整えて保存
     events.setSkillTags(
       card.id,
       index,
       ANY_SKILL_TAG_KEYS.filter((t) => next.includes(t)),
     );
-  /** 排他グループ（プルダウン）: そのグループのタグを value だけに置き換える */
-  const setGroup = (
-    index: number,
-    options: readonly (readonly [string, string])[],
-    value: string,
-  ) => {
-    const group = options.map(([k]) => k).filter(Boolean);
-    const rest = (picks[index] ?? []).filter((t) => !group.includes(t));
-    save(index, value ? [...rest, value] : rest);
   };
-  const toggleFlag = (index: number, tag: string) => {
-    const current = picks[index] ?? [];
-    save(
-      index,
-      current.includes(tag)
-        ? current.filter((t) => t !== tag)
-        : [...current, tag],
-    );
+  const summaryOf = (i: number) => {
+    const tags = (picks[i] ?? []).map((t) => TAG_SHORT[t] ?? t);
+    return tags.length > 0 ? tags.join("・") : "未設定";
   };
-  const valueOf = (
-    current: string[],
-    options: readonly (readonly [string, string])[],
-  ) => options.find(([k]) => k !== "" && current.includes(k))?.[0] ?? "";
-  const selectCls = (chosen: boolean) =>
-    `h-6 rounded border px-1 text-[11px] font-bold ${
-      chosen
-        ? "border-violet-300 bg-violet-50 text-violet-700"
-        : "border-slate-300 bg-white text-slate-400"
-    }`;
 
   return (
-    <span
-      className="inline-flex flex-col gap-1"
-      title="任意スキル獲得: 獲得したスキルの分類を回ごとに選びます（発動回数の集計に反映）。未選択の回は汎用スキル獲得のみ"
-    >
-      {Array.from({ length: total }, (_, i) => {
-        const current = picks[i] ?? [];
-        const plan = valueOf(current, PLAN_OPTIONS);
-        const status = valueOf(current, STATUS_OPTIONS);
-        return (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1 whitespace-nowrap"
-          >
-            <span className="w-9 text-[10px] font-bold text-violet-600">
-              獲得{i + 1}
-            </span>
-            <select
-              value={plan}
-              onChange={(e) => setGroup(i, PLAN_OPTIONS, e.target.value)}
-              className={selectCls(plan !== "")}
-              title="AスキルかMスキルか"
-            >
-              {PLAN_OPTIONS.map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={status}
-              onChange={(e) => setGroup(i, STATUS_OPTIONS, e.target.value)}
-              className={selectCls(status !== "")}
-              title="スキルの状態分類（好調・集中・好印象・やる気・強気・温存・全力）"
-            >
-              {STATUS_OPTIONS.map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            {FLAG_OPTIONS.map(([tag, label]) => {
-              const on = current.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleFlag(i, tag)}
-                  title={tag}
-                  className={`h-6 rounded border px-1.5 text-[11px] font-bold transition ${
-                    on
-                      ? "border-violet-600 bg-violet-600 text-white"
-                      : "border-slate-300 bg-white text-slate-400 hover:border-violet-300 hover:text-violet-600"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="任意スキル獲得: 獲得したスキルの分類を回ごとに選びます（発動回数の集計に反映）。未選択の回は汎用スキル獲得のみ"
+        className="inline-flex flex-col items-start gap-0.5 rounded-lg border border-violet-300 bg-violet-50 px-2 py-1 text-left text-[10px] text-violet-700 transition hover:bg-violet-100"
+      >
+        <span className="flex items-center gap-1 font-bold">
+          <Settings2 size={11} />
+          任意獲得の分類
+        </span>
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className="whitespace-nowrap">
+            獲得{i + 1}: <b>{summaryOf(i)}</b>
           </span>
-        );
-      })}
-    </span>
+        ))}
+      </button>
+
+      {open && (
+        <Modal
+          title={`任意スキル獲得の分類（${card.name}）`}
+          onClose={() => setOpen(false)}
+        >
+          <div className="flex flex-col gap-3 text-xs text-slate-600">
+            <p className="leading-relaxed">
+              獲得したスキルがどの分類として数えられるかを、獲得の回ごとに選びます（複数選択可。
+              例: 1回目＝M・温存・SSR・元気、2回目＝A・全力）。AとMは排他。
+              未選択の回は汎用のスキル獲得としてだけ数えます。
+            </p>
+            {Array.from({ length: total }, (_, i) => (
+              <div
+                key={i}
+                className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5"
+              >
+                <span className="w-12 font-bold text-slate-700">獲得{i + 1}</span>
+                {ANY_SKILL_TAG_KEYS.map((tag) => {
+                  const on = (picks[i] ?? []).includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggle(i, tag)}
+                      title={tag}
+                      className={`rounded px-2 py-1 text-xs font-bold transition ${
+                        on
+                          ? "bg-violet-600 text-white"
+                          : "bg-white text-slate-500 ring-1 ring-slate-300 hover:bg-violet-100 hover:text-violet-700"
+                      }`}
+                    >
+                      {TAG_SHORT[tag] ?? tag}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="self-end rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+            >
+              閉じる
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -402,7 +393,7 @@ export function PostEventButtons({
   override: EventCountOverride | undefined;
   events: EventStoreLike;
 }) {
-  if (!postEventStatRelevant(card)) {
+  if (!postEventToggleable(card)) {
     return <span className="text-slate-300">{card.postEventType || "—"}</span>;
   }
   const active = (override?.post ?? 1) > 0;
@@ -451,7 +442,7 @@ export function PostEventButtons({
     );
   }
 
-  // チェンジ・トラブル削除: 〇/✕ボタン
+  // チェンジ・トラブル削除・Pポイント: 〇/✕ボタン
   const btn = (on: boolean, cls: string) =>
     `h-6 min-w-6 rounded px-1 text-[11px] font-bold transition ${
       on ? cls : "bg-slate-100 text-slate-400 hover:bg-slate-200"

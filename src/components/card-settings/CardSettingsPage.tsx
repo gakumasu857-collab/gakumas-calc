@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState } from "react";
+import { Funnel } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -146,6 +147,10 @@ export default function CardSettingsPage() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <input
           type="search"
           value={nameQuery}

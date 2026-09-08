@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState } from "react";
+import { Funnel } from "lucide-react";
 import { ABILITY_NAMES } from "@/data/constants";
 import { SUPPORT_CARD_DB, type SupportCardData } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -123,6 +124,10 @@ function SupportInfoTable() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <FilterSelect
           label="レアリティ"
           options={["R", "SR", "SSR", "配布SSR"]}
@@ -282,6 +287,10 @@ function PIdolInfoTable() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <FilterSelect
           label="アイドル"
           options={IDOLS}

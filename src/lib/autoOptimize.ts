@@ -42,7 +42,9 @@ import {
   type NiaTag,
   type ScenarioKey,
 } from "@/data/scenarios";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import {
+  planAllows,
   evaluateTeam,
   eventBudgetScales,
   examAssistSum,
@@ -116,6 +118,9 @@ const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
  * [Vo,Da,Vi]の整数比。細かい配分は最後に refineExams が詰めるので、
  * ここでは「どのタイプに寄せるか」の方向だけ見る。
  */
+/** 固定カードの使用制限チェック用 */
+const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
+
 /** 非HIFでグリーディ組成を回す分割数（下見上位から。1回 ~50-100ms） */
 const GREEDY_PARTS = 12;
 /** 詰め直し（polish）まで持ち越す「カードセットの異なる」候補数 */
@@ -1595,8 +1600,13 @@ export class OptimizeEngine {
         .slice(0, 4)
         .forEach((c) => ids.add(c.id));
     }
-    // 固定カードは必ず候補に含める
-    for (const id of this.input.flags.pinned) ids.add(id);
+    // 固定カードは必ず候補に含める。ただし使用制限（プラン）が合わないカードは
+    // 編成できないので除外する（固定してもプラン違いは反映しない）
+    for (const id of this.input.flags.pinned) {
+      const card = DB_BY_ID.get(id);
+      if (card && !planAllows(card.plan, this.input.plan)) continue;
+      ids.add(id);
+    }
     this.shortlistIds = ids;
     this.rentalShortlistIds = rentalIds;
   }

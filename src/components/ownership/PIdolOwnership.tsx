@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState } from "react";
+import { Funnel } from "lucide-react";
 import { P_IDOL_MASTERS, type PIdolMaster } from "@/lib/pIdol";
 import { imageUrl } from "@/lib/config";
 import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
@@ -53,6 +54,10 @@ export default function PIdolOwnership({
     <div className="flex flex-col gap-3">
       {/* フィルター */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+        <span className="flex items-center gap-1 font-bold text-slate-500">
+          <Funnel size={13} />
+          フィルター
+        </span>
         <FilterSelect
           label="アイドル"
           options={IDOLS}
