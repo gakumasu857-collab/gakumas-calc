@@ -74,6 +74,22 @@ export function useOwnedSaves() {
     [saves],
   );
 
+  /** 既存の保存を今の所持状況で上書きする（名前はそのまま） */
+  const overwrite = useCallback(
+    (
+      id: string,
+      entry: {
+        levels: Record<string, number>;
+        pIdols?: Record<string, PIdolOwnership>;
+      },
+    ) => {
+      const savedAt = new Date().toLocaleDateString("ja-JP");
+      setSaves((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...entry, savedAt } : s)),
+      );
+    },
+    [],
+  );
   const remove = useCallback((id: string) => {
     setSaves((prev) => prev.filter((s) => s.id !== id));
   }, []);
@@ -87,5 +103,13 @@ export function useOwnedSaves() {
     setSaves((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
   }, []);
 
-  return { saves, upsert, remove, removeBySaveId, rename, loaded: true };
+  return {
+    saves,
+    upsert,
+    overwrite,
+    remove,
+    removeBySaveId,
+    rename,
+    loaded: true,
+  };
 }

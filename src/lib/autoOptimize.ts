@@ -65,15 +65,7 @@ import {
   type SelectedSlot,
   type SpMinCondition,
 } from "./formation";
-import {
-  calcMemoryTotals,
-  detectMemoryAxis,
-  memoryAxisCandidates,
-  memoryAxisLabel,
-  remapMemoriesToAxis,
-  resolveParaboMemory,
-  sameMemoryAxis,
-} from "./memoryTotals";
+import { calcMemoryTotals, resolveParaboMemory } from "./memoryTotals";
 import type { Memory } from "./memoryTypes";
 import { climbStepping } from "./optimize/anneal";
 import {
@@ -113,9 +105,9 @@ import {
 /** 踏み方探索（編成固定）で山登りをかけるシード数（決定的） */
 const CLIMB_STARTS = 4;
 /** 全体の探索時間の上限（約5秒。超えたら新しい段階・ラウンドを始めない） */
-const TIME_BUDGET_MS = 5200;
+const TIME_BUDGET_MS = 6200;
 /** 決定的探索（分割列挙＋編成ビーム）に使う時間 */
-const SEARCH_PHASE_MS = 2200;
+const SEARCH_PHASE_MS = 3000;
 /** 末尾の結合手（スワップ×レッスンflip）用に予約する時間 */
 const JOINT_RESERVE_MS = 1200;
 
@@ -133,8 +125,13 @@ const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 const GREEDY_PARTS = 12;
 /** 詰め直し（polish）まで持ち越す「カードセットの異なる」候補数 */
 const SEARCH_FINALISTS = 4;
-/** メモリー軸（VoDa/DaVi/VoVi）の下見1軸あたりの目安時間（件数保証なので超過し得る） */
-const AXIS_SCREEN_MS = 700;
+/**
+ * ステータスの寄せ方（軸: VoDa/DaVi/VoVi = レッスンを多く踏む2タイプ）ごとに、
+ * 本気ビームへ必ず回す配分の最低数。下見の推定値だけで上位を選ぶと1つの軸に
+ * 偏って別の軸（例: VoDa）が本気で試されないことがあるため
+ */
+const AXIS_MIN_PARTS = 2;
+const AXIS_SHORT: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
 
 const EXAM_PRESET_RATIOS: [number, number, number][] = [
   [1, 1, 1],
@@ -235,17 +232,10 @@ export type AutoOptimizeResult = SteppingResult & {
    */
   eventOps?: { id: string; pre?: number; acquire?: false; post?: 0 }[];
   /**
-   * メモリー軸の比較結果（固定タイプのメモリーがあるときだけ）。
-   * 3軸（VoDa/DaVi/VoVi）へ付け替えた前提で下見し、いちばん高い軸で本探索した。
-   * changed=true のときは今のメモリーと違う軸で計算している（memories がその前提）。
+   * ステータスの寄せ方（軸）ごとの最良候補の評価値（仕上げ前の比較値）。
+   * 3軸（VoDa/DaVi/VoVi）それぞれを本気で試したことの開示用
    */
-  memoryAxis?: {
-    current: string;
-    chosen: string;
-    changed: boolean;
-    screen: { axis: string; est: number }[];
-    memories: Memory[];
-  };
+  axisReport?: { axis: string; rating: number; chosen: boolean }[];
   /** 探索の内訳（/debug でどう選ばれたかを開示するため） */
   debug?: OptimizeDebug;
 };
@@ -322,58 +312,22 @@ type Ectx = {
   baseStats: Record<TypeKey, number>;
 };
 
+/** 同じ6枚（レンタル区別）か */
+function sameSlots(a: SelectedSlot[], b: SelectedSlot[]): boolean {
+  const key = (x: SelectedSlot[]) =>
+    x.map((s) => s.id + (s.rental ? "*" : "")).sort().join("|");
+  return key(a) === key(b);
+}
+
 /**
  * 踏み方（レッスン・授業・選抜）と理想編成をまとめて探索する本体。
  * 決定的探索（候補出し→配分列挙→編成ビーム/グリーディ）→ 詰め直し → 結合仕上げ。
  * 結果はそのまま計算ページの各ストアへ適用できる形で返す。
  */
-/**
- * メモリー軸（VoDa/DaVi/VoVi）の比較。固定タイプのメモリーが選ばれているときだけ動く。
- * 今のメモリーの軸を推定し、3軸それぞれへ付け替えた入力で下見だけ回して
- * いちばん高い軸を選ぶ（ロール追従メモリーだけなら軸は踏み方に追従するので不要）。
- */
-function screenMemoryAxes(input: AutoOptimizeInput): {
-  input: AutoOptimizeInput;
-  info: NonNullable<AutoOptimizeResult["memoryAxis"]>;
-} | null {
-  const from = detectMemoryAxis(input.memories, input.ranks);
-  if (!from) return null;
-  const trials = memoryAxisCandidates(input.ranks).map((axis) => {
-    const same = sameMemoryAxis(axis, from);
-    const variant: AutoOptimizeInput = same
-      ? input
-      : { ...input, memories: remapMemoriesToAxis(input.memories, from, axis) };
-    const engine = new OptimizeEngine(variant);
-    engine.deadline = performance.now() + AXIS_SCREEN_MS;
-    engine.buildShortlist();
-    return { axis, same, variant, est: engine.previewBest() };
-  });
-  // 同点なら今の軸を優先（無駄に付け替えない）
-  trials.sort((a, b) => b.est - a.est || Number(b.same) - Number(a.same));
-  const win = trials[0];
-  return {
-    input: win.variant,
-    info: {
-      current: memoryAxisLabel(from),
-      chosen: memoryAxisLabel(win.axis),
-      changed: !win.same,
-      screen: trials.map((t) => ({
-        axis: memoryAxisLabel(t.axis),
-        est: Math.round(t.est),
-      })),
-      memories: win.variant.memories.filter((m): m is Memory => !!m),
-    },
-  };
-}
-
 export function runFullOptimize(
-  rawInput: AutoOptimizeInput,
+  input: AutoOptimizeInput,
 ): AutoOptimizeResult | null {
   const t0 = performance.now();
-  // メモリー軸の比較（固定タイプのメモリーがあるときだけ）: 3軸それぞれの
-  // 前提で下見だけ回し、いちばん高い軸の前提を本探索の入力にする
-  const axisPick = screenMemoryAxes(rawInput);
-  const input = axisPick?.input ?? rawInput;
   const engine = new OptimizeEngine(input);
   const finalDeadline = t0 + TIME_BUDGET_MS;
   // 決定的探索は前半で切り上げ、残りを仕上げ（日入替・選抜細分配・結合手）に使う
@@ -389,30 +343,40 @@ export function runFullOptimize(
   const startScores = engine.lastPartitionEsts;
   if (!best) return null;
   const scoreAfterStarts = best.score;
+  const axisPolished: typeof best[] = [];
 
   // 勝った編成に対して踏み方を詰め直す。
   // 非HIFは「カードセットの異なる」上位候補それぞれを新しいデッドラインで
   // 入念に詰めてから勝者を選ぶ（詰める前の優劣が詰めた後に逆転するため。
   // 1候補 ~250ms）。HIFはここに時間を使うと後段の相互詰めが痩せて損なので、
   // 探索フェーズの期限のまま軽く流す（従来どおり）
-  if (input.scenario !== "hif" && engine.searchFinalists.length > 1) {
-    engine.deadline = finalDeadline - JOINT_RESERVE_MS;
-    for (const f of engine.searchFinalists) {
-      const cand = { ...f };
-      const p = engine.optimizeStepping(cand.slots);
-      if (p && p.score > cand.score) {
-        cand.stepping = p.stepping;
-        cand.score = p.score;
-      }
-      if (cand.score > best.score) best = cand;
-    }
-  } else {
-    const polished = engine.optimizeStepping(best.slots);
-    if (polished && polished.score > best.score) {
-      best.stepping = polished.stepping;
-      best.score = polished.score;
-    }
+  // 候補 = カードセットの異なる上位 ∪ 軸（VoDa/DaVi/VoVi）ごとの最良（重複は除く）
+  // 同じ6枚でも軸（踏み方の寄せ方）が違えば別候補として詰め直す
+  const finalists = [...engine.searchFinalists];
+  for (const a of engine.axisBests.values()) {
+    const dup = finalists.some(
+      (f) =>
+        f === a ||
+        (sameSlots(f.slots, a.slots) &&
+          engine.axisOf(f.stepping) === engine.axisOf(a.stepping)),
+    );
+    if (!dup) finalists.push(a);
   }
+  if (input.scenario !== "hif") {
+    engine.deadline = finalDeadline - JOINT_RESERVE_MS;
+  }
+  let polishedBest = best;
+  for (const f of finalists) {
+    const cand = { ...f };
+    const p = engine.optimizeStepping(cand.slots);
+    if (p && p.score > cand.score) {
+      cand.stepping = p.stepping;
+      cand.score = p.score;
+    }
+    axisPolished.push(cand);
+    if (cand.score > polishedBest.score) polishedBest = cand;
+  }
+  best = polishedBest;
   const scoreAfterPolish = best.score;
 
   // 仕上げ: 残り時間で「選抜スコアの細分配 ⇄ 編成の組み直し ⇄ 踏み方の山登り・日入替」を
@@ -488,7 +452,22 @@ export function runFullOptimize(
     cappedSum,
     spShortfall: best.spShortfall,
     evaluated: engine.evaluated,
-    memoryAxis: axisPick?.info,
+    // 軸別の比較値は本探索時点（仕上げ前）の軸別最良から作る
+    // （詰め直し後は踏み方が勝ち軸へ収束するので、軸ごとの比較にならない）
+    axisReport: (() => {
+      const chosenAxis = engine.axisOf(best.stepping);
+      return [...engine.axisBests.entries()]
+        .map(([axis, c]) => {
+          const ectx = engine.buildEctx(c.stepping);
+          const { cappedSum, members } = engine.preciseObjective(c.slots, ectx);
+          return {
+            axis,
+            rating: engine.fullRating(c.stepping, cappedSum, members),
+            chosen: axis === chosenAxis,
+          };
+        })
+        .sort((a, b) => b.rating - a.rating);
+    })(),
     elapsedMs: performance.now() - t0,
     eventOps,
     debug: finalEngine.buildDebug(
@@ -1581,6 +1560,16 @@ export class OptimizeEngine {
   private rentalShortlistIds: Set<string> | null = null;
   /** /debug用: 決定的探索の分割別推定スコア（上位から） */
   lastPartitionEsts: number[] = [];
+  /** 軸（レッスンを多く踏む2タイプ）ごとの最良候補 */
+  axisBests = new Map<
+    string,
+    {
+      stepping: Stepping;
+      slots: SelectedSlot[];
+      score: number;
+      spShortfall: number;
+    }
+  >();
   /** 決定的探索が残した「カードセットの異なる」上位候補（詰め直し用） */
   searchFinalists: {
     stepping: Stepping;
@@ -2043,29 +2032,17 @@ export class OptimizeEngine {
   }
 
   /**
-   * メモリー軸の比較用の軽い推定値: 下見の最大値（非HIFは上位3配分のグリーディも見る）。
-   * 軸ごとの相対比較にだけ使う。
+   * 踏み方の軸 = レッスンのメイン踏みが多い2タイプ（同数なら審査基準の高い方）。
+   * 例: Da5/Vi2/Vo1 → DaVi。表示は TYPE_KEYS 順（VoDa/VoVi/DaVi）
    */
-  previewBest(): number {
-    const scored = this.previewPartitions({
-      beamWidth: 20,
-      exactTop: 5,
-      examFinalists: 1,
-    });
-    if (scored.length === 0) return -Infinity;
-    scored.sort((a, b) => b.est - a.est);
-    let best = scored[0].est;
-    if (this.input.scenario !== "hif") {
-      for (const p of scored.slice(0, 3)) {
-        const ectx = this.buildEctx(p.stepping);
-        const g = this.buildFormation(ectx);
-        if (!g) continue;
-        const slots = g.picks.map((x) => ({ id: x.id, rental: x.rental }));
-        const { obj } = this.preciseObjective(slots, ectx);
-        if (obj > best) best = obj;
-      }
-    }
-    return best;
+  axisOf(stepping: Stepping): string {
+    const count: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    for (const l of stepping.lessons) if (l.main) count[l.main]++;
+    const mains = [...TYPE_KEYS]
+      .sort((a, b) => count[b] - count[a] || this.input.ranks[a] - this.input.ranks[b])
+      .slice(0, 2)
+      .sort((a, b) => TYPE_KEYS.indexOf(a) - TYPE_KEYS.indexOf(b));
+    return mains.map((t) => AXIS_SHORT[t]).join("");
   }
 
   /**
@@ -2102,6 +2079,9 @@ export class OptimizeEngine {
         .join("|");
       const cur = bySet.get(key);
       if (!cur || cand.score > cur.score) bySet.set(key, cand);
+      const axis = this.axisOf(cand.stepping);
+      const curAxis = this.axisBests.get(axis);
+      if (!curAxis || cand.score > curAxis.score) this.axisBests.set(axis, cand);
       if (!best || cand.score > best.score) best = cand;
     };
 
@@ -2152,9 +2132,22 @@ export class OptimizeEngine {
     // 最初のGUARANTEED_PARTS件は時計に関係なく必ず見る（結果が時計に依らず
     // 決定的になるように）。余裕があればTOP_PARTSまで広げる
     const TOP_PARTS = 10;
-    const GUARANTEED_PARTS = 8;
+    // 上位配分に加えて、軸（VoDa/DaVi/VoVi）ごとに最低 AXIS_MIN_PARTS 配分は本気で見る
+    const picked = scored.slice(0, TOP_PARTS);
+    const perAxis = new Map<string, number>();
+    for (const p of picked) {
+      const k = this.axisOf(p.stepping);
+      perAxis.set(k, (perAxis.get(k) ?? 0) + 1);
+    }
+    for (const p of scored.slice(TOP_PARTS)) {
+      const k = this.axisOf(p.stepping);
+      if ((perAxis.get(k) ?? 0) >= AXIS_MIN_PARTS) continue;
+      picked.push(p);
+      perAxis.set(k, (perAxis.get(k) ?? 0) + 1);
+    }
+    // 選んだ配分はすべて時計に関係なく見る（結果が時計に依らず決定的になるように）
     let searched = 0;
-    for (const p of scored.slice(0, TOP_PARTS)) {
+    for (const p of picked) {
       const ectx = this.buildEctx(p.stepping);
       const r = this.bestFormationBeam(ectx, {
         stepping: p.stepping,
@@ -2181,9 +2174,6 @@ export class OptimizeEngine {
             spShortfall: spConditionShortfall(members, this.input.spMin),
           });
         }
-      }
-      if (searched >= GUARANTEED_PARTS && performance.now() > this.deadline) {
-        break;
       }
     }
     this.searchFinalists = [...bySet.values()]

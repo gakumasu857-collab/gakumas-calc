@@ -423,9 +423,7 @@ function SupportCardCell({
   const db = DB_BY_ID.get(m.id);
   const url = imageUrl(m.image);
   const ov = r.events.get(m.id);
-  const hasStatEvent = !!db?.abilities.some(
-    (s) => s !== null && "key" in s && s.key === "param_event",
-  );
+  const hasStatEvent = !!db && db.statEventType !== "何もなし";
   const statEventCount = ov?.statEvent ?? 1;
   const preKind = db && db.preEventType !== "何もなし" ? db.preEventType : null;
   const postKind =

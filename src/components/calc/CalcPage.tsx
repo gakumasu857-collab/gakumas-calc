@@ -34,7 +34,6 @@ import {
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { runFullOptimize } from "@/lib/autoOptimize";
-import { memorySetSignature } from "@/lib/memoryTotals";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -296,24 +295,6 @@ export default function CalcPage() {
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
         selected.setAll(res.slots);
-        // メモリー軸（VoDa/DaVi/VoVi）が今と違う軸で勝ったとき: 同じ中身の
-        // メモリーセットがあればそれに切り替え、無ければ前提を注記する
-        let axisNote = "";
-        if (res.memoryAxis?.changed) {
-          const want = memorySetSignature(res.memoryAxis.memories);
-          const hit = r.memoryStore.sets.find(
-            (set) =>
-              memorySetSignature(
-                set.memoryIds.map((id) => r.memoryStore.findMemory(id)),
-              ) === want,
-          );
-          if (hit) {
-            r.memoryStore.applySet(hit);
-            axisNote = `。メモリーは${res.memoryAxis.chosen}軸が有利だったので、セット「${hit.name}」に切り替えました（元は${res.memoryAxis.current}軸）`;
-          } else {
-            axisNote = `。※メモリーは${res.memoryAxis.chosen}軸（パラボを${res.memoryAxis.chosen}へ付け替えた前提）が有利です。今のメモリーは${res.memoryAxis.current}軸のため、${res.memoryAxis.chosen}軸のメモリーに替えると理論評価値になります`;
-          }
-        }
         // イベント予算で発動しないことにした前イベ・後イベは「提案」として保持し、
         // 自動ではサポカ設定に反映しない（下のボタンを押して初めて反映）。
         const ops = res.eventOps ?? null;
@@ -333,7 +314,12 @@ export default function CalcPage() {
             (res.spShortfall > 0
               ? `。SPレッスン率の条件はあと${res.spShortfall}枚分満たせませんでした`
               : "") +
-            axisNote,
+            // 寄せ方（VoDa/DaVi/VoVi）の比較。仕上げ前の値なので採用軸は最終値より低く出る
+            (res.axisReport && res.axisReport.length > 1
+              ? `。寄せ方の比較（仕上げ前）: ${res.axisReport
+                  .map((a) => `${a.axis} ${a.rating.toLocaleString()}${a.chosen ? "（採用）" : ""}`)
+                  .join(" ／ ")}`
+              : ""),
         );
       } finally {
         setOptBusy(false);

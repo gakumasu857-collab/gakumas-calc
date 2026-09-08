@@ -80,7 +80,9 @@ export default function ScoreDetailModal({
                     key={item.slot}
                     className={muted ? "text-slate-400" : "text-slate-700"}
                   >
-                    <td className={`${td} text-center`}>{item.slot}</td>
+                    <td className={`${td} text-center`}>
+                      {item.slot === 0 ? "ステイベ" : item.slot}
+                    </td>
                     <td className={td}>{item.ability}</td>
                     <td className={`${td} text-right`}>
                       {item.kind === "parabo"

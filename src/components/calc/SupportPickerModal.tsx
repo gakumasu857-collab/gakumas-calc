@@ -31,6 +31,7 @@ const ABILITY_FILTER_EXCLUDE = new Set<AbilityName>([
   "initial",
   "bonus",
   "param_event",
+  "param_event_rate",
 ]);
 
 /** カードID → 持っているアビリティキーの集合（絞り込み用・モジュール初期化時に1回） */

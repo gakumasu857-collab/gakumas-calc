@@ -18,6 +18,7 @@ import {
   hasPostEnhance,
   hasPreDelete,
   hasPreEnhance,
+  hasStatEvent,
   POST_DELETE_DEFAULT_TARGET,
   postEventToggleable,
   type EventCountOverride,
@@ -40,12 +41,8 @@ export type EventStoreLike = {
   setSkillTags: (id: string, index: number, tags: string[]) => void;
 };
 
-/** カードがステイベ（パラメータイベント）を持つか */
-export function hasStatEvent(card: SupportCardData): boolean {
-  return card.abilities.some(
-    (s) => s !== null && "key" in s && s.key === "param_event",
-  );
-}
+/** カードがステイベ（パラメータ/Pポイント/回復イベント）を持つか（sheetScore の判定を再エクスポート） */
+export { hasStatEvent };
 
 /**
  * ステイベ（パラメータイベント）の発動トグル。
@@ -104,7 +101,11 @@ export function AcquireToggle({
   /** 前イベ画像のサイズ（サポカ設定ページでは大きめにする） */
   imgClass?: string;
 }) {
-  if (card.preEventType !== "アイテム" && card.preEventType !== "スキル") {
+  if (
+    card.preEventType !== "アイテム" &&
+    card.preEventType !== "スキル" &&
+    card.preEventType !== "パラメータ"
+  ) {
     return null;
   }
   const acquired = override?.acquire ?? true;

@@ -596,6 +596,66 @@ function statEventCount(
   return ov !== undefined ? Math.max(0, Math.min(1, ov)) : null;
 }
 
+/** ステイベの発動回数（0/1）。手動指定が無ければ発動回数セットの値（既定1） */
+export function statEventActivations(
+  cardId: string,
+  ctx: SheetScoreContext,
+): number {
+  const manual = statEventCount(cardId, STAT_EVENT_KEY, ctx);
+  if (manual !== null) return manual;
+  return Math.min(1, Math.max(0, ctx.counts(STAT_EVENT_KEY) || 1));
+}
+
+/**
+ * 前イベ=パラメータ（Rサポカ）の発動回数。1育成1回扱い（取得しない指定なら0、
+ * 回数の手動指定があればそれ）。スプシに最大発動回数・起動タグが無いため固定
+ */
+export function preParamActivations(
+  card: SupportCardData,
+  ctx: SheetScoreContext,
+): number {
+  if (card.preEventType !== "パラメータ") return 0;
+  const ov = ctx.eventCounts?.(card.id);
+  if (ov?.acquire === false) return 0;
+  return Math.max(0, ov?.pre ?? 1);
+}
+
+/** カードがステイベ（パラメータ/Pポイント/回復のランダムイベント）を持つか */
+export function hasStatEvent(card: SupportCardData): boolean {
+  return card.statEventType !== "何もなし";
+}
+
+/**
+ * イベント（パラメータイベント・Pポイントイベント・回復イベント）1回の値。
+ * 2026-09 のスプシ仕様: レアリティ別の基本値 × (1 + そのカードの「○○イベント率」)。
+ * 率は率アビリティが入っている枠のティア（凸）で決まり、端数は切り捨て。
+ * 率アビリティが無い（旧データ・R）ときは基本値そのまま。
+ * 旧形式（率なしで直値のティア表）でも同じ式でそのまま通る。
+ */
+export function eventValue(
+  card: SupportCardData,
+  tsuki: number,
+  eventName: string,
+): number | null {
+  const basePerf = perfOf(card.rarity, eventName);
+  if (!basePerf) return null;
+  const rateLabel = `${eventName}率`;
+  const slotIndex = card.abilities.findIndex((slot) => {
+    if (!slot) return false;
+    const label = "key" in slot ? SHEET_LABEL_BY_KEY[slot.key] : slot.raw;
+    return label === rateLabel || label === eventName;
+  });
+  const tier =
+    slotIndex >= 0
+      ? (SLOT_TIER[card.rarity as Rarity]?.[slotIndex]?.[tsuki] ?? 0)
+      : 0;
+  const base = nearestTierValue(basePerf.tiers, tier);
+  if (base === null) return null;
+  const ratePerf = perfOf(card.rarity, rateLabel);
+  const rate = ratePerf ? (nearestTierValue(ratePerf.tiers, tier) ?? 0) : 0;
+  return Math.floor(base * (1 + rate) + 1e-9);
+}
+
 /** カードが指定ラベルのアビリティを持つか */
 function cardHasAbility(card: SupportCardData, label: string): boolean {
   return card.abilities.some((slot) => {
@@ -722,6 +782,9 @@ export function sheetScore(
           : slot.raw;
     if (!abiName) return null;
 
+    // パラメータイベントは枠ではなくステイベ（statEventType）として下で計上する
+    // （旧形式で枠に「パラメータイベント」が入っていても二重計上しない）
+    if (abiName === STAT_EVENT_KEY) continue;
     const tier = tiers[slotIndex]?.[tsuki]; // 0..4 (Ⅰ..Ⅴ)
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
@@ -741,6 +804,18 @@ export function sheetScore(
         statEventCount(card.id, countKey, ctx) ?? ctx.counts(countKey);
       total += (value ?? 0) * count;
     }
+  }
+  // ステイベ（パラメータイベント）: 基本値×(1+率) × 発動(0/1)
+  if (card.statEventType === STAT_EVENT_KEY) {
+    total +=
+      (eventValue(card, tsuki, STAT_EVENT_KEY) ?? 0) *
+      statEventActivations(card.id, ctx);
+  }
+  // 前イベ=パラメータ（Rサポカ）: 同じ基本値×(1+率) × 前イベ発動回数
+  if (card.preEventType === "パラメータ") {
+    total +=
+      (eventValue(card, tsuki, STAT_EVENT_KEY) ?? 0) *
+      preParamActivations(card, ctx);
   }
   return total;
 }
@@ -823,6 +898,11 @@ export function sheetScoreBreakdown(
       continue;
     }
 
+    if (abiName === STAT_EVENT_KEY) {
+      // 旧形式の枠のパラメータイベントはステイベ側（slot 0）で計上する
+      items.push({ ...base, tier: null, kind: "none", value: null, points: 0 });
+      continue;
+    }
     const tier = tiers[slotIndex]?.[tsuki];
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
@@ -869,6 +949,43 @@ export function sheetScoreBreakdown(
         points,
       });
     }
+  }
+
+  // ステイベ（パラメータイベント）: 枠ではなくカード属性なので slot 0 として載せる
+  if (card.statEventType === STAT_EVENT_KEY) {
+    const value = eventValue(card, tsuki, STAT_EVENT_KEY);
+    const count = statEventActivations(card.id, ctx);
+    const points = (value ?? 0) * count;
+    abilityTotal += points;
+    items.push({
+      slot: 0,
+      ability: "パラメータイベント（ステイベ）",
+      tier: null,
+      kind: "count",
+      value: value ?? 0,
+      countKey: STAT_EVENT_KEY,
+      count,
+      extraCount: 0,
+      points,
+    });
+  }
+
+  if (card.preEventType === "パラメータ") {
+    const value = eventValue(card, tsuki, STAT_EVENT_KEY);
+    const count = preParamActivations(card, ctx);
+    const points = (value ?? 0) * count;
+    abilityTotal += points;
+    items.push({
+      slot: 0,
+      ability: "パラメータイベント（前イベ）",
+      tier: null,
+      kind: "count",
+      value: value ?? 0,
+      countKey: STAT_EVENT_KEY,
+      count,
+      extraCount: 0,
+      points,
+    });
   }
 
   const itemBonus = itemCorrectionAuto(card, role, ctx);
@@ -956,6 +1073,8 @@ export function cardResources(
         return n === 0 && abiName.endsWith("イベント") ? 1 : n;
       };
       // Pポイント（固定値）は初期値と同じく1回発動、Pポイントイベントも1育成1回
+      // Pポイントイベント・回復イベントは枠ではなくステイベ（statEventType）で計上する
+      if (abiName === "Pポイントイベント" || abiName === "回復イベント") return;
       if (P_FLAT_LABELS.has(abiName)) out.p += value;
       else if (abiName === "レッスンPポイント率") out.pRateLesson += value;
       else if (abiName === "タイプSPレッスンPポイント率")
@@ -964,6 +1083,22 @@ export function cardResources(
         out.recover += value * countOf(countKey);
       else if (MAX_HP_LABELS.has(abiName)) out.maxHp += value;
     });
+  }
+  // ステイベ（Pポイント/回復イベント）: 基本値×(1+率) × 発動(0/1)
+  if (card.statEventType === "Pポイントイベント") {
+    out.p +=
+      (eventValue(card, tsuki, "Pポイントイベント") ?? 0) *
+      statEventActivations(card.id, ctx);
+  } else if (card.statEventType === "回復イベント") {
+    out.recover +=
+      (eventValue(card, tsuki, "回復イベント") ?? 0) *
+      statEventActivations(card.id, ctx);
+  }
+  // 後イベ=Pポイント（Rサポカ等）: 同じ基本値×(1+率) × 後イベ発動回数
+  if (card.postEventType === "Pポイント") {
+    out.p +=
+      (eventValue(card, tsuki, "Pポイントイベント") ?? 0) *
+      postEventActivations(card, ctx);
   }
   // 前イベのアクション（Pポイント・体力回復）× 発動回数
   const acts = eventActivations(card, role, ctx);

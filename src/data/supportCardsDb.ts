@@ -63,9 +63,15 @@ export type SupportCardData = {
   imageUrl: string;
   /** 使用制限（プラン）: 共通 / センス / ロジック / アノマリー */
   plan: string;
-  /** 前イベ（アイテム/スキル）・後イベ（強化/チェンジ/体力回復等） */
+  /** 前イベ（アイテム/スキル/パラメータ）・後イベ（強化/チェンジ/Pポイント等） */
   preEventType: string;
   postEventType: string;
+  /**
+   * ステイベ（1育成に1回のランダムイベント）の種類:
+   * パラメータイベント / Pポイントイベント / 回復イベント / 何もなし。
+   * 値は「レアリティ別の基本値 × (1 + 対応する○○イベント率アビリティ)」（sheetScore）。
+   */
+  statEventType: string;
   /** 前イベの構造化詳細（トリガー・強さ・発動内容） */
   preEvent: PreEventInfo;
   /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
@@ -124,6 +130,7 @@ const HEADER_ALIASES: Record<string, string> = {
   // 2026-09: 前イベの種類は「前イベ」列（スキル/ステージ用アイテム/プロデュース用アイテム/
   // パラメータ）に統合。旧「スキルかどうか」「ステージ用アイテムかどうか」列のJSONも通す
   前イベ: "pre_event_kind",
+  ステイベ: "stat_event",
   スキルかどうか: "is_skill",
   ステージ用アイテムかどうか: "is_stage_item",
   強さ: "strongest",
@@ -170,6 +177,16 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   }
   return out;
 }
+
+/** ステイベの種類（スプシ「ステイベ」列の値） */
+const STAT_EVENT_TYPES_ARRAY = ["パラメータイベント", "Pポイントイベント", "回復イベント"];
+const STAT_EVENT_TYPES = new Set(STAT_EVENT_TYPES_ARRAY);
+/** 旧形式JSON（ステイベ列なし）でアビリティ枠のイベント名から種類を補完するためのキー */
+const STAT_EVENT_KEY_OF: Record<string, string> = {
+  パラメータイベント: "param_event",
+  Pポイントイベント: "p_point_event",
+  回復イベント: "recovery_event",
+};
 
 /** 「SP枠」判定に使う SPレッスン率アップ系のアビリティキー（自タイプ・全タイプ） */
 const SP_UP_ABILITY_KEYS = new Set<string>([
@@ -222,6 +239,9 @@ const NUMERIC_ACTION_MAP: Record<string, string> = {
  */
 const LATER_EVENT_MAP: Record<string, string> = {
   スキル強化: "強化",
+  選択スキル強化: "強化", // 強化先を選べる（A/Mの割り振りUIは同じ）
+  選択スキル削除: "スキル削除",
+  Pポイントイベント: "Pポイント",
   チェンジ: "チェンジ",
   トラブル削除: "トラブル削除",
   trouble_delete: "トラブル削除", // 旧英語値のJSON互換
@@ -377,8 +397,21 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
   // （sheetScore のイベント相互作用が参照。item_name だけのアイテムはカウントされない）
   if (numOf(row.p_item_get_ut3) > 0) extras["Pアイテム獲得対象"] = "TRUE";
 
-  const preEventType = isSkill ? "スキル" : isItem ? "アイテム" : "何もなし";
+  const preEventType = isSkill
+    ? "スキル"
+    : isItem
+      ? "アイテム"
+      : preKind === "パラメータイベント"
+        ? "パラメータ" // Rサポカ: 前イベでパラメータイベント（率アビが掛かる）
+        : "何もなし";
   const postEventType = LATER_EVENT_MAP[str(row.later_event)] ?? "何もなし";
+  // ステイベ列（新形式）。旧形式のJSONはアビリティ枠のイベント名から補完する
+  const statRaw = str(row.stat_event);
+  const statEventType = STAT_EVENT_TYPES.has(statRaw)
+    ? statRaw
+    : (STAT_EVENT_TYPES_ARRAY.find((name) =>
+        abilities.some((a) => a !== null && "key" in a && a.key === STAT_EVENT_KEY_OF[name]),
+      ) ?? "何もなし");
 
   return {
     id: `card:${name}`, // 保存キーは名前ベースを維持（所持データ等の互換のため）
@@ -414,6 +447,7 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
       .map((w) => w.trim())
       .filter(Boolean),
     stageItem: isStageItem,
+    statEventType,
     extras,
   };
 }

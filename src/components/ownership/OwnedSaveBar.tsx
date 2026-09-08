@@ -18,8 +18,6 @@ import { useOwnedSaves, type OwnedSave } from "@/lib/useOwnedSaves";
 const SECTION =
   "flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5";
 const HEAD = "text-xs font-bold text-slate-700";
-const SELECT =
-  "min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700";
 const BTN_PRIMARY =
   "flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40";
 const BTN =
@@ -27,10 +25,9 @@ const BTN =
 
 /**
  * 所持状況（サポカの凸＋Pアイドルの特訓/開花）の保存・読み込み・削除・CSV入出力。
- * 「名前をつけて保存」「保存した所持状況を読み込み→選択」「削除→選択」「CSV」を
- * 上から順に並べた、やることが1つずつ分かる形にしている。
- * 計算ページのセーブデータと一緒に作られた控え（saveId 付き）は、
- * 選択肢の中で「セーブデータ用」のグループに分けて出す（トグルは廃止）。
+ * 「名前をつけて保存」と、「保存した所持状況を選んで 読み込む／上書き保存／削除」、
+ * 「CSV」の3段構成。計算ページのセーブデータと一緒に作られた控え（saveId 付き）は
+ * 選択肢の中で「セーブデータ用」のグループに分けて出す。
  */
 export default function OwnedSaveBar({
   levels,
@@ -42,8 +39,7 @@ export default function OwnedSaveBar({
 }) {
   const store = useOwnedSaves();
   const [name, setName] = useState("");
-  const [loadId, setLoadId] = useState("");
-  const [deleteId, setDeleteId] = useState("");
+  const [selectedId, setSelectedId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   // 完了メッセージは数秒で消す（出しっぱなしだと次の操作の結果と混ざる）
@@ -55,17 +51,22 @@ export default function OwnedSaveBar({
 
   const own = store.saves.filter((s) => !s.saveId);
   const linked = store.saves.filter((s) => s.saveId);
+  const selected = store.saves.find((s) => s.id === selectedId);
   const placeholder = `所持状況 ${new Date().toLocaleDateString("ja-JP")}`;
 
-  const doSave = () => {
+  const doSaveAs = () => {
     const finalName = name.trim() || placeholder;
-    store.upsert({ name: finalName, levels: levels.levels, pIdols: pIdols.map });
+    const id = store.upsert({
+      name: finalName,
+      levels: levels.levels,
+      pIdols: pIdols.map,
+    });
     setName("");
+    setSelectedId(id);
     setMessage(`「${finalName}」に保存しました`);
   };
 
   const doLoad = () => {
-    const selected = store.saves.find((s) => s.id === loadId);
     if (!selected) return;
     levels.replaceAll(selected.levels);
     if (selected.pIdols) pIdols.replaceAll(selected.pIdols);
@@ -76,13 +77,19 @@ export default function OwnedSaveBar({
     );
   };
 
+  const doOverwrite = () => {
+    if (!selected) return;
+    if (!window.confirm(`「${selected.name}」を今の所持状況で上書きしますか？`))
+      return;
+    store.overwrite(selected.id, { levels: levels.levels, pIdols: pIdols.map });
+    setMessage(`「${selected.name}」を上書き保存しました`);
+  };
+
   const doDelete = () => {
-    const selected = store.saves.find((s) => s.id === deleteId);
     if (!selected) return;
     if (!window.confirm(`「${selected.name}」を削除しますか？`)) return;
     store.remove(selected.id);
-    setDeleteId("");
-    if (loadId === selected.id) setLoadId("");
+    setSelectedId("");
     setMessage(`「${selected.name}」を削除しました`);
   };
 
@@ -92,22 +99,10 @@ export default function OwnedSaveBar({
         {s.name}（{s.savedAt}）
       </option>
     ));
-  const groupedOptions = (
-    <>
-      <optgroup label="この画面で保存したもの">
-        {own.length > 0 ? options(own) : <option disabled>（まだありません）</option>}
-      </optgroup>
-      {linked.length > 0 && (
-        <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
-          {options(linked)}
-        </optgroup>
-      )}
-    </>
-  );
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 1. 保存 */}
+      {/* 1. 新規保存 */}
       <section className={SECTION}>
         <span className={HEAD}>名前をつけて保存</span>
         <div className="flex items-center gap-2">
@@ -115,11 +110,11 @@ export default function OwnedSaveBar({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && doSave()}
+            onKeyDown={(e) => e.key === "Enter" && doSaveAs()}
             placeholder={placeholder}
             className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500"
           />
-          <button type="button" onClick={doSave} className={BTN_PRIMARY}>
+          <button type="button" onClick={doSaveAs} className={BTN_PRIMARY}>
             <Save size={13} />
             保存する
           </button>
@@ -129,58 +124,62 @@ export default function OwnedSaveBar({
         </span>
       </section>
 
-      {/* 2. 読み込み */}
+      {/* 2. 保存済みへの操作（選んで 読み込む／上書き保存／削除） */}
       <section className={SECTION}>
-        <span className={HEAD}>保存した所持状況を読み込み</span>
-        <div className="flex items-center gap-2">
-          <select
-            value={loadId}
-            onChange={(e) => setLoadId(e.target.value)}
-            className={SELECT}
-          >
-            <option value="">読み込むものを選択</option>
-            {groupedOptions}
-          </select>
+        <span className={HEAD}>保存した所持状況</span>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+        >
+          <option value="">操作するものを選択</option>
+          <optgroup label="この画面で保存したもの">
+            {own.length > 0 ? (
+              options(own)
+            ) : (
+              <option disabled>（まだありません）</option>
+            )}
+          </optgroup>
+          {linked.length > 0 && (
+            <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
+              {options(linked)}
+            </optgroup>
+          )}
+        </select>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={!loadId}
+            disabled={!selected}
             onClick={doLoad}
+            title="今の所持状況を選んだものに置き換えます"
             className={BTN_PRIMARY}
           >
             <FolderOpen size={13} />
             読み込む
           </button>
-        </div>
-        <span className="text-[11px] text-slate-400">
-          今の所持状況を選んだものに置き換えます（戻したいときは先に保存しておいてください）。
-        </span>
-      </section>
-
-      {/* 3. 削除 */}
-      <section className={SECTION}>
-        <span className={HEAD}>保存した所持状況を削除</span>
-        <div className="flex items-center gap-2">
-          <select
-            value={deleteId}
-            onChange={(e) => setDeleteId(e.target.value)}
-            className={SELECT}
-          >
-            <option value="">削除するものを選択</option>
-            {groupedOptions}
-          </select>
           <button
             type="button"
-            disabled={!deleteId}
+            disabled={!selected}
+            onClick={doOverwrite}
+            title="選んだものを今の所持状況で上書きします（名前はそのまま）"
+            className={BTN}
+          >
+            <Save size={13} />
+            上書き保存
+          </button>
+          <button
+            type="button"
+            disabled={!selected}
             onClick={doDelete}
             className={`${BTN} hover:bg-red-50 hover:text-red-600`}
           >
             <Trash2 size={13} />
-            削除する
+            削除
           </button>
         </div>
       </section>
 
-      {/* 4. CSV */}
+      {/* 3. CSV */}
       <section className={SECTION}>
         <span className={HEAD}>CSVで書き出し・読み込み</span>
         <div className="flex items-center gap-2 text-xs">

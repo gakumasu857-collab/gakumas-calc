@@ -25,7 +25,6 @@ export default function OwnershipPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-          入力するもの
           <select
             value={tab}
             onChange={(e) => setTab(e.target.value as "support" | "pidol")}

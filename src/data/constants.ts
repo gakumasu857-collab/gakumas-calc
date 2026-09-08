@@ -101,6 +101,11 @@ export const ABILITY_NAMES = {
   initial: "初期値",
   bonus: "パラメータボーナス",
   param_event: "パラメータイベント",
+  // 2026-09: カードのアビリティ枠は「○○イベント率」になった。イベント本体（パラメータ/Pポイント/
+  // 回復）はステイベ・前イベ・後イベ列で持ち、率は対応するイベントの値に (1+率) で掛かる
+  param_event_rate: "パラメータイベント率",
+  p_point_event_rate: "Pポイントイベント率",
+  recovery_event_rate: "回復イベント率",
   p_point: "Pポイント",
   p_point_rate_type_sp: "タイプSPレッスンPポイント率",
   p_point_rate_lesson: "レッスンPポイント率",

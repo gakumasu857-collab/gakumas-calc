@@ -864,6 +864,30 @@
    "main2": null,
    "sub": null
   },
+  "SSR回復イベント": {
+   "tiers": [
+    10,
+    12,
+    14,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SSR回復イベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
   "SSRレッスン": {
    "tiers": [
     4,
@@ -1483,18 +1507,6 @@
     9,
     9,
     9
-   ],
-   "main1": null,
-   "main2": null,
-   "sub": null
-  },
-  "SSR回復イベント": {
-   "tiers": [
-    10,
-    12,
-    14,
-    null,
-    null
    ],
    "main1": null,
    "main2": null,
