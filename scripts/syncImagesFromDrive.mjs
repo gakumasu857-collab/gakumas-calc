@@ -34,6 +34,8 @@ const IMAGE_BASE =
   "https://img.hoppepan.com";
 const BUCKET = "gakumas-image";
 const FORCE = process.argv.includes("--force");
+// 「R2にあるか」の照会はCDNの否定キャッシュ（404を数分覚える）を素通りさせる
+const NOCACHE = `?v=${Date.now()}`;
 
 /** 同期対象: .env.local のフォルダID → R2プレフィックス */
 const TARGETS = [
@@ -132,8 +134,8 @@ try {
       const key = `${target.prefix}${base}.webp`;
       if (!FORCE) {
         const head = await fetch(
-          `${IMAGE_BASE}/${key.split("/").map(encodeURIComponent).join("/")}`,
-          { method: "HEAD" },
+          `${IMAGE_BASE}/${key.split("/").map(encodeURIComponent).join("/")}${NOCACHE}`,
+          { method: "HEAD", cache: "no-store" },
         );
         if (head.ok) {
           skipped++;

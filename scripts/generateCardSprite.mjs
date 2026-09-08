@@ -26,6 +26,9 @@ const CELL_W = 80;
 const CELL_H = 45;
 const COLS = 14;
 const CONCURRENCY = 12;
+// Cloudflare は 404 も数分間キャッシュするため、アップ直後の画像が「無い」と
+// 見えることがある。実行ごとに一意なクエリを付けてキャッシュを素通りさせる
+const NOCACHE = `?v=${Date.now()}`;
 
 const cards = JSON.parse(
   readFileSync(resolve(root, "src/data/generated/supportCards.json"), "utf8"),
@@ -37,8 +40,8 @@ const names = [...new Set(cards.map((c) => String(c["サポカ名"] ?? c.name)))
 
 /** 1枚取得してサムネイル化（404等は null） */
 async function fetchCell(name) {
-  const url = `${IMAGE_BASE}/${encodeURIComponent(`${name}.webp`)}`;
-  const res = await fetch(url);
+  const url = `${IMAGE_BASE}/${encodeURIComponent(`${name}.webp`)}${NOCACHE}`;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   return sharp(buf)
@@ -102,5 +105,10 @@ console.log(
   `✓ sprite ${entries.length}枚 (${COLS * CELL_W}x${rows * CELL_H}) → public/card-import/sprite.png`,
 );
 if (missing.length > 0) {
-  console.warn(`⚠ R2に画像が無いカード ${missing.length}件: ${missing.join("、")}`);
+  console.warn(
+    `ℹ R2に画像が無いカード ${missing.length}件（画像照合の対象外になるだけで、リリースには影響しません）: ${missing.join("、")}`,
+  );
+  console.warn(
+    "  → ドライブに置いた画像は npm run sync:images でR2へ上げてから gen:sprite で取り込まれます",
+  );
 }

@@ -38,6 +38,7 @@ for (const r of rows) {
   }
 }
 
+const NOCACHE = Date.now();
 const list = [...candidates];
 const found = [];
 let cursor = 0;
@@ -45,8 +46,9 @@ await Promise.all(
   Array.from({ length: CONCURRENCY }, async () => {
     while (cursor < list.length) {
       const name = list[cursor++];
-      const url = `${IMAGE_BASE}/preEvent/${encodeURIComponent(name)}.webp`;
-      const res = await fetch(url, { method: "HEAD" });
+      // 404の否定キャッシュを避けるため一意なクエリを付ける（gen:sprite と同じ理由）
+      const url = `${IMAGE_BASE}/preEvent/${encodeURIComponent(name)}.webp?v=${NOCACHE}`;
+      const res = await fetch(url, { method: "HEAD", cache: "no-store" });
       if (res.ok) found.push(name);
     }
   }),
