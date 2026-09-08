@@ -36,6 +36,42 @@
    "main2": null,
    "sub": null
   },
+  "Rパラメータイベント": {
+   "tiers": [
+    10,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": "パラメータイベント",
+   "main2": "パラメータイベント",
+   "sub": "パラメータイベント"
+  },
+  "Rパラメータイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "RPポイントイベント": {
+   "tiers": [
+    10,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
   "Rレッスン": {
    "tiers": [
     1,
@@ -120,18 +156,6 @@
    "main2": "特別指導（3回まで）",
    "sub": "特別指導（3回まで）"
   },
-  "Rパラメータイベント": {
-   "tiers": [
-    10,
-    15,
-    17,
-    20,
-    null
-   ],
-   "main1": "パラメータイベント",
-   "main2": "パラメータイベント",
-   "sub": "パラメータイベント"
-  },
   "RPポイント": {
    "tiers": [
     20,
@@ -187,6 +211,54 @@
     0.796,
     0.898,
     1
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SRパラメータイベント": {
+   "tiers": [
+    15,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": "パラメータイベント",
+   "main2": "パラメータイベント",
+   "sub": "パラメータイベント"
+  },
+  "SRパラメータイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SRPポイントイベント": {
+   "tiers": [
+    25,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SRPポイントイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
    ],
    "main1": null,
    "main2": null,
@@ -624,18 +696,6 @@
    "main2": "Pアイテム獲得（6回まで）",
    "sub": "Pアイテム獲得（6回まで）"
   },
-  "SRパラメータイベント": {
-   "tiers": [
-    22,
-    26,
-    30,
-    null,
-    null
-   ],
-   "main1": "パラメータイベント",
-   "main2": "パラメータイベント",
-   "sub": "パラメータイベント"
-  },
   "SRSPレッスン率": {
    "tiers": [
     0.105,
@@ -677,18 +737,6 @@
     0.083,
     0.165,
     null,
-    null,
-    null
-   ],
-   "main1": null,
-   "main2": null,
-   "sub": null
-  },
-  "SRPポイントイベント": {
-   "tiers": [
-    37,
-    43,
-    50,
     null,
     null
    ],
@@ -763,6 +811,54 @@
     0.831,
     0.915,
     1
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SSRパラメータイベント": {
+   "tiers": [
+    20,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": "パラメータイベント",
+   "main2": "パラメータイベント",
+   "sub": "パラメータイベント"
+  },
+  "SSRパラメータイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SSRPポイントイベント": {
+   "tiers": [
+    40,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "SSRPポイントイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
    ],
    "main1": null,
    "main2": null,
@@ -1260,18 +1356,6 @@
    "main2": "Pアイテム獲得（6回まで）",
    "sub": "Pアイテム獲得（6回まで）"
   },
-  "SSRパラメータイベント": {
-   "tiers": [
-    30,
-    35,
-    40,
-    null,
-    null
-   ],
-   "main1": "パラメータイベント",
-   "main2": "パラメータイベント",
-   "sub": "パラメータイベント"
-  },
   "SSRSPレッスン率": {
    "tiers": [
     0.21,
@@ -1337,18 +1421,6 @@
     0.33,
     0.45,
     null,
-    null,
-    null
-   ],
-   "main1": null,
-   "main2": null,
-   "sub": null
-  },
-  "SSRPポイントイベント": {
-   "tiers": [
-    60,
-    70,
-    80,
     null,
     null
    ],
@@ -1471,6 +1543,30 @@
     0.831,
     0.915,
     1
+   ],
+   "main1": null,
+   "main2": null,
+   "sub": null
+  },
+  "配布SSRパラメータイベント": {
+   "tiers": [
+    20,
+    null,
+    null,
+    null,
+    null
+   ],
+   "main1": "パラメータイベント",
+   "main2": "パラメータイベント",
+   "sub": "パラメータイベント"
+  },
+  "配布SSRパラメータイベント率": {
+   "tiers": [
+    0.5,
+    0.75,
+    1,
+    null,
+    null
    ],
    "main1": null,
    "main2": null,
@@ -1739,18 +1835,6 @@
    "main1": "Pアイテム獲得（6回まで）",
    "main2": "Pアイテム獲得（6回まで）",
    "sub": "Pアイテム獲得（6回まで）"
-  },
-  "配布SSRパラメータイベント": {
-   "tiers": [
-    30,
-    35,
-    40,
-    null,
-    null
-   ],
-   "main1": "パラメータイベント",
-   "main2": "パラメータイベント",
-   "sub": "パラメータイベント"
   },
   "配布SSRSPレッスン率": {
    "tiers": [

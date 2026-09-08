@@ -106,24 +106,32 @@ function SupportInfoTable() {
   const [typeFilter, setTypeFilter] = useState("すべて");
   const [planFilter, setPlanFilter] = useState("すべて");
 
-  const visible = useMemo(
-    () =>
-      SUPPORT_CARD_DB.filter((card) => {
-        const rarityLabel =
-          card.rarity === "EventSSR" ? "配布SSR" : card.rarity;
-        if (rarityFilter !== "すべて" && rarityLabel !== rarityFilter)
-          return false;
-        if (typeFilter !== "すべて" && card.cardType !== typeFilter)
-          return false;
-        if (planFilter !== "すべて" && card.plan !== planFilter) return false;
-        return true;
-      }),
-    [rarityFilter, typeFilter, planFilter],
-  );
+  // 並びはレアリティ順（R → SR → SSR → 配布SSR）、各レアリティ内は実装順（スプシの行順）
+  const visible = useMemo(() => {
+    const rarityOrder: Record<string, number> = {
+      R: 0,
+      SR: 1,
+      SSR: 2,
+      EventSSR: 3,
+    };
+    const addedIndex = new Map(SUPPORT_CARD_DB.map((c, i) => [c.id, i]));
+    return SUPPORT_CARD_DB.filter((card) => {
+      const rarityLabel = card.rarity === "EventSSR" ? "配布SSR" : card.rarity;
+      if (rarityFilter !== "すべて" && rarityLabel !== rarityFilter)
+        return false;
+      if (typeFilter !== "すべて" && card.cardType !== typeFilter) return false;
+      if (planFilter !== "すべて" && card.plan !== planFilter) return false;
+      return true;
+    }).sort(
+      (a, b) =>
+        (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9) ||
+        (addedIndex.get(a.id) ?? 0) - (addedIndex.get(b.id) ?? 0),
+    );
+  }, [rarityFilter, typeFilter, planFilter]);
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
         <span className="flex items-center gap-1 font-bold text-slate-500">
           <Funnel size={13} />
           フィルター
@@ -286,7 +294,7 @@ function PIdolInfoTable() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
         <span className="flex items-center gap-1 font-bold text-slate-500">
           <Funnel size={13} />
           フィルター

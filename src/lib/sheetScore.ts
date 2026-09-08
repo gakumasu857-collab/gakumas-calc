@@ -657,6 +657,46 @@ export type SheetScoreContext = {
   eventCounts?: (cardId: string) => EventCountOverride | undefined;
 };
 
+/** 「○○率」で補正するイベント系アビリティ（値 = floor(基本値 × (1 + 率))） */
+const EVENT_RATE_LABELS = new Set(["パラメータイベント", "Pポイントイベント"]);
+
+/** ティア表で未入力（null）のときは定義済みの最も近い下位ティアの値を使う */
+function nearestTierValue(
+  tiers: (number | null)[],
+  tier: number,
+): number | null {
+  for (let k = Math.min(tier, tiers.length - 1); k >= 0; k--) {
+    const v = tiers[k];
+    if (typeof v === "number") return v;
+  }
+  return null;
+}
+
+/**
+ * アビリティ枠の効果量。
+ * パラメータイベント・Pポイントイベントは 2026-09 のスプシ仕様で
+ * 「基本値（例: SSR 20）× (1 + パラメータイベント率[同じ枠のティア])」に変わった
+ * （SSR完凸 = 20×(1+1) = 40。率は足し算で乗る。端数は切り捨て）。
+ * ○○率が未登録の旧データは従来どおりティア表の値をそのまま返す。
+ */
+export function abilitySlotValue(
+  rarity: string,
+  abiName: string,
+  perf: PerfEntry,
+  tier: number,
+): number | null {
+  const raw = perf.tiers[tier];
+  if (!EVENT_RATE_LABELS.has(abiName)) {
+    return typeof raw === "number" ? raw : null;
+  }
+  const ratePerf = perfOf(rarity, `${abiName}率`);
+  if (!ratePerf) return typeof raw === "number" ? raw : null;
+  const base = nearestTierValue(perf.tiers, tier);
+  if (base === null) return null;
+  const rate = nearestTierValue(ratePerf.tiers, tier) ?? 0;
+  return Math.floor(base * (1 + rate) + 1e-9);
+}
+
 /**
  * カード1枚の点数（スプシ準拠・検証済み）。
  * @returns 計算不能（ティア表なし等）は null
@@ -688,7 +728,7 @@ export function sheetScore(
     // perf 未登録のアビリティ（新規の非スコア系など）はその枠を0として飛ばす
     // （カード全体を無得点にしない）。
     if (!perf) continue;
-    const value = perf.tiers[tier];
+    const value = abilitySlotValue(card.rarity, abiName, perf, tier);
 
     if (abiName === "パラメータボーナス") {
       if (typeof value !== "number") continue;
@@ -791,7 +831,7 @@ export function sheetScoreBreakdown(
       items.push({ ...base, tier: null, kind: "none", value: null, points: 0 });
       continue;
     }
-    const value = perf.tiers[tier];
+    const value = abilitySlotValue(card.rarity, abiName, perf, tier);
 
     if (abiName === "パラメータボーナス") {
       if (typeof value !== "number") {
@@ -902,17 +942,11 @@ export function cardResources(
       const perf = perfOf(card.rarity, abiName);
       if (!perf) return;
       // 高ティアの値が未入力のアビリティ（最大体力上昇など）は、
-      // 定義済みの最も近い下位ティアの値で代用する（資源集計のみの救済措置）
-      let value = perf.tiers[tier];
-      if (typeof value !== "number") {
-        for (let k = Math.min(tier, perf.tiers.length - 1); k >= 0; k--) {
-          const v = perf.tiers[k];
-          if (typeof v === "number") {
-            value = v;
-            break;
-          }
-        }
-      }
+      // 定義済みの最も近い下位ティアの値で代用する（資源集計のみの救済措置）。
+      // Pポイントイベントは率補正込み（abilitySlotValue）
+      const value =
+        abilitySlotValue(card.rarity, abiName, perf, tier) ??
+        nearestTierValue(perf.tiers, tier);
       if (typeof value !== "number") return;
       const countKey = perf[role];
       const countOf = (key: string | null) => {

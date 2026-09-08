@@ -221,7 +221,7 @@ export default function CardScoreTable() {
   return (
     <div>
       {/* フィルター */}
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+      <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
         <span className="flex items-center gap-1 font-bold text-slate-500">
           <Funnel size={13} />
           フィルター

@@ -65,7 +65,15 @@ import {
   type SelectedSlot,
   type SpMinCondition,
 } from "./formation";
-import { calcMemoryTotals, resolveParaboMemory } from "./memoryTotals";
+import {
+  calcMemoryTotals,
+  detectMemoryAxis,
+  memoryAxisCandidates,
+  memoryAxisLabel,
+  remapMemoriesToAxis,
+  resolveParaboMemory,
+  sameMemoryAxis,
+} from "./memoryTotals";
 import type { Memory } from "./memoryTypes";
 import { climbStepping } from "./optimize/anneal";
 import {
@@ -125,6 +133,8 @@ const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 const GREEDY_PARTS = 12;
 /** 詰め直し（polish）まで持ち越す「カードセットの異なる」候補数 */
 const SEARCH_FINALISTS = 4;
+/** メモリー軸（VoDa/DaVi/VoVi）の下見1軸あたりの目安時間（件数保証なので超過し得る） */
+const AXIS_SCREEN_MS = 700;
 
 const EXAM_PRESET_RATIOS: [number, number, number][] = [
   [1, 1, 1],
@@ -224,6 +234,18 @@ export type AutoOptimizeResult = SteppingResult & {
    * ※ pre（前イベ回数の削減）は現状の割当ロジックでは生成されない（将来用の予約）。
    */
   eventOps?: { id: string; pre?: number; acquire?: false; post?: 0 }[];
+  /**
+   * メモリー軸の比較結果（固定タイプのメモリーがあるときだけ）。
+   * 3軸（VoDa/DaVi/VoVi）へ付け替えた前提で下見し、いちばん高い軸で本探索した。
+   * changed=true のときは今のメモリーと違う軸で計算している（memories がその前提）。
+   */
+  memoryAxis?: {
+    current: string;
+    chosen: string;
+    changed: boolean;
+    screen: { axis: string; est: number }[];
+    memories: Memory[];
+  };
   /** 探索の内訳（/debug でどう選ばれたかを開示するため） */
   debug?: OptimizeDebug;
 };
@@ -305,10 +327,53 @@ type Ectx = {
  * 決定的探索（候補出し→配分列挙→編成ビーム/グリーディ）→ 詰め直し → 結合仕上げ。
  * 結果はそのまま計算ページの各ストアへ適用できる形で返す。
  */
+/**
+ * メモリー軸（VoDa/DaVi/VoVi）の比較。固定タイプのメモリーが選ばれているときだけ動く。
+ * 今のメモリーの軸を推定し、3軸それぞれへ付け替えた入力で下見だけ回して
+ * いちばん高い軸を選ぶ（ロール追従メモリーだけなら軸は踏み方に追従するので不要）。
+ */
+function screenMemoryAxes(input: AutoOptimizeInput): {
+  input: AutoOptimizeInput;
+  info: NonNullable<AutoOptimizeResult["memoryAxis"]>;
+} | null {
+  const from = detectMemoryAxis(input.memories, input.ranks);
+  if (!from) return null;
+  const trials = memoryAxisCandidates(input.ranks).map((axis) => {
+    const same = sameMemoryAxis(axis, from);
+    const variant: AutoOptimizeInput = same
+      ? input
+      : { ...input, memories: remapMemoriesToAxis(input.memories, from, axis) };
+    const engine = new OptimizeEngine(variant);
+    engine.deadline = performance.now() + AXIS_SCREEN_MS;
+    engine.buildShortlist();
+    return { axis, same, variant, est: engine.previewBest() };
+  });
+  // 同点なら今の軸を優先（無駄に付け替えない）
+  trials.sort((a, b) => b.est - a.est || Number(b.same) - Number(a.same));
+  const win = trials[0];
+  return {
+    input: win.variant,
+    info: {
+      current: memoryAxisLabel(from),
+      chosen: memoryAxisLabel(win.axis),
+      changed: !win.same,
+      screen: trials.map((t) => ({
+        axis: memoryAxisLabel(t.axis),
+        est: Math.round(t.est),
+      })),
+      memories: win.variant.memories.filter((m): m is Memory => !!m),
+    },
+  };
+}
+
 export function runFullOptimize(
-  input: AutoOptimizeInput,
+  rawInput: AutoOptimizeInput,
 ): AutoOptimizeResult | null {
   const t0 = performance.now();
+  // メモリー軸の比較（固定タイプのメモリーがあるときだけ）: 3軸それぞれの
+  // 前提で下見だけ回し、いちばん高い軸の前提を本探索の入力にする
+  const axisPick = screenMemoryAxes(rawInput);
+  const input = axisPick?.input ?? rawInput;
   const engine = new OptimizeEngine(input);
   const finalDeadline = t0 + TIME_BUDGET_MS;
   // 決定的探索は前半で切り上げ、残りを仕上げ（日入替・選抜細分配・結合手）に使う
@@ -423,6 +488,7 @@ export function runFullOptimize(
     cappedSum,
     spShortfall: best.spShortfall,
     evaluated: engine.evaluated,
+    memoryAxis: axisPick?.info,
     elapsedMs: performance.now() - t0,
     eventOps,
     debug: finalEngine.buildDebug(
@@ -1950,6 +2016,59 @@ export class OptimizeEngine {
   }
 
   /**
+   * 全分割の下見。小さいビームで編成まで見て推定スコアを付ける
+   * （件数有限＝最大45件なので、大幅超過時のみ非常停止する）。
+   */
+  private previewPartitions(opts?: {
+    beamWidth?: number;
+    exactTop?: number;
+    examFinalists?: number;
+  }): { est: number; stepping: Stepping }[] {
+    const scored: { est: number; stepping: Stepping }[] = [];
+    for (const part of this.lessonPartitions()) {
+      const stepping = this.steppingFromPartition(part);
+      const ectx = this.buildEctx(stepping);
+      const r = this.bestFormationBeam(ectx, {
+        beamWidth: opts?.beamWidth ?? 30,
+        exactTop: opts?.exactTop ?? 8,
+        stepping,
+        examFinalists: opts?.examFinalists ?? 2,
+      });
+      if (!r) continue;
+      // 本気ビームは下見で勝った選抜の寄せ方から始める
+      scored.push({ est: r.obj, stepping: r.stepping ?? stepping });
+      if (performance.now() > this.deadline + 800) break;
+    }
+    return scored;
+  }
+
+  /**
+   * メモリー軸の比較用の軽い推定値: 下見の最大値（非HIFは上位3配分のグリーディも見る）。
+   * 軸ごとの相対比較にだけ使う。
+   */
+  previewBest(): number {
+    const scored = this.previewPartitions({
+      beamWidth: 20,
+      exactTop: 5,
+      examFinalists: 1,
+    });
+    if (scored.length === 0) return -Infinity;
+    scored.sort((a, b) => b.est - a.est);
+    let best = scored[0].est;
+    if (this.input.scenario !== "hif") {
+      for (const p of scored.slice(0, 3)) {
+        const ectx = this.buildEctx(p.stepping);
+        const g = this.buildFormation(ectx);
+        if (!g) continue;
+        const slots = g.picks.map((x) => ({ id: x.id, rental: x.rental }));
+        const { obj } = this.preciseObjective(slots, ectx);
+        if (obj > best) best = obj;
+      }
+    }
+    return best;
+  }
+
+  /**
    * 決定的探索の本体。
    * レッスン配分（分割）を全列挙 → グリーディ編成の正確評価で足切り →
    * 上位配分だけ編成ビームサーチ。乱数を一切使わないので毎回同じ答えになる。
@@ -1961,23 +2080,7 @@ export class OptimizeEngine {
     spShortfall: number;
   } | null {
     // 1. 分割の下見（小さいビームで編成まで見て順位づけする）
-    const parts = this.lessonPartitions();
-    const scored: { est: number; stepping: Stepping }[] = [];
-    for (const part of parts) {
-      const stepping = this.steppingFromPartition(part);
-      const ectx = this.buildEctx(stepping);
-      const r = this.bestFormationBeam(ectx, {
-        beamWidth: 30,
-        exactTop: 8,
-        stepping,
-        examFinalists: 2,
-      });
-      if (!r) continue;
-      // 本気ビームは下見で勝った選抜の寄せ方から始める
-      scored.push({ est: r.obj, stepping: r.stepping ?? stepping });
-      // 下見は件数有限（最大45件）なので、大幅超過時のみ非常停止する
-      if (performance.now() > this.deadline + 800) break;
-    }
+    const scored = this.previewPartitions();
     if (scored.length === 0) return null;
     scored.sort((a, b) => b.est - a.est);
 

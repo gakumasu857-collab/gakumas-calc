@@ -121,6 +121,9 @@ const HEADER_ALIASES: Record<string, string> = {
   後イベ: "later_event",
   役割: "attribute",
   前イベ名: "item_name",
+  // 2026-09: 前イベの種類は「前イベ」列（スキル/ステージ用アイテム/プロデュース用アイテム/
+  // パラメータ）に統合。旧「スキルかどうか」「ステージ用アイテムかどうか」列のJSONも通す
+  前イベ: "pre_event_kind",
   スキルかどうか: "is_skill",
   ステージ用アイテムかどうか: "is_stage_item",
   強さ: "strongest",
@@ -303,7 +306,12 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     str(row[`abi_type${i + 1}`]),
   );
 
-  const isSkill = numOf(row.is_skill) > 0;
+  // 前イベの種類。新形式は「前イベ」列の文字列、旧形式は 0/1 フラグ2列
+  const preKind = str(row.pre_event_kind);
+  const isSkill = preKind ? preKind === "スキル" : numOf(row.is_skill) > 0;
+  const isStageItem = preKind
+    ? preKind === "ステージ用アイテム"
+    : numOf(row.is_stage_item) > 0;
   const itemName = str(row.item_name);
   // 前イベがアイテムを与えるか。p_item_get_ut3 は「Pアイテム獲得(6回まで)にカウント
   // されるか」のフラグで、カウントされないアイテム（近年のカード）は item_name 列で判定する
@@ -405,7 +413,7 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
       .split(/[,、.]/)
       .map((w) => w.trim())
       .filter(Boolean),
-    stageItem: numOf(row.is_stage_item) > 0,
+    stageItem: isStageItem,
     extras,
   };
 }

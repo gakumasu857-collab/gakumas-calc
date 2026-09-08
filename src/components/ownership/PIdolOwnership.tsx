@@ -53,7 +53,7 @@ export default function PIdolOwnership({
   return (
     <div className="flex flex-col gap-3">
       {/* フィルター */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
         <span className="flex items-center gap-1 font-bold text-slate-500">
           <Funnel size={13} />
           フィルター

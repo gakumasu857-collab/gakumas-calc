@@ -34,6 +34,7 @@ import {
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { runFullOptimize } from "@/lib/autoOptimize";
+import { memorySetSignature } from "@/lib/memoryTotals";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -295,6 +296,24 @@ export default function CalcPage() {
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
         selected.setAll(res.slots);
+        // メモリー軸（VoDa/DaVi/VoVi）が今と違う軸で勝ったとき: 同じ中身の
+        // メモリーセットがあればそれに切り替え、無ければ前提を注記する
+        let axisNote = "";
+        if (res.memoryAxis?.changed) {
+          const want = memorySetSignature(res.memoryAxis.memories);
+          const hit = r.memoryStore.sets.find(
+            (set) =>
+              memorySetSignature(
+                set.memoryIds.map((id) => r.memoryStore.findMemory(id)),
+              ) === want,
+          );
+          if (hit) {
+            r.memoryStore.applySet(hit);
+            axisNote = `。メモリーは${res.memoryAxis.chosen}軸が有利だったので、セット「${hit.name}」に切り替えました（元は${res.memoryAxis.current}軸）`;
+          } else {
+            axisNote = `。※メモリーは${res.memoryAxis.chosen}軸（パラボを${res.memoryAxis.chosen}へ付け替えた前提）が有利です。今のメモリーは${res.memoryAxis.current}軸のため、${res.memoryAxis.chosen}軸のメモリーに替えると理論評価値になります`;
+          }
+        }
         // イベント予算で発動しないことにした前イベ・後イベは「提案」として保持し、
         // 自動ではサポカ設定に反映しない（下のボタンを押して初めて反映）。
         const ops = res.eventOps ?? null;
@@ -313,7 +332,8 @@ export default function CalcPage() {
               : "") +
             (res.spShortfall > 0
               ? `。SPレッスン率の条件はあと${res.spShortfall}枚分満たせませんでした`
-              : ""),
+              : "") +
+            axisNote,
         );
       } finally {
         setOptBusy(false);
@@ -718,20 +738,27 @@ export default function CalcPage() {
             </div>
             <p className="mt-1">
               この踏み方の実現確率:{" "}
-              <b className="tabular-nums text-blue-700">
-                {formatProb(r.spLesson.prob)}
-              </b>
-              {r.scenario === "hif" && (
-                <span className="ml-2 tabular-nums text-slate-500">
-                  （選抜 {formatProb(r.spLesson.probSen)} ／ 本戦{" "}
-                  {formatProb(r.spLesson.probHon)}）
+              {r.scenario === "hif" ? (
+                // HIFは選抜・本戦が別の期間なので、それぞれのSP踏みの確率だけを出す
+                <span className="tabular-nums">
+                  選抜{" "}
+                  <b className="text-blue-700">{formatProb(r.spLesson.probSen)}</b>
+                  {" ／ "}本戦{" "}
+                  <b className="text-blue-700">{formatProb(r.spLesson.probHon)}</b>
                 </span>
+              ) : (
+                <b className="tabular-nums text-blue-700">
+                  {formatProb(r.spLesson.prob)}
+                </b>
               )}
             </p>
           </div>
         </Card>
 
-        {/* セーブデータ・画像出力 */}
+      </div>
+
+      {/* セーブデータ・画像出力（スマホでは一番下、デスクトップでは入力列の下） */}
+      <div className="order-last lg:order-3 lg:col-start-2">
         <Card
           title="セーブデータ"
           action={
