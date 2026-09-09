@@ -153,8 +153,6 @@ function SupportInfoTable() {
               <th className={TH}>レアリティ</th>
               <th className={TH}>タイプ</th>
               <th className={TH}>使用制限</th>
-              <th className={TH}>役割</th>
-              <th className={TH}>属性結合</th>
               <th className={TH}>前イベ</th>
               <th className={TH}>トリガー</th>
               <th className={TH}>最大回数</th>
@@ -206,15 +204,6 @@ function SupportInfoTable() {
                     </span>
                   </td>
                   <td className={`${TD} text-slate-600`}>
-                    {card.extras["枠"] ?? "—"}
-                  </td>
-                  <td
-                    className={`${TD} max-w-44 truncate text-left text-slate-500`}
-                    title={card.extras["属性"]}
-                  >
-                    {card.extras["属性"] ?? "—"}
-                  </td>
-                  <td className={`${TD} text-slate-600`}>
                     <span className="inline-flex items-center gap-1">
                       {card.preEventImage && (
                         <img
@@ -227,13 +216,16 @@ function SupportInfoTable() {
                       {card.preEventType}
                     </span>
                   </td>
+                  {/* トリガー・最大回数はスプシの生値（スキルの「初期値・1回」補完は計算用だけ） */}
                   <td
                     className={`${TD} max-w-32 truncate text-left text-slate-500`}
-                    title={pre.trigger}
+                    title={card.sheetPreEvent.trigger}
                   >
-                    {pre.trigger}
+                    {card.sheetPreEvent.trigger || "—"}
                   </td>
-                  <td className={`${TD} text-slate-600`}>{pre.max}</td>
+                  <td className={`${TD} text-slate-600`}>
+                    {card.sheetPreEvent.max || "—"}
+                  </td>
                   <td
                     className={`${TD} max-w-52 truncate text-left text-slate-600`}
                     title={pre.content}

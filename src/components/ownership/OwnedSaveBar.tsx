@@ -68,7 +68,7 @@ export default function OwnedSaveBar({
 
   const doLoad = () => {
     if (!selected) return;
-    levels.replaceAll(selected.levels);
+    levels.replaceAll(selected.levels, selected.cardCount);
     if (selected.pIdols) pIdols.replaceAll(selected.pIdols);
     setMessage(
       `「${selected.name}」を読み込みました（サポカ${Object.keys(selected.levels).length}枚${

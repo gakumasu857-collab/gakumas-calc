@@ -132,6 +132,8 @@ export type CalcSaveSnapshot = {
   eventCounts: Record<string, EventCountOverride>;
   /** 所持状況（サポカ凸・Pアイドルの特訓/開花） */
   ownedLevels: Record<string, number>;
+  /** 保存時のサポカDB枚数（無いカードを未所持/新カードに振り分ける。旧データには無い） */
+  ownedCardCount?: number;
   pIdols: Record<string, PIdolOwnership>;
 };
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { useSaveNotifier } from "./storeSync";
 import type { PIdolOwnership } from "./useOwnedPIdols";
 
@@ -21,6 +22,12 @@ export type OwnedSave = {
   pIdols?: Record<string, PIdolOwnership>;
   /** 計算ページのセーブデータに紐づくものはそのセーブID */
   saveId?: string;
+  /**
+   * 保存時のサポカDBの枚数（実装順）。読み込み時、levels に無いカードを
+   * 「保存時に存在した＝未所持」「保存後に実装＝完凸」に振り分けるのに使う。
+   * 無い旧データは全て未所持扱い。
+   */
+  cardCount?: number;
 };
 
 function load(): OwnedSave[] {
@@ -64,10 +71,13 @@ export function useOwnedSaves() {
         : undefined;
       const id = existing?.id ?? `own-${crypto.randomUUID()}`;
       const savedAt = new Date().toLocaleDateString("ja-JP");
+      const cardCount = SUPPORT_CARD_DB.length;
       setSaves((prev) =>
         prev.some((s) => s.id === id)
-          ? prev.map((s) => (s.id === id ? { ...s, ...entry, savedAt } : s))
-          : [...prev, { id, savedAt, ...entry }],
+          ? prev.map((s) =>
+              s.id === id ? { ...s, ...entry, savedAt, cardCount } : s,
+            )
+          : [...prev, { id, savedAt, ...entry, cardCount }],
       );
       return id;
     },
@@ -84,8 +94,11 @@ export function useOwnedSaves() {
       },
     ) => {
       const savedAt = new Date().toLocaleDateString("ja-JP");
+      const cardCount = SUPPORT_CARD_DB.length;
       setSaves((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, ...entry, savedAt } : s)),
+        prev.map((s) =>
+          s.id === id ? { ...s, ...entry, savedAt, cardCount } : s,
+        ),
       );
     },
     [],

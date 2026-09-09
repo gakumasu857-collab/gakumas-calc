@@ -88,10 +88,24 @@ export function useOwnedLevels() {
     });
   }, []);
 
-  /** 所持状況をまるごと置き換える（セーブデータの読み込み用） */
-  const replaceAll = useCallback((snapshot: LevelMap) => {
-    setLevels({ ...snapshot });
-  }, []);
+  /**
+   * 所持状況をまるごと置き換える（セーブデータの読み込み用）。
+   * スナップショットに無いカードは明示的に埋める:
+   *   保存時に存在していたカード（実装順 index < knownCount）→ 未所持(-1)
+   *   保存後に実装されたカード → 完凸(4)
+   * knownCount が無い旧スナップショット（キー無し＝未所持の時代）は全て未所持扱い。
+   */
+  const replaceAll = useCallback(
+    (snapshot: LevelMap, knownCount?: number) => {
+      const next: LevelMap = { ...snapshot };
+      SUPPORT_CARD_DB.forEach((c, i) => {
+        if (c.id in next) return;
+        next[c.id] = knownCount !== undefined && i >= knownCount ? 4 : -1;
+      });
+      setLevels(next);
+    },
+    [],
+  );
 
   return {
     levels,

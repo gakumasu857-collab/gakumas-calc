@@ -9,6 +9,7 @@
  *   各ページからも呼び出せるようにするためで、増えても既定では畳んで表示する。
  */
 import type { AbilityName } from "@/data/constants";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import type { CalcSave, CalcSaveSnapshot } from "./useCalcSettings";
 import type { useCalcResult } from "./useCalcResult";
 import type { useOwnedSaves } from "./useOwnedSaves";
@@ -56,6 +57,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
     slots: [...r.selected.slots],
     eventCounts: { ...r.events.map },
     ownedLevels: { ...r.ownedLevels.levels },
+    ownedCardCount: SUPPORT_CARD_DB.length,
     pIdols: { ...r.pIdols.map },
   };
 }
@@ -145,7 +147,7 @@ export function applySave(
 
   r.selected.setAll(snap.slots);
   r.events.replaceAll(snap.eventCounts);
-  r.ownedLevels.replaceAll(snap.ownedLevels);
+  r.ownedLevels.replaceAll(snap.ownedLevels, snap.ownedCardCount);
   r.pIdols.replaceAll(snap.pIdols);
   return { full: true };
 }

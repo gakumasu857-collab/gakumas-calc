@@ -74,6 +74,12 @@ export type SupportCardData = {
   statEventType: string;
   /** 前イベの構造化詳細（トリガー・強さ・発動内容） */
   preEvent: PreEventInfo;
+  /**
+   * スプシの「前イベ起動タグ」「最大発動回数」の生値（データベース表示用）。
+   * 計算用の preEvent はスキル前イベに「初期値・1回」を補完しているが、
+   * データベースページはスプシと同期した見た目にするため補完前の値を出す。
+   */
+  sheetPreEvent: { trigger: string; max: string };
   /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
   searchWords: string[];
   /** 前イベで得るアイテム/スキルの正式名（スプシ item_name 列。無ければ""） */
@@ -187,13 +193,6 @@ const STAT_EVENT_KEY_OF: Record<string, string> = {
   Pポイントイベント: "p_point_event",
   回復イベント: "recovery_event",
 };
-
-/** 「SP枠」判定に使う SPレッスン率アップ系のアビリティキー（自タイプ・全タイプ） */
-const SP_UP_ABILITY_KEYS = new Set<string>([
-  "up_SP_lesson_rate",
-  "all_sp_lesson_rate_14",
-  "all_sp_lesson_rate_28",
-]);
 
 /** サポカのタイプ（英語）→ アプリ内の表記 */
 const CARD_TYPE_JP: Record<string, string> = {
@@ -379,19 +378,6 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     else if (col === "skill_del") setNum(key, Math.max(base, anyDel));
     else setNum(key, base);
   }
-  // 表示用の「枠」「属性」。スプシの SP / 役割 列は廃止（2026-09）のため、
-  // SPレッスン率アップ系アビリティの有無 と 使用制限＋タイプ から派生させる
-  // （役割 = 使用制限 + タイプ(英語) + 枠。例: 共通VisualSP枠 / センスDanceステ枠）
-  const slot = abilities.some(
-    (a) => a !== null && "key" in a && SP_UP_ABILITY_KEYS.has(a.key),
-  )
-    ? "SP枠"
-    : "ステ枠";
-  extras["枠"] = slot;
-  extras["属性"] = `${str(row[COL.plan])}${str(row[COL.cardType])}${slot}`.replace(
-    "Assist",
-    "アシスト",
-  );
   setNum("アイテムPポ", numOf(row.p_point));
   // このアイテムの取得が「Pアイテム獲得(6回まで)」アビリティにカウントされるか
   // （sheetScore のイベント相互作用が参照。item_name だけのアイテムはカウントされない）
@@ -425,6 +411,7 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     preEventType,
     postEventType,
     preEvent: buildPreEvent(preEventType, extras),
+    sheetPreEvent: { trigger: str(row.triggered_by), max: str(row.max) },
     // 区切りは半角カンマのみ（「その本、おもしろい？」のように語の中に
     // 読点が入るため、読点では区切らない。スプシ側も , 区切りで統一されている）
     searchWords: str(row.Search_word)
