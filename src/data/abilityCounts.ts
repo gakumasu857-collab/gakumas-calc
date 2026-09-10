@@ -42,6 +42,7 @@ export const ABILITY_CATEGORIES = [
       "A_skill_del_ut3",
       "M_skill_del_ut3",
       "change_ut3",
+      "basic_change_ut3",
       "skill_exchange_ut5",
     ],
   },
@@ -59,6 +60,7 @@ export const ABILITY_CATEGORIES = [
       "meeting_ut2",
       "supply_ut2",
       "stage_finish_ut2",
+      "stage_finish_15plus_ut5",
     ],
   },
   {

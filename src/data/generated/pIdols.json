@@ -606,6 +606,17 @@
    "growthTag": "有村麻央SSRシーズン"
   },
   {
+   "url": "skill/受け止める光.webp",
+   "idol": "有村麻央",
+   "cardName": "標",
+   "skillName": "受け止める光",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "有村麻央標",
+   "growthTag": "有村麻央SSR"
+  },
+  {
    "url": "skill/内気系少女.webp",
    "idol": "葛城リーリヤ",
    "cardName": "学園生活",
@@ -881,6 +892,17 @@
    "growthTag": "倉本千奈SSRシーズン"
   },
   {
+   "url": "skill/出発進行ですわ～♪.webp",
+   "idol": "倉本千奈",
+   "cardName": "標",
+   "skillName": "出発進行ですわ～♪",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "倉本千奈標",
+   "growthTag": "倉本千奈SSR"
+  },
+  {
    "url": "skill/フレンドリー.webp",
    "idol": "紫雲清夏",
    "cardName": "学園生活",
@@ -1000,6 +1022,17 @@
    "effect": "強気",
    "key": "紫雲清夏ときめきエモーション",
    "growthTag": "紫雲清夏SSRシーズン"
+  },
+  {
+   "url": "skill/応えたい気持ち.webp",
+   "idol": "紫雲清夏",
+   "cardName": "標",
+   "skillName": "応えたい気持ち",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "紫雲清夏標",
+   "growthTag": "紫雲清夏SSR"
   },
   {
    "url": "skill/超高学歴アイドル.webp",

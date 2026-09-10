@@ -21,5 +21,5 @@ export const FIXED_ABILITY_COUNTS: Record<string, FixedCount> = {
   パラメータイベント: { normal: 1, hatsu: 1, hif: 1 },
   SPレッスン率: { normal: 1, hatsu: 1, hif: 1 },
   何もなし: { normal: 0, hatsu: 0, hif: 0 },
-  "試験・オーディション": { normal: 3, hatsu: 2, hif: 5 },
+  試験・オーディション: { normal: 3, hatsu: 2, hif: 5 },
 };

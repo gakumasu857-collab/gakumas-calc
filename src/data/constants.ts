@@ -132,6 +132,9 @@ export const ABILITY_NAMES = {
   focus_8plus_ut4: "集中8枚以上スキル獲得(4回まで)",
   drink_get_ut10: "ドリンク獲得(10回まで)",
   skill_exchange_ut5: "スキル交換(5回まで)",
+  // 2026-09 新カード「もうすぐ本番ですね」のアビリティ
+  basic_change_ut3: "基本チェンジ(3回まで)",
+  stage_finish_15plus_ut5: "15枚以上試験・オーディション(5回まで)",
   nothing: "なし",
 } as const satisfies Record<string, string>;
 export type AbilityName = keyof typeof ABILITY_NAMES;
@@ -160,6 +163,9 @@ const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   "Pドリンク獲得": "drink_get",
   "Pドリンク交換": "drink_exchange",
   "好印象8枚以上(4回まで)": "charm_8plus_ut4", // NIAタブは旧名（HIFは新名「〜スキル獲得〜」）
+  // 発動回数タブの行名が「(2回まで)」になっているが、カードのアビリティ・abilityValues は
+  // 「(5回まで)」（値も5）。同じアビリティとして受ける（スプシ側は行名を(5回まで)に直すのが本筋）
+  "15枚以上試験・オーディション(2回まで)": "stage_finish_15plus_ut5",
 };
 
 /** ラベルの正規化: 全角括弧→半角、空白除去。照合はこの形で行う */
