@@ -1344,7 +1344,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
                 {/* カード */}
                 <td className={`${td} min-w-44`}>
                   <span className="flex items-center gap-1.5">
-                    <CardThumb name={card.name} image={card.imageUrl} id={card.id} />
+                    <CardThumb name={card.name} id={card.id} />
                     <span className="max-w-36 truncate font-medium" title={card.name}>
                       {card.name}
                     </span>
@@ -1418,13 +1418,11 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
 function CardThumb({
   id,
   name,
-  image,
 }: {
   id: string;
   name: string;
-  image: string;
 }) {
-  const url = imageUrl(SUPPORT_IMAGE_BY_ID.get(id) ?? image);
+  const url = imageUrl(SUPPORT_IMAGE_BY_ID.get(id) ?? "");
   if (!url) return <span className="inline-block h-7 w-14 shrink-0 rounded bg-slate-200" />;
   return (
     <img

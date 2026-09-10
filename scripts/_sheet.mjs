@@ -1,6 +1,6 @@
 /**
  * 現行スプシのマスタを R2（Worker /api/master）から取得する共通ヘルパ。
- * データ源は「スプシ→Worker(cron 5分)→R2」で常に最新。gen スクリプトはここから引く。
+ * データ源は「スプシ→Worker（gen:all 前の同期 or 毎日3時の cron）→R2」。gen スクリプトはここから引く。
  * 別エンドポイントを使うときは環境変数 SHEET_API で上書き。
  */
 const BASE = process.env.SHEET_API ?? "https://gkapps.hoppepan.com";

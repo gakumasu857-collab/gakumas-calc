@@ -25,7 +25,6 @@ const TYPE_CHIP: Record<TypeKey, string> = {
 /**
  * 理論評価値を求めるときの前提設定をまとめるモーダル。
  * 取得回数（前イベ取得・後イベ発動の上限）／踏み方のタイプ割合／試験補助。
- * ※前イベの強さ（カード別）は今後追加予定。
  */
 export function TheorySettingsModal({
   settings,

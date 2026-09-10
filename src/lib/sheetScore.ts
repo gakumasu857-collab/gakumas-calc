@@ -1,9 +1,8 @@
 /**
  * スプシ（HIF計算機）準拠のサポカ点数エンジン。
  *
- * ロジックはメイン1DB!F2のLET式の忠実移植で、
- * sheet-source/verify.js により全2,670点（178カード×0〜4凸×3ロール）が
- * シートの計算済み値と一致することを検証済み（npm run verify:sheet）。
+ * ロジックはスプシ「メイン1DB」の計算式の移植で、移植時（2026-07）に全カード×全凸の
+ * 点数がスプシの計算済み値と一致することを確認した。以後の仕様変更はベンチで回帰確認する。
  *
  * 点数(凸, ロール) = Σ アビリティ1,2,4,5,6:            ※アビリティ3は計算対象外
  *   ティア = 強化段階[レアリティ×枠][凸]（Ⅰ〜Ⅴ）
@@ -39,7 +38,7 @@ const normAbi = (s: string): string =>
   s.replace(/（/g, "(").replace(/）/g, ")").replace(/\s+/g, "");
 /**
  * アビリティ性能を「レアリティ×アビリティ名」で引く（括弧表記ゆれに非依存）。
- * 探索（焼きなまし）から毎評価呼ばれるため、正規化と連結の結果をメモ化する。
+ * 探索から毎評価呼ばれるため、正規化と連結の結果をメモ化する。
  */
 const perfCache = new Map<string, PerfEntry | undefined>();
 function perfOf(rarity: string, abiName: string): PerfEntry | undefined {
@@ -271,11 +270,6 @@ const SKILL_FLAG_KEYS = [
  */
 export const ANY_SKILL_TAG_KEYS: string[] = [...SKILL_FLAG_KEYS];
 
-/** 前イベに「任意スキル獲得」（分類をユーザーが選ぶスキル獲得）があるか */
-export function hasAnySkillAc(card: SupportCardData): boolean {
-  return (Number(card.extras["任意スキル獲得"] ?? 0) || 0) > 0;
-}
-
 /** 任意スキル獲得の1発動あたりの回数 */
 export function anySkillAcPer(card: SupportCardData): number {
   return Number(card.extras["任意スキル獲得"] ?? 0) || 0;
@@ -299,7 +293,6 @@ const POST_EVENT_KEY: Record<string, string> = {
   強化: "スキル強化",
   チェンジ: "チェンジ（3回まで）",
   トラブル削除: "スキル削除",
-  体力回復: "体力回復",
 };
 
 /** ステータスに影響する後イベか（強化・チェンジ・削除系。体力回復等は対象アビリティなし） */
@@ -717,9 +710,6 @@ export type SheetScoreContext = {
   eventCounts?: (cardId: string) => EventCountOverride | undefined;
 };
 
-/** 「○○率」で補正するイベント系アビリティ（値 = floor(基本値 × (1 + 率))） */
-const EVENT_RATE_LABELS = new Set(["パラメータイベント", "Pポイントイベント"]);
-
 /** ティア表で未入力（null）のときは定義済みの最も近い下位ティアの値を使う */
 function nearestTierValue(
   tiers: (number | null)[],
@@ -733,28 +723,18 @@ function nearestTierValue(
 }
 
 /**
- * アビリティ枠の効果量。
- * パラメータイベント・Pポイントイベントは 2026-09 のスプシ仕様で
- * 「基本値（例: SSR 20）× (1 + パラメータイベント率[同じ枠のティア])」に変わった
- * （SSR完凸 = 20×(1+1) = 40。率は足し算で乗る。端数は切り捨て）。
- * ○○率が未登録の旧データは従来どおりティア表の値をそのまま返す。
+ * アビリティ枠の効果量（ティア表の値）。
+ * イベント本体（パラメータ/Pポイント/回復イベント）は枠ではなくステイベ・前イベ・後イベ列で
+ * 持ち、値は eventValue()（基本値 × (1 + 率アビ)）で出す。
  */
 export function abilitySlotValue(
-  rarity: string,
-  abiName: string,
+  _rarity: string,
+  _abiName: string,
   perf: PerfEntry,
   tier: number,
 ): number | null {
   const raw = perf.tiers[tier];
-  if (!EVENT_RATE_LABELS.has(abiName)) {
-    return typeof raw === "number" ? raw : null;
-  }
-  const ratePerf = perfOf(rarity, `${abiName}率`);
-  if (!ratePerf) return typeof raw === "number" ? raw : null;
-  const base = nearestTierValue(perf.tiers, tier);
-  if (base === null) return null;
-  const rate = nearestTierValue(ratePerf.tiers, tier) ?? 0;
-  return Math.floor(base * (1 + rate) + 1e-9);
+  return typeof raw === "number" ? raw : null;
 }
 
 /**
@@ -768,7 +748,7 @@ export function sheetScore(
   ctx: SheetScoreContext,
 ): number | null {
   const tiers = SLOT_TIER[card.rarity as Rarity];
-  if (!tiers) return null; // R等はティア表なし
+  if (!tiers) return null; // ティア表の無いレアリティは点数計算の対象外
 
   let total = 0;
   // アビリティ3(index2)は対象外
@@ -784,7 +764,6 @@ export function sheetScore(
 
     // パラメータイベントは枠ではなくステイベ（statEventType）として下で計上する
     // （旧形式で枠に「パラメータイベント」が入っていても二重計上しない）
-    if (abiName === STAT_EVENT_KEY) continue;
     const tier = tiers[slotIndex]?.[tsuki]; // 0..4 (Ⅰ..Ⅴ)
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
@@ -898,11 +877,6 @@ export function sheetScoreBreakdown(
       continue;
     }
 
-    if (abiName === STAT_EVENT_KEY) {
-      // 旧形式の枠のパラメータイベントはステイベ側（slot 0）で計上する
-      items.push({ ...base, tier: null, kind: "none", value: null, points: 0 });
-      continue;
-    }
     const tier = tiers[slotIndex]?.[tsuki];
     if (tier === undefined) return null;
     const perf = perfOf(card.rarity, abiName);
@@ -1006,10 +980,8 @@ const P_FLAT_LABELS = new Set(["Pポイント", "Pポイントイベント"]);
 const RECOVER_LABELS = new Set([
   "SPレッスン時回復",
   "タイプSPレッスン時回復",
-  "SPレッスン回復",
-  "タイプSPレッスン回復",
   "差し入れ時回復",
-  "試験終了時回復",
+  "試験・オーディション回復",
   "回復イベント",
   "休む",
 ]);
@@ -1074,7 +1046,6 @@ export function cardResources(
       };
       // Pポイント（固定値）は初期値と同じく1回発動、Pポイントイベントも1育成1回
       // Pポイントイベント・回復イベントは枠ではなくステイベ（statEventType）で計上する
-      if (abiName === "Pポイントイベント" || abiName === "回復イベント") return;
       if (P_FLAT_LABELS.has(abiName)) out.p += value;
       else if (abiName === "レッスンPポイント率") out.pRateLesson += value;
       else if (abiName === "タイプSPレッスンPポイント率")

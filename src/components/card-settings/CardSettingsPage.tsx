@@ -259,7 +259,7 @@ export default function CardSettingsPage() {
           </thead>
           <tbody>
             {visible.map((card) => {
-              const url = imageUrl(IMAGE_BY_ID.get(card.id) ?? card.imageUrl);
+              const url = imageUrl(IMAGE_BY_ID.get(card.id) ?? "");
               const type = TYPE_OF_CARD[card.cardType];
               const role = type ? typeRole[type] : undefined;
               const preRelevant = preEventStatRelevant(card);

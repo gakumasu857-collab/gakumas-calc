@@ -13,7 +13,6 @@
  *   1行目: プランのタグ行（左上セルは空。無いタブもある）
  *   次の行: 「アビリティ」＋セット名
  *   以降  : アビリティ名＋回数
- * 旧形式（1行目がヘッダーのオブジェクト配列）が来た場合にも対応する。
  * 新アビリティ/新セット/プランはスプシに行・列を足せばそのまま反映される（自己完結）。
  */
 import { writeFileSync } from "node:fs";
@@ -52,22 +51,11 @@ function gridToTable(grid) {
   return { setNames, plans, rows };
 }
 
-/** 旧形式（オブジェクト配列）→ { setNames, plans, rows }（プランなし） */
-function recordsToTable(tabRows) {
-  const setNames = Object.keys(tabRows[0] ?? {}).filter((k) => k !== KEY_COL);
-  const rows = {};
-  for (const r of tabRows) {
-    const label = String(r[KEY_COL] ?? "").trim();
-    if (!label) continue;
-    rows[label] = setNames.map((s) => num(r[s]));
-  }
-  return { setNames, plans: setNames.map(() => ""), rows };
-}
-
 const out = {};
 for (const [key, tab] of Object.entries(TABS)) {
   const rows = await fetchTab(tab);
-  out[key] = Array.isArray(rows[0]) ? gridToTable(rows) : recordsToTable(rows);
+  if (!Array.isArray(rows[0])) throw new Error(`${tab}: グリッド形式（worker/lib/sync.js の GRID_TABS）で同期されていません`);
+  out[key] = gridToTable(rows);
 }
 
 writeFileSync(outPath, JSON.stringify(out, null, 1), "utf8");

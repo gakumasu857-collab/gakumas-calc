@@ -109,15 +109,12 @@ export const ABILITY_NAMES = {
   p_point: "Pポイント",
   p_point_rate_type_sp: "タイプSPレッスンPポイント率",
   p_point_rate_lesson: "レッスンPポイント率",
-  recovery_sp: "SPレッスン回復",
-  recovery_type_sp: "タイプSPレッスン回復",
   recovery_stage_finish: "試験・オーディション回復",
   // 現行スプシ(abilityValues)にあるが従来コード化していなかった非スコア寄りアビリティ。
   // スコアはrawラベル経由でperfに一致して計算済み（ここは表示・dev警告解消・アビリティ一覧の
   // 完全化のための登録で点数は不変）。回復・率・Pポイント系は発動回数0に解決＝非スコア。
   // ラベルは半角括弧（照合はnormalizeLabelで全角/半角・空白を吸収）。
   lesson_support_rate: "レッスンサポート率",
-  // 旧「全SPレッスン率(14%)」。スプシ改名で%なし表記になった（perfにティア値あり）
   all_sp_lesson_rate_14: "全SPレッスン率",
   all_sp_lesson_rate_28: "全SPレッスン率(28%)",
   meeting_drink_discount: "相談ドリンク割引",
@@ -146,23 +143,11 @@ export type AbilityName = keyof typeof ABILITY_NAMES;
 const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
   "SPレッスン率": "up_SP_lesson_rate",
   何もなし: "nothing",
-  体力なし: "nothing",
-  "試験終了時": "stage_finish_ut2",
-  // 2026-08 スプシ改名の旧ラベル（localStorage・発動回数タブの旧行名等の互換）
-  "試験終了時(2回まで)": "stage_finish_ut2",
-  "試験・オーディション終了時": "stage_finish_ut2",
-  "試験・オーディション終了時(2回まで)": "stage_finish_ut2",
-  "試験終了時回復": "recovery_stage_finish",
-  "全SPレッスン率(14%)": "all_sp_lesson_rate_14",
-  // 前イベのトリガー列（triggered_by）は括弧なし表記
+  // 前イベ起動タグ列は括弧なし表記
   特別指導: "extra_lecture_ut3",
-  // supMaster で英語キーのまま残っているセルの受け皿（本来スプシ側で「差し入れ時回復」に直す）
-  recovery_supply: "recovery_supply",
-  // 発動回数タブ(abilityCountsHIF/NIA)は旧名のままの行があるので受ける
-  // （abilityValues/supMaster は改名済み。将来スプシ側で統一するのが本筋）
+  // 発動回数タブ(NIA)の行名がこの表記のまま
   "Pドリンク獲得": "drink_get",
   "Pドリンク交換": "drink_exchange",
-  "好印象8枚以上(4回まで)": "charm_8plus_ut4", // NIAタブは旧名（HIFは新名「〜スキル獲得〜」）
   // 発動回数タブの行名が「(2回まで)」になっているが、カードのアビリティ・abilityValues は
   // 「(5回まで)」（値も5）。同じアビリティとして受ける（スプシ側は行名を(5回まで)に直すのが本筋）
   "15枚以上試験・オーディション(2回まで)": "stage_finish_15plus_ut5",

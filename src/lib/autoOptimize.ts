@@ -67,7 +67,7 @@ import {
 } from "./formation";
 import { calcMemoryTotals, resolveParaboMemory } from "./memoryTotals";
 import type { Memory } from "./memoryTypes";
-import { climbStepping } from "./optimize/anneal";
+import { climbStepping } from "./optimize/climb";
 import {
   buildSeeds,
   EXAM_RATIOS_FINE,
@@ -103,9 +103,9 @@ import {
 } from "./useSchedule";
 
 /** 踏み方探索（編成固定）で山登りをかけるシード数（決定的） */
-const CLIMB_STARTS = 6;
-/** 全体の探索時間の上限（約5秒。超えたら新しい段階・ラウンドを始めない） */
-const TIME_BUDGET_MS = 6200;
+const CLIMB_STARTS = 4;
+/** 全体の探索時間の目安（超えたら時計依存の段階・ラウンドを始めない。件数保証の段階は超えても回る） */
+const TIME_BUDGET_MS = 7000;
 /** 決定的探索（分割列挙＋編成ビーム）に使う時間 */
 const SEARCH_PHASE_MS = 3000;
 /** 末尾の結合手（スワップ×レッスンflip）用に予約する時間 */
@@ -122,7 +122,11 @@ const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
 /** 非HIFでグリーディ組成を回す分割数（下見上位から。1回 ~50-100ms） */
-const GREEDY_PARTS = 12;
+const GREEDY_PARTS = 6;
+/** 踏み方を入念に詰め直す候補数（上位。1候補あたり約1秒かかるため絞る） */
+const POLISH_FINALISTS = 3;
+/** 仕上げの相互詰め（refineLoop）で時計に関係なく必ず回すラウンド数 */
+const MIN_REFINE_ROUNDS = 2;
 /** 詰め直し（polish）まで持ち越す「カードセットの異なる」候補数 */
 const SEARCH_FINALISTS = 4;
 /**
@@ -171,7 +175,15 @@ export type AutoOptimizeInput = {
   eventCounts: SheetScoreContext["eventCounts"];
   getLevel: (id: string) => number;
   flags: CardFlagSets;
+  /** SP率持ちの最低枚数（タイプ別。spTop があれば踏み方ごとに上書きする） */
   spMin: SpMinCondition;
+  /**
+   * 「レッスンを多く踏む上位タイプにSP率持ちN枚」の条件。
+   * 上位タイプは候補の踏み方から決めるので、今の踏み方に引きずられない
+   */
+  spTop?: { first: number; second: number };
+  /** 今の編成（候補として含める。条件を満たす限り結果がこれより悪くならない） */
+  currentSlots?: SelectedSlot[];
   /**
    * 編成全体の前イベ・後イベの合計発動回数の上限。
    * 実際の合計が超える分は比例配分でスケールして評価する（未指定は制限なし）。
@@ -321,7 +333,52 @@ type Ectx = {
    * SPの有無・踏まない日で★が変わるため、目的関数に入れて評価値と向きを揃える。
    */
   starStat: number;
+  /** この踏み方でのSP率持ち最低枚数（spTop を踏み方の上位タイプに割り当てたもの） */
+  spMin: SpMinCondition;
 };
+
+/**
+ * 授業（HIF 6コマ／初 4コマ）のタイプ割り当て候補。コマごとに獲得量が違うため
+ * 全割り当て（3^n）を列挙し、タイプ別合計が同じものは1つに圧縮する
+ * （2タイプまでの割り当てに限定。HIFは729通り→約30通り）。
+ * 編成候補の評価と踏み方の仕上げで使う。
+ */
+const CLASS_VARIANT_CACHE = new Map<string, TypeKey[][]>();
+function classVariants(gains: readonly number[]): TypeKey[][] {
+  const key = gains.join(",");
+  const hit = CLASS_VARIANT_CACHE.get(key);
+  if (hit) return hit;
+  const seen = new Set<string>();
+  const out: TypeKey[][] = [];
+  const assign: TypeKey[] = new Array(gains.length);
+  const walk = (i: number, vo: number, da: number, vi: number): void => {
+    if (i === gains.length) {
+      // 3タイプに散らす割り当ては実用上ほぼ勝たないので除外（候補を約1/3に圧縮）
+      if (vo > 0 && da > 0 && vi > 0) return;
+      const sig = `${vo},${da},${vi}`;
+      if (seen.has(sig)) return;
+      seen.add(sig);
+      out.push([...assign]);
+      return;
+    }
+    assign[i] = "vocal";
+    walk(i + 1, vo + gains[i], da, vi);
+    assign[i] = "dance";
+    walk(i + 1, vo, da + gains[i], vi);
+    assign[i] = "visual";
+    walk(i + 1, vo, da, vi + gains[i]);
+  };
+  walk(0, 0, 0, 0);
+  CLASS_VARIANT_CACHE.set(key, out);
+  return out;
+}
+
+/** 踏み方の授業割り当て候補（授業のあるシナリオだけ。NIAは営業なので対象外） */
+function classVariantsOf(s: Stepping): TypeKey[][] {
+  if (s.kind === "hif") return classVariants(CLASSES.map((c) => c.gain));
+  if (s.kind === "hatsu") return classVariants(HATSU_CLASSES.map((c) => c.gain));
+  return [];
+}
 
 /** 同じ6枚（レンタル区別）か */
 function sameSlots(a: SelectedSlot[], b: SelectedSlot[]): boolean {
@@ -373,11 +430,42 @@ export function runFullOptimize(
     );
     if (!dup) finalists.push(a);
   }
+  // 今の編成＋今の踏み方も候補に入れる（使えるカードだけで組めているとき）。
+  // 探索がこれを下回ることがなくなり、押すたびに悪化しない
+  let currentCand: (typeof finalists)[number] | undefined;
+  const cur = input.currentSlots;
+  if (
+    cur &&
+    cur.length === 6 &&
+    cur.every(
+      (x) =>
+        !input.flags.banned.has(x.id) &&
+        (!DB_BY_ID.get(x.id) || planAllows(DB_BY_ID.get(x.id)!.plan, input.plan)),
+    )
+  ) {
+    const stepping = engine.initialStepping();
+    const ectx = engine.buildEctx(stepping);
+    const ev = engine.preciseObjective(cur, ectx);
+    if (ev.members.length === 6) {
+      currentCand = {
+        stepping,
+        slots: cur.map((x) => ({ ...x })),
+        score: ev.obj,
+        spShortfall: spConditionShortfall(ev.members, ectx.spMin),
+      };
+      finalists.push(currentCand);
+    }
+  }
   if (input.scenario !== "hif") {
     engine.deadline = finalDeadline - JOINT_RESERVE_MS;
   }
+  // 詰め直すのは点数上位 POLISH_FINALISTS 件＋今の編成（1候補あたり約1秒）
+  const polishList = [...finalists]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, POLISH_FINALISTS);
+  if (currentCand && !polishList.includes(currentCand)) polishList.push(currentCand);
   let polishedBest = best;
-  for (const f of finalists) {
+  for (const f of polishList) {
     const cand = { ...f };
     const p = engine.optimizeStepping(cand.slots);
     if (p && p.score > cand.score) {
@@ -416,7 +504,7 @@ export function runFullOptimize(
       best.stepping = climbed.stepping;
       best.score = climbed.score;
     }
-    const fine = engine.refineExams(best.slots, best.stepping, best.score);
+    const fine = engine.refineExamsAndClasses(best.slots, best.stepping, best.score);
     if (fine && fine.score > best.score + 1e-9) {
       best.stepping = fine.stepping;
       best.score = fine.score;
@@ -480,7 +568,7 @@ export function runFullOptimize(
             // 採用軸は仕上げ後の評価値（＝反映される値）、他は本探索時点の値
             rating: chosen ? rating : engine.fullRating(c.stepping, cappedSum, mem),
             chosen,
-            issues: chosen ? [] : engine.conditionIssues(mem, stats),
+            issues: chosen ? [] : engine.conditionIssues(mem, stats, ectx.spMin),
           };
         })
         .sort((a, b) => b.rating - a.rating);
@@ -510,9 +598,15 @@ export function optimizeSteppingForSlots(
   engine.deadline = t0 + TIME_BUDGET_MS * 0.9;
   let best = engine.optimizeStepping(slots);
   if (!best) return null;
-  // 仕上げ: 選抜スコアの細分配（上限ちょうどへの寄せ）
+  // 今の踏み方も候補にする（探索がそれを下回ることがないように）
+  {
+    const current = engine.initialStepping();
+    const score = engine.preciseObjective(slots, engine.buildEctx(current)).obj;
+    if (score > best.score) best = { stepping: current, score };
+  }
+  // 仕上げ: 選抜スコアの細分配（上限ちょうどへの寄せ）と授業の総当たり
   engine.deadline = finalDeadline;
-  const fine = engine.refineExams(slots, best.stepping, best.score);
+  const fine = engine.refineExamsAndClasses(slots, best.stepping, best.score);
   if (fine && fine.score > best.score) best = fine;
   const ectx = engine.buildEctx(best.stepping);
   const { cappedSum } = engine.preciseObjective(slots, ectx);
@@ -527,7 +621,7 @@ export function optimizeSteppingForSlots(
  *                  optimizeStepping / searchStepping
  * 3. 評価        : buildEctx / preciseObjective / preciseMembers
  * 4. 編成・仕上げ: allocateEvents / buildFormation / fullRating / buildDebug
- * 踏み方そのものの定義と局所探索は optimize/stepping.ts・optimize/anneal.ts 側。
+ * 踏み方そのものの定義と局所探索は optimize/stepping.ts・optimize/climb.ts 側。
  * export は開発検証用（devHarness）。アプリからは runFullOptimize 経由で使う。
  */
 export class OptimizeEngine {
@@ -609,6 +703,17 @@ export class OptimizeEngine {
     );
   }
 
+  /** 正規形の踏み方（全レッスンをメインVo・全SP・授業visual・選抜一様。探索の土台） */
+  canonicalStepping(): Stepping {
+    const n =
+      this.input.scenario === "hif"
+        ? LESSONS.length
+        : this.input.scenario === "niaMaster"
+          ? NIA_LESSONS.length
+          : HATSU_LESSONS.length;
+    return this.steppingFromPartition([n, 0, 0]);
+  }
+
   initialStepping(): Stepping {
     const { scenario, nia, hatsu, hif } = this.input;
     if (scenario === "niaMaster") {
@@ -647,12 +752,15 @@ export class OptimizeEngine {
   }
 
   /**
-   * 交互反復の起点一覧（初期の踏み方には依存しない固定の格子）。
+   * 踏み方の詰め直し（optimizeStepping）の起点一覧（今の踏み方には依存しない固定の格子）。
    * 「レッスン偏重 Vo/Da/Vi」×「授業/営業 寄せ Vo/Da/Vi」の9起点。
    * 現在の踏み方は起点に含めない（事前の踏み方に結果が左右されないように）。
    */
   startCandidates(): Stepping[] {
-    const base = this.initialStepping();
+    // 土台は今の踏み方ではなく正規形（全SP・授業visual・選抜一様）。
+    // uniformStepping はレッスン/授業/選抜を上書きするが、SPの有無や
+    // 「踏まない」は土台から引き継ぐので、今の設定に引きずられないようにする
+    const base = this.canonicalStepping();
     const pairs: [TypeKey, TypeKey][] = [];
     for (const lessonType of TYPE_KEYS) {
       for (const secondType of TYPE_KEYS) {
@@ -725,6 +833,38 @@ export class OptimizeEngine {
       if (climbed.score > best.score) best = climbed;
     }
     return best;
+  }
+
+  /**
+   * 授業の割り当てを総当たりで詰める（編成固定。HIF・初）。
+   * 1コマずつの山登りだと「2コマ同時に動かすと勝つ」配分に届かないため。
+   */
+  refineClasses(
+    slots: SelectedSlot[],
+    start: Stepping,
+    startScore: number,
+  ): { stepping: Stepping; score: number } | null {
+    const variants = classVariantsOf(start);
+    if (variants.length === 0) return null;
+    let best = { stepping: start, score: startScore };
+    for (const classTypes of variants) {
+      const trial = { ...start, classTypes } as Stepping;
+      const score = this.preciseObjective(slots, this.buildEctx(trial)).obj;
+      if (score > best.score + 1e-9) best = { stepping: trial, score };
+    }
+    return best;
+  }
+
+  /** 選抜の細分配 → 授業の総当たり の順に仕上げる（両方とも編成固定） */
+  refineExamsAndClasses(
+    slots: SelectedSlot[],
+    start: Stepping,
+    startScore: number,
+  ): { stepping: Stepping; score: number } | null {
+    const fine = this.refineExams(slots, start, startScore);
+    const base = fine && fine.score > startScore ? fine : { stepping: start, score: startScore };
+    const cls = this.refineClasses(slots, base.stepping, base.score);
+    return cls && cls.score > base.score ? cls : base;
   }
 
   /**
@@ -1074,7 +1214,7 @@ export class OptimizeEngine {
       }
       // 当たったら選抜の細分配で仕上げる（1回だけ）
       if (improved) {
-        const fine = this.refineExams(best.slots, best.stepping, best.score);
+        const fine = this.refineExamsAndClasses(best.slots, best.stepping, best.score);
         if (fine && fine.score > best.score + 1e-9) {
           best.stepping = fine.stepping;
           best.score = fine.score;
@@ -1213,11 +1353,15 @@ export class OptimizeEngine {
     const evalWith = (slots: SelectedSlot[]) => (s: Stepping) =>
       this.preciseObjective(slots, this.buildEctx(s)).obj;
 
+    // 最初の MIN_REFINE_ROUNDS ラウンドは時計を止めて必ず回す（内側の手も含めて
+    // 結果が時計に依らないように）。以降は残り時間の範囲で続ける
+    const savedDeadline = this.deadline;
     for (let round = 0; round < 6; round++) {
-      if (performance.now() > this.deadline) break;
+      this.deadline = round < MIN_REFINE_ROUNDS ? Infinity : savedDeadline;
+      if (round >= MIN_REFINE_ROUNDS && performance.now() > this.deadline) break;
       let changed = false;
 
-      const fine = this.refineExams(best.slots, best.stepping, best.score);
+      const fine = this.refineExamsAndClasses(best.slots, best.stepping, best.score);
       if (fine && fine.score > best.score + 1e-9) {
         best.stepping = fine.stepping;
         best.score = fine.score;
@@ -1264,14 +1408,18 @@ export class OptimizeEngine {
       if (!changed && !this.jointLessonFormationMove(best)) break;
     }
 
+    this.deadline = savedDeadline;
     // 余り時間で踏み方の広域再探索（改善したら編成・選抜も追い詰め直す）。
-    // 探索は決定的なので、外れたら再挑戦しても同じ結果＝即終了する
-    while (performance.now() < this.deadline - 150) {
+    // 探索は決定的なので、外れたら再挑戦しても同じ結果＝即終了する。
+    // 1回目は時計を止めて必ず試す
+    for (let attempt = 0; ; attempt++) {
+      this.deadline = attempt === 0 ? Infinity : savedDeadline;
+      if (attempt > 0 && performance.now() >= savedDeadline - 150) break;
       const searched = this.searchStepping(best.slots, best.stepping);
       if (searched.score <= best.score + 1e-9) break;
       best.stepping = searched.stepping;
       best.score = searched.score;
-      const fine = this.refineExams(best.slots, best.stepping, best.score);
+      const fine = this.refineExamsAndClasses(best.slots, best.stepping, best.score);
       if (fine && fine.score > best.score + 1e-9) {
         best.stepping = fine.stepping;
         best.score = fine.score;
@@ -1295,6 +1443,24 @@ export class OptimizeEngine {
   }
 
   /** 踏み方から計算コンテキスト・メモリー展開・サポカ抜き基礎ステを作る */
+  /**
+   * 踏み方ごとのSP率持ち最低枚数。spTop（上位タイプにN枚）があれば、その踏み方で
+   * メインを多く踏むタイプ（同数は審査基準順）に first/second を割り当てる。
+   */
+  spMinFor(s: Stepping): SpMinCondition {
+    const top = this.input.spTop;
+    if (!top || (top.first <= 0 && top.second <= 0)) return this.input.spMin;
+    const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    for (const l of s.lessons) if (l.main) counts[l.main]++;
+    const order = [...TYPE_KEYS].sort(
+      (a, b) => counts[b] - counts[a] || this.input.ranks[a] - this.input.ranks[b],
+    );
+    const out: SpMinCondition = { vocal: 0, dance: 0, visual: 0 };
+    out[order[0]] = top.first;
+    out[order[1]] = top.second;
+    return out;
+  }
+
   buildEctx(s: Stepping): Ectx {
     const { input } = this;
     let bd: Record<"lessons" | "classes" | "exams", Record<TypeKey, number>>;
@@ -1380,7 +1546,14 @@ export class OptimizeEngine {
         baseNoConv[type] +
         paraboConvert(basePct[type] / 100, g.lessons, g.exams);
     }
-    return { ctx, baseNoConv, basePct, baseStats, starStat };
+    return {
+      ctx,
+      baseNoConv,
+      basePct,
+      baseStats,
+      starStat,
+      spMin: this.spMinFor(s),
+    };
   }
 
   /**
@@ -1472,7 +1645,7 @@ export class OptimizeEngine {
         ? examAssistSum(members, this.input.examStyleTags)
         : 0) +
       minStatBonus(stats, this.minStatCond) -
-      spConditionShortfall(members, this.input.spMin) * SP_PENALTY;
+      spConditionShortfall(members, ectx.spMin) * SP_PENALTY;
     return { obj, cappedSum, members, stats, overflow };
   }
 
@@ -1733,7 +1906,41 @@ export class OptimizeEngine {
    * 授業/営業は後段（climbStepping・applyClassPreference）が決めるのでここでは一様、
    * 選抜は均等（refineExamsが詰める）、全SP（非SP・踏まないは結合手が試す）。
    */
+  /**
+   * 授業の初期割り当て: 全部visual固定ではなく、その踏み方のサポカ抜き基礎ステで
+   * 上限に対する余裕が大きいタイプへ、獲得の大きいコマから順に配る（水位合わせ）。
+   * 授業を上限で溢れるタイプに置くと、そのタイプのカードが不当に不利になり
+   * 編成探索が歪むため（例: 授業を全部Viに置くとViカードが選ばれなくなる）。
+   */
+  private assignClassesByHeadroom(s: Stepping): Stepping {
+    if (s.kind === "nia") return s;
+    const gains: readonly number[] =
+      s.kind === "hif" ? CLASSES.map((c) => c.gain) : HATSU_CLASSES.map((c) => c.gain);
+    // 授業なし相当の基礎ステ（全visual仮置きの分を差し引く）
+    const base = this.buildEctx(s).baseStats;
+    const proj: Record<TypeKey, number> = { ...base };
+    proj.visual -= gains.reduce((a, b) => a + b, 0);
+    const order = gains
+      .map((g, i) => ({ g, i }))
+      .sort((a, b) => b.g - a.g || a.i - b.i);
+    const classTypes = [...s.classTypes];
+    for (const { g, i } of order) {
+      const pick = [...TYPE_KEYS].sort(
+        (a, b) =>
+          proj[a] / this.caps[a] - proj[b] / this.caps[b] ||
+          this.input.ranks[a] - this.input.ranks[b],
+      )[0];
+      classTypes[i] = pick;
+      proj[pick] += g;
+    }
+    return { ...s, classTypes } as Stepping;
+  }
+
   private steppingFromPartition(part: [number, number, number]): Stepping {
+    return this.assignClassesByHeadroom(this.steppingFromPartitionRaw(part));
+  }
+
+  private steppingFromPartitionRaw(part: [number, number, number]): Stepping {
     // 日割り当ての初期配置: 枚数の多いタイプから順に、獲得の大きい日を取る
     // （少数タイプは小さい日に置くのが概ね最適。細部は swapLessonPicks が詰める）
     const dayGains: number[] =
@@ -1870,6 +2077,8 @@ export class OptimizeEngine {
        *  「この編成はDaに寄せると勝つ」型の結合解を拾う（HIFのみ） */
       stepping?: Stepping;
       examFinalists?: number;
+      /** 上位何編成を授業割り当ての総当たりでも評価するか（0=しない。下見は0） */
+      classFinalists?: number;
     },
   ): { members: ScoredCard[]; obj: number; stepping?: Stepping } | null {
     const beamWidth = opts?.beamWidth ?? 220;
@@ -2014,8 +2223,16 @@ export class OptimizeEngine {
     // 編成⇄選抜の結合: 上位の編成候補を「選抜の寄せ方」プリセットでも評価する。
     // 均等選抜では2位でも、Daに寄せると1位になる編成（上限溢れの解消型）を拾う。
     const baseStepping = opts?.stepping;
-    if (baseStepping && baseStepping.kind === "hif" && best) {
+    // 編成ごとの「今のところ最良の踏み方と点数」（授業の総当たりで使う）
+    const bestOf = new Map<
+      (typeof finalists)[number],
+      { obj: number; stepping: Stepping }
+    >();
+    if (baseStepping) {
       finalists.sort((a, b) => b.obj - a.obj);
+      for (const f of finalists) bestOf.set(f, { obj: f.obj, stepping: baseStepping });
+    }
+    if (baseStepping && baseStepping.kind === "hif" && best) {
       const top = finalists.slice(0, opts?.examFinalists ?? 10);
       for (const ratio of EXAM_PRESET_RATIOS) {
         const stepping: Stepping = {
@@ -2027,6 +2244,8 @@ export class OptimizeEngine {
           // 選抜配分が変わるとパラボ母数が変わるので採点し直す
           const slots = f.members.map((m) => ({ id: m.id, rental: m.rental }));
           const { obj } = this.preciseObjective(slots, varEctx);
+          const cur = bestOf.get(f);
+          if (cur && obj > cur.obj) bestOf.set(f, { obj, stepping });
           if (obj > best.obj) {
             best = {
               members: f.members,
@@ -2034,6 +2253,24 @@ export class OptimizeEngine {
               stepping,
             };
           }
+        }
+      }
+    }
+    // 編成⇄授業の結合: 授業6コマの配分で勝つ編成が変わる（Da授業ならDaカードが
+    // 勝つ等）ので、上位編成ごとに授業割り当てを総当たりする（合計値の異なる約100通り）
+    const classTop = opts?.classFinalists ?? 0;
+    if (baseStepping && best && classTop > 0) {
+      const variants = classVariantsOf(baseStepping);
+      const top = [...finalists]
+        .sort((a, b) => (bestOf.get(b)?.obj ?? b.obj) - (bestOf.get(a)?.obj ?? a.obj))
+        .slice(0, classTop);
+      for (const f of top) {
+        const from = bestOf.get(f)?.stepping ?? baseStepping;
+        const slots = f.members.map((m) => ({ id: m.id, rental: m.rental }));
+        for (const classTypes of variants) {
+          const stepping = { ...from, classTypes } as Stepping;
+          const { obj } = this.preciseObjective(slots, this.buildEctx(stepping));
+          if (obj > best.obj) best = { members: f.members, obj, stepping };
         }
       }
     }
@@ -2121,13 +2358,14 @@ export class OptimizeEngine {
       if (!best || cand.score > best.score) best = cand;
     };
 
-    // 2. 非HIFはグリーディ組成でも補強する。ビームの増分サロゲートは
-    //    削除・投票札型（クールダウン等）の価値を取りこぼして正解編成に
-    //    届かないことがあるが、グリーディ（正確評価で1枚ずつ成長）は拾える。
-    //    さらに見つけた編成群（ポートフォリオ）を全分割で正確評価し直して
-    //    下見の順位づけ自体を補正する（勝ち分割が31位に沈む型の対策）。
+    // 2. グリーディ組成でも補強する（全シナリオ）。ビームの増分サロゲートは
+    //    削除・投票札型（クールダウン等）や授業配分に敏感なカードの価値を
+    //    取りこぼして正解編成に届かないことがあるが、グリーディ
+    //    （正確評価で1枚ずつ成長）は拾える。さらに見つけた編成群
+    //    （ポートフォリオ）を全分割で正確評価し直して下見の順位づけ自体を
+    //    補正する（勝ち分割が31位に沈む型の対策）。
     const greedied = new Set<Stepping>();
-    if (this.input.scenario !== "hif") {
+    {
       const portfolio: SelectedSlot[][] = [];
       for (const p of scored.slice(0, GREEDY_PARTS)) {
         const ectx = this.buildEctx(p.stepping);
@@ -2142,7 +2380,7 @@ export class OptimizeEngine {
           stepping: p.stepping,
           slots,
           score: obj,
-          spShortfall: spConditionShortfall(members, this.input.spMin),
+          spShortfall: spConditionShortfall(members, ectx.spMin),
         });
       }
       // ポートフォリオ×全分割の正確評価で est を引き上げて再ランク
@@ -2155,7 +2393,7 @@ export class OptimizeEngine {
             stepping: p.stepping,
             slots,
             score: obj,
-            spShortfall: spConditionShortfall(members, this.input.spMin),
+            spShortfall: spConditionShortfall(members, ectx.spMin),
           });
         }
       }
@@ -2187,6 +2425,8 @@ export class OptimizeEngine {
       const ectx = this.buildEctx(p.stepping);
       const r = this.bestFormationBeam(ectx, {
         stepping: p.stepping,
+        examFinalists: 6,
+        classFinalists: 2,
       });
       searched++;
       if (r) {
@@ -2194,10 +2434,10 @@ export class OptimizeEngine {
           stepping: r.stepping ?? p.stepping,
           slots: r.members.map((m) => ({ id: m.id, rental: m.rental })),
           score: r.obj,
-          spShortfall: spConditionShortfall(r.members, this.input.spMin),
+          spShortfall: spConditionShortfall(r.members, ectx.spMin),
         });
       }
-      if (this.input.scenario !== "hif" && !greedied.has(p.stepping)) {
+      if (!greedied.has(p.stepping)) {
         const g = this.buildFormation(ectx);
         greedied.add(p.stepping);
         if (g) {
@@ -2207,7 +2447,7 @@ export class OptimizeEngine {
             stepping: p.stepping,
             slots,
             score: obj,
-            spShortfall: spConditionShortfall(members, this.input.spMin),
+            spShortfall: spConditionShortfall(members, ectx.spMin),
           });
         }
       }
@@ -2264,7 +2504,7 @@ export class OptimizeEngine {
     const { owned, rentals } = this.scorePool(ectx);
     return findBestFormation(owned, rentals, ectx.baseStats, {
       pinned: input.flags.pinned,
-      spMin: input.spMin,
+      spMin: ectx.spMin,
       cap: this.caps,
       maxTargets: this.maxTargets,
       eventBudget: input.eventBudget,
@@ -2287,9 +2527,10 @@ export class OptimizeEngine {
   conditionIssues(
     members: ScoredCard[],
     stats: Record<TypeKey, number>,
+    spMin: SpMinCondition = this.input.spMin,
   ): string[] {
     const issues: string[] = [];
-    const short = spConditionShortfall(members, this.input.spMin);
+    const short = spConditionShortfall(members, spMin);
     if (short > 0) issues.push(`SP率持ちが${short}枚不足`);
     const label: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
     if (this.minStatCond) {

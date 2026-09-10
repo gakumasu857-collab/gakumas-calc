@@ -187,7 +187,7 @@ function scoreCard(
   return {
     id: card.id,
     name: card.name,
-    image: IMAGE_BY_ID.get(card.id) ?? card.imageUrl,
+    image: IMAGE_BY_ID.get(card.id) ?? "",
     rarity: card.rarity,
     type,
     assist,

@@ -167,7 +167,7 @@ function SupportInfoTable() {
           </thead>
           <tbody>
             {visible.map((card) => {
-              const url = imageUrl(IMAGE_BY_ID.get(card.id) ?? card.imageUrl);
+              const url = imageUrl(IMAGE_BY_ID.get(card.id) ?? "");
               const pre = preEventDetail(card);
               return (
                 <tr key={card.id} className="bg-white">

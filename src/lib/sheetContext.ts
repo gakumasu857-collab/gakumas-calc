@@ -29,11 +29,6 @@ export const TYPE_SHEET_ROLE: Record<TypeKey, SheetRole> = {
   dance: "main2",
   visual: "sub",
 };
-export const SHEET_ROLE_TYPE: Record<SheetRole, TypeKey> = {
-  main1: "vocal",
-  main2: "dance",
-  sub: "visual",
-};
 
 /** タイプの回数キーのラベル（例: vocal → "メイン1"。スプシの内部名） */
 export function typeCountLabel(type: TypeKey): string {

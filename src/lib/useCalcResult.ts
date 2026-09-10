@@ -1,5 +1,5 @@
 /**
- * 計算ページとステータスバーで共有する「現在のステ・評価値」の計算フック。
+ * 計算ページの「現在のステ・評価値」の計算フック（他ページも参照する）。
  *
  * 現在のステ[type] = 授業(営業) + メモリー(固定+%変換) + Pアイドル(固定+100 + %変換)
  *                  + レッスン + 試験(オーディション) + 選択サポカ6枠（イベント相互作用込み）
@@ -50,7 +50,6 @@ import {
 import {
   buildSheetScoreContext,
   paraboAssignFromGains,
-  SHEET_ROLE_TYPE,
   TYPE_SHEET_ROLE,
   manualCountFromSet,
 } from "./sheetContext";
@@ -569,8 +568,8 @@ export function useCalcResult() {
       spLesson,
       statCap,
       ctx,
-      // 互換用: タイプ⇔シート内部ロールの固定対応
-      roles: { roleType: SHEET_ROLE_TYPE, typeRole: TYPE_SHEET_ROLE },
+      // タイプ→シート内部ロール（点数表の参照軸）の固定対応
+      roles: { typeRole: TYPE_SHEET_ROLE },
       paraboAssign,
       gains: schedGains,
       baseStats,

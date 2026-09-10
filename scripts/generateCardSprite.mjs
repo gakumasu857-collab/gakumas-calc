@@ -33,8 +33,7 @@ const NOCACHE = `?v=${Date.now()}`;
 const cards = JSON.parse(
   readFileSync(resolve(root, "src/data/generated/supportCards.json"), "utf8"),
 );
-// 2026-08 ヘッダー日本語化: サポカ名(旧name)
-const names = [...new Set(cards.map((c) => String(c["サポカ名"] ?? c.name)))].sort((a, b) =>
+const names = [...new Set(cards.map((c) => String(c["サポカ名"])))].sort((a, b) =>
   a.localeCompare(b, "ja"),
 );
 

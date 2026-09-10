@@ -33,13 +33,6 @@ export type CalcSettings = {
   idol: string;
   /** Pアイドル名（例: Love&Joy） */
   pIdol: string;
-  /** メモリー（例: 45点（メインパラボ）） */
-  memory: string;
-  /** 育成セット（発動回数ページのセットID） */
-  trainingSetId: string;
-  /** 合計スター性 */
-  totalStar: number;
-  /** 理想編成の条件: タイプごとのSPレッスン率アップ持ちサポカの最低枚数 */
   /** レッスンを多く踏む上位2タイプへのSPレッスン率アップ持ち最低枚数（1位/2位） */
   spTop: { first: number; second: number };
   /**
@@ -81,18 +74,11 @@ export type CalcSettings = {
   round2: number;
   /** 画像出力に載せるユーザー名（任意） */
   userName: string;
-  /** おすすめ編成の選択（例: Vo / 1 / Da / 5 / Vi / 0） */
-  formation: string;
-  /** 最大ステ編成選択 */
-  maxStat: boolean;
 };
 
 export const DEFAULT_SETTINGS: CalcSettings = {
   idol: "花海咲季",
   pIdol: "",
-  memory: "",
-  trainingSetId: "",
-  totalStar: 0,
   spTop: { first: 0, second: 0 },
   eventBudget: { enabled: false, pre: 6, post: 6 },
   typeRatio: { enabled: false, vocal: 1, dance: 1, visual: 1 },
@@ -104,8 +90,6 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,
-  formation: "",
-  maxStat: false,
   userName: "",
 };
 

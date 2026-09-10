@@ -10,4 +10,5 @@ Vite + React 19 + React Router + Tailwind CSS v4 + TypeScript の SPA（2026-07 
   SPA配信 + マスタ配信API(`/api/master`,`/api/sync`) + スプシ→R2同期(cron) をまかなう。
   本番 https://gkapps.hoppepan.com 。詳細は README.md。
 - マスタは Google スプシ(非公開) → R2 バケット `gakumas-master` に同期して配信。
-  フロントは現状ビルド時同梱の `src/data/generated/*.json` を使用（R2切替は今後）。
+  フロントはビルド時同梱の `src/data/generated/*.json` を使用（反映は update-all.cmd）。
+- 仕組みと修正箇所の解説: docs/ARCHITECTURE.md

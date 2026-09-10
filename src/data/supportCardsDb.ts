@@ -59,8 +59,6 @@ export type SupportCardData = {
    * Assist はステに直接効かない枠（率系・P系・回復系など）。
    */
   abilityTypes: string[];
-  /** 元CSVの画像URL（将来はR2のキーに置き換える想定） */
-  imageUrl: string;
   /** 使用制限（プラン）: 共通 / センス / ロジック / アノマリー */
   plan: string;
   /** 前イベ（アイテム/スキル/パラメータ）・後イベ（強化/チェンジ/Pポイント等） */
@@ -80,28 +78,28 @@ export type SupportCardData = {
    * データベースページはスプシと同期した見た目にするため補完前の値を出す。
    */
   sheetPreEvent: { trigger: string; max: string };
-  /** 検索タグ（スプシ Search_word 列。別名・アイドル名など。カンマ区切りを分割済み） */
+  /** 検索タグ（スプシ「検索ワード」列。別名・アイドル名など。カンマ区切りを分割済み） */
   searchWords: string[];
-  /** 前イベで得るアイテム/スキルの正式名（スプシ item_name 列。無ければ""） */
+  /** 前イベで得るアイテム/スキルの正式名（スプシ「前イベ名」列。無ければ""） */
   itemName: string;
   /**
-   * アイテム評価（スプシ strongest 列）。前イベで得るアイテム/スキルが
+   * アイテム評価（スプシ「強さ」列）。前イベで得るアイテム/スキルが
    * 試験中どれだけ強いかの評点（-5〜7程度）。空欄は null＝試験の助けにならない。
    */
   strongest: number | null;
   /**
    * 前イベ（アイテム/スキル）の画像パス（R2の preEvent/ 配下。無ければ null）。
-   * 画像は前イベ名で命名されており、Search_word 列に前イベ名が入っているカードは
+   * 画像は前イベ名で命名されており、「前イベ名」列と一致するカードは
    * ここで自動的に対応づく（preEventImages.json = R2にある画像名の一覧）。
    */
   preEventImage: string | null;
   /**
-   * アイテムのおすすめ育成スタイル（スプシ recommend_plan 列を分割）。
+   * アイテムのおすすめ育成スタイル（スプシ「おすすめプラン」列を分割）。
    * 例: ["好調","集中"] / ["やる気","好印象"] / ["共通"]（=どのスタイルでも有効）。
    * 試験補助の評点はこのスタイルが現在の育成に合うときだけ加点する。
    */
   recommendPlans: string[];
-  /** ステージ（試験中）に持ち込むPアイテムか（スプシ is_stage_item 列） */
+  /** ステージ（試験中）に持ち込むPアイテムか（スプシ「前イベ」列＝ステージ用アイテム） */
   stageItem: boolean;
   /** 上記以外の列すべて（列名→値）。新列は自動的にここへ入る */
   extras: Record<string, string>;
@@ -110,7 +108,7 @@ export type SupportCardData = {
 /** 変換時に見つかった未知のアビリティラベル（データ整備の手掛かり用） */
 export const UNKNOWN_ABILITY_LABELS = new Set<string>();
 
-// 現行スプシ supMaster の英語列名（列名を変えたらここだけ直す）
+// コード内部のキー名（スプシの日本語ヘッダーは HEADER_ALIASES でここへ写す）
 const COL = {
   name: "name",
   rarity: "rarity",
@@ -120,8 +118,8 @@ const COL = {
 } as const;
 
 /**
- * 2026-08にスプシのヘッダーが日本語へ変わった。コード内部は従来の英語キーのまま、
- * ここで日本語ヘッダー→英語キーへ写して吸収する（旧ヘッダーのJSONもそのまま通る）。
+ * スプシ supMaster の日本語ヘッダー → コード内部のキー名。
+ * スプシの列名を変えたらここを直す（列の意味が変わるときは convert() も）。
  * アビリティ枠（1アビ/1タイプ…）は normalizeRow で個別に写す。
  */
 const HEADER_ALIASES: Record<string, string> = {
@@ -129,16 +127,12 @@ const HEADER_ALIASES: Record<string, string> = {
   レアリティ: "rarity",
   タイプ: "type",
   プラン: "plan",
-  SP: "is_sp",
   後イベ: "later_event",
-  役割: "attribute",
   前イベ名: "item_name",
-  // 2026-09: 前イベの種類は「前イベ」列（スキル/ステージ用アイテム/プロデュース用アイテム/
-  // パラメータ）に統合。旧「スキルかどうか」「ステージ用アイテムかどうか」列のJSONも通す
+  // 前イベの種類: スキル / ステージ用アイテム / プロデュース用アイテム / パラメータイベント
   前イベ: "pre_event_kind",
+  // ステイベの種類: パラメータイベント / Pポイントイベント / 回復イベント（空=無し）
   ステイベ: "stat_event",
-  スキルかどうか: "is_skill",
-  ステージ用アイテムかどうか: "is_stage_item",
   強さ: "strongest",
   おすすめプラン: "recommend_plan",
   前イベ起動タグ: "triggered_by",
@@ -170,7 +164,7 @@ const HEADER_ALIASES: Record<string, string> = {
   検索ワード: "Search_word",
 };
 
-/** 日本語ヘッダーの行を英語キーの行へ写す（英語キーが既にあれば触らない） */
+/** スプシの行（日本語ヘッダー）を内部キー名の行へ写す */
 function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = { ...row };
   for (const [jp, en] of Object.entries(HEADER_ALIASES)) {
@@ -185,14 +179,7 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 /** ステイベの種類（スプシ「ステイベ」列の値） */
-const STAT_EVENT_TYPES_ARRAY = ["パラメータイベント", "Pポイントイベント", "回復イベント"];
-const STAT_EVENT_TYPES = new Set(STAT_EVENT_TYPES_ARRAY);
-/** 旧形式JSON（ステイベ列なし）でアビリティ枠のイベント名から種類を補完するためのキー */
-const STAT_EVENT_KEY_OF: Record<string, string> = {
-  パラメータイベント: "param_event",
-  Pポイントイベント: "p_point_event",
-  回復イベント: "recovery_event",
-};
+const STAT_EVENT_TYPES = new Set(["パラメータイベント", "Pポイントイベント", "回復イベント"]);
 
 /** サポカのタイプ（英語）→ アプリ内の表記 */
 const CARD_TYPE_JP: Record<string, string> = {
@@ -243,9 +230,6 @@ const LATER_EVENT_MAP: Record<string, string> = {
   Pポイントイベント: "Pポイント",
   チェンジ: "チェンジ",
   トラブル削除: "トラブル削除",
-  trouble_delete: "トラブル削除", // 旧英語値のJSON互換
-  スキル削除: "スキル削除",
-  Pポイント: "Pポイント",
 };
 
 /** 「何もなし」系の空欄扱いにするラベル */
@@ -325,15 +309,13 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     str(row[`abi_type${i + 1}`]),
   );
 
-  // 前イベの種類。新形式は「前イベ」列の文字列、旧形式は 0/1 フラグ2列
+  // 前イベの種類（スプシ「前イベ」列）
   const preKind = str(row.pre_event_kind);
-  const isSkill = preKind ? preKind === "スキル" : numOf(row.is_skill) > 0;
-  const isStageItem = preKind
-    ? preKind === "ステージ用アイテム"
-    : numOf(row.is_stage_item) > 0;
+  const isSkill = preKind === "スキル";
+  const isStageItem = preKind === "ステージ用アイテム";
   const itemName = str(row.item_name);
-  // 前イベがアイテムを与えるか。p_item_get_ut3 は「Pアイテム獲得(6回まで)にカウント
-  // されるか」のフラグで、カウントされないアイテム（近年のカード）は item_name 列で判定する
+  // 前イベがアイテムを与えるか。「Pアイテム獲得」列は「Pアイテム獲得(6回まで)にカウント
+  // されるか」のフラグで、カウントされないアイテム（近年のカード）は「前イベ名」で判定する
   const isItem = numOf(row.p_item_get_ut3) > 0 || (!isSkill && itemName !== "");
   const param = numOf(row.param);
 
@@ -391,13 +373,9 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
         ? "パラメータ" // Rサポカ: 前イベでパラメータイベント（率アビが掛かる）
         : "何もなし";
   const postEventType = LATER_EVENT_MAP[str(row.later_event)] ?? "何もなし";
-  // ステイベ列（新形式）。旧形式のJSONはアビリティ枠のイベント名から補完する
+  // ステイベ列（空=無し）
   const statRaw = str(row.stat_event);
-  const statEventType = STAT_EVENT_TYPES.has(statRaw)
-    ? statRaw
-    : (STAT_EVENT_TYPES_ARRAY.find((name) =>
-        abilities.some((a) => a !== null && "key" in a && a.key === STAT_EVENT_KEY_OF[name]),
-      ) ?? "何もなし");
+  const statEventType = STAT_EVENT_TYPES.has(statRaw) ? statRaw : "何もなし";
 
   return {
     id: `card:${name}`, // 保存キーは名前ベースを維持（所持データ等の互換のため）
@@ -406,7 +384,6 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
     cardType: CARD_TYPE_JP[str(row[COL.cardType])] ?? "",
     abilities,
     abilityTypes,
-    imageUrl: "", // supMaster に画像URL列は無い（カタログが R2 名前一致で解決）
     plan: str(row[COL.plan]),
     preEventType,
     postEventType,
@@ -419,14 +396,11 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
       .map((w) => w.trim())
       .filter(Boolean),
     itemName,
-    preEventImage: (() => {
-      // item_name（前イベで得るアイテム/スキルの正式名）を優先し、
-      // 旧データ用に Search_word との突合もフォールバックで残す
-      const hit = [itemName, ...str(row.Search_word).split(",").map((w) => w.trim())]
-        .filter(Boolean)
-        .find((w) => PRE_EVENT_IMAGE_SET.has(w));
-      return hit ? `preEvent/${hit}.webp` : null;
-    })(),
+    // 前イベ画像は「前イベ名」と同名の R2 画像（preEvent/<前イベ名>.webp）
+    preEventImage:
+      itemName && PRE_EVENT_IMAGE_SET.has(itemName)
+        ? `preEvent/${itemName}.webp`
+        : null,
     strongest: str(row.strongest) === "" ? null : numOf(row.strongest),
     // 区切りはカンマ・読点のほか誤記のドットも許容（例: "強気.全力"）
     recommendPlans: str(row.recommend_plan)

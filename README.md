@@ -15,7 +15,7 @@ Cloudflare Workers 1つで **SPA配信 + マスタ配信API + スプシ→R2同�
 [Google スプレッドシート]（非公開・編集用）
         │  Sheets API values:batchGet（サービスアカウント認証）
         ▼
-[Worker: scheduled(cron) / POST /api/sync]  ← 5分ごと自動 + 手動トリガー
+[Worker: scheduled(cron) / POST /api/sync]  ← gen:all 前の手動同期 + 毎日3時(JST)の保険cron
         │  タブごとに JSON 化して put
         ▼
 [R2 バケット gakumas-master（非公開）]  master/<タブ>.json + master/_index.json
@@ -84,7 +84,7 @@ npm run gen:all && npm run release
 | 新カード・新Pアイドルの追加（フルコース） | ①スプシに行追加 ②画像をドライブに置いて `npm run sync:images`（またはR2へ直接アップ） ③`npm run gen:all` → `npm run release` |
 | 画像の追加（ドライブに置いた場合） | ①ドライブの画像フォルダにPNG/JPGを置く ②`npm run sync:images`（webp変換→R2アップまで自動） ③スプシに行/語を追記 ④`npm run gen:all` → `npm run release` |
 | サポカ画像の追加（R2直接） | ①スプシに行追加 ②R2 `gakumas-image` 直下に `<カード名>.webp` をアップ ③`npm run gen:all` → `npm run release` |
-| 前イベ画像の追加（R2直接） | ①R2 `preEvent/<前イベ名>.webp` にアップ ②スプシの Search_word に前イベ名（`,`区切り） ③`npm run gen:all` → `npm run release` |
+| 前イベ画像の追加（R2直接） | ①R2 `preEvent/<前イベ名>.webp` にアップ（スプシの「前イベ名」と同じ名前） ②`npm run gen:all` → `npm run release` |
 | Pアイドル画像の追加 | ドライブ経由なら `sync:images`、直接なら R2 `skill/<固有スキル名>.webp` にアップ（gen不要・即反映） |
 | コード（.ts/.tsx） | `npm run release` |
 
@@ -183,7 +183,7 @@ npx wrangler secret put SYNC_SECRET       # /api/sync 保護用の任意の長�
 ```bash
 # 手動で同期（初回や即時反映したいとき）
 curl -X POST -H "x-sync-token: <SYNC_SECRET>" https://gkapps.hoppepan.com/api/sync
-# → {"synced":[{"tab":"supMaster","rows":193},...],"skipped":[],...}
+# → {"synced":[{"tab":"supMaster","rows":202},...],"skipped":[],...}
 
 curl https://gkapps.hoppepan.com/api/master
 curl "https://gkapps.hoppepan.com/api/master?name=supMaster"
@@ -196,7 +196,7 @@ secret は `.dev.vars`（gitignore 済み）に `KEY=値` で書く。`.dev.vars
 ## フロントのデータ取得
 
 フロントはビルド時同梱の `src/data/generated/*.json` を使っている（実行時に /api/master は呼ばない）。
-/api/master（R2由来）への切り替えは今後の作業。切替時のフックは git履歴の src/useMaster.js を参照。
+そのため、スプシを変えたら gen → build → deploy（update-all.cmd）で反映する。
 
 ## 無料枠の要点
 

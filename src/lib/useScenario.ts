@@ -4,7 +4,7 @@ import { notifyStoreChange } from "./storeSync";
 
 /**
  * 育成シナリオの選択ストア（ホームで切り替え）。
- * レッスンページ・計算・StatusBar・理想編成のステ上限と評価式がこれに従う。
+ * 踏み方・計算・理想編成のステ上限と評価式がこれに従う。
  */
 const STORAGE_KEY = "gakumas:scenario:v1";
 

@@ -69,6 +69,12 @@ export function buildAutoOptimizeInput(
     getLevel: r.getLevel,
     flags,
     spMin: resolveSpMin(r, settings),
+    // 上位タイプのSP率持ち枚数条件は、候補の踏み方ごとに上位タイプを取り直して判定する
+    spTop: { first: settings.spTop.first, second: settings.spTop.second },
+    // 今の編成（探索の候補に含めて、押すたびに悪化しないようにする）
+    currentSlots: r.selected.slots.filter(
+      (s): s is NonNullable<typeof s> => s !== null,
+    ),
     eventBudget: settings.eventBudget.enabled
       ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
       : undefined,

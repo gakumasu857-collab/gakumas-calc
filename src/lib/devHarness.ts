@@ -193,6 +193,22 @@ export function buildInput(): AutoOptimizeInput {
       out[order[1]] = settings.spTop.second;
       return out;
     })(),
+    // 上位タイプのSP率持ち条件は候補の踏み方ごとに解決する（アプリと同じ）
+    spTop: { first: settings.spTop.first, second: settings.spTop.second },
+    // 今の編成（アプリは選択サポカ。ベンチは gakumas:selectedSupports:v1 があれば）
+    currentSlots: (() => {
+      const raw = loadJson<unknown>("gakumas:selectedSupports:v1", null);
+      const arr = Array.isArray(raw)
+        ? raw
+        : raw && typeof raw === "object" && Array.isArray((raw as { slots?: unknown }).slots)
+          ? (raw as { slots: unknown[] }).slots
+          : [];
+      const slots = arr.filter(
+        (x): x is { id: string; rental: boolean } =>
+          !!x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string",
+      );
+      return slots.length === 6 ? slots.map((x) => ({ id: x.id, rental: !!x.rental })) : undefined;
+    })(),
     eventBudget: settings.eventBudget.enabled
       ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
       : undefined,

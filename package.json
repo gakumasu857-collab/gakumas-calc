@@ -9,7 +9,6 @@
     "gen:cards": "node scripts/generateSupportCards.mjs",
     "gen:perf": "node scripts/generateAbilityPerf.mjs",
     "gen:counts": "node scripts/generateAbilityCounts.mjs",
-    "verify:sheet": "node sheet-source/verify.js --mode=I",
     "gen:pidols": "node scripts/generatePIdols.mjs",
     "gen:sprite": "node scripts/generateCardSprite.mjs",
     "gen:preevents": "node scripts/generatePreEventImages.mjs",

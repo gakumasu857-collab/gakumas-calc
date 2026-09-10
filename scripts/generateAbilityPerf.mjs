@@ -102,10 +102,9 @@ try {
   const RA = { SSR: "SSR", SR: "SR", 配布SSR: "配布SSR", R: "R" };
   const seen = new Set();
   for (const c of cards) {
-    // 2026-08 ヘッダー日本語化: レアリティ(旧rarity)・{n}アビ(旧ability{n})
-    const rarity = c["レアリティ"] ?? c.rarity;
+    const rarity = c["レアリティ"];
     for (let i = 1; i <= 6; i++) {
-      const label = String(c[`${i}アビ`] ?? c[`ability${i}`] ?? "").trim();
+      const label = String(c[`${i}アビ`] ?? "").trim();
       if (!label) continue;
       const k = norm(`${RA[rarity] ?? rarity}${label}`);
       if (!(k in perf) && !seen.has(k)) {

@@ -1,1 +1,0 @@
-{"A1":{"v":"","f":"IFERROR(__xludf.DUMMYFUNCTION(\"FILTER($Q$2:CQ$2,MOD(COLUMN($Q$2:CQ$2)+1,16)=6)\"),\"\")"},"A2":{"v":"#N/A","f":"INDIRECT(ADDRESS(2,MATCH('計算シート'!$C$4,$A$1:CQ$1,false)*16+2)&\":\"&ADDRESS(39,MATCH('計算シート'!$C$4,$A$1:CQ$1,false)*16+17))"},"Q2":{"v":"データ置き場→"}}

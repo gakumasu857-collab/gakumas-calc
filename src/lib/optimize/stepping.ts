@@ -3,7 +3,7 @@
  *
  * 踏み方は「軸（＝1箇所）」の集まりとして表す。レッスン1回・選抜1つ・授業1つが
  * それぞれ1軸で、軸ごとに「今と違う値にした候補」を列挙できる（steppingAxes）。
- * 山登りは全軸の候補を総当たりし、焼きなましは軸を1つ選んでランダムに動かす。
+ * 山登りは全軸の候補を総当たりする（乱数は使わない）。
  * どちらも同じ列挙を使うので、両者が必ず同じ近傍を見ることが保証される。
  */
 import type { TypeKey } from "../useCalcSettings";
@@ -157,34 +157,29 @@ function typesFromPartition(part: [number, number, number]): TypeKey[] {
 /**
  * 踏み方の1箇所を表す軸。
  * alternatives は「その箇所だけを今と違う値にした踏み方」を列挙する（今の値は含まない）。
- * weight は焼きなましでこの軸が選ばれる相対的な重み（レッスンを重点的に動かす）。
  */
 export type SteppingAxis = {
-  weight: number;
   alternatives: (cur: Stepping) => Stepping[];
 };
 
-/** 同じ重みの軸を index ごとに作る小道具 */
+/** 同じ種類の軸を index ごとに作る小道具 */
 function axesOver(
   count: number,
-  groupWeight: number,
   alternatives: (cur: Stepping, i: number) => Stepping[],
 ): SteppingAxis[] {
   return Array.from({ length: count }, (_, i) => ({
-    weight: groupWeight / Math.max(1, count),
     alternatives: (cur: Stepping) => alternatives(cur, i),
   }));
 }
 
 /**
- * 踏み方の全軸。山登り・焼きなましの両方がこれを使う。
- * 重みはレッスン>選抜>授業（授業はフラットで効きが小さいので薄め）。
+ * 踏み方の全軸。山登りの近傍はこれから作る。
  */
 export function steppingAxes(s: Stepping): SteppingAxis[] {
   if (s.kind === "hif") {
     return [
       // レッスン: メイン×サブの組を入れ替える
-      ...axesOver(s.lessons.length, 0.6, (cur, i) => {
+      ...axesOver(s.lessons.length, (cur, i) => {
         const c = cur as HifStepping;
         const l = c.lessons[i];
         return MAIN_SUB_PAIRS.filter(
@@ -195,14 +190,14 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
         }));
       }),
       // 選抜: スコアの分配比を入れ替える
-      ...axesOver(s.examScores.length, 0.25, (cur, i) => {
+      ...axesOver(s.examScores.length, (cur, i) => {
         const c = cur as HifStepping;
         return EXAM_RATIOS.map((r) => examScoresFromRatio(i, r))
           .filter((e) => !sameExamScores(c.examScores[i], e))
           .map((e) => ({ ...c, examScores: replaceAt(c.examScores, i, e) }));
       }),
       // 授業: タイプを入れ替える
-      ...axesOver(s.classTypes.length, 0.15, (cur, i) => {
+      ...axesOver(s.classTypes.length, (cur, i) => {
         const c = cur as HifStepping;
         return otherTypes(c.classTypes[i]).map((t) => ({
           ...c,
@@ -213,14 +208,14 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
   }
   if (s.kind === "nia") {
     return [
-      ...axesOver(s.lessons.length, 0.6, (cur, i) => {
+      ...axesOver(s.lessons.length, (cur, i) => {
         const c = cur as NiaStepping;
         return otherTypes(c.lessons[i].main ?? undefined).map((main) => ({
           ...c,
           lessons: replaceAt(c.lessons, i, { ...c.lessons[i], main }),
         }));
       }),
-      ...axesOver(s.sales.length, 0.4, (cur, i) => {
+      ...axesOver(s.sales.length, (cur, i) => {
         const c = cur as NiaStepping;
         return otherTypes(c.sales[i].type).map((type) => ({
           ...c,
@@ -230,14 +225,14 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
     ];
   }
   return [
-    ...axesOver(s.lessons.length, 0.6, (cur, i) => {
+    ...axesOver(s.lessons.length, (cur, i) => {
       const c = cur as HatsuStepping;
       return otherTypes(c.lessons[i].main ?? undefined).map((main) => ({
         ...c,
         lessons: replaceAt(c.lessons, i, { ...c.lessons[i], main }),
       }));
     }),
-    ...axesOver(s.classTypes.length, 0.4, (cur, i) => {
+    ...axesOver(s.classTypes.length, (cur, i) => {
       const c = cur as HatsuStepping;
       return otherTypes(c.classTypes[i]).map((t) => ({
         ...c,
@@ -245,21 +240,6 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
       }));
     }),
   ];
-}
-
-/** 焼きなまし用: 軸を重み付きで1つ選び、その候補へランダムに動かす */
-export function randomNeighbor(s: Stepping): Stepping {
-  const axes = steppingAxes(s);
-  const total = axes.reduce((sum, a) => sum + a.weight, 0);
-  let r = Math.random() * total;
-  for (const axis of axes) {
-    r -= axis.weight;
-    if (r > 0) continue;
-    const alts = axis.alternatives(s);
-    if (alts.length === 0) break;
-    return alts[Math.floor(Math.random() * alts.length)];
-  }
-  return s;
 }
 
 // ---- 起点・シード ----
