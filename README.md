@@ -128,6 +128,25 @@ npm run gen:all && npm run release
 - R2 へ手動アップの例: `npx wrangler r2 object put "gakumas-image/<カード名>.webp" --file <ファイル> --content-type image/webp --remote`
 - 取得元を変えたいとき: 環境変数 `GAKUMAS_IMAGE_BASE`（既定はR2公開URL）
 
+## スプシの構造を変えたときに直す場所（コード側）
+
+数値の変更・行の追加・新カードは `npm run gen:all`（または update-all.cmd）だけで反映される。
+**列名・アビリティ名・イベントの種類など「構造」を変えたときは、次のコードも直す**:
+
+| スプシで変えたもの | 直すファイル | 何を直すか |
+|---|---|---|
+| supMaster の列名・列の追加/削除 | `src/data/supportCardsDb.ts` | `HEADER_ALIASES`（日本語ヘッダー→内部キー）と `convert()`（列から `SupportCardData` を組み立てる部分） |
+| 新しいアビリティ名（カードの n アビ / abilityValues の行） | `src/data/constants.ts` → `src/data/abilityCounts.ts` | `ABILITY_NAMES` にキーとラベルを追加（表記ゆれは `ABILITY_LABEL_ALIASES`）。発動回数の分類（`CATEGORIES`）にキーを追加。未登録だと回数が結び付かず点数0になる（gen:perf が「perf に無い」警告を出す） |
+| 発動回数タブ（abilityCounts*）の行名 | `src/data/constants.ts` | ラベルが `ABILITY_NAMES` と一致すればそのまま通る。違う表記は `ABILITY_LABEL_ALIASES` に追記 |
+| 「〜(N回まで)」のような上限違いの派生アビリティ | `src/data/abilityCounts.ts` | `DERIVED_CAPS`（基の回数から上限付きの回数を作る） |
+| アビリティの値の意味（率で補正する等） | `src/lib/sheetScore.ts` | `abilitySlotValue()`（枠の値の解釈）、`cardResources()`（Pポイント・回復・体力） |
+| 前イベ・後イベ・ステイベの種類や列 | `src/data/supportCardsDb.ts` → `src/lib/sheetScore.ts` → `src/components/EventControls.tsx` | `LATER_EVENT_MAP`／前イベ列の判定／`statEventType`、`eventCountContributionSplit()`（回数への反映）、画面の〇✕・A/M・任意スキルのUI |
+| pidleName / pidleStatus / idleTypes（Pアイドル） | `scripts/generatePIdols.mjs`、`src/lib/pIdol.ts` | 列の読み取りと `P_IDOL_MASTERS`／`IDOL_RANKS` の組み立て |
+| abilityValues のティア表（枠ごとの段階） | `src/data/abilityValues.ts`（`SLOT_TIER`）、`scripts/generateAbilityPerf.mjs` | レアリティ別の枠×凸→ティアの対応 |
+| 同期するタブを増減 | `wrangler.toml` の `SHEET_TABS`、`scripts/*.mjs` | タブ名を追加し、読む側のスクリプトを用意 |
+
+迷ったら「どの列/行を、どう変えたか」を Claude に伝えれば該当箇所を直す。
+
 ## デプロイ / 再デプロイ
 
 前提: Cloudflare に `wrangler login` 済み、R2 バケット `gakumas-master` 作成済み。

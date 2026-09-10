@@ -11,9 +11,29 @@ import {
   importPIdolCsv,
   importSupportCsv,
 } from "@/lib/ownershipCsv";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import type { useOwnedLevels } from "@/lib/useOwnedLevels";
 import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import { useOwnedSaves, type OwnedSave } from "@/lib/useOwnedSaves";
+
+/**
+ * 既定のセーブ「全サポカ完凸」。理論値を見たいときに戻すための固定データで、
+ * 読み込みだけできる（上書き・削除は不可）。Pアイドルは初回既定と同じ特訓6・開花4。
+ * 保存はせず毎回DBから組み立てるので、新カードも自動的に完凸として含まれる。
+ */
+const BUILTIN_ALL4: OwnedSave = {
+  id: "builtin-all4",
+  name: "全サポカ完凸（既定）",
+  savedAt: "常に最新",
+  levels: Object.fromEntries(SUPPORT_CARD_DB.map((c) => [c.id, 4])),
+  pIdols: Object.fromEntries(
+    P_IDOL_MASTERS.map((m) => [m.key, { kunren: 6, kaika: 4 }]),
+  ),
+  cardCount: SUPPORT_CARD_DB.length,
+};
+const isBuiltin = (save: OwnedSave | undefined) =>
+  !!save && save.id.startsWith("builtin-");
 
 const SECTION =
   "flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5";
@@ -51,7 +71,10 @@ export default function OwnedSaveBar({
 
   const own = store.saves.filter((s) => !s.saveId);
   const linked = store.saves.filter((s) => s.saveId);
-  const selected = store.saves.find((s) => s.id === selectedId);
+  const selected =
+    selectedId === BUILTIN_ALL4.id
+      ? BUILTIN_ALL4
+      : store.saves.find((s) => s.id === selectedId);
   const placeholder = `所持状況 ${new Date().toLocaleDateString("ja-JP")}`;
 
   const doSaveAs = () => {
@@ -133,6 +156,9 @@ export default function OwnedSaveBar({
           className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
         >
           <option value="">操作するものを選択</option>
+          <optgroup label="既定（読み込みのみ）">
+            <option value={BUILTIN_ALL4.id}>{BUILTIN_ALL4.name}</option>
+          </optgroup>
           <optgroup label="この画面で保存したもの">
             {own.length > 0 ? (
               options(own)
@@ -159,7 +185,7 @@ export default function OwnedSaveBar({
           </button>
           <button
             type="button"
-            disabled={!selected}
+            disabled={!selected || isBuiltin(selected)}
             onClick={doOverwrite}
             title="選んだものを今の所持状況で上書きします（名前はそのまま）"
             className={BTN}
@@ -169,7 +195,7 @@ export default function OwnedSaveBar({
           </button>
           <button
             type="button"
-            disabled={!selected}
+            disabled={!selected || isBuiltin(selected)}
             onClick={doDelete}
             className={`${BTN} hover:bg-red-50 hover:text-red-600`}
           >

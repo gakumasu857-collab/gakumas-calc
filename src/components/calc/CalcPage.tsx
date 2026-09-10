@@ -33,7 +33,8 @@ import {
 } from "@/components/EventControls";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
-import { runFullOptimize } from "@/lib/autoOptimize";
+import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
+import { buildSnapshot } from "@/lib/calcSaveIO";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -106,6 +107,10 @@ export default function CalcPage() {
 
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const [idealMsg, setIdealMsg] = useState<string | null>(null);
+  /** 直近の全自動最適化の診断ログ（JSON）。探索がおかしいときにコピーして送ってもらう */
+  const [diagLog, setDiagLog] = useState<string | null>(null);
+  /** クリップボードが使えない環境向けに、診断ログ本文をそのまま表示する */
+  const [diagLogShown, setDiagLogShown] = useState(false);
   const [idealBusy, setIdealBusy] = useState(false);
   const [detail, setDetail] = useState<SelectedMember | null>(null);
   const [optBusy, setOptBusy] = useState(false);
@@ -257,9 +262,53 @@ export default function CalcPage() {
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
    * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
    */
+  /**
+   * 探索の診断ログ。セーブデータ形式の状態（設定・踏み方・メモリー・発動回数・編成・所持）と
+   * 押す前の評価値、探索結果（編成・踏み方・軸比較・フェーズ別スコア）をまとめる。
+   */
+  const buildDiagLog = (
+    res: AutoOptimizeResult,
+    before: number | null,
+    beforeOk: boolean,
+    applied: boolean,
+  ): string =>
+    JSON.stringify({
+      version: 1,
+      at: new Date().toISOString(),
+      scenario: r.scenario,
+      settings,
+      flags: {
+        pinned: [...flags.pinned],
+        banned: [...flags.banned],
+        rentalNg: [...flags.rentalNg],
+      },
+      snapshot: buildSnapshot(r),
+      current: {
+        rating: before,
+        meetsConditions: beforeOk,
+        slots: r.selected.slots,
+      },
+      result: {
+        applied,
+        rating: res.rating,
+        slots: res.slots,
+        hif: res.hif ?? null,
+        nia: res.nia ?? null,
+        hatsu: res.hatsu ?? null,
+        axisReport: res.axisReport ?? null,
+        spShortfall: res.spShortfall,
+        evaluated: res.evaluated,
+        elapsedMs: Math.round(res.elapsedMs),
+        phaseScores: res.debug?.phaseScores ?? null,
+        eventOps: res.eventOps ?? null,
+      },
+    });
+
   const runAutoOptimize = () => {
     setOptBusy(true);
     setOptMsg(null);
+    setDiagLog(null);
+    setDiagLogShown(false);
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
     // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない
@@ -280,11 +329,13 @@ export default function CalcPage() {
         }
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
         if (before !== null && beforeOk && res.rating < before) {
+          setDiagLog(buildDiagLog(res, before, beforeOk, false));
           setOptMsg(
-            `探索結果（理論評価値 ${res.rating.toLocaleString()}）が今の評価値 ${before.toLocaleString()} を下回ったため、変更しませんでした。もう一度押すと再探索します。`,
+            `探索結果（理論評価値 ${res.rating.toLocaleString()}）が今の評価値 ${before.toLocaleString()} を下回ったため、変更しませんでした。下の「診断ログをコピー」で状況を送ってもらえれば探索を改善します。`,
           );
           return;
         }
+        setDiagLog(buildDiagLog(res, before, beforeOk, true));
         if (res.hif)
           r.schedule.setPlan(
             res.hif.lessons,
@@ -316,8 +367,17 @@ export default function CalcPage() {
               : "") +
             // 寄せ方（VoDa/DaVi/VoVi）の比較。仕上げ前の値なので採用軸は最終値より低く出る
             (res.axisReport && res.axisReport.length > 1
-              ? `。寄せ方の比較（仕上げ前）: ${res.axisReport
-                  .map((a) => `${a.axis} ${a.rating.toLocaleString()}${a.chosen ? "（採用）" : ""}`)
+              ? `。寄せ方の比較: ${res.axisReport
+                  .map(
+                    (a) =>
+                      `${a.axis} ${a.rating.toLocaleString()}${
+                        a.chosen
+                          ? "（採用）"
+                          : a.issues.length > 0
+                            ? `（条件未達: ${a.issues.join("・")}）`
+                            : "（仕上げ前）"
+                      }`,
+                  )
                   .join(" ／ ")}`
               : ""),
         );
@@ -575,6 +635,38 @@ export default function CalcPage() {
           </p>
           {optMsg && (
             <p className="mt-2 text-xs font-semibold text-blue-600">{optMsg}</p>
+          )}
+          {diagLog && (
+            <div className="mt-1 flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const clip = navigator.clipboard?.writeText(diagLog);
+                  if (!clip) {
+                    setDiagLogShown(true);
+                    return;
+                  }
+                  void clip.then(
+                    () =>
+                      setOptMsg((m) => `${m ?? ""}（診断ログをコピーしました）`),
+                    () => setDiagLogShown(true),
+                  );
+                }}
+                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（探索がおかしいときに送ってください）"
+                className="self-start rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:bg-slate-100"
+              >
+                診断ログをコピー
+              </button>
+              {diagLogShown && (
+                <textarea
+                  readOnly
+                  value={diagLog}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="h-24 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] text-slate-600"
+                  title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
+                />
+              )}
+            </div>
           )}
           {pendingOps && (
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">

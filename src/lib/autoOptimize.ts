@@ -103,7 +103,7 @@ import {
 } from "./useSchedule";
 
 /** 踏み方探索（編成固定）で山登りをかけるシード数（決定的） */
-const CLIMB_STARTS = 4;
+const CLIMB_STARTS = 6;
 /** 全体の探索時間の上限（約5秒。超えたら新しい段階・ラウンドを始めない） */
 const TIME_BUDGET_MS = 6200;
 /** 決定的探索（分割列挙＋編成ビーム）に使う時間 */
@@ -235,7 +235,13 @@ export type AutoOptimizeResult = SteppingResult & {
    * ステータスの寄せ方（軸）ごとの最良候補の評価値（仕上げ前の比較値）。
    * 3軸（VoDa/DaVi/VoVi）それぞれを本気で試したことの開示用
    */
-  axisReport?: { axis: string; rating: number; chosen: boolean }[];
+  axisReport?: {
+    axis: string;
+    rating: number;
+    chosen: boolean;
+    /** 条件設定（SP率持ち枚数・最低ステ・最高ステ）の未達。採用軸は空 */
+    issues: string[];
+  }[];
   /** 探索の内訳（/debug でどう選ばれたかを開示するため） */
   debug?: OptimizeDebug;
 };
@@ -310,6 +316,11 @@ type Ectx = {
   baseNoConv: Record<TypeKey, number>;
   basePct: Record<TypeKey, number>;
   baseStats: Record<TypeKey, number>;
+  /**
+   * 踏み方で変わるスター性（HIFのレッスン★・選抜★）のステ換算値（★1=評価値7.5=ステ3.75）。
+   * SPの有無・踏まない日で★が変わるため、目的関数に入れて評価値と向きを揃える。
+   */
+  starStat: number;
 };
 
 /** 同じ6枚（レンタル区別）か */
@@ -458,12 +469,18 @@ export function runFullOptimize(
       const chosenAxis = engine.axisOf(best.stepping);
       return [...engine.axisBests.entries()]
         .map(([axis, c]) => {
+          const chosen = axis === chosenAxis;
           const ectx = engine.buildEctx(c.stepping);
-          const { cappedSum, members } = engine.preciseObjective(c.slots, ectx);
+          const { cappedSum, members: mem, stats } = engine.preciseObjective(
+            c.slots,
+            ectx,
+          );
           return {
             axis,
-            rating: engine.fullRating(c.stepping, cappedSum, members),
-            chosen: axis === chosenAxis,
+            // 採用軸は仕上げ後の評価値（＝反映される値）、他は本探索時点の値
+            rating: chosen ? rating : engine.fullRating(c.stepping, cappedSum, mem),
+            chosen,
+            issues: chosen ? [] : engine.conditionIssues(mem, stats),
           };
         })
         .sort((a, b) => b.rating - a.rating);
@@ -677,7 +694,22 @@ export class OptimizeEngine {
     const evalOf = (s: Stepping) =>
       this.preciseObjective(slots, this.buildEctx(s)).obj;
 
-    const scored = buildSeeds(current)
+    // シード = 一様×分割（stepping.ts）＋ HIFはそれぞれに選抜の寄せ方プリセット10種
+    // （分割は合っていても選抜が均等だと順位が下がり、山登りの起点から漏れるため）
+    const baseSeeds = buildSeeds(current);
+    const seeds: Stepping[] = [...baseSeeds];
+    if (current.kind === "hif") {
+      for (const seed of baseSeeds) {
+        if (seed.kind !== "hif") continue;
+        for (const ratio of EXAM_PRESET_RATIOS) {
+          seeds.push({
+            ...seed,
+            examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+          });
+        }
+      }
+    }
+    const scored = seeds
       .map((s) => ({ stepping: s, score: evalOf(s) }))
       .sort((a, b) => b.score - a.score);
 
@@ -1267,6 +1299,7 @@ export class OptimizeEngine {
     const { input } = this;
     let bd: Record<"lessons" | "classes" | "exams", Record<TypeKey, number>>;
     let ctx: SheetScoreContext;
+    let starStat = 0;
     if (s.kind === "hif") {
       const state = {
         lessons: s.lessons,
@@ -1275,6 +1308,7 @@ export class OptimizeEngine {
       };
       const sched = computeScheduleGains(state);
       bd = sched.breakdown;
+      starStat = (sched.star * 7.5) / 2;
       ctx = buildSheetScoreContext(state, input.manual, input.eventCounts);
     } else if (s.kind === "nia") {
       const state: NiaStateLike = {
@@ -1346,7 +1380,7 @@ export class OptimizeEngine {
         baseNoConv[type] +
         paraboConvert(basePct[type] / 100, g.lessons, g.exams);
     }
-    return { ctx, baseNoConv, basePct, baseStats };
+    return { ctx, baseNoConv, basePct, baseStats, starStat };
   }
 
   /**
@@ -1427,7 +1461,9 @@ export class OptimizeEngine {
       overflow += Math.max(0, raw - this.caps[type]);
     }
     const obj =
-      cappedSum -
+      cappedSum +
+      // 踏み方で変わるスター性（HIF）。評価値と同じ向きで踏み方を比べるため
+      ectx.starStat -
       // 最高ステ設定の超過分は探索価値を割り引く（評価値からは削らない）
       (1 - MAX_STAT_EXCESS_WEIGHT) * excess +
       (this.extraScore ? this.extraScore(members) : 0) +
@@ -2243,6 +2279,31 @@ export class OptimizeEngine {
 
 
   /** 最終的な評価値（計算ページと同じ式・シナリオ別の固定部分込み） */
+  /**
+   * 候補が条件設定（SP率持ちの最低枚数・最低ステ・最高ステ）を満たしていない点を列挙する。
+   * 探索の目的関数はこれらをペナルティ/割引で扱うため、評価値だけ見ると高い候補が
+   * 採用されないことがある。その理由を画面に出すために使う。
+   */
+  conditionIssues(
+    members: ScoredCard[],
+    stats: Record<TypeKey, number>,
+  ): string[] {
+    const issues: string[] = [];
+    const short = spConditionShortfall(members, this.input.spMin);
+    if (short > 0) issues.push(`SP率持ちが${short}枚不足`);
+    const label: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
+    if (this.minStatCond) {
+      for (const t of this.minStatCond.priority) {
+        const req = this.minStatCond.req[t];
+        if (req > 0 && stats[t] < req) issues.push(`最低ステ${label[t]}未達`);
+      }
+    }
+    for (const t of TYPE_KEYS) {
+      if (stats[t] > this.maxTargets[t] + 1e-9) issues.push(`最高ステ${label[t]}超過`);
+    }
+    return issues;
+  }
+
   fullRating(
     stepping: Stepping,
     cappedSum: number,
