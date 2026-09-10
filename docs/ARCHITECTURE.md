@@ -70,7 +70,9 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `update-all.cmd` | ①`npm run sync:images`（ドライブ→R2。未設定なら飛ばす）→ ②`npm run gen:all`（スプシ→R2 同期＋6つの gen）→ ③`npm run release` | スプシや画像を変えたとき。これ1本で全部やる（2〜3分） |
 
 - `npm run gen:all` の中身（`package.json` の `scripts`）:
-  `sync:master` → `gen:cards` → `gen:perf` → `gen:counts` → `gen:pidols` → `gen:sprite` → `gen:preevents`
+  `sync:master` → `gen:cards` → `gen:perf` → `gen:counts` → `gen:pidols` → `gen:sprite` → `gen:preevents` → `check:labels`
+  最後の `check:labels` は「スプシに出てくるアビリティ名・起動タグ・行名がコードに登録済みか」の確認で、
+  未登録があれば一覧を出して止まります（`update-all.cmd` は `*** FAILED at data generation ***` で停止）。直し方は 4-1 C-2。
 - `sync:master`（`scripts/syncMaster.mjs`）は `.env.local` に `SYNC_SECRET` があるときだけ Worker に「今すぐ同期して」と頼みます。
   無いと警告して飛ばし、R2 には前回（または毎日3時の cron）の内容が残ったままになります。
   つまり **スプシを編集した直後に反映したいなら `SYNC_SECRET` が必要** です（現在は設定済み）。
@@ -118,7 +120,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generateAbilityCounts.mjs`（gen:counts） | `abilityCountsHIF/NIA/Hajime` の表（プラン行＋「アビリティ」ヘッダー行＋回数）を `generated/abilityCounts.json` に |
 | `generatePIdols.mjs`（gen:pidols） | `pidleName`（Pアイドル一覧）＋`pidleStatus`（成長段階ごとの数値）＋`idleTypes`（審査基準）を `generated/pIdols.json` に |
 | `generateCardSprite.mjs`（gen:sprite） | R2 のサポカ画像を集めて `public/card-import/sprite.png`（一覧画像）と `generated/cardSprite.json`（並び順）を作る。画面キャプチャ所持入力用。画像が無いカードは一覧に出して飛ばす |
-| `generatePreEventImages.mjs`（gen:preevents） | `supMaster` の「前イベ名」「検索ワード」を候補に、R2 の `preEvent/<名前>.webp` が実在するものだけ `generated/preEventImages.json` に書く |
+| `generatePreEventImages.mjs`（gen:preevents） | `supMaster` の「前イベ名」を候補に、R2 の `preEvent/<名前>.webp` が実在するものだけ `generated/preEventImages.json` に書く |
+| `checkLabels.mjs`（check:labels） | 生成した JSON に出てくるアビリティ名・前イベ起動タグ・発動回数タブの行名・`trigger_tag` が `src/data/constants.ts` に登録済みかを確認。未登録があれば一覧を出して止まる（`gen:all` の最後に自動実行。単体は `npm run check:labels`） |
 | `syncImagesFromDrive.mjs`（sync:images） | ドライブの 3 フォルダ（サポカ／前イベ／Pアイドル固有スキル）から画像を取り、webp に変換して R2 へ。既に R2 にあるものは飛ばす（`-- --force` で全部上書き） |
 
 ### 2-3. `worker/`（サーバー側）
@@ -139,10 +142,10 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generated/pIdols.json` | Pアイドル一覧（`masters`）、成長数値（`growth`）、審査基準（`idolRanks`） |
 | `generated/cardSprite.json` / `generated/preEventImages.json` | 画像関連のカタログ（2-2 参照） |
 | `supportCardsDb.ts` | **supMaster の読み替え役。** 日本語の列名を内部名に写す `HEADER_ALIASES`、1 行をカードの形に組み立てる `convert()`、後イベの語彙 `LATER_EVENT_MAP`、ステイベの種類 `STAT_EVENT_TYPES_ARRAY`、前イベの数値列 `NUMERIC_ACTION_MAP`、スキル分類列 `SKILL_FLAG_MAP` がここ。結果が `SUPPORT_CARD_DB` |
-| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
+| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
 | `abilityCounts.ts` | 発動回数ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
-| `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション= NIA3/初2/HIF5、レッスン系=スケジュールから自動） |
+| `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式 |
 | `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |
@@ -421,13 +424,39 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 - 直す場所:
   - `supMaster` → `src/data/supportCardsDb.ts` の `HEADER_ALIASES`（`1アビ`〜`6アビ`・`1タイプ`〜`6タイプ` だけは `normalizeRow` の中）。
     さらに `scripts/generateAbilityPerf.mjs`（`レアリティ`・`{n}アビ`）、`scripts/generateCardSprite.mjs`（`サポカ名`）、
-    `scripts/generatePreEventImages.mjs`（`前イベ名`・`検索ワード`）も同じ見出しを直接読んでいます。
+    `scripts/generatePreEventImages.mjs`（`前イベ名`）も同じ見出しを直接読んでいます。
   - `abilityValues` → `scripts/generateAbilityPerf.mjs`（`name` `rarity` `level1〜5` `trigger_tag`）
   - `abilityEvolutions` → 同上（`レアリティ` `アビリティ` `0凸`〜`4凸`、`RARITY_MAP`）
   - 発動回数タブ → `scripts/generateAbilityCounts.mjs`（左端の見出し `アビリティ` = `KEY_COL`）
   - `pidleName` / `pidleStatus` / `idleTypes` → `scripts/generatePIdols.mjs`（`masters` の組み立て、`COLS`、`idolRanks`）
 - 反映: コード修正後に `update-all.cmd`。
 - おすすめ: 列名は変えず、値だけ変える運用が安全です。
+
+#### C-2. アビリティ名・前イベ起動タグ・発動回数タブの行名の「文字」を変える（改名）
+
+例: 2026-09 に「基本チェンジ（3回まで）」→「基本スキルチェンジ（3回まで）」、「試験・オーディション」→「試験・オーディション終了」
+（起動タグ・「（2回まで）」・「回復」の付くものすべて）に改名した。
+
+- 仕組み: スプシの名前は、コード側の正式名一覧 `src/data/constants.ts` の `ABILITY_NAMES`（内部キー → 日本語名）と
+  **文字で照合**しています（全角/半角の括弧・空白の違いは無視）。スプシ側だけ変えると照合に失敗し、
+  **そのアビリティは点数 0・発動回数 0 として静かに扱われます**（画面にエラーは出ません）。
+  `update-all.cmd` の最後の `check:labels` がこれを見つけて止め、未登録の名前を一覧します。
+- 直す場所は **1 か所だけ**: `ABILITY_NAMES` の該当行の日本語名を新しい文字に書き換える。
+  点数（`abilityValues` の名前）・発動回数タブの行名・前イベ起動タグ・固定回数（`fixedAbilityCounts.ts`）・
+  回復/Pポイントの集計（`sheetScore.ts`）は全部ここから名前を引くので、他は触らなくてよい。
+  ```ts
+  // 例: 「基本チェンジ(3回まで)」→「基本スキルチェンジ(3回まで)」
+  basic_change_ut3: "基本スキルチェンジ(3回まで)",
+  ```
+- **内部キー（`basic_change_ut3` のような英語）は変えない。** 利用者の保存データ（発動回数の差分など）は内部キーで
+  保存されているので、日本語名を変えても利用者側は何も壊れません。
+- 「チェンジ」「特別指導」のように **括弧なし**の起動タグは、「その名前（N回まで）」という正式名がちょうど 1 つあれば
+  自動でそれに結び付きます（追記不要）。「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先。
+- 手順: ①スプシを改名 → ②`ABILITY_NAMES` の日本語名を書き換え → ③`update-all.cmd`。
+  `check:labels` が「✓ …すべてコードに登録済み」なら OK。「✗ コードに登録されていない名前」と出たら、
+  その名前を②で直してもう一度。
+- 確認: 点数表ページでそのアビリティを持つカードの点数が 0 になっていないか、計算ページで前イベの回数が
+  「0/3」のようになっていないか。
 
 #### D. 新しいアビリティ名を足す（カードの `nアビ` に新しい名前が登場した）
 
@@ -443,12 +472,13 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
    発動回数タブにも行を足す（4-1 F）。
 4. 「◯◯(N回まで)」の派生で、発動回数タブに独立行を作らない場合は `abilityCounts.ts` の `DERIVED_CAPS` に
    `{ key: 新キー, base: 基のキー, cap: N }` を足す（点数計算だけなら `sheetScore.ts` の `buildCountResolver` が自動で N で頭打ちにするので不要）。
-5. 値の意味が今までと違う（率で補正する、Pポイント・回復に数える等）なら `src/lib/sheetScore.ts` の `abilitySlotValue`
-   （`EVENT_RATE_LABELS`）や `cardResources`（`P_FLAT_LABELS` `RECOVER_LABELS` `MAX_HP_LABELS`）に名前を足す。
+5. 値の意味が今までと違う（Pポイント・回復・最大体力に数える等）なら `src/lib/sheetScore.ts` の `cardResources` の上にある
+   `P_FLAT_LABELS` `RECOVER_LABELS` `MAX_HP_LABELS` に**内部キー**を足す（日本語名ではなくキー。名前は `ABILITY_NAMES` から自動で引く）。
+   「○○イベント率」のような率は `eventValue()` が「イベント名＋率」で自動対応づけする。
 6. 反映: `update-all.cmd`。`gen:perf` の出力に「カードが使うが abilityValues に無いアビリティ」の警告が出ていないか確認。
 
-参考: 2026-09 の「もうすぐ本番ですね」では `basic_change_ut3`（基本チェンジ(3回まで)）と
-`stage_finish_15plus_ut5`（15枚以上試験・オーディション(5回まで)）を `constants.ts` と `abilityCounts.ts` に足しました。
+参考: 2026-09 の「もうすぐ本番ですね」では `basic_change_ut3`（基本スキルチェンジ(3回まで)）と
+`stage_finish_15plus_ut5`（15枚以上試験・オーディション終了(5回まで)）を `constants.ts` と `abilityCounts.ts` に足しました。
 
 #### E. 新しい前イベ・後イベ・ステイベの種類を足す
 
@@ -477,8 +507,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 
 - 行（アビリティ）を足す: 左端の名前が `constants.ts` の `ABILITY_NAMES` の日本語名と一致（括弧の全角半角・空白は無視）していれば
   そのまま通ります。違う表記なら `ABILITY_LABEL_ALIASES` に追記。一致しない行は開発モードで「発動回数タブの未知ラベル」と警告され、無視されます。
-  （現状も「Pドリンク獲得」「好印象8枚以上(4回まで)」「15枚以上試験・オーディション(2回まで)」などの旧表記を `ALIASES` で受けています。
-  スプシ側の表記を正式名にそろえるのが本筋です。）
+  （現状は「Pドリンク獲得」「Pドリンク交換」だけ `ALIASES` で受けています。カード側は「ドリンク獲得」「ドリンク交換」なので、
+  発動回数タブの行名もそろえれば `ALIASES` は不要になります。名前を「変えた」ときは `ALIASES` ではなく 4-1 C-2。）
 - 列（セット）を足す: 2 行目にセット名、1 行目に対応するプラン（センス／ロジック／アノマリー／好調／集中／好印象／やる気／強気／全力）を書けば
   自動で反映されます（`abilityCounts.ts` の `DEFAULT_SETS` 等はスプシから作られる）。セットの ID は「プラン＋セット名」なので、
   **名前やプランを変えると利用者が保存していた差分・選択は別物扱いになります**（旧セットの差分は残るが使われない）。
@@ -584,7 +614,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 3. **枠 3 は点数に入らない**（レッスンサポート率など）。仕様です。内訳モーダルでは「対象外」と出ます。
 4. **参照セットが未選択**: 発動回数ページでセットにチェックが無いと、手動系の回数はすべて 0 になります（計算ページは評価値を出しません）。
 5. **上限で頭打ち**: 「(N回まで)」の N、またはスケジュール上の回数（お出かけ 5 回など。`abilityCounts.ts` の `abilityMax`）を超えた分は切り捨て。
-6. **表記ゆれ**: 発動回数タブの行名が正式名と違うと無視されます（`ABILITY_LABEL_ALIASES` で受けるか、スプシ側を直す）。
+6. **名前が違う**: 発動回数タブの行名・カードのアビリティ名がコードの正式名（`ABILITY_NAMES`）と違うと無視されます。
+   `update-all.cmd` の最後の `check:labels` が未登録の名前を一覧するので、4-1 C-2 の手順で直す。
 7. 開発モード（`npm run dev`）でブラウザのコンソールに「未知のアビリティ名」「未知ラベル」の警告が出ます。本番サイトでは出ません。
 
 ### 6-2. 画像が出ない
@@ -624,6 +655,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `スプシタブ取得に失敗: ○○ (404)` | R2 にそのタブが無い（一度も同期されていない）。上の同期を先に通す |
 | `ヘッダー行（先頭セル「アビリティ」）が見つかりません` | 発動回数タブの 2 行目左端が `アビリティ` になっていない |
 | `正規化キー衝突` | `abilityValues` に「レアリティ＋名前」が同じ行が 2 つある（括弧・空白違いも同一視） |
+| `✗ コードに登録されていない名前が N 件あります` | スプシのアビリティ名・起動タグ・行名がコードに未登録（改名または新アビリティ）。表示された名前を 4-1 C-2（改名）／4-1 D（新規）の手順で直し、`update-all.cmd` をもう一度。JSON の生成は済んでいるので、急ぎなら `release.cmd` で先に出せる（その名前だけ点数 0 のまま） |
 | `未対応の段階（無視した）` | `pidleStatus` の `段階` が認識できない名前（4-1 H） |
 | `tsc` / `error TS…` | プログラムの型エラー。コードを直したときに出る。Claude に貼る |
 | `image sync failed or not configured - continuing` | 画像同期だけ失敗（フォルダ ID 未設定など）。リリース自体は続く |
@@ -653,7 +685,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `npm run dev` | 開発サーバー（http://localhost:5173）。`/api/*` は動かない |
 | `npm run build` | 型チェック（`tsc --noEmit`）＋ `dist/` 生成 |
 | `npm run release` | `build` → `wrangler deploy`（= `release.cmd`） |
-| `npm run gen:all` | `sync:master` → `gen:cards` → `gen:perf` → `gen:counts` → `gen:pidols` → `gen:sprite` → `gen:preevents` |
+| `npm run gen:all` | `sync:master` → `gen:cards` → `gen:perf` → `gen:counts` → `gen:pidols` → `gen:sprite` → `gen:preevents` → `check:labels` |
+| `npm run check:labels` | スプシの名前がコードに登録済みかの確認だけ（`gen:all` の最後に自動で走る。Node 22.18 以上） |
 | `npm run gen:cards` など | 個別の gen（2-2 参照） |
 | `npm run sync:master` | スプシ → R2 の同期を今すぐ実行 |
 | `npm run sync:images` | ドライブ → R2 の画像同期（`-- --force` で全上書き） |

@@ -96,8 +96,9 @@ export const ABILITY_NAMES = {
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
   charm_8plus_ut4: "好印象8枚以上スキル獲得(4回まで)",
   up_SP_lesson_rate: "SPレッスン率アップ",
-  stage_finish_ut2: "試験・オーディション(2回まで)",
-  stage_finish: "試験・オーディション",
+  // 2026-09 スプシ改名: 「試験・オーディション」→「試験・オーディション終了」（起動タグ・回復・(N回まで) すべて）
+  stage_finish_ut2: "試験・オーディション終了(2回まで)",
+  stage_finish: "試験・オーディション終了",
   initial: "初期値",
   bonus: "パラメータボーナス",
   param_event: "パラメータイベント",
@@ -109,7 +110,7 @@ export const ABILITY_NAMES = {
   p_point: "Pポイント",
   p_point_rate_type_sp: "タイプSPレッスンPポイント率",
   p_point_rate_lesson: "レッスンPポイント率",
-  recovery_stage_finish: "試験・オーディション回復",
+  recovery_stage_finish: "試験・オーディション終了回復",
   // 現行スプシ(abilityValues)にあるが従来コード化していなかった非スコア寄りアビリティ。
   // スコアはrawラベル経由でperfに一致して計算済み（ここは表示・dev警告解消・アビリティ一覧の
   // 完全化のための登録で点数は不変）。回復・率・Pポイント系は発動回数0に解決＝非スコア。
@@ -129,28 +130,26 @@ export const ABILITY_NAMES = {
   focus_8plus_ut4: "集中8枚以上スキル獲得(4回まで)",
   drink_get_ut10: "ドリンク獲得(10回まで)",
   skill_exchange_ut5: "スキル交換(5回まで)",
-  // 2026-09 新カード「もうすぐ本番ですね」のアビリティ
-  basic_change_ut3: "基本チェンジ(3回まで)",
-  stage_finish_15plus_ut5: "15枚以上試験・オーディション(5回まで)",
+  // 2026-09 新カード「もうすぐ本番ですね」のアビリティ（同月に「基本チェンジ」→「基本スキルチェンジ」に改名）
+  basic_change_ut3: "基本スキルチェンジ(3回まで)",
+  stage_finish_15plus_ut5: "15枚以上試験・オーディション終了(5回まで)",
   nothing: "なし",
 } as const satisfies Record<string, string>;
 export type AbilityName = keyof typeof ABILITY_NAMES;
 
 /**
- * CSV/スプレッドシート側の表記ゆれ → キー。
+ * スプレッドシート側の表記ゆれ → キー。
  * ABILITY_NAMES のラベルと完全一致しない書き方はここに追記していく。
+ * ※スプシで名前を「変えた」ときは、ここに旧名を足すのではなく ABILITY_NAMES の日本語名を
+ *   書き換える（docs/ARCHITECTURE.md 4-1 C-2）。ここは「同じものを別の場所で別表記にしている」用。
  */
 const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
-  "SPレッスン率": "up_SP_lesson_rate",
+  // カードのアビリティ名は「SPレッスン率」（ABILITY_NAMES は表示用に「アップ」付き）
+  SPレッスン率: "up_SP_lesson_rate",
   何もなし: "nothing",
-  // 前イベ起動タグ列は括弧なし表記
-  特別指導: "extra_lecture_ut3",
-  // 発動回数タブ(NIA)の行名がこの表記のまま
-  "Pドリンク獲得": "drink_get",
-  "Pドリンク交換": "drink_exchange",
-  // 発動回数タブの行名が「(2回まで)」になっているが、カードのアビリティ・abilityValues は
-  // 「(5回まで)」（値も5）。同じアビリティとして受ける（スプシ側は行名を(5回まで)に直すのが本筋）
-  "15枚以上試験・オーディション(2回まで)": "stage_finish_15plus_ut5",
+  // 発動回数タブの行名がこの表記のまま（カード側は「ドリンク獲得」「ドリンク交換」）
+  Pドリンク獲得: "drink_get",
+  Pドリンク交換: "drink_exchange",
 };
 
 /** ラベルの正規化: 全角括弧→半角、空白除去。照合はこの形で行う */
@@ -170,11 +169,32 @@ for (const [key, label] of Object.entries(ABILITY_NAMES)) {
 for (const [label, key] of Object.entries(ABILITY_LABEL_ALIASES)) {
   LABEL_TO_KEY.set(normalizeLabel(label), key);
 }
+// 括弧なしの表記（supMaster の「前イベ起動タグ」列は「チェンジ」「特別指導」のように
+// (N回まで) を付けない）は、「その名前(N回まで)」の正式名がちょうど1つあるときに同じキーへ結び付ける。
+// 「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先（上で登録済みなので触らない）。
+{
+  const byBase = new Map<string, Set<AbilityName>>();
+  for (const [key, label] of Object.entries(ABILITY_NAMES)) {
+    const m = label.match(/^(.+?)\(\d+回まで\)$/);
+    if (!m) continue;
+    const base = normalizeLabel(m[1]);
+    if (!byBase.has(base)) byBase.set(base, new Set());
+    byBase.get(base)!.add(key as AbilityName);
+  }
+  for (const [base, keys] of byBase) {
+    if (!LABEL_TO_KEY.has(base) && keys.size === 1) LABEL_TO_KEY.set(base, [...keys][0]);
+  }
+}
 
 /**
  * 日本語ラベルからアビリティキーを引く。
  * 未知のラベルは undefined（呼び出し側で raw のまま保持して警告する）。
+ * 点数計算の回数解決から毎評価呼ばれるため、ラベルごとの結果をメモ化する（ラベルは有限）。
  */
+const keyCache = new Map<string, AbilityName | undefined>();
 export function abilityKeyFromLabel(label: string): AbilityName | undefined {
-  return LABEL_TO_KEY.get(normalizeLabel(label));
+  if (keyCache.has(label)) return keyCache.get(label);
+  const key = LABEL_TO_KEY.get(normalizeLabel(label));
+  keyCache.set(label, key);
+  return key;
 }

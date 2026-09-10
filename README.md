@@ -121,7 +121,7 @@ npm run gen:all && npm run release
   キャッシュを素通りさせている（2026-08〜）ので通常は起きないが、ブラウザで見て無いときは数分待つか
   スーパーリロードする。なお **ドライブに置いただけでは何も起きない**（`sync:images` を実行して初めてR2に上がる）
 - **画像が無いカードがあってもリリースは可能**（画像照合の対象外になるだけ。gen:sprite が一覧を出す）
-- `npm run gen:all` = スプシ→R2同期（`.env.local` の `SYNC_SECRET` を使用。未設定ならスキップ）＋全gen（1分弱。どれか1つでもよい）
+- `npm run gen:all` = スプシ→R2同期（`.env.local` の `SYNC_SECRET` を使用。未設定ならスキップ）＋全gen（1分弱。どれか1つでもよい）＋`check:labels`（スプシの名前がコードに登録済みかの確認。未登録があれば止まる）
 - スプシ→R2の定期同期cronは毎日3時(JST)の保険のみに変更（gen:all が同期を打つので通常は不要）
 - `npm run release` = `npm run build && wrangler deploy`
 - **git commit は配信には不要**（配信は wrangler deploy のみで決まる）。ただしバックアップ・巻き戻し用に、反映がうまくいったら `git add -A && git commit` を推奨
@@ -138,6 +138,7 @@ npm run gen:all && npm run release
 | supMaster の列名・列の追加/削除 | `src/data/supportCardsDb.ts` | `HEADER_ALIASES`（日本語ヘッダー→内部キー）と `convert()`（列から `SupportCardData` を組み立てる部分） |
 | 新しいアビリティ名（カードの n アビ / abilityValues の行） | `src/data/constants.ts` → `src/data/abilityCounts.ts` | `ABILITY_NAMES` にキーとラベルを追加（表記ゆれは `ABILITY_LABEL_ALIASES`）。発動回数の分類（`CATEGORIES`）にキーを追加。未登録だと回数が結び付かず点数0になる（gen:perf が「perf に無い」警告を出す） |
 | 発動回数タブ（abilityCounts*）の行名 | `src/data/constants.ts` | ラベルが `ABILITY_NAMES` と一致すればそのまま通る。違う表記は `ABILITY_LABEL_ALIASES` に追記 |
+| アビリティ名・前イベ起動タグの改名（例: 基本チェンジ→基本スキルチェンジ） | `src/data/constants.ts` | `ABILITY_NAMES` の日本語名を書き換えるだけ（内部キーは変えない）。直さないと該当アビリティが点数0になる。`gen:all` 末尾の `check:labels` が未登録の名前を列挙して止まる。詳細は docs/ARCHITECTURE.md 4-1 C-2 |
 | 「〜(N回まで)」のような上限違いの派生アビリティ | `src/data/abilityCounts.ts` | `DERIVED_CAPS`（基の回数から上限付きの回数を作る） |
 | アビリティの値の意味（率で補正する等） | `src/lib/sheetScore.ts` | `abilitySlotValue()`（枠の値の解釈）、`cardResources()`（Pポイント・回復・体力） |
 | 前イベ・後イベ・ステイベの種類や列 | `src/data/supportCardsDb.ts` → `src/lib/sheetScore.ts` → `src/components/EventControls.tsx` | `LATER_EVENT_MAP`／前イベ列の判定／`statEventType`、`eventCountContributionSplit()`（回数への反映）、画面の〇✕・A/M・任意スキルのUI |

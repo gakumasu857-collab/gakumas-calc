@@ -13,7 +13,12 @@
 import perfData from "@/data/generated/abilityPerf.json";
 import { SLOT_TIER } from "@/data/abilityValues";
 import { FIXED_ABILITY_COUNTS } from "@/data/fixedAbilityCounts";
-import { ABILITY_NAMES, type Rarity } from "@/data/constants";
+import {
+  ABILITY_NAMES,
+  abilityKeyFromLabel,
+  type AbilityName,
+  type Rarity,
+} from "@/data/constants";
 import type { SupportCardData } from "@/data/supportCardsDb";
 
 export type SheetRole = "main1" | "main2" | "sub";
@@ -49,8 +54,30 @@ function perfOf(rarity: string, abiName: string): PerfEntry | undefined {
   return entry;
 }
 
-/** 回数変更なしアビリティの固定回数（src/data/fixedAbilityCounts.ts が源） */
-const FIXED_COUNTS = FIXED_ABILITY_COUNTS;
+/**
+ * constants.ts のラベル → シートの表記。
+ * 括弧はシートが全角（「（3回まで）」）なので一律で変換する。ここには「名前そのものが違うもの」だけ書く。
+ */
+const SHEET_LABEL_OVERRIDES: Record<string, string> = {
+  なし: "何もなし",
+  SPレッスン率アップ: "SPレッスン率",
+};
+
+/**
+ * AbilityName（内部キー） → シートの日本語ラベル。
+ * supportCardsDb の AbilitySlot が key を持つ場合に逆引きする。名前は ABILITY_NAMES が唯一の源なので、
+ * スプシで名前が変わっても constants.ts を直せばここも追従する。
+ */
+const SHEET_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
+  Object.entries(ABILITY_NAMES).map(([k, label]) => [
+    k,
+    SHEET_LABEL_OVERRIDES[label] ?? label.replace(/\(/g, "（").replace(/\)/g, "）"),
+  ]),
+);
+
+/** 内部キーの一覧 → シート表記ラベルの Set（ABILITY_NAMES の改名に自動で追従する） */
+const labelSetOf = (keys: readonly AbilityName[]): Set<string> =>
+  new Set(keys.map((k) => SHEET_LABEL_BY_KEY[k]));
 
 /** 回数変更なしアビリティの固定回数を引くシナリオ（試験・オーディションの回数が変わる） */
 export type CountScenario = "normal" | "hatsu" | "hif";
@@ -67,7 +94,9 @@ export function buildCountResolver(
   scenario: CountScenario,
 ): (label: string) => number {
   const resolve = (label: string): number | undefined => {
-    const fixed = FIXED_COUNTS[label];
+    // 固定回数は内部キーで引く（名前の改名・表記ゆれ・括弧なしの起動タグに追従）
+    const key = abilityKeyFromLabel(label);
+    const fixed = key ? FIXED_ABILITY_COUNTS[key] : undefined;
     if (fixed !== undefined && fixed !== "auto") return fixed[scenario];
     return lessonCount(label) ?? manualCount(label);
   };
@@ -975,18 +1004,18 @@ export function sheetScoreBreakdown(
 // 点数（ステ換算）とは別に、その育成で得られる合計Pポイント・体力回復を見積もる。
 
 /** 固定値でPポイントを与えるアビリティ */
-const P_FLAT_LABELS = new Set(["Pポイント", "Pポイントイベント"]);
+const P_FLAT_LABELS = labelSetOf(["p_point", "p_point_event"]);
 /** 体力を回復するアビリティ */
-const RECOVER_LABELS = new Set([
-  "SPレッスン時回復",
-  "タイプSPレッスン時回復",
-  "差し入れ時回復",
-  "試験・オーディション回復",
-  "回復イベント",
-  "休む",
+const RECOVER_LABELS = labelSetOf([
+  "recovery_sp_lesson",
+  "recovery_type_sp_lesson",
+  "recovery_supply",
+  "recovery_stage_finish",
+  "recovery_event",
+  "rest",
 ]);
 /** 最大体力を上げるアビリティ（回復とは別枠で集計） */
-const MAX_HP_LABELS = new Set(["最大体力上昇", "最大体力上昇（1アビ）"]);
+const MAX_HP_LABELS = labelSetOf(["max_hp_up", "max_hp_up_1abi"]);
 
 export type CardResources = {
   /** アビリティ由来のPポイント（固定値×回数） */
@@ -1145,24 +1174,3 @@ export function cardSpRate(card: SupportCardData, tsuki: number): CardSpRate {
   return out;
 }
 
-/** constants.ts のラベル（半角括弧）→ シートの表記（全角括弧など） */
-const SHEET_LABEL_OVERRIDES: Record<string, string> = {
-  "Aスキル削除(3回まで)": "Aスキル削除（3回まで）",
-  "Mスキル削除(3回まで)": "Mスキル削除（3回まで）",
-  "チェンジ(3回まで)": "チェンジ（3回まで）",
-  "カスタマイズ(6回まで)": "カスタマイズ（6回まで）",
-  "特別指導(3回まで)": "特別指導（3回まで）",
-  "20枚以上SPレッスン(4回まで)": "20枚以上SPレッスン（4回まで）",
-  "Pアイテム獲得(6回まで)": "Pアイテム獲得（6回まで）",
-  なし: "何もなし",
-  SPレッスン率アップ: "SPレッスン率",
-};
-
-// AbilityName(英語キー) → シートの日本語ラベル。
-// supportCardsDb の AbilitySlot が key を持つ場合に逆引きする。
-const SHEET_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
-  Object.entries(ABILITY_NAMES).map(([k, label]) => [
-    k,
-    SHEET_LABEL_OVERRIDES[label] ?? label,
-  ]),
-);
