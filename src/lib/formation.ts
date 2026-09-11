@@ -63,8 +63,13 @@ export type ScoredCard = {
   bonusPercent: number;
   /** レンタル枠のカード（完凸） */
   rental: boolean;
-  /** SPレッスン率アップ持ちか（SP最低枚数条件用） */
+  /** SPレッスン率アップ持ちか（spTypes が空でない） */
   hasSpUp: boolean;
+  /**
+   * SPレッスン率アップが効くタイプ（SP最低枚数条件用）。
+   * 「SPレッスン率」は枠のタイプ、トレーナー・あさり等の「全SPレッスン率」は3タイプすべて。
+   */
+  spTypes: TypeKey[];
   /**
    * 「試験の助けになる度」のスタイル非依存部分（ドリンク獲得＋SP率持ち。ステ換算）。
    * 試験補助を強めるON時に目的関数へ足す。表示値には含めない。
@@ -172,9 +177,24 @@ function scoreCard(
   for (const key in contrib.post) {
     eventContrib[key] = (eventContrib[key] ?? 0) + contrib.post[key];
   }
-  const hasSpUp = card.abilities.some(
-    (slot) => slot && "key" in slot && slot.key === "up_SP_lesson_rate",
-  );
+  // SPレッスン率アップが効くタイプ。「SPレッスン率」は枠のタイプ（＝通常はカードのタイプ）、
+  // トレーナー・あさり等の「全SPレッスン率」は3タイプすべてに数える（SP最低枚数条件用）。
+  const spTypeSet = new Set<TypeKey>();
+  card.abilities.forEach((slot, i) => {
+    if (!slot) return;
+    const label = "key" in slot ? slot.key : slot.raw;
+    if (label === "up_SP_lesson_rate") {
+      spTypeSet.add(TYPE_OF_CARD[card.abilityTypes[i]] ?? type);
+    } else if (
+      label === "all_sp_lesson_rate_14" ||
+      label === "all_sp_lesson_rate_28" ||
+      label.startsWith("全SPレッスン率")
+    ) {
+      for (const t of TYPE_LIST) spTypeSet.add(t);
+    }
+  });
+  const spTypes = TYPE_LIST.filter((t) => spTypeSet.has(t));
+  const hasSpUp = spTypes.length > 0;
   // 試験の助けになる度: ドリンク獲得本数＋SP率持ち（スタイル非依存）と、
   // アイテム評価（空欄=0。負の評点は弱いだけなので0扱い。スタイル一致時のみ加点）。
   // ステ点はそのまま目的関数に残るので「ステも高い」カードほど自然に勝つ。
@@ -199,6 +219,7 @@ function scoreCard(
     bonusPercent: cardBonusPercent(card, level),
     rental,
     hasSpUp,
+    spTypes,
     examAssist,
     examAssistRating,
     recommendPlans: card.recommendPlans,
@@ -367,6 +388,30 @@ export function typeCountsFromRatio(
   return counts;
 }
 
+/**
+ * タイプ割合条件の不足数（0なら条件クリア）。アシスト（トレーナー）はどのタイプにも数えない。
+ * typeCounts（合計6の固定）は各タイプの過不足の合計、typeMinCounts は最低枚数に足りない分の合計。
+ * 探索の各段階（ビーム・シード・山登り・詰め直し）で同じ関数を使い、条件を必ず守らせる。
+ */
+export function typeRatioShortfall(
+  members: readonly Pick<ScoredCard, "type" | "assist">[],
+  cons: Pick<FindBestOptions, "typeCounts" | "typeMinCounts"> | undefined,
+): number {
+  if (!cons || (!cons.typeCounts && !cons.typeMinCounts)) return 0;
+  const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+  for (const m of members) if (!m.assist) counts[m.type]++;
+  let short = 0;
+  for (const t of TYPE_LIST) {
+    if (cons.typeCounts) short += Math.abs(counts[t] - cons.typeCounts[t]);
+    else if (cons.typeMinCounts)
+      short += Math.max(0, cons.typeMinCounts[t] - counts[t]);
+  }
+  return short;
+}
+
+/** タイプ割合条件の違反1枚あたりのペナルティ（SP条件より大きい＝必ず守る） */
+export const RATIO_PENALTY = 4_000_000_000;
+
 /** シード探索でタイプごとに残すレンタル候補数（山登りでは全候補を見る） */
 const PRUNE_RENTAL = 8;
 /** 山登りの多点スタート数（上位シードから） */
@@ -430,7 +475,8 @@ export function spConditionShortfall(
 ): number {
   if (!spMin) return 0;
   const have: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-  for (const m of members) if (m.hasSpUp) have[m.type]++;
+  // 全SPレッスン率（トレーナー等）は全タイプの1枚として数える
+  for (const m of members) for (const t of m.spTypes) have[t]++;
   let short = 0;
   for (const type of TYPE_LIST) {
     short += Math.max(0, (spMin[type] ?? 0) - have[type]);
@@ -815,11 +861,11 @@ function pickSpForced(
   if (!spMin || typeConstrained) return [];
   const forced: ScoredCard[] = [];
   for (const type of TYPE_LIST) {
-    const already = ownedPinned.filter(
-      (c) => c.type === type && c.hasSpUp,
-    ).length;
+    const already = ownedPinned.filter((c) => c.spTypes.includes(type)).length;
     const need = Math.max(0, (spMin[type] ?? 0) - already);
-    forced.push(...pools[type].filter((c) => c.hasSpUp).slice(0, need));
+    forced.push(
+      ...pools[type].filter((c) => c.spTypes.includes(type)).slice(0, need),
+    );
   }
   return forced;
 }
@@ -855,22 +901,32 @@ function collectSeeds(ctx: SearchCtx, rentalSeeds: (ScoredCard | null)[]): Seed[
     const slots = DECK_SIZE - fixed.length;
     if (slots < 0) continue;
 
-    // レンタル・SP先取りと同名の所持カードは併用不可
+    // レンタル・SP先取りと同名の所持カードは併用不可。
+    // アシスト（トレーナー）はどのタイプにも数えないので、タイプ枠とは別に扱う
     const usable = {} as Record<TypeKey, ScoredCard[]>;
     for (const type of TYPE_LIST) {
       usable[type] = ctx.pools[type].filter(
-        (c) => !ctx.spForcedIds.has(c.id) && (!rental || c.id !== rental.id),
+        (c) =>
+          !c.assist &&
+          !ctx.spForcedIds.has(c.id) &&
+          (!rental || c.id !== rental.id),
       );
     }
-    const takeAndPush = (v: number, d: number, s: number) => {
+    const assistPool = ctx.pools.vocal.filter(
+      (c) =>
+        c.assist && !ctx.spForcedIds.has(c.id) && (!rental || c.id !== rental.id),
+    );
+    const takeAndPush = (v: number, d: number, s: number, a = 0) => {
       if (
         v > usable.vocal.length ||
         d > usable.dance.length ||
-        s > usable.visual.length
+        s > usable.visual.length ||
+        a > assistPool.length
       )
         return;
       const members = [
         ...fixed,
+        ...assistPool.slice(0, a),
         ...usable.vocal.slice(0, v),
         ...usable.dance.slice(0, d),
         ...usable.visual.slice(0, s),
@@ -886,6 +942,7 @@ function collectSeeds(ctx: SearchCtx, rentalSeeds: (ScoredCard | null)[]): Seed[
       const fc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       const pinnedFc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       for (const c of fixed) {
+        if (c.assist) continue; // アシストはタイプに数えない
         fc[c.type]++;
         if (ctx.pinnedIds?.has(c.id)) pinnedFc[c.type]++;
       }
@@ -914,18 +971,29 @@ function collectSeeds(ctx: SearchCtx, rentalSeeds: (ScoredCard | null)[]): Seed[
     // 最低枚数条件（合計6未満の割合指定）: 確定枠込みで各タイプの最低を満たす分割のみ
     const min = ctx.typeMinCounts;
     const fc: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-    if (min) for (const c of fixed) fc[c.type]++;
-    for (let v = 0; v <= slots; v++) {
-      for (let d = 0; d <= slots - v; d++) {
-        const s = slots - v - d;
-        if (
-          min &&
-          (fc.vocal + v < min.vocal ||
-            fc.dance + d < min.dance ||
-            fc.visual + s < min.visual)
-        )
-          continue;
-        takeAndPush(v, d, s);
+    if (min) for (const c of fixed) if (!c.assist) fc[c.type]++;
+    // アシスト（トレーナー等）は、点数が残り枠の上位に食い込むときだけ1枚（自由枠）を別枠で試す
+    // （それ以外は山登りで必要なら入る。シードを増やしすぎると詰め直しが遅くなる）
+    const cutoff =
+      [...usable.vocal, ...usable.dance, ...usable.visual]
+        .map((c) => c.points)
+        .sort((a, b) => b - a)[Math.max(0, Math.min(5, slots - 1))] ?? -Infinity;
+    const maxAssist =
+      slots > 0 && assistPool.length > 0 && assistPool[0].points >= cutoff ? 1 : 0;
+    for (let a = 0; a <= maxAssist; a++) {
+      const typed = slots - a;
+      for (let v = 0; v <= typed; v++) {
+        for (let d = 0; d <= typed - v; d++) {
+          const s = typed - v - d;
+          if (
+            min &&
+            (fc.vocal + v < min.vocal ||
+              fc.dance + d < min.dance ||
+              fc.visual + s < min.visual)
+          )
+            continue;
+          takeAndPush(v, d, s, a);
+        }
       }
     }
   }
@@ -948,14 +1016,18 @@ function climbFormation(
       const candidates = current.rental ? ctx.usableRentals : ownedCandidates;
       for (const cand of candidates) {
         if (cand.id === current.id) continue;
-        // タイプ構成を固定するときは同タイプ同士の入れ替えのみ（構成を崩さない）
-        if (ctx.typeCounts && cand.type !== current.type) continue;
+        // タイプ構成を固定するときは同タイプ同士の入れ替えのみ（構成を崩さない。
+        // アシストはどのタイプでもないので、アシスト同士だけ）
+        const candType = cand.assist ? null : cand.type;
+        const curType = current.assist ? null : current.type;
+        if (ctx.typeCounts && candType !== curType) continue;
         // 最低枚数条件: 別タイプへの入れ替えで現タイプが最低枚数を割るなら不可
         if (
           ctx.typeMinCounts &&
-          cand.type !== current.type &&
-          members.filter((m) => m.type === current.type).length - 1 <
-            ctx.typeMinCounts[current.type]
+          curType !== null &&
+          candType !== curType &&
+          members.filter((m) => !m.assist && m.type === curType).length - 1 <
+            ctx.typeMinCounts[curType]
         )
           continue;
         if (members.some((m, j) => j !== i && m.id === cand.id)) continue;
@@ -1011,7 +1083,10 @@ export function findBestFormation(
       // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
       (opts?.examAssist ? examAssistSum(members, opts?.examStyleTags) : 0) +
       minStatBonus(capped, opts?.minStat) -
-      spConditionShortfall(members, spMin) * SP_PENALTY
+      spConditionShortfall(members, spMin) * SP_PENALTY -
+      // タイプ割合は必須条件（シードと山登りは構成を守るが、固定カードや
+      // アシストの扱いで崩れた候補が勝たないよう目的関数でも弾く）
+      typeRatioShortfall(members, opts) * RATIO_PENALTY
     );
   };
 

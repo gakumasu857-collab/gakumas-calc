@@ -234,10 +234,10 @@ export default function CalcPage() {
       const resolved = resolveSpMin(r, settings);
       for (const t of TYPE_KEYS) {
         const need = resolved[t] ?? 0;
+        // 全SPレッスン率（トレーナー等）は全タイプの1枚として数える
         if (
           need > 0 &&
-          members.filter((m) => !m.assist && m.type === t && m.hasSpUp).length <
-            need
+          members.filter((m) => m.spTypes.includes(t)).length < need
         )
           return false;
       }
@@ -254,6 +254,15 @@ export default function CalcPage() {
         // 合計6以上=枚数固定、6未満=最低枚数
         if (ratioSum >= 6 ? counts[t] !== want : counts[t] < want) return false;
       }
+    }
+    // 最低ステ・最高ステ: 今の最終ステが条件から外れていれば「条件を満たしていない」
+    // （条件外の今の編成が評価値だけ高くても、条件を満たす探索結果で置き換える）
+    for (const t of TYPE_KEYS) {
+      const stat = r.perType[t].capped;
+      const min = settings.minStats[t];
+      if (min > 0 && stat < min) return false;
+      const max = settings.maxStats[t];
+      if (max > 0 && max < r.statCap && stat > max) return false;
     }
     return true;
   };
@@ -372,7 +381,9 @@ export default function CalcPage() {
                     (a) =>
                       `${a.axis} ${a.rating.toLocaleString()}${
                         a.chosen
-                          ? "（採用）"
+                          ? a.issues.length > 0
+                            ? `（採用・条件未達: ${a.issues.join("・")}）`
+                            : "（採用）"
                           : a.issues.length > 0
                             ? `（条件未達: ${a.issues.join("・")}）`
                             : "（仕上げ前）"

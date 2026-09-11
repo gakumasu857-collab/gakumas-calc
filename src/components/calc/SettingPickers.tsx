@@ -22,6 +22,77 @@ const TYPE_CHIP: Record<TypeKey, string> = {
   visual: "bg-yellow-100 text-yellow-700",
 };
 
+/** 編成6枠のタイプ割り振り（−/＋で枚数を変え、合計は6まで。余りは「自由」枠） */
+function TypeSlotAllocator({
+  ratio,
+  disabled,
+  onChange,
+}: {
+  ratio: Record<TypeKey, number>;
+  disabled: boolean;
+  onChange: (type: TypeKey, value: number) => void;
+}) {
+  const total = TYPE_KEYS.reduce((sum, t) => sum + Math.max(0, ratio[t]), 0);
+  const free = Math.max(0, 6 - total);
+  // 6枠のバー（Vo→Da→Vi の順に並べ、余りは自由）
+  const bar: (TypeKey | "free")[] = [];
+  for (const t of TYPE_KEYS) {
+    for (let i = 0; i < ratio[t] && bar.length < 6; i++) bar.push(t);
+  }
+  while (bar.length < 6) bar.push("free");
+  const btn =
+    "flex h-6 w-6 items-center justify-center rounded-md border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-1">
+        {bar.map((s, i) => (
+          <span
+            key={i}
+            className={`flex h-8 flex-1 items-center justify-center rounded-md text-[11px] font-bold ${
+              s === "free"
+                ? "border border-dashed border-slate-300 text-slate-400"
+                : TYPE_CHIP[s]
+            }`}
+          >
+            {s === "free" ? "自由" : TYPE_LABELS[s].slice(0, 2)}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        {TYPE_KEYS.map((t) => (
+          <div key={t} className="flex items-center gap-1">
+            <span
+              className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[t]}`}
+            >
+              {TYPE_LABELS[t]}
+            </span>
+            <button
+              type="button"
+              className={btn}
+              disabled={disabled || ratio[t] <= 0}
+              onClick={() => onChange(t, Math.max(0, ratio[t] - 1))}
+              aria-label={`${TYPE_LABELS[t]}を1枚減らす`}
+            >
+              −
+            </button>
+            <span className="w-4 text-center text-sm font-bold">{ratio[t]}</span>
+            <button
+              type="button"
+              className={btn}
+              disabled={disabled || total >= 6}
+              onClick={() => onChange(t, ratio[t] + 1)}
+              aria-label={`${TYPE_LABELS[t]}を1枚増やす`}
+            >
+              ＋
+            </button>
+          </div>
+        ))}
+        <span className="text-[11px] text-slate-500">自由 {free}枚</span>
+      </div>
+    </div>
+  );
+}
+
 /**
  * 理論評価値を求めるときの前提設定をまとめるモーダル。
  * 取得回数（前イベ取得・後イベ発動の上限）／踏み方のタイプ割合／試験補助。
@@ -109,7 +180,7 @@ export function TheorySettingsModal({
                   }
                   className="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-sm"
                 >
-                  {[0, 1, 2, 3].map((n) => (
+                  {[0, 1, 2, 3, 4, 5, 6].map((n) => (
                     <option key={n} value={n}>
                       {n === 0 ? "条件なし" : `${n}枚以上`}
                     </option>
@@ -119,7 +190,7 @@ export function TheorySettingsModal({
             ))}
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            理想編成を組むとき、現在の踏み方でレッスン回数が多い上位2タイプに、SPレッスン率アップ持ちのサポカを最低この枚数入れます（同数のときは審査基準が高いタイプを上位扱い）。
+            理想編成を組むとき、レッスン回数が多い上位2タイプ（候補の踏み方ごとに判定。同数のときは審査基準が高いタイプを上位扱い）に、SPレッスン率アップ持ちのサポカを最低この枚数入れます。トレーナーやあさりなど「全SPレッスン率」持ちのアシストは、全タイプの1枚として数えます。
           </p>
         </section>
 
@@ -136,31 +207,17 @@ export function TheorySettingsModal({
             />
             サポカ編成のタイプ割合を固定する
           </label>
-          <div
-            className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 ${ratio.enabled ? "" : "opacity-40"}`}
-          >
-            {TYPE_KEYS.map((type) => (
-              <label key={type} className="flex items-center gap-1">
-                <span
-                  className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
-                >
-                  {TYPE_LABELS[type]}
-                </span>
-                <NumberField
-                  value={ratio[type]}
-                  onChange={(v) =>
-                    onUpdate({ typeRatio: { ...ratio, [type]: v } })
-                  }
-                  max={6}
-                  sliderMax={6}
-                  disabled={!ratio.enabled}
-                  className="w-12"
-                />
-              </label>
-            ))}
+          <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
+            <TypeSlotAllocator
+              ratio={ratio}
+              disabled={!ratio.enabled}
+              onChange={(type, v) =>
+                onUpdate({ typeRatio: { ...ratio, [type]: v } })
+              }
+            />
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            編成のタイプ構成を指定します（例 1:3:2 → Vo1枚・Da3枚・Vi2枚）。合計が6未満なら指定枚数ぶんだけそのタイプを確保して、残りの枠は自由に探索します（例 Da3 → Da3枚＋自由3枚）。合計が6を超える場合は比率どおり6枚へ按分します。
+            6枠をタイプに割り振ります。合計が6なら構成をそのまま固定、6未満なら指定枚数ぶんそのタイプを確保して、残り（自由）は探索で決めます（例 Da3 → Da3枚＋自由3枚）。トレーナーなどアシストのサポカは自由枠に入ります。
           </p>
         </section>
 

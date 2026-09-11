@@ -52,6 +52,8 @@ import {
   findBestFormation,
   typeConstraintFromRatio,
   minStatBonus,
+  typeRatioShortfall,
+  RATIO_PENALTY,
   SP_PENALTY,
   spConditionShortfall,
   scoreOwnedCards,
@@ -537,12 +539,14 @@ export function runFullOptimize(
   // 授業を流行タイプの閾値ルール（第1流行2100+/第3流行1100+/余りは第1流行）へ寄せる
   finalEngine.applyClassPreference(best);
   const ectx = finalEngine.buildEctx(best.stepping);
-  const { cappedSum, members } = finalEngine.preciseObjective(
-    best.slots,
-    ectx,
-    true,
-  );
+  const {
+    cappedSum,
+    members,
+    stats: finalStats,
+  } = finalEngine.preciseObjective(best.slots, ectx, true);
   const rating = finalEngine.fullRating(best.stepping, cappedSum, members);
+  // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
+  const finalIssues = finalEngine.conditionIssues(members, finalStats, ectx.spMin);
 
   return {
     ...engine.toSteppingResult(best.stepping),
@@ -568,7 +572,7 @@ export function runFullOptimize(
             // 採用軸は仕上げ後の評価値（＝反映される値）、他は本探索時点の値
             rating: chosen ? rating : engine.fullRating(c.stepping, cappedSum, mem),
             chosen,
-            issues: chosen ? [] : engine.conditionIssues(mem, stats, ectx.spMin),
+            issues: chosen ? finalIssues : engine.conditionIssues(mem, stats, ectx.spMin),
           };
         })
         .sort((a, b) => b.rating - a.rating);
@@ -646,8 +650,13 @@ export class OptimizeEngine {
    * （わざわざ積みに行かない・溢れ込みを選抜の微調整で削りにも行かない）。
    */
   private maxTargets: Record<TypeKey, number>;
+  /** サポカ編成のタイプ割合条件（合計6=固定、6未満=最低枚数）。必須条件として全段階で守る */
+  private ratioCons: ReturnType<typeof typeConstraintFromRatio>;
 
   constructor(private input: AutoOptimizeInput) {
+    this.ratioCons = input.typeRatio
+      ? typeConstraintFromRatio(input.typeRatio)
+      : {};
     this.caps = {
       vocal: input.statCap,
       dance: input.statCap,
@@ -1079,10 +1088,10 @@ export class OptimizeEngine {
       .forEach((card) => cands.push({ card, rental: true }));
 
     const typeOf = new Map<string, TypeKey>();
-    for (const c of [...owned, ...rentals]) typeOf.set(c.id, c.type);
-    const ratioCons = this.input.typeRatio
-      ? typeConstraintFromRatio(this.input.typeRatio)
-      : {};
+    for (const c of [...owned, ...rentals]) {
+      if (!c.assist) typeOf.set(c.id, c.type); // アシストはどのタイプにも数えない
+    }
+    const ratioCons = this.ratioCons;
     const violatesRatio = (slots: SelectedSlot[]): boolean => {
       if (!ratioCons.typeCounts && !ratioCons.typeMinCounts) return false;
       const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -1645,7 +1654,9 @@ export class OptimizeEngine {
         ? examAssistSum(members, this.input.examStyleTags)
         : 0) +
       minStatBonus(stats, this.minStatCond) -
-      spConditionShortfall(members, ectx.spMin) * SP_PENALTY;
+      spConditionShortfall(members, ectx.spMin) * SP_PENALTY -
+      // サポカ編成のタイプ割合は必須条件（違反した候補はどの段階でも勝たせない）
+      typeRatioShortfall(members, this.ratioCons) * RATIO_PENALTY;
     return { obj, cappedSum, members, stats, overflow };
   }
 
@@ -1837,6 +1848,13 @@ export class OptimizeEngine {
         this.input.examAssist
           ? examAssistSum([c], this.input.examStyleTags)
           : 0;
+      // SP率持ちの最低枚数条件ぶんは、点数上位のSP率持ちを必ず候補に入れる
+      const spNeed = Math.max(
+        3,
+        this.input.spTop?.first ?? 0,
+        this.input.spTop?.second ?? 0,
+        ...TYPE_KEYS.map((t) => this.input.spMin[t] ?? 0),
+      );
       for (const type of TYPE_KEYS) {
         const group = owned.filter((c) => c.type === type && !c.assist);
         const byPoints = [...group].sort((a, b) => b.points - a.points);
@@ -1851,7 +1869,7 @@ export class OptimizeEngine {
           .forEach((c) => ids.add(c.id));
         byPoints
           .filter((c) => c.hasSpUp)
-          .slice(0, 3)
+          .slice(0, spNeed)
           .forEach((c) => ids.add(c.id));
         [...rentals.filter((c) => c.type === type)]
           .sort((a, b) => b.points - a.points)
@@ -1862,6 +1880,12 @@ export class OptimizeEngine {
         .filter((c) => c.assist)
         .sort((a, b) => b.points - a.points)
         .slice(0, 4)
+        .forEach((c) => ids.add(c.id));
+      // 全SPレッスン率持ちのアシスト（トレーナー等）はSP条件を全タイプで満たせるので候補に残す
+      owned
+        .filter((c) => c.assist && c.hasSpUp)
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 2)
         .forEach((c) => ids.add(c.id));
     }
     // 固定カードは必ず候補に含める。ただし使用制限（プラン）が合わないカードは
@@ -2158,17 +2182,31 @@ export class OptimizeEngine {
       );
     }
 
-    // タイプ割合の制約（固定枚数指定のときは超過を弾く）
-    const ratioConstraint = this.input.typeRatio
-      ? typeConstraintFromRatio(this.input.typeRatio)
-      : {};
-    const fixedCounts = (
-      ratioConstraint as { typeCounts?: Record<TypeKey, number> }
-    ).typeCounts;
+    // タイプ割合の制約。固定枚数（合計6）は超過を弾き、最低枚数（合計6未満）は
+    // 「残り枠で最低枚数を満たせなくなる追加」を弾く。アシストはどのタイプにも数えない
+    const fixedCounts = this.ratioCons.typeCounts;
+    const minCounts = this.ratioCons.typeMinCounts;
+    const freeSlots = fixedCounts
+      ? 6 - (fixedCounts.vocal + fixedCounts.dance + fixedCounts.visual)
+      : 6;
     const allowedByType = (nd: Node, c: ScoredCard): boolean => {
-      if (c.assist) return true;
-      if (fixedCounts && nd.typeCount[c.type] >= fixedCounts[c.type]) {
-        return false;
+      if (fixedCounts) {
+        if (c.assist) {
+          const assistCount =
+            nd.picks.length -
+            (nd.typeCount.vocal + nd.typeCount.dance + nd.typeCount.visual);
+          return assistCount < freeSlots;
+        }
+        return nd.typeCount[c.type] < fixedCounts[c.type];
+      }
+      if (minCounts) {
+        const remaining = 6 - nd.picks.length - 1;
+        let deficit = 0;
+        for (const t of TYPE_KEYS) {
+          const have = nd.typeCount[t] + (!c.assist && c.type === t ? 1 : 0);
+          deficit += Math.max(0, minCounts[t] - have);
+        }
+        return deficit <= remaining;
       }
       return true;
     };
@@ -2512,7 +2550,7 @@ export class OptimizeEngine {
       examAssist: input.examAssist,
       examStyleTags: input.examStyleTags,
       // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
-      ...(input.typeRatio ? typeConstraintFromRatio(input.typeRatio) : {}),
+      ...this.ratioCons,
       minStat: this.minStatCond,
     });
   }
