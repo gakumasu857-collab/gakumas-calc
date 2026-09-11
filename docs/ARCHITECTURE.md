@@ -68,6 +68,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 |---|---|---|
 | `release.cmd` | `npm run release`（= `npm run build` → `wrangler deploy`）だけ | プログラム（.ts/.tsx）だけを直したとき。スプシ・画像は取り込まない |
 | `update-all.cmd` | ①`npm run sync:images`（ドライブ→R2。未設定なら飛ばす）→ ②`npm run gen:all`（スプシ→R2 同期＋6つの gen）→ ③`npm run release` | スプシや画像を変えたとき。これ1本で全部やる（2〜3分） |
+| `dev.cmd` | `npm run dev`（開発サーバー）を起動し、数秒後にブラウザで http://localhost:5173 を開く。**何も配信しない** | リリース前にローカルで動きを確かめたいとき。黒い窓を閉じると止まる |
 
 - `npm run gen:all` の中身（`package.json` の `scripts`）:
   `sync:master` → `gen:cards` → `gen:perf` → `gen:counts` → `gen:pidols` → `gen:sprite` → `gen:preevents` → `check:labels`
@@ -102,7 +103,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `wrangler.toml` | Cloudflare Workers の設定（ドメイン、R2 のつなぎ先、cron、同期するタブ名 `SHEET_TABS`、スプシID `SHEET_ID`） |
 | `.env.local`（git 管理外） | 画像の公開URL `VITE_IMAGE_BASE_URL`、ドライブのフォルダID 3つ、`SYNC_SECRET` |
 | `service-account.json`（git 管理外） | Google のサービスアカウント鍵（`sync:images` がドライブを読むために使う） |
-| `release.cmd` / `update-all.cmd` | 1-3 参照 |
+| `release.cmd` / `update-all.cmd` / `dev.cmd` | 1-3 参照 |
 | `index.html` | サイトの入れ物（タイトル・説明文・アイコン指定） |
 | `vite.config.ts` / `tsconfig.json` | ビルド設定（`@/` が `src/` を指す、など） |
 | `dist/`（git 管理外） | ビルド結果。`wrangler deploy` がこれを配信 |
