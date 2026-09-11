@@ -1,12 +1,26 @@
 import { useState } from "react";
-import { CalendarCheck, ChevronDown, ListOrdered, Settings, Sparkles } from "lucide-react";
+import { ChevronDown, ClipboardCopy, Settings, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
+
+/** 直近の探索の状況（1行で出す。結果そのものは編成・踏み方・評価値に出る） */
+export type RunStatus = {
+  /** 短い通知（編成だけ／踏み方だけ／エラーなど） */
+  message?: string;
+  evaluated?: number;
+  elapsedMs?: number;
+  before?: number | null;
+  after?: number;
+  /** 探索結果が今の評価値を下回ったため反映しなかった */
+  kept?: boolean;
+  notes?: string[];
+  diagLog?: string | null;
+};
 
 /**
- * 操作パネル（デスクトップでは左列に固定表示＝スクロールしなくても押せる）。
- * 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ）と、
- * よく使う「探索の条件」「踏み方を編集」「発動回数」。
+ * 操作パネル（デスクトップでは右列に固定表示＝スクロールしなくても押せる）。
+ * 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ）と「探索の条件」。
+ * 下に直近の探索の内訳（何通り・何秒・前後の評価値）と診断ログ。
  */
 export default function ActionPanel({
   busy,
@@ -14,27 +28,50 @@ export default function ActionPanel({
   missingInputs,
   notReadyTitle,
   ownershipUnset,
+  status,
   onRun,
   onFormationOnly,
   onPlanOnly,
   onConditions,
-  onEditPlan,
-  onEditCounts,
 }: {
   busy: boolean;
   ready: boolean;
   missingInputs: string[];
   notReadyTitle?: string;
-  /** 所持状況が未入力（全サポカ完凸で計算中） */
+  /** 所持状況ページをまだ開いていない（全サポカ完凸で計算中） */
   ownershipUnset: boolean;
+  status: RunStatus | null;
   onRun: () => void;
   onFormationOnly: () => void;
   onPlanOnly: () => void;
   onConditions: () => void;
-  onEditPlan: () => void;
-  onEditCounts: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logShown, setLogShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyLog = () => {
+    const log = status?.diagLog;
+    if (!log) return;
+    const clip = navigator.clipboard?.writeText(log);
+    if (!clip) {
+      setLogShown(true);
+      return;
+    }
+    void clip.then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => setLogShown(true),
+    );
+  };
+
+  const delta =
+    status && status.before != null && status.after != null
+      ? status.after - status.before
+      : null;
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="flex items-stretch">
@@ -84,11 +121,22 @@ export default function ActionPanel({
           )}
         </div>
       </div>
-      {!ready && (
-        <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
-          「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
-        </p>
-      )}
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onConditions}
+          className={`${BTN_SECONDARY} shrink-0`}
+          title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
+        >
+          <Settings size={13} />
+          探索の条件
+        </button>
+        {!ready && (
+          <p className="text-[11px] font-semibold text-amber-600">
+            「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
+          </p>
+        )}
+      </div>
       {ownershipUnset && (
         <p className="mt-1.5 text-[11px] text-amber-700">
           所持状況が未入力です（全サポカ完凸で計算）
@@ -97,35 +145,66 @@ export default function ActionPanel({
           </Link>
         </p>
       )}
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
-        <button
-          type="button"
-          onClick={onConditions}
-          className={`${BTN_SECONDARY} justify-center px-1`}
-          title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
-        >
-          <Settings size={13} />
-          探索の条件
-        </button>
-        <button
-          type="button"
-          onClick={onEditPlan}
-          className={`${BTN_SECONDARY} justify-center px-1`}
-          title="レッスン・授業（営業）・選抜の踏み方を編集"
-        >
-          <CalendarCheck size={13} />
-          踏み方を編集
-        </button>
-        <button
-          type="button"
-          onClick={onEditCounts}
-          className={`${BTN_SECONDARY} justify-center px-1`}
-          title="育成パターンのアビリティ発動回数を調整"
-        >
-          <ListOrdered size={13} />
-          発動回数
-        </button>
-      </div>
+
+      {/* 直近の探索の内訳 */}
+      {status && (
+        <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+          {status.message ? (
+            <p className="font-semibold text-slate-700">{status.message}</p>
+          ) : (
+            <p className="tabular-nums">
+              前回の探索:{" "}
+              {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
+              {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
+              {status.before != null && status.after != null && (
+                <>
+                  {" ／ "}
+                  {status.before.toLocaleString()} → {status.after.toLocaleString()}
+                  {delta !== null && (
+                    <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      （{delta >= 0 ? "+" : ""}
+                      {delta.toLocaleString()}）
+                    </span>
+                  )}
+                </>
+              )}
+              {status.kept && (
+                <span className="ml-1 font-semibold text-slate-700">
+                  今の評価値を下回ったため変更なし
+                </span>
+              )}
+            </p>
+          )}
+          {status.notes?.map((n) => (
+            <p key={n} className="text-amber-700">
+              ・{n}
+            </p>
+          ))}
+          {status.diagLog && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={copyLog}
+                className={`${BTN_GHOST} -ml-2`}
+                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
+              >
+                <ClipboardCopy size={12} />
+                診断ログをコピー
+              </button>
+              {copied && <span className="text-emerald-600">コピーしました</span>}
+            </div>
+          )}
+          {logShown && status.diagLog && (
+            <textarea
+              readOnly
+              value={status.diagLog}
+              onFocus={(e) => e.currentTarget.select()}
+              className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
+              title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
+            />
+          )}
+        </div>
+      )}
     </section>
   );
 }

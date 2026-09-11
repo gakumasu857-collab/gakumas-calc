@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Camera, Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import SupportCardOwnership from "@/components/ownership/SupportCardOwnership";
 import PIdolOwnership from "@/components/ownership/PIdolOwnership";
 import OwnedSaveBar from "@/components/ownership/OwnedSaveBar";
+import { markOwnershipVisited } from "@/lib/ownershipAck";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import { useOwnedSaves } from "@/lib/useOwnedSaves";
@@ -25,6 +26,10 @@ export default function OwnershipPage() {
     : undefined;
   // スロット（保存先）の切り替え・作成・削除・CSVは1つのモーダルにまとめる
   const [saveOpen, setSaveOpen] = useState(false);
+  // 計算ページの「所持状況が未入力」判定は「このページを開いたことがあるか」で行う
+  useEffect(() => {
+    markOwnershipVisited();
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">

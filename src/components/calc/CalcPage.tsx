@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useState } from "react";
 import {
   ChevronDown,
   HelpCircle,
@@ -13,20 +13,14 @@ import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
-import ActionPanel from "@/components/calc/ActionPanel";
+import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import { Card, Field } from "@/components/calc/CalcCard";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
+import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
-import MobileActionBar from "@/components/calc/MobileActionBar";
-import OptimizeResultCard, {
-  type ConditionStatus,
-  type OptimizeOutcome,
-  type PlanSummary,
-} from "@/components/calc/OptimizeResultCard";
 import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
-import PlanSummaryCard from "@/components/calc/PlanSummaryCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
 import {
   IdolPickerModal,
@@ -60,8 +54,8 @@ import {
 } from "@/lib/formation";
 import { GLOSSARY } from "@/lib/glossary";
 import {
-  ownershipCustomized,
   readOwnershipAck,
+  readOwnershipVisited,
   writeOwnershipAck,
 } from "@/lib/ownershipAck";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
@@ -87,7 +81,9 @@ import {
 } from "@/lib/useCalcSettings";
 
 const CARD_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
-const CARD_PLAN_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.plan]));
+
+/** 探索の条件（SP率持ち・タイプ割合・最低ステ・最高ステ）の達成状況（評価値の下のチップ） */
+type ConditionStatus = { label: string; ok: boolean; detail?: string };
 const SUPPORT_IMAGE_BY_ID = new Map(
   SUPPORT_CATALOG.map((c) => [c.id, c.image]),
 );
@@ -147,18 +143,10 @@ export default function CalcPage() {
   const [countsOpen, setCountsOpen] = useState(false);
   /** 初回の探索前の所持状況の確認モーダル */
   const [ownConfirmOpen, setOwnConfirmOpen] = useState(false);
-  /** 直近の探索の結果（結果カードに構造化して出す。文章の状態は持たない） */
-  const [outcome, setOutcome] = useState<OptimizeOutcome | null>(null);
+  /** 直近の探索の状況（操作パネルの下に1行で出す） */
+  const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
-  // 探索の結果が出たら結果カードへスクロール（押す場所と結果が離れていても見える）
-  useEffect(() => {
-    if (outcome && (outcome.kind === "applied" || outcome.kind === "kept")) {
-      document
-        .getElementById("opt-result")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [outcome]);
 
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
@@ -177,7 +165,7 @@ export default function CalcPage() {
    */
   const applyIdealFormation = () => {
     setIdealBusy(true);
-    setOutcome(null);
+    setLastRun(null);
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
@@ -223,15 +211,13 @@ export default function CalcPage() {
             : undefined,
         });
         if (!best) {
-          setOutcome({
-            kind: "error",
+          setLastRun({
             message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
           });
           return;
         }
         selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
-        setOutcome({
-          kind: "info",
+        setLastRun({
           message:
             `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(best.score).toLocaleString()}）` +
             (best.spShortfall > 0
@@ -302,10 +288,6 @@ export default function CalcPage() {
     return true;
   };
 
-  /**
-   * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
-   * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
-   */
   /**
    * 探索の診断ログ。セーブデータ形式の状態（設定・踏み方・メモリー・発動回数・編成・所持）と
    * 押す前の評価値、探索結果（編成・踏み方・軸比較・フェーズ別スコア）をまとめる。
@@ -427,118 +409,47 @@ export default function CalcPage() {
     return out;
   };
 
-  /** 探索結果での条件の達成状況（採用結果の未達は axisReport の採用軸に入っている） */
-  const resultConditions = (res: AutoOptimizeResult): ConditionStatus[] => {
-    const out: ConditionStatus[] = [];
-    const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
-    if (settings.spTop.first > 0 || settings.spTop.second > 0) {
-      out.push({
-        label: "SP率持ち",
-        ok: res.spShortfall === 0,
-        detail: res.spShortfall > 0 ? `あと${res.spShortfall}枚` : undefined,
-      });
-    }
-    if (settings.typeRatio.enabled) out.push(ratioStatus(res.slots.map((s) => s.id)));
-    if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {
-      const bad = issues.filter((i) => i.startsWith("最低ステ"));
-      out.push({
-        label: "最低ステ",
-        ok: bad.length === 0,
-        detail: bad.length ? bad.join("・") : undefined,
-      });
-    }
-    if (
-      TYPE_KEYS.some((t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap)
-    ) {
-      const bad = issues.filter((i) => i.startsWith("最高ステ"));
-      out.push({
-        label: "最高ステ",
-        ok: bad.length === 0,
-        detail: bad.length ? bad.join("・") : undefined,
-      });
-    }
-    return out;
-  };
-
-  /** 探索結果の踏み方を要約（結果カードのチップ用） */
-  const planSummaryOf = (res: AutoOptimizeResult): PlanSummary | undefined => {
-    if (res.hif) {
-      return {
-        lessons: res.hif.lessons.map((l) => ({ type: l.main, sub: l.sub, sp: l.sp })),
-        classes: res.hif.classTypes,
-      };
-    }
-    if (res.nia) {
-      return {
-        lessons: res.nia.lessons.map((l) => ({ type: l.main, sp: l.sp })),
-        sales: res.nia.sales.map((s) => s.type),
-      };
-    }
-    if (res.hatsu) {
-      return {
-        lessons: res.hatsu.lessons.map((l) => ({ type: l.main, sp: l.sp })),
-        classes: res.hatsu.classTypes,
-      };
-    }
-    return undefined;
-  };
-
   /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
    * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
-   * 結果は文章ではなく OptimizeOutcome に分けて持ち、結果カードで見せる。
+   * 結果そのものは編成・踏み方・評価値の表示に出るので、ここには探索の内訳
+   * （何通り・何秒・前後の評価値）と注意だけを残す。
    */
   const runAutoOptimize = () => {
     setOptBusy(true);
-    setOutcome(null);
+    setLastRun(null);
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
     // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない
     const before = canShowRating && !settings.examAssist ? r.rating : null;
     const beforeOk = before !== null && currentMeetsConditions();
-    const beforeSlots = r.selected.slots.filter(
-      (s): s is NonNullable<typeof s> => s !== null,
-    );
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
         const res = runFullOptimize(buildAutoOptimizeInput(r, flags, settings));
         if (!res) {
-          setOutcome({
-            kind: "error",
+          setLastRun({
             message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
           });
           return;
         }
-        const base: OptimizeOutcome = {
-          kind: "applied",
-          before,
-          after: res.rating,
-          elapsedMs: res.elapsedMs,
-          evaluated: res.evaluated,
-          axisReport: res.axisReport,
-          conditions: resultConditions(res),
-          plan: planSummaryOf(res),
-        };
+        // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
+        const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
+        const notes: string[] = [];
+        if (issues.length > 0) notes.push(`満たせなかった条件: ${issues.join("・")}`);
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
         if (before !== null && beforeOk && res.rating < before) {
-          setOutcome({
-            ...base,
-            kind: "kept",
+          setLastRun({
+            evaluated: res.evaluated,
+            elapsedMs: res.elapsedMs,
+            before,
+            after: res.rating,
+            kept: true,
+            notes,
             diagLog: buildDiagLog(res, before, beforeOk, false),
           });
           return;
         }
-        const inIds = new Set(res.slots.map((s) => s.id));
-        const outIds = new Set(beforeSlots.map((s) => s.id));
-        const nameOf = (id: string) => CARD_BY_ID.get(id)?.name ?? id;
-        const swappedIn = res.slots
-          .filter((s) => !outIds.has(s.id))
-          .map((s) => ({ id: s.id, name: nameOf(s.id), rental: s.rental }));
-        const swappedOut = beforeSlots
-          .filter((s) => !inIds.has(s.id))
-          .map((s) => ({ id: s.id, name: nameOf(s.id) }));
-
         if (res.hif)
           r.schedule.setPlan(res.hif.lessons, res.hif.classTypes, res.hif.examScores);
         if (res.nia) r.niaSchedule.setPlan(res.nia.lessons, res.nia.sales);
@@ -546,13 +457,12 @@ export default function CalcPage() {
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
         selected.setAll(res.slots);
         // イベント予算で発動しないことにした前イベ・後イベは「提案」として保持し、
-        // 自動ではサポカ設定に反映しない（下のボタンを押して初めて反映）。
+        // 自動ではサポカ設定に反映しない（提案のボタンを押して初めて反映）。
         const ops = res.eventOps ?? null;
         const hasOps = !!ops && ops.length > 0;
         setPendingOps(hasOps ? ops : null);
         // 取得制限つきの理論評価値を評価値ボックスに一時表示（サポカ設定は未変更）
         setPreviewRating(hasOps ? res.rating : null);
-        const notes: string[] = [];
         if (before !== null && !beforeOk && res.rating < before) {
           notes.push(
             "押す前より評価値が下がっていますが、元の編成は探索の条件に合っていなかったため置き換えました",
@@ -560,16 +470,14 @@ export default function CalcPage() {
         }
         if (hasOps) {
           notes.push(
-            "評価値ボックスには前イベ/後イベの取得制限を反映した値を表示しています（下のボタンでサポカ設定にも反映できます）",
+            "評価値には前イベ/後イベの取得制限を反映した値を表示しています（提案からサポカ設定にも反映できます）",
           );
         }
-        if (res.spShortfall > 0) {
-          notes.push(`SPレッスン率の条件はあと${res.spShortfall}枚分満たせませんでした`);
-        }
-        setOutcome({
-          ...base,
-          swappedIn,
-          swappedOut,
+        setLastRun({
+          evaluated: res.evaluated,
+          elapsedMs: res.elapsedMs,
+          before,
+          after: res.rating,
           notes,
           diagLog: buildDiagLog(res, before, beforeOk, true),
         });
@@ -589,7 +497,7 @@ export default function CalcPage() {
     }
     setPendingOps(null);
     setPreviewRating(null);
-    setOutcome({ kind: "info", message: "前イベ/後イベの取得制限をサポカ設定に反映しました。" });
+    setLastRun({ message: "前イベ/後イベの取得制限をサポカ設定に反映しました。" });
   };
 
   /**
@@ -623,13 +531,15 @@ export default function CalcPage() {
 
   const memoryCount = r.memoryStore.selected.length;
   const conditionChips = currentConditions();
-  const ownershipUnset = !ownershipCustomized(r.ownedLevels.levels);
-  const scrollToResults = () =>
-    document
-      .getElementById("calc-results")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const ownershipUnset = !readOwnershipVisited();
+  /** 前イベ・後イベ・ステイベを手で変えている編成カードの数（全体像カードのバッジ） */
+  const eventOverrideCount = r.members.filter((m) => {
+    if (!m) return false;
+    const ov = r.events.get(m.id);
+    return !!ov && Object.values(ov).some((v) => v !== undefined && v !== null);
+  }).length;
 
-  /** 主役ボタン: 所持状況が未入力なら初回だけ確認してから探索する */
+  /** 主役ボタン: 所持状況ページを開いたことがなければ初回だけ確認してから探索する */
   const requestAutoOptimize = () => {
     if (ownershipUnset && !readOwnershipAck()) {
       setOwnConfirmOpen(true);
@@ -645,20 +555,19 @@ export default function CalcPage() {
       missingInputs={missingInputs}
       notReadyTitle={notReadyTitle}
       ownershipUnset={ownershipUnset}
+      status={lastRun}
       onRun={requestAutoOptimize}
       onFormationOnly={applyIdealFormation}
       onPlanOnly={() => {
-        setOutcome(null);
-        planOpt.run((m) => setOutcome({ kind: "info", message: m }));
+        setLastRun(null);
+        planOpt.run((m) => setLastRun({ message: m }));
       }}
       onConditions={() => setTheoryOpen(true)}
-      onEditPlan={() => setPlanOpen(true)}
-      onEditCounts={() => setCountsOpen(true)}
     />
   );
 
   return (
-    <div className="grid gap-4 pb-24 lg:grid-cols-[360px_1fr] lg:items-start lg:pb-0">
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -683,8 +592,8 @@ export default function CalcPage() {
         </div>
       </div>
 
-      {/* ===== 入力（デスクトップでは右） ===== */}
-      <div className="flex min-w-0 flex-col gap-4 lg:order-2">
+      {/* ===== 入力（デスクトップでは左） ===== */}
+      <div className="flex min-w-0 flex-col gap-4 lg:order-1">
         {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数）。全部そろうと探索できる */}
         <Card title="育成の前提" hint={<Hint text={GLOSSARY.premise} />}>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -755,48 +664,57 @@ export default function CalcPage() {
                     </span>
                   }
                 >
-                  <select
-                    value={r.ability.selectedSetId ?? ""}
-                    onChange={(e) => {
-                      if (e.target.value !== r.ability.selectedSetId)
-                        r.ability.selectSet(e.target.value);
-                    }}
-                    className={`${INPUT} w-full ${
-                      r.ability.selectedSetId
-                        ? ""
-                        : "border-amber-400 bg-amber-50 font-bold text-amber-700"
-                    }`}
-                  >
-                    <option value="">未選択（クリックして選ぶ）</option>
-                    {/* セーブデータ用のセットは数が増えるので別グループにまとめる */}
-                    {(() => {
-                      const visible = r.ability.sets.filter((set) =>
-                        setVisibleInScenario(set.id, r.scenario),
-                      );
-                      const option = (set: (typeof visible)[number]) => (
-                        <option key={set.id} value={set.id}>
-                          {set.plan ? `【${set.plan}】` : ""}
-                          {set.name}
-                        </option>
-                      );
-                      const normal = visible.filter(
-                        (s) => !r.ability.saveIdOf(s.id),
-                      );
-                      const saveSets = visible.filter((s) =>
-                        r.ability.saveIdOf(s.id),
-                      );
-                      return (
-                        <>
-                          {normal.map(option)}
-                          {saveSets.length > 0 && (
-                            <optgroup label="セーブデータ用">
-                              {saveSets.map(option)}
-                            </optgroup>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </select>
+                  {/* 他の欄と同じ見た目にする（矢印は自前。選択後は「未選択」を出さない） */}
+                  <span className="relative block">
+                    <select
+                      value={r.ability.selectedSetId ?? ""}
+                      onChange={(e) => {
+                        if (e.target.value !== r.ability.selectedSetId)
+                          r.ability.selectSet(e.target.value);
+                      }}
+                      className={`${INPUT} w-full appearance-none pr-8 ${
+                        r.ability.selectedSetId
+                          ? ""
+                          : "border-amber-400 bg-amber-50 font-bold text-amber-700"
+                      }`}
+                    >
+                      {!r.ability.selectedSetId && (
+                        <option value="">未選択（クリックして選ぶ）</option>
+                      )}
+                      {/* セーブデータ用のセットは数が増えるので別グループにまとめる */}
+                      {(() => {
+                        const visible = r.ability.sets.filter((set) =>
+                          setVisibleInScenario(set.id, r.scenario),
+                        );
+                        const option = (set: (typeof visible)[number]) => (
+                          <option key={set.id} value={set.id}>
+                            {set.plan ? `【${set.plan}】` : ""}
+                            {set.name}
+                          </option>
+                        );
+                        const normal = visible.filter(
+                          (s) => !r.ability.saveIdOf(s.id),
+                        );
+                        const saveSets = visible.filter((s) =>
+                          r.ability.saveIdOf(s.id),
+                        );
+                        return (
+                          <>
+                            {normal.map(option)}
+                            {saveSets.length > 0 && (
+                              <optgroup label="セーブデータ用">
+                                {saveSets.map(option)}
+                              </optgroup>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </span>
                 </Field>
                 {/* メモリー（計算ページ内のモーダルで4枚を選ぶ） */}
                 <Field
@@ -842,120 +760,77 @@ export default function CalcPage() {
           <ScenarioScoreCard r={r} />
         </Card>
 
-        {/* 探索の結果（押した直後にここへスクロール。下のサポカ編成・踏み方が新しい内容） */}
-        {(outcome || pendingOps) && (
-          <div id="opt-result" className="scroll-mt-16">
-            {outcome && <OptimizeResultCard outcome={outcome} />}
-            {pendingOps && (
-              <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
-                <p className="font-semibold text-amber-700">
-                  予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
-                </p>
-                <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                  {pendingOps.map((op) => (
-                    <li key={op.id}>
-                      <span className="text-slate-500">
-                        {CARD_BY_ID.get(op.id)?.name ?? op.id}
-                      </span>
-                      {op.acquire === false && (
-                        <span className="ml-1 font-semibold text-red-600">
-                          取得OFF
-                        </span>
-                      )}
-                      {op.pre !== undefined && (
-                        <span className="ml-1 font-semibold text-red-600">
-                          前イベ{op.pre}回
-                        </span>
-                      )}
-                      {op.post === 0 && (
-                        <span className="ml-1 font-semibold text-red-600">
-                          後イベ✕
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={applyPendingOps}
-                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-500"
-                  >
-                    サポカ設定に反映する
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingOps(null);
-                      setPreviewRating(null);
-                    }}
-                    className={SMALL_BTN}
-                  >
-                    反映しない
-                  </button>
-                </div>
-              </div>
-            )}
+        {/* スマホ: 操作パネルは前提のすぐ下（デスクトップでは右列） */}
+        <div className="lg:hidden">{actionPanel}</div>
+
+        {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
+        {pendingOps && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
+            <p className="font-semibold text-amber-700">
+              予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
+            </p>
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+              {pendingOps.map((op) => (
+                <li key={op.id}>
+                  <span className="text-slate-500">
+                    {CARD_BY_ID.get(op.id)?.name ?? op.id}
+                  </span>
+                  {op.acquire === false && (
+                    <span className="ml-1 font-semibold text-red-600">取得OFF</span>
+                  )}
+                  {op.pre !== undefined && (
+                    <span className="ml-1 font-semibold text-red-600">
+                      前イベ{op.pre}回
+                    </span>
+                  )}
+                  {op.post === 0 && (
+                    <span className="ml-1 font-semibold text-red-600">後イベ✕</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={applyPendingOps}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-500"
+              >
+                サポカ設定に反映する
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingOps(null);
+                  setPreviewRating(null);
+                }}
+                className={SMALL_BTN}
+              >
+                反映しない
+              </button>
+            </div>
           </div>
         )}
 
-        {/* サポカ編成 */}
-        <Card
-          title="サポカ編成"
-          hint={<Hint text={GLOSSARY.cardFlags} />}
-          action={
-            <button
-              type="button"
-              onClick={() => selected.clearAll()}
-              className={BTN_SECONDARY}
-            >
-              全て外す
-            </button>
-          }
-        >
-          {r.members.filter((m) => m?.rental).length >= 2 && (
-            <p className="mb-2 text-xs font-semibold text-amber-600">
-              ⚠ レンタルが
-              {r.members.filter((m) => m?.rental).length}
-              枚選ばれています。レンタルサポカは1育成につき1枚です。
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-            {selected.slots.map((_, i) => (
-              <SupportSlot
-                key={i}
-                member={r.members[i]}
-                plan={r.plan}
-                ownedLevel={r.members[i] ? r.getLevel(r.members[i]!.id) : 0}
-                flags={flags}
-                onOpen={() => setPickerSlot(i)}
-                onDetail={() => setDetail(r.members[i])}
-                onSetLevel={(level) => {
-                  const m = r.members[i];
-                  if (m) r.setLevel(m.id, level);
-                }}
-              />
-            ))}
-          </div>
-          <p className={`mt-1.5 ${NOTE}`}>
-            枠をクリックで入れ替え、歯車で凸・固定・BAN。「+123」は評価値へのステ換算の貢献です。
-          </p>
-          {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用。常に表示） */}
-          <EventCountEditor r={r} />
-        </Card>
-
-        {/* レッスンの踏み方（メイン・サブ・SP、授業／営業の並び） */}
-        <PlanSummaryCard
+        {/* サポカ編成と踏み方（一度に見える） */}
+        <FormationPlanCard
           r={r}
+          flags={flags}
+          eventOverrideCount={eventOverrideCount}
+          onOpenSlot={(i) => setPickerSlot(i)}
+          onDetail={(m) => setDetail(m)}
           onEditPlan={() => setPlanOpen(true)}
           onEditCounts={() => setCountsOpen(true)}
-        />
+          onClearAll={() => selected.clearAll()}
+        >
+          {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用） */}
+          <EventCountEditor r={r} />
+        </FormationPlanCard>
       </div>
 
-      {/* ===== 結果と操作（デスクトップでは左・スクロールに追従） ===== */}
+      {/* ===== 結果と操作（デスクトップでは右・スクロールに追従） ===== */}
       <div
         id="calc-results"
-        className="flex scroll-mt-16 flex-col gap-4 lg:order-1 lg:sticky lg:top-14 lg:self-start"
+        className="flex scroll-mt-16 flex-col gap-4 lg:order-2 lg:sticky lg:top-14 lg:self-start"
       >
         {/* 評価値（提案中は取得制限を反映した理論値を一時表示） */}
         <div
@@ -1044,7 +919,7 @@ export default function CalcPage() {
           )}
         </div>
 
-        {/* 操作（主役ボタン・探索の条件・踏み方・発動回数）。デスクトップでは常に見える */}
+        {/* 操作（主役ボタン・探索の条件・前回の探索）。デスクトップでは常に見える */}
         <div className="hidden lg:block">{actionPanel}</div>
 
         {/* 育成後のステータス */}
@@ -1154,9 +1029,6 @@ export default function CalcPage() {
         </Card>
       </div>
 
-      {/* スマホ: 操作パネルは入力列の先頭（画面下の固定バーにも主要操作あり） */}
-      <div className="lg:hidden">{actionPanel}</div>
-
       {/* カードの最終ステータス詳細（イベント補正込み） */}
       {detail &&
         r.roles.typeRole[detail.type] &&
@@ -1174,7 +1046,7 @@ export default function CalcPage() {
           />
         )}
 
-      {/* サポカ選択モーダル（凸もその場で直せる） */}
+      {/* サポカ選択モーダル（凸・固定・BAN・レンタルNGもここで） */}
       {pickerSlot !== null && (
         <SupportPickerModal
           slotIndex={pickerSlot}
@@ -1191,6 +1063,8 @@ export default function CalcPage() {
           rentalNg={flags.rentalNg}
           getLevel={r.getLevel}
           setLevel={r.setLevel}
+          flags={flags}
+          onToggleFlag={flags.toggle}
           onPick={(entry) => {
             selected.setSlot(pickerSlot, entry);
             setPickerSlot(null);
@@ -1213,7 +1087,7 @@ export default function CalcPage() {
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
       )}
 
-      {/* 初回の探索前: 所持状況が未入力なら確認 */}
+      {/* 初回の探索前: 所持状況ページを開いたことがなければ確認 */}
       {ownConfirmOpen && (
         <OwnershipConfirmModal
           onProceed={() => {
@@ -1293,22 +1167,9 @@ export default function CalcPage() {
         </Modal>
       )}
 
-      {/* 発動回数・踏み方のエディタ（操作パネル／踏み方ブロック／下バーから開く） */}
+      {/* 発動回数・踏み方のエディタ（「サポカ編成と踏み方」から開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
-
-      {/* スマホ: 画面下の固定バー（評価値・踏み方・回数・主役ボタン） */}
-      <MobileActionBar
-        rating={previewRating ?? r.rating}
-        canShow={canShowRating}
-        busy={optBusy}
-        ready={optimizeReady}
-        notReadyTitle={notReadyTitle}
-        onRun={requestAutoOptimize}
-        onShowResults={scrollToResults}
-        onEditPlan={() => setPlanOpen(true)}
-        onEditCounts={() => setCountsOpen(true)}
-      />
     </div>
   );
 }
@@ -1713,200 +1574,6 @@ function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
         おすすめ: {r.pMaster.effect}
       </p>
     </div>
-  );
-}
-
-/** 選択サポカの1枠。画像クリック=入れ替え、凸バッジクリック=凸数の変更 */
-function SupportSlot({
-  member,
-  plan,
-  ownedLevel,
-  flags,
-  onOpen,
-  onDetail,
-  onSetLevel,
-}: {
-  member: SelectedMember | null;
-  plan: string | null;
-  /** 自分が所持している凸（レンタルでも所持凸を編集できるように渡す） */
-  ownedLevel: number;
-  flags: ReturnType<typeof useCardFlags>;
-  onOpen: () => void;
-  onDetail: () => void;
-  onSetLevel: (level: number) => void;
-}) {
-  const [cfgOpen, setCfgOpen] = useState(false);
-  if (!member) {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex aspect-video w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-slate-300 text-xs font-semibold text-slate-400 transition hover:border-blue-400 hover:text-blue-500"
-      >
-        ＋ 選ぶ
-      </button>
-    );
-  }
-  const url = imageUrl(member.image);
-  const planNg = !planAllows(CARD_PLAN_BY_ID.get(member.id) ?? "", plan);
-  // レンタルは計算上は完凸だが、ポップオーバーでは自分の所持凸を編集する
-  const editLevel = member.rental ? ownedLevel : member.level;
-  return (
-    <div className="group relative">
-      <button type="button" onClick={onOpen} className="block w-full text-left">
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-          {url ? (
-            <img
-              src={url}
-              alt={member.name}
-              title={member.name}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center p-1 text-center text-[10px] text-slate-500">
-              {member.name}
-            </div>
-          )}
-          {planNg && (
-            <span className="absolute bottom-1 left-1 rounded bg-red-600/90 px-1 py-0.5 text-[9px] font-bold text-white">
-              プラン外
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 flex items-center justify-between gap-1">
-          <span
-            className="min-w-0 truncate text-[10px] text-slate-600"
-            title={member.name}
-          >
-            {member.name}
-          </span>
-        </div>
-      </button>
-      {/* 凸バッジ（表示のみ。設定は右上の歯車から）＋レンタル・固定の印 */}
-      <span className="absolute left-1 top-1 z-10 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
-        {member.level}凸
-        {member.rental && <span className="ml-0.5 text-amber-300">レンタル</span>}
-        {flags.pinned.has(member.id) && (
-          <span className="ml-0.5 text-sky-300">📌固定</span>
-        )}
-      </span>
-      {/* 歯車（クリックで凸・BAN・固定・レンタルNGの設定ポップオーバー） */}
-      <button
-        type="button"
-        onClick={() => setCfgOpen((v) => !v)}
-        title="凸・BAN・固定・レンタルNGを設定"
-        className="absolute right-1 top-1 z-10 rounded-full bg-black/60 p-1 text-white transition hover:bg-blue-600"
-      >
-        <Settings size={13} />
-      </button>
-      {cfgOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-20"
-            onClick={() => setCfgOpen(false)}
-          />
-          <div className="absolute right-1 top-7 z-30 w-44 rounded-lg border border-slate-300 bg-white p-2 shadow-lg">
-            <p className="mb-1 text-[9px] font-semibold text-slate-400">
-              {member.rental ? "所持凸（計算はレンタル=完凸）" : "凸"}
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onSetLevel(-1)}
-                title="未所持"
-                className={`h-7 min-w-7 rounded-md px-1 text-xs font-bold transition ${
-                  editLevel < 0
-                    ? "bg-slate-600 text-white"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}
-              >
-                未
-              </button>
-              {[0, 1, 2, 3, 4].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => onSetLevel(n)}
-                  className={`h-7 w-7 rounded-md text-xs font-bold transition ${
-                    editLevel >= n
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 flex flex-col gap-1 border-t border-slate-100 pt-2">
-              <FlagToggle
-                label="BAN（編成から除外）"
-                active={flags.banned.has(member.id)}
-                on="border-red-500 bg-red-500 text-white"
-                off="border-slate-300 text-slate-500 hover:bg-red-50"
-                onClick={() => flags.toggle(member.id, "ban")}
-              />
-              <FlagToggle
-                label="固定（必ず編成）"
-                active={flags.pinned.has(member.id)}
-                on="border-blue-500 bg-blue-500 text-white"
-                off="border-slate-300 text-slate-500 hover:bg-blue-50"
-                onClick={() => flags.toggle(member.id, "pin")}
-              />
-              <FlagToggle
-                label="レンタルNG"
-                active={flags.rentalNg.has(member.id)}
-                on="border-violet-500 bg-violet-500 text-white"
-                off="border-slate-300 text-slate-500 hover:bg-violet-50"
-                onClick={() => flags.toggle(member.id, "rentalNg")}
-              />
-            </div>
-          </div>
-        </>
-      )}
-      <button
-        type="button"
-        onClick={onDetail}
-        className="absolute bottom-0 right-0 text-xs font-bold tabular-nums text-blue-600 underline decoration-blue-300 decoration-dotted underline-offset-2 hover:text-blue-500"
-        title={`クリックで内訳を表示（基本 ${Math.round(member.points)} ＋ イベント相互作用 ${Math.round(member.synergy)}）`}
-      >
-        +{Math.round(member.points + member.synergy)}
-      </button>
-    </div>
-  );
-}
-
-/** 設定ポップオーバー内のフラグ切替（BAN/固定/レンタルNG） */
-function FlagToggle({
-  label,
-  active,
-  on,
-  off,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  on: string;
-  off: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md border px-1.5 py-1 text-left text-[11px] font-semibold transition ${
-        active ? on : off
-      }`}
-    >
-      <span
-        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
-          active ? "border-white/70" : "border-slate-300"
-        }`}
-      >
-        {active && "✓"}
-      </span>
-      {label}
-    </button>
   );
 }
 

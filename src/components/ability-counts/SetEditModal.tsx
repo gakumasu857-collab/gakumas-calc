@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { CalendarDays, Copy, Trash2 } from "lucide-react";
+import { CalendarDays, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
@@ -25,8 +25,6 @@ type Props = {
   /** 編成サポカの前イベ・後イベによる回数上乗せ（アビリティキー→回数。緑表示用） */
   eventExtras?: Partial<Record<AbilityName, number>>;
   onDelete: () => void;
-  /** このセットを複製してユーザーセットとして追加 */
-  onDuplicate: () => void;
   /** ユーザーセットの名前変更 */
   onRename: (name: string) => void;
   /** ユーザーセットのプラン変更（テンプレは名前から自動決定なので渡さない） */
@@ -44,7 +42,6 @@ export default function SetEditModal({
   formationKeys,
   eventExtras,
   onDelete,
-  onDuplicate,
   onRename,
   onSetPlan,
   onClose,
@@ -112,7 +109,7 @@ export default function SetEditModal({
       ) : (
         <p className="mb-3 text-xs text-slate-400">
           プラン: <b className="text-slate-600">{set.plan || "なし"}</b>
-          （テンプレのプランはセット名から自動で決まります。変えたい場合は複製してください）
+          （テンプレのプランはセット名から自動で決まります）
         </p>
       )}
 
@@ -145,15 +142,6 @@ export default function SetEditModal({
             >
               <CalendarDays size={13} />
               スケジュール
-            </button>
-            {/* 複製 */}
-            <button
-              type="button"
-              onClick={onDuplicate}
-              className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
-            >
-              <Copy size={13} />
-              このセットを複製
             </button>
             {/* ユーザーセットの削除 */}
             {deletable && (

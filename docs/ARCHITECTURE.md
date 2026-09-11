@@ -194,12 +194,14 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/ActionPanel.tsx`（左列の操作パネル: 求める▾・探索の条件・踏み方を編集・発動回数。スマホは下バー `calc/MobileActionBar.tsx`）、`calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況が未入力なら確認）、
-`calc/OptimizeResultCard.tsx`（探索の結果カード。前後の評価値・入替・踏み方・条件チップ・詳細）、
-`calc/PlanSummaryCard.tsx`（「レッスンの踏み方」ブロック。踏み方チップ・SP率・編集ボタン）、
+`calc/ActionPanel.tsx`（右列の操作パネル: 求める▾・探索の条件・前回の探索の内訳と診断ログ）、
+`calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋SP率＋前イベ調整の折りたたみ）、
+`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン｜サブ・SP枠、授業／営業は順番、選抜は配分バー。要約 `currentPlanSummary`）、
+`calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
+`calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
-`src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）。
+`src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 左端の縦タブ（発動回数／レッスン）は廃止し、`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
 
 ページの割り当ては `src/App.tsx` の `PAGES` 配列と `Routes` にあります。
@@ -582,6 +584,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | キー名 | 中身 | 定義ファイル |
 |---|---|---|
 | `gakumas:calcSettings:v1` | 計算ページの今の設定（アイドル、Pアイドル、探索の条件、本戦点数、ユーザー名など。`CalcSettings`） | `src/lib/useCalcSettings.ts` |
+| `gakumas:ownership:visited:v1` | 所持状況ページを開いたことがある印（"1"。無ければ計算ページで「所持状況が未入力」扱い） | `src/lib/ownershipAck.ts` |
 | `gakumas:setup:ownershipAck:v1` | 初回の探索前の確認で「このまま求める（全完凸）」を選んだ印（"1"） | `src/lib/ownershipAck.ts` |
 | `gakumas:ownedSaves:active:v1` | 所持状況の保存先スロットのID。サポカ凸・Pアイドルの変更は随時ここへ保存される（無ければ保存しない） | `src/lib/useOwnedSaves.ts` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |

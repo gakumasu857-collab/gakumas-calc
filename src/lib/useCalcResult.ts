@@ -401,9 +401,18 @@ export function useCalcResult() {
         const sp = cardSpRate(db, m.level);
         for (const t of TYPE_KEYS) bonus[t] += sp[t];
       }
+      // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計に 5% が上乗せされた値。
+      // 画面もそれに合わせて出し（shown）、実際の確率は「表示＋表記外推定SP率」とする
+      // （例: 表示 +71%・表記外10% → 81%。Da（サブVi=75%）のSP踏み6回連続 = (0.81×0.75)^6 ≈ 5.0%）
+      const SHOWN_OFFSET = 0.05;
+      const shown: Record<TypeKey, number> = {
+        vocal: bonus.vocal + SHOWN_OFFSET,
+        dance: bonus.dance + SHOWN_OFFSET,
+        visual: bonus.visual + SHOWN_OFFSET,
+      };
       const rates: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       for (const t of TYPE_KEYS) {
-        rates[t] = Math.min(1, Math.max(0, base + bonus[t]));
+        rates[t] = Math.min(1, Math.max(0, base + shown[t]));
       }
       // 実現確率: SP踏みは「メイン属性のSP率」、サブ属性の指定があるレッスン（HIF）は
       // 残り2属性から審査基準が高い方75%・低い方25%の抽選（subAppearProb）。
@@ -437,7 +446,7 @@ export function useCalcResult() {
           else probHon *= p;
         }
       });
-      return { bonus, rates, prob, probSen, probHon, spCount, subCount };
+      return { bonus, shown, rates, prob, probSen, probHon, spCount, subCount };
     })();
 
     // ---- スター性・本戦・評価値（シナリオ別） ----

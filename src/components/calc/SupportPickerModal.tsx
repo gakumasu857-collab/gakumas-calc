@@ -1,4 +1,5 @@
 ﻿import { useMemo, useState } from "react";
+import { Ban, Pin, UserX } from "lucide-react";
 import Modal from "@/components/Modal";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
@@ -7,9 +8,11 @@ import { imageUrl } from "@/lib/config";
 import {
   scoreOwnedCards,
   scoreRentalCandidates,
+  type CardFlagSets,
   type ScoredCard,
   type SelectedSlot,
 } from "@/lib/formation";
+import type { FlagKind } from "@/lib/useCardFlags";
 import type { SheetRole, SheetScoreContext } from "@/lib/sheetScore";
 import {
   TYPE_KEYS,
@@ -72,6 +75,8 @@ export default function SupportPickerModal({
   rentalNg,
   getLevel,
   setLevel,
+  flags,
+  onToggleFlag,
   onPick,
   onClose,
 }: {
@@ -85,6 +90,9 @@ export default function SupportPickerModal({
   getLevel: (id: string) => number;
   /** 所持の凸をその場で変える（省略時は表示のみ） */
   setLevel?: (id: string, level: number) => void;
+  /** 固定・BAN・レンタルNG（行の右のボタンで切り替える） */
+  flags: CardFlagSets;
+  onToggleFlag: (id: string, kind: FlagKind) => void;
   onPick: (entry: SelectedSlot) => void;
   onClose: () => void;
 }) {
@@ -199,6 +207,15 @@ export default function SupportPickerModal({
         </span>
       </div>
 
+      <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+        行の右のボタン:
+        <span className="inline-flex items-center gap-0.5"><Pin size={11} />固定＝必ず編成に入れる</span>
+        <span className="inline-flex items-center gap-0.5"><Ban size={11} />BAN＝候補から外す</span>
+        {mode === "rental" && (
+          <span className="inline-flex items-center gap-0.5"><UserX size={11} />レンタルNG＝レンタル枠の候補から外す</span>
+        )}
+        {mode === "owned" && <span>／ 凸もここで変えられます</span>}
+      </p>
       {list.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
           {mode === "owned"
@@ -283,6 +300,26 @@ export default function SupportPickerModal({
                     ))}
                   </select>
                 )}
+                {/* 固定・BAN・レンタルNG（アイコンだけ。ホバーで説明） */}
+                <span className="flex shrink-0 items-center gap-0.5">
+                  <FlagButton
+                    kind="pin"
+                    on={flags.pinned.has(card.id)}
+                    onClick={() => onToggleFlag(card.id, "pin")}
+                  />
+                  <FlagButton
+                    kind="ban"
+                    on={flags.banned.has(card.id)}
+                    onClick={() => onToggleFlag(card.id, "ban")}
+                  />
+                  {mode === "rental" && (
+                    <FlagButton
+                      kind="rentalNg"
+                      on={flags.rentalNg?.has(card.id) ?? false}
+                      onClick={() => onToggleFlag(card.id, "rentalNg")}
+                    />
+                  )}
+                </span>
               </li>
             );
           })}
@@ -292,5 +329,53 @@ export default function SupportPickerModal({
         ※ 点数は現在のレッスン・発動回数・踏み方の設定での基本点（イベント相互作用は6枚が揃ったときに加算）。ティア表が無いカードは点数計算ができないため表示していません。
       </p>
     </Modal>
+  );
+}
+
+/** 固定・BAN・レンタルNGの切り替えボタン（アイコンだけ。説明はホバー） */
+const FLAG_STYLE: Record<
+  FlagKind,
+  { Icon: typeof Pin; label: string; on: string; off: string }
+> = {
+  pin: {
+    Icon: Pin,
+    label: "固定（必ず編成に入れる）",
+    on: "border-blue-500 bg-blue-500 text-white",
+    off: "border-slate-200 bg-white text-slate-400 hover:border-blue-300 hover:text-blue-600",
+  },
+  ban: {
+    Icon: Ban,
+    label: "BAN（候補から外す）",
+    on: "border-red-500 bg-red-500 text-white",
+    off: "border-slate-200 bg-white text-slate-400 hover:border-red-300 hover:text-red-600",
+  },
+  rentalNg: {
+    Icon: UserX,
+    label: "レンタルNG（レンタル枠の候補から外す）",
+    on: "border-violet-500 bg-violet-500 text-white",
+    off: "border-slate-200 bg-white text-slate-400 hover:border-violet-300 hover:text-violet-600",
+  },
+};
+
+function FlagButton({
+  kind,
+  on,
+  onClick,
+}: {
+  kind: FlagKind;
+  on: boolean;
+  onClick: () => void;
+}) {
+  const { Icon, label, on: onClass, off } = FLAG_STYLE[kind];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-pressed={on}
+      className={`flex h-7 w-7 items-center justify-center rounded-md border transition ${on ? onClass : off}`}
+    >
+      <Icon size={13} />
+    </button>
   );
 }

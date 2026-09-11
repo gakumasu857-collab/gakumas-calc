@@ -10,6 +10,7 @@ import {
   type Memory,
   type PlanKey,
 } from "@/lib/memoryTypes";
+import { GLOSSARY } from "@/lib/glossary";
 import MemoryCard from "./MemoryCard";
 
 type Props = {
@@ -200,6 +201,9 @@ export default function MemoryLibrary({
             />
             テンプレメモリー（メインパラボ）を表示
           </label>
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            「メインパラボ◯点」とは: {GLOSSARY.mainParabo}
+          </p>
         </div>
       )}
 

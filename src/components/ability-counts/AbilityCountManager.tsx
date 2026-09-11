@@ -485,10 +485,6 @@ export default function AbilityCountManager() {
           setCount={store.setCount}
           formationKeys={onlyFormation ? formationAbilities : undefined}
           onDelete={() => store.deleteSet(editingSet.id)}
-          onDuplicate={() => {
-            store.duplicateSet(editingSet);
-            setEditingSetId(null);
-          }}
           onRename={(name) => store.renameSet(editingSet.id, name)}
           onSetPlan={
             store.isUserSet(editingSet.id)

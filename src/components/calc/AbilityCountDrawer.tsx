@@ -64,10 +64,6 @@ export default function AbilityCountDrawer({
             formationKeys={formationKeys}
             eventExtras={eventExtras}
             onDelete={() => r.ability.deleteSet(set.id)}
-            onDuplicate={() => {
-              r.ability.duplicateSet(set);
-              onClose();
-            }}
             onRename={(name) => r.ability.renameSet(set.id, name)}
             onSetPlan={
               r.ability.isUserSet(set.id)

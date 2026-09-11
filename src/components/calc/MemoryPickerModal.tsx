@@ -4,6 +4,7 @@ import Modal from "@/components/Modal";
 import MemoryLibrary from "@/components/memory-manager/MemoryLibrary";
 import MemorySlot from "@/components/memory-manager/MemorySlot";
 import { BTN_PRIMARY, NOTE } from "@/components/ui";
+import { GLOSSARY } from "@/lib/glossary";
 import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
@@ -30,6 +31,9 @@ export default function MemoryPickerModal({
 
   return (
     <Modal title="メモリーを選ぶ（4枚まで）" onClose={onClose} widthClass="max-w-4xl">
+      <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+        <b className="text-slate-700">「メインパラボ◯点」（テンプレ）とは:</b> {GLOSSARY.mainParabo}
+      </div>
       <MemorySlot memories={slotMemories} onRemove={store.deselectAt} />
       <div className="mt-3">
         <MemoryLibrary

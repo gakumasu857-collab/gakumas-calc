@@ -1,8 +1,26 @@
 /**
- * 「所持状況を入力せず、全サポカ完凸のまま探索する」を了承した印（ブラウザに保存）。
- * 初回の探索前の確認モーダルを一度だけ出すために使う。
+ * 所持状況まわりの「印」（ブラウザに保存）。
+ * - visited: 所持状況ページを一度でも開いたか（未入力かどうかの判定に使う）
+ * - ack: 「所持状況を入力せず、全サポカ完凸のまま探索する」を了承したか（初回の確認を一度だけ出す）
  */
+const VISITED_KEY = "gakumas:ownership:visited:v1";
 const ACK_KEY = "gakumas:setup:ownershipAck:v1";
+
+export function readOwnershipVisited(): boolean {
+  try {
+    return localStorage.getItem(VISITED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markOwnershipVisited(): void {
+  try {
+    localStorage.setItem(VISITED_KEY, "1");
+  } catch {
+    /* 保存できない環境では毎回「未入力」扱い */
+  }
+}
 
 export function readOwnershipAck(): boolean {
   try {
