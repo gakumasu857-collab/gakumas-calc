@@ -261,6 +261,30 @@ function ExportSheet({
               Produced by {settings.userName}
             </div>
           )}
+          {/* 探索の条件を設定しているときだけ1行で出す（結果カードの「条件」と同じ内容） */}
+          {(() => {
+            const short: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
+            const parts: string[] = [];
+            if (settings.typeRatio.enabled) {
+              parts.push(
+                `タイプ割合 Vo${settings.typeRatio.vocal} Da${settings.typeRatio.dance} Vi${settings.typeRatio.visual}`,
+              );
+            }
+            const mins = TYPE_KEYS.filter((t) => settings.minStats[t] > 0).map(
+              (t) => `${short[t]}${settings.minStats[t]}`,
+            );
+            if (mins.length) parts.push(`最低ステ ${mins.join(" ")}`);
+            const maxs = TYPE_KEYS.filter(
+              (t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap,
+            ).map((t) => `${short[t]}${settings.maxStats[t]}`);
+            if (maxs.length) parts.push(`最高ステ ${maxs.join(" ")}`);
+            if (settings.spTop.first > 0 || settings.spTop.second > 0) {
+              parts.push(`SP率持ち 上位${settings.spTop.first}枚・2位${settings.spTop.second}枚`);
+            }
+            return parts.length ? (
+              <div style={{ color: SUB, fontSize: 11 }}>探索の条件: {parts.join(" ／ ")}</div>
+            ) : null;
+          })()}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: SUB }}>

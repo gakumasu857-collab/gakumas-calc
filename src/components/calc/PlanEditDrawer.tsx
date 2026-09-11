@@ -7,7 +7,7 @@
  * - 初: レジェンドレッスン（単タイプ＋SP＋パーフェクト）・授業・試験
  */
 import { useState } from "react";
-import { CalendarCheck, Info, Sparkles } from "lucide-react";
+import { Info, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
@@ -32,11 +32,9 @@ import {
   niaFinaleVotes,
   type NiaTag,
 } from "@/data/scenarios";
-import { optimizeSteppingForSlots } from "@/lib/autoOptimize";
-import { buildAutoOptimizeInput } from "@/lib/buildOptimizeInput";
 import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
-import type { SelectedSlot } from "@/lib/formation";
 import type { useCalcResult } from "@/lib/useCalcResult";
+import { useOptimizePlan } from "@/lib/useOptimizePlan";
 import { subAppearProb } from "@/lib/useSchedule";
 import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -66,11 +64,21 @@ const EXAM_SLIDER_MAX = [30000, 300000, 500000] as const;
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
-export default function PlanEditDrawer({ r }: { r: CalcResult }) {
-  const [open, setOpen] = useState(false);
+/**
+ * 踏み方エディタ（モーダル）。計算ページの「レッスンの踏み方」ブロックの「踏み方を編集」から開く
+ * （open / onClose は親が持つ。以前の左端縦タブは廃止）。
+ */
+export default function PlanEditDrawer({
+  r,
+  open,
+  onClose,
+}: {
+  r: CalcResult;
+  open: boolean;
+  onClose: () => void;
+}) {
   const [helpOpen, setHelpOpen] = useState(false);
-  const [optMsg, setOptMsg] = useState<string | null>(null);
-  const [optBusy, setOptBusy] = useState(false);
+  const { run: optimizePlan, busy: optBusy, msg: optMsg } = useOptimizePlan(r);
   // 踏み方の最適化も、シナリオ・Pアイドル・育成セット・メモリーがそろうまで押せない
   const missingInputs = missingCalcInputs(r);
   const optimizeReady = missingInputs.length === 0;
@@ -81,63 +89,14 @@ export default function PlanEditDrawer({ r }: { r: CalcResult }) {
         ? "レッスン・授業・試験"
         : "レッスン・授業・選抜";
 
-  /** 今の選択サポカ6枚を前提に、踏み方（授業・営業込み）だけを広域探索して適用 */
-  const optimizePlan = () => {
-    setOptBusy(true);
-    setOptMsg(null);
-    // 「計算中…」を先に描画させてから重い探索を回す
-    setTimeout(() => {
-      try {
-        const slots = r.selected.slots.filter(
-          (s): s is SelectedSlot => s !== null,
-        );
-        // 編成は固定するので BAN/固定フラグは無関係（空で渡す）
-        const input = buildAutoOptimizeInput(
-          r,
-          { banned: new Set(), pinned: new Set() },
-          r.calc.settings,
-        );
-        const result = optimizeSteppingForSlots(input, slots);
-        if (!result) return;
-        if (result.hif)
-          r.schedule.setPlan(
-            result.hif.lessons,
-            result.hif.classTypes,
-            result.hif.examScores,
-          );
-        if (result.nia)
-          r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
-        if (result.hatsu)
-          r.hatsuSchedule.setPlan(result.hatsu.lessons, result.hatsu.classTypes);
-        setOptMsg(
-          `今のサポカ編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`,
-        );
-      } finally {
-        setOptBusy(false);
-      }
-    }, 30);
-  };
-
   return (
     <>
-      {/* 左端の開くハンドル（下半分・縦書き。上半分は発動回数） */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="レッスン・授業・選抜を編集"
-        className="fixed bottom-4 left-0 top-[calc(50%+4px)] z-30 flex w-8 items-center justify-center gap-1.5 rounded-r-xl bg-sky-600 text-xs font-bold text-white shadow-lg transition hover:bg-sky-500"
-        style={{ writingMode: "vertical-rl" }}
-      >
-        <CalendarCheck size={14} />
-        レッスン
-      </button>
-
       {open && (
-        <Modal title={title} onClose={() => setOpen(false)} widthClass="max-w-4xl">
+        <Modal title={title} onClose={onClose} widthClass="max-w-4xl">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={optimizePlan}
+              onClick={() => optimizePlan()}
               disabled={optBusy || !optimizeReady}
               title={
                 notReadyTitle(missingInputs) ??

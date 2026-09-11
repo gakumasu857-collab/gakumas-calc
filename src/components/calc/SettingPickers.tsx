@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Modal from "@/components/Modal";
+import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
+import { GLOSSARY } from "@/lib/glossary";
 import { imageUrl } from "@/lib/config";
 import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import {
@@ -94,8 +96,9 @@ function TypeSlotAllocator({
 }
 
 /**
- * 理論評価値を求めるときの前提設定をまとめるモーダル。
- * 取得回数（前イベ取得・後イベ発動の上限）／踏み方のタイプ割合／試験補助。
+ * 探索の条件（理論評価値を求めるときの前提）をまとめるモーダル。
+ * 「基本」（タイプ割合・最低/最高ステ・ステージアイテム）と
+ * 「詳細」（SP率持ちの枚数・取得回数・試験補助）の2タブ。説明は ⓘ に寄せる。
  */
 export function TheorySettingsModal({
   settings,
@@ -106,209 +109,220 @@ export function TheorySettingsModal({
   onUpdate: (patch: Partial<CalcSettings>) => void;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<"basic" | "advanced">("basic");
   const budget = settings.eventBudget;
   const ratio = settings.typeRatio;
-  return (
-    <Modal title="理論評価値の設定" onClose={onClose} widthClass="max-w-lg">
-      <div className="flex flex-col gap-4 text-sm text-slate-700">
-        {/* 取得回数（前イベ取得・後イベ発動の上限） */}
-        <section>
-          <label className="flex items-center gap-1.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={budget.enabled}
-              onChange={(e) =>
-                onUpdate({
-                  eventBudget: { ...budget, enabled: e.target.checked },
-                })
-              }
-              className="accent-blue-600"
-            />
-            取得回数を制限する（前イベ取得・後イベ発動）
-          </label>
-          <div
-            className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 ${budget.enabled ? "" : "opacity-40"}`}
+  const tabBtn = (key: "basic" | "advanced", label: string) => (
+    <button
+      type="button"
+      onClick={() => setTab(key)}
+      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+        tab === key
+          ? "bg-blue-600 text-white"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  const statRow = (
+    values: Record<TypeKey, number>,
+    onChange: (type: TypeKey, v: number) => void,
+  ) => (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {TYPE_KEYS.map((type) => (
+        <label key={type} className="flex items-center gap-1">
+          <span
+            className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
           >
-            <label className="flex items-center gap-1.5">
-              前イベ取得
-              <NumberField
-                value={budget.pre}
-                onChange={(v) => onUpdate({ eventBudget: { ...budget, pre: v } })}
-                max={6}
-                sliderMax={6}
-                disabled={!budget.enabled}
-                className="w-14"
-              />
-              枚
-            </label>
-            <label className="flex items-center gap-1.5">
-              後イベ合計
-              <NumberField
-                value={budget.post}
-                onChange={(v) => onUpdate({ eventBudget: { ...budget, post: v } })}
-                max={6}
-                sliderMax={6}
-                disabled={!budget.enabled}
-                className="w-14"
-              />
-              回
-            </label>
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            前イベは合計この枚数だけ取得（カード1枚=1）、後イベは合計この回数だけ発動する前提で評価します（超過分は価値の低いカードから取得OFF・✕）。
-          </p>
-        </section>
+            {TYPE_LABELS[type]}
+          </span>
+          <NumberField
+            value={values[type]}
+            onChange={(v) => onChange(type, v)}
+            max={3200}
+            sliderMax={3200}
+            className="w-20"
+          />
+        </label>
+      ))}
+    </div>
+  );
 
-        {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
-        <section className="border-t border-slate-100 pt-3">
-          <p className="font-semibold">SPレッスン率アップ持ちの最低枚数</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            {(
-              [
-                ["first", "レッスンを1番多く踏むタイプ"],
-                ["second", "2番目に多く踏むタイプ"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-1.5">
-                <span className="text-[11px] text-slate-600">{label}</span>
-                <select
-                  value={settings.spTop[key]}
+  return (
+    <Modal title="探索の条件" onClose={onClose} widthClass="max-w-lg">
+      <div className="mb-3 flex items-center gap-1.5">
+        {tabBtn("basic", "基本")}
+        {tabBtn("advanced", "詳細")}
+        <span className="ml-auto text-[11px] text-slate-400">変更はすぐ保存されます</span>
+      </div>
+      <div className="flex flex-col gap-4 text-sm text-slate-700">
+        {tab === "basic" ? (
+          <>
+            {/* サポカ編成のタイプ割合 */}
+            <section>
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={ratio.enabled}
+                  onChange={(e) =>
+                    onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
+                  }
+                  className="accent-blue-600"
+                />
+                サポカ編成のタイプ割合を決める
+                <Hint text={GLOSSARY.typeRatio} />
+              </label>
+              <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
+                <TypeSlotAllocator
+                  ratio={ratio}
+                  disabled={!ratio.enabled}
+                  onChange={(type, v) =>
+                    onUpdate({ typeRatio: { ...ratio, [type]: v } })
+                  }
+                />
+              </div>
+            </section>
+
+            {/* タイプ別の最低ステータス */}
+            <section className="border-t border-slate-100 pt-3">
+              <p className="flex items-center gap-1 font-semibold">
+                最低ステータス
+                <span className="text-xs font-normal text-slate-400">（0=条件なし）</span>
+                <Hint text={GLOSSARY.minStat} />
+              </p>
+              {statRow(settings.minStats, (type, v) =>
+                onUpdate({ minStats: { ...settings.minStats, [type]: v } }),
+              )}
+            </section>
+
+            {/* タイプ別の最高ステータス */}
+            <section className="border-t border-slate-100 pt-3">
+              <p className="flex items-center gap-1 font-semibold">
+                最高ステータス
+                <span className="text-xs font-normal text-slate-400">（3200=制限なし）</span>
+                <Hint text={GLOSSARY.maxStat} />
+              </p>
+              {statRow(settings.maxStats, (type, v) =>
+                onUpdate({ maxStats: { ...settings.maxStats, [type]: v } }),
+              )}
+            </section>
+
+            {/* ステージアイテム */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.noStageItems}
+                  onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
+                  className="accent-blue-600"
+                />
+                ステージに入るPアイテム・スキルのサポカを編成しない
+                <Hint text={GLOSSARY.stageItems} />
+              </label>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
+            <section>
+              <p className="flex items-center gap-1 font-semibold">
+                SPレッスン率アップ持ちの最低枚数
+                <Hint text={GLOSSARY.spHolders} />
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                {(
+                  [
+                    ["first", "レッスンを1番多く踏むタイプ"],
+                    ["second", "2番目に多く踏むタイプ"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-600">{label}</span>
+                    <select
+                      value={settings.spTop[key]}
+                      onChange={(e) =>
+                        onUpdate({
+                          spTop: { ...settings.spTop, [key]: Number(e.target.value) },
+                        })
+                      }
+                      className="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-sm"
+                    >
+                      {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n === 0 ? "条件なし" : `${n}枚以上`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                トレーナーなど「全SPレッスン率」持ちは全タイプの1枚として数えます。
+              </p>
+            </section>
+
+            {/* 取得回数（前イベ取得・後イベ発動の上限） */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={budget.enabled}
                   onChange={(e) =>
                     onUpdate({
-                      spTop: { ...settings.spTop, [key]: Number(e.target.value) },
+                      eventBudget: { ...budget, enabled: e.target.checked },
                     })
                   }
-                  className="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-sm"
-                >
-                  {[0, 1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n === 0 ? "条件なし" : `${n}枚以上`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            理想編成を組むとき、レッスン回数が多い上位2タイプ（候補の踏み方ごとに判定。同数のときは審査基準が高いタイプを上位扱い）に、SPレッスン率アップ持ちのサポカを最低この枚数入れます。トレーナーやあさりなど「全SPレッスン率」持ちのアシストは、全タイプの1枚として数えます。
-          </p>
-        </section>
-
-        {/* サポカ編成のタイプ割合 */}
-        <section className="border-t border-slate-100 pt-3">
-          <label className="flex items-center gap-1.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={ratio.enabled}
-              onChange={(e) =>
-                onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
-              }
-              className="accent-blue-600"
-            />
-            サポカ編成のタイプ割合を固定する
-          </label>
-          <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
-            <TypeSlotAllocator
-              ratio={ratio}
-              disabled={!ratio.enabled}
-              onChange={(type, v) =>
-                onUpdate({ typeRatio: { ...ratio, [type]: v } })
-              }
-            />
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            6枠をタイプに割り振ります。合計が6なら構成をそのまま固定、6未満なら指定枚数ぶんそのタイプを確保して、残り（自由）は探索で決めます（例 Da3 → Da3枚＋自由3枚）。トレーナーなどアシストのサポカは自由枠に入ります。
-          </p>
-        </section>
-
-        {/* タイプ別の最低ステータス */}
-        <section className="border-t border-slate-100 pt-3">
-          <p className="font-semibold">最低ステータス（0=条件なし）</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            {TYPE_KEYS.map((type) => (
-              <label key={type} className="flex items-center gap-1">
-                <span
-                  className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
-                >
-                  {TYPE_LABELS[type]}
-                </span>
-                <NumberField
-                  value={settings.minStats[type]}
-                  onChange={(v) =>
-                    onUpdate({ minStats: { ...settings.minStats, [type]: v } })
-                  }
-                  max={3200}
-                  sliderMax={3200}
-                  className="w-20"
+                  className="accent-blue-600"
                 />
+                前イベ・後イベの回数を制限する
+                <Hint text={GLOSSARY.eventBudget} />
               </label>
-            ))}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            各タイプの最終ステータスがこの値以上になる編成・踏み方を優先します。既に満たされる編成が最適なら結果は変わりません（必要以上には盛りません）。全部を満たせないときは、そのアイドルの審査基準が高いタイプから順にできるだけ満たします。
-          </p>
-        </section>
+              <div
+                className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 ${budget.enabled ? "" : "opacity-40"}`}
+              >
+                <label className="flex items-center gap-1.5">
+                  前イベ取得
+                  <NumberField
+                    value={budget.pre}
+                    onChange={(v) => onUpdate({ eventBudget: { ...budget, pre: v } })}
+                    max={6}
+                    sliderMax={6}
+                    disabled={!budget.enabled}
+                    className="w-14"
+                  />
+                  枚
+                </label>
+                <label className="flex items-center gap-1.5">
+                  後イベ合計
+                  <NumberField
+                    value={budget.post}
+                    onChange={(v) => onUpdate({ eventBudget: { ...budget, post: v } })}
+                    max={6}
+                    sliderMax={6}
+                    disabled={!budget.enabled}
+                    className="w-14"
+                  />
+                  回
+                </label>
+              </div>
+            </section>
 
-        {/* タイプ別の最高ステータス */}
-        <section className="border-t border-slate-100 pt-3">
-          <p className="font-semibold">最高ステータス（3200=制限なし）</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            {TYPE_KEYS.map((type) => (
-              <label key={type} className="flex items-center gap-1">
-                <span
-                  className={`rounded px-1 py-0.5 text-[11px] font-bold ${TYPE_CHIP[type]}`}
-                >
-                  {TYPE_LABELS[type]}
-                </span>
-                <NumberField
-                  value={settings.maxStats[type]}
-                  onChange={(v) =>
-                    onUpdate({ maxStats: { ...settings.maxStats, [type]: v } })
-                  }
-                  max={3200}
-                  sliderMax={3200}
-                  className="w-20"
+            {/* 試験補助 */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.examAssist}
+                  onChange={(e) => onUpdate({ examAssist: e.target.checked })}
+                  className="accent-blue-600"
                 />
+                試験補助を強めにする（試験に強いサポカで編成）
+                <Hint text={GLOSSARY.examAssist} />
               </label>
-            ))}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">
-            この値を超える分を狙って盛らなくなります（例: Da1000 →
-            Daはおよそ1000までを目標に編成・踏み方を探します）。他のタイプが上限で溢れて自然にはみ出した分は評価値にそのまま入ります（選抜スコアを微調整して削るような提案はしません）。
-          </p>
-        </section>
-
-        {/* 試験補助 */}
-        <section className="border-t border-slate-100 pt-3">
-          <label className="flex items-center gap-1.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={settings.examAssist}
-              onChange={(e) => onUpdate({ examAssist: e.target.checked })}
-              className="accent-blue-600"
-            />
-            試験補助を強めにする（試験に強いサポカで編成）
-          </label>
-          <p className="mt-1 text-[11px] text-slate-400">
-            ONにすると「試験中に強いアイテム・スキルをくれる（アイテム評価が高い）」「ドリンクをくれる」「SPレッスン率アップ持ち」のサポカを優先して編成します。アイテム評価が空欄のサポカは試験の助けにならないため優先しません。アイテム評価は今の育成スタイル（発動回数セット名: センス/好印象/やる気/強気/全力）に合うものだけ見ます。表示されるステータス・評価値は常に素の値です（この優先は編成の選び方だけに効きます）。
-          </p>
-        </section>
-
-        {/* ステージアイテム */}
-        <section className="border-t border-slate-100 pt-3">
-          <label className="flex items-center gap-1.5 font-semibold">
-            <input
-              type="checkbox"
-              checked={settings.noStageItems}
-              onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
-              className="accent-blue-600"
-            />
-            ステージに入るPアイテム・スキルのサポカを編成しない
-          </label>
-          <p className="mt-1 text-[11px] text-slate-400">
-            ONにすると、前イベで「ステージ（試験中）に持ち込むPアイテム」または「スキルカード」をくれるサポカを理想編成の候補から外します。固定（ピン）したサポカはこの設定に関係なく編成に入ります。
-          </p>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </Modal>
   );

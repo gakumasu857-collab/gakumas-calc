@@ -54,6 +54,16 @@ function Step({
   );
 }
 
+/** よくある質問の1項目 */
+function QA({ q, children }: { q: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+      <p className="text-sm font-bold text-slate-800">Q. {q}</p>
+      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{children}</p>
+    </div>
+  );
+}
+
 export default function CalcHelpModal({
   onClose,
   scenario = "hif",
@@ -67,73 +77,67 @@ export default function CalcHelpModal({
       <div className="flex flex-col gap-2">
         <Step
           no={1}
-          title="所持状況を入力する"
+          title="準備バーの3つをそろえる"
           visual={
             <>
-              <Link
-                to="/support"
-                className="inline-flex items-center rounded-lg bg-blue-600 px-2 py-1 text-xs font-bold text-white hover:bg-blue-500"
-              >
-                所持状況ページを開く →
-              </Link>
-              <MockChip className="border border-blue-300 bg-blue-50 text-blue-700">
-                📷 画面キャプチャで所持入力（β）
-              </MockChip>
+              <MockChip className="bg-emerald-500 text-white">✓ 所持状況</MockChip>
+              <MockChip className="bg-emerald-500 text-white">✓ 育成の前提</MockChip>
+              <MockChip className="bg-amber-500 text-white">3 メモリー 未設定</MockChip>
             </>
           }
         >
-          上のタブの「所持状況」で、サポカとPアイドルの所持・凸（特訓/開花）を入力します。
-          ゲーム画面を映して自動読み取りする機能もあります。
+          計算ページの上にある「準備」バーで、①所持状況（サポカの凸・Pアイドル）
+          ②育成の前提（シナリオ・Pアイドル・育成パターン）③メモリーを埋めます。
+          未設定の項目はバーのボタンからその場で設定できます。所持状況は「全完凸のまま進む」で後回しにもできます。
         </Step>
         <Step
           no={2}
-          title="育成の前提を設定する"
+          title="青いボタンで求める"
           visual={
             <>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                育成シナリオ ▾
+              <MockChip className="bg-blue-600 text-white">
+                <Sparkles size={13} />
+                理想の編成と踏み方を求める ▾
               </MockChip>
               <MockChip className="border border-slate-300 bg-white text-slate-700">
-                アイドル・Pアイドル ▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                育成（発動回数セット）▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                メモリー
+                探索の条件
               </MockChip>
             </>
           }
         >
-          計算ページ右上の「設定」ブロックで、シナリオ・アイドル（Pアイドル）・
-          育成（発動回数セット）を選び、メモリーを設定します。
-          発動回数セットは「この育成でアビリティが何回発動するか」のテンプレです。
+          サポカ6枚とレッスンの踏み方を自動で探索し、評価値が高い組み合わせを反映します。
+          右の ▾ から「編成だけ」「踏み方だけ」も選べます。「探索の条件」でタイプ割合・最低/最高ステ・SP率持ちの枚数などを指定できます。
         </Step>
         <Step
           no={3}
-          title="自動探索ボタンを押す"
+          title="結果カードで何が変わったかを見る"
           visual={
-            <MockChip className="bg-blue-600 text-white">
-              <Sparkles size={13} />
-              理想の評価値編成を求める（サポカ編成＋踏み方を自動探索）
-            </MockChip>
+            <>
+              <MockChip className="border border-emerald-200 bg-emerald-50 text-emerald-700">
+                ▲ 入ったサポカ
+              </MockChip>
+              <MockChip className="border border-slate-200 bg-slate-100 text-slate-500">
+                ▼ 外れたサポカ
+              </MockChip>
+              <MockChip className="bg-emerald-50 text-emerald-700">✓ タイプ割合</MockChip>
+            </>
           }
         >
-          サポカ編成とレッスンの踏み方を自動で探索し、評価値が高い組み合わせを反映します。
-          隣の歯車（条件設定）で取得回数・編成割合・試験補助などの条件を変えられます。
+          押す前→後の評価値、入れ替わったサポカ、踏み方、条件の達成状況が出ます。
+          納得できないときは「詳細」の診断ログをコピーして送ってください。
         </Step>
         <Step
           no={4}
-          title="調節して自分なりの育成を見つける"
+          title="自分の育成に合わせて調整する"
           visual={
             <>
-              <MockChip className="bg-emerald-600 text-white">
-                <ListOrdered size={13} />
-                発動回数（画面左のタブ）
-              </MockChip>
-              <MockChip className="bg-sky-600 text-white">
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
                 <CalendarCheck size={13} />
-                レッスン（画面左のタブ）
+                踏み方を編集
+              </MockChip>
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
+                <ListOrdered size={13} />
+                発動回数を調整
               </MockChip>
               <MockChip className="border border-slate-300 bg-white text-slate-700">
                 <MousePointerClick size={13} />
@@ -142,16 +146,43 @@ export default function CalcHelpModal({
             </>
           }
         >
-          ここからが本番です。画面左の「発動回数」タブでアビリティの回数を実際の育成に
-          寄せたり、「レッスン」タブで踏み方や選抜スコアを変えたりして、
-          評価値と最終ステータスの変化を見ながら自分なりの育成を見つけてください。
+          ここからが本番です。「レッスンの踏み方」ブロックの「踏み方を編集」「発動回数を調整」で実際の育成に寄せ、
+          サポカ枠をクリックして入れ替えながら、評価値と育成後のステータスの変化を見てください。
         </Step>
       </div>
       <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-800">
-        ⚠ <b>理論編成（自動探索）を求める精度は保証しません。</b>
-        時間制限つきの近似探索のため、押すたびに結果が少し変わったり、より良い編成を
-        取りこぼすことがあります。ゲーム本体と仕様が異なる部分もあるので、参考値としてお使いください。
+        ⚠ <b>自動探索の精度は保証しません。</b>
+        時間制限つきの近似探索のため、より良い編成を取りこぼすことがあります。
+        ゲーム本体と仕様が異なる部分もあるので、参考値としてお使いください。
       </p>
+
+      <h3 className={H}>よくある質問</h3>
+      <div className="flex flex-col gap-2">
+        <QA q="評価値が出ない">
+          サポカを6枚編成し、育成パターン（発動回数）を選ぶと表示されます。
+        </QA>
+        <QA q="「求める」ボタンが押せない">
+          準備バーの未設定の項目（黄色）を埋めてください。押せない理由はボタンの下にも出ます。
+        </QA>
+        <QA q="押しても編成が変わらない／評価値が下がった">
+          今の編成が探索の条件を満たしていて、探索結果がそれを下回ったときは変更しません（結果カードに「今の編成のまま」と出ます）。
+          条件を厳しくした直後は、条件を満たす編成に置き換わるため評価値が下がることがあります。
+        </QA>
+        <QA q="条件（タイプ割合・最低ステなど）どおりにならない">
+          結果カードの「条件」に ✗ が出ているときは、所持サポカや踏み方ではその条件に届かなかった場合です。
+          SP率持ちの枚数や最低ステを緩めるか、所持状況を確認してください。タイプ割合は必ず守られます（アシストは自由枠）。
+        </QA>
+        <QA q="トレーナーはSP率持ちに数えますか">
+          数えます。「全SPレッスン率」持ちのアシストは全タイプの1枚として扱います。
+        </QA>
+        <QA q="スマホでの見方">
+          画面下の固定バーに評価値と「求める」があります。評価値をタップすると結果ブロックへ移動します。
+        </QA>
+        <QA q="入力したデータはどこに保存されますか">
+          すべてお使いのブラウザの中（localStorage）です。サーバーには送られません。
+          別の端末や履歴削除では消えるので、大事な状態は右上の「セーブデータ」で保存し、所持状況はCSVで控えを取ってください。
+        </QA>
+      </div>
 
       <h3 className={H}>操作のヒント</h3>
       <ul className="list-disc space-y-1.5 pl-5">
@@ -161,30 +192,26 @@ export default function CalcHelpModal({
           ホイールで±1（Shift=±10、Ctrl=±100）。
         </li>
         <li className={LI}>
-          <b>サポカ枠クリック</b>＝カード選択、<b>凸バッジクリック</b>＝凸数変更。
+          <b>サポカ枠クリック</b>＝カード選択（選択画面で凸も直せます）、<b>枠の歯車</b>＝凸・固定・BAN・レンタルNG。
         </li>
         <li className={LI}>
           <b>アイドル画像クリック</b>＝Pアイドル選択、<b>画像右上の歯車</b>＝特訓・才能開花の設定。
         </li>
         <li className={LI}>
-          発動回数セットの<b>【プラン】</b>（【センス】など）は、条件設定の
-          「試験補助を強める」でアイテム評価をどのスタイル向けに見るかの判定に使われます。
+          育成パターンの<b>【プラン】</b>（【センス】など）は、探索の条件「試験補助を強める」で
+          アイテム評価をどのスタイル向けに見るかの判定に使われます。
         </li>
         <li className={LI}>
-          <b>「画像で保存」</b>で今の計算シート（評価値・ステ・編成・踏み方など）を
-          1枚の画像にできます。
+          右上の<b>「セーブデータ」</b>から、今の育成の状態をまるごと（シナリオ・アイドル・踏み方・
+          メモリー4枚・サポカ編成・前イベ/後イベ設定・発動回数・所持状況）保存でき、読み込めば
+          <b>評価値まで同じ状態に戻ります</b>。同じ場所の<b>「画像で保存」</b>で計算シートを1枚の画像にできます。
         </li>
         <li className={LI}>
-          <b>「セーブデータ」</b>は育成の状態をまるごと（シナリオ・アイドル・踏み方・
-          メモリー4枚・サポカ編成・前イベ/後イベ設定・発動回数・所持状況）保存するので、
-          読み込めば<b>評価値まで同じ状態に戻ります</b>。
-          メモリー・発動回数・所持状況は各ページからも呼び出せるよう「セーブデータ用」の
-          控えとしても保存され、それぞれのページでは既定で隠れています（トグルで表示）。
-        </li>
-        <li className={LI}>
-          <b>「パラボ変換表」</b>（プロデュース開始時のステータスの右上）で、
+          <b>「パラボ変換表」</b>（開始時のステータスの右上）で、
           パラメータボーナス%が今の踏み方で何点ぶんのステになるかを確認できます。
-          メモリーの4段階・サポカのレアリティ別・今の編成の合計を一覧できます。
+        </li>
+        <li className={LI}>
+          用語の横の <b>ⓘ</b> を押すと、その項目の説明が出ます。
         </li>
       </ul>
 

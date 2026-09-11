@@ -24,7 +24,7 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
   { path: "/memory", title: "メモリー設定", element: <MemoryManager /> },
   {
     path: "/ability-counts",
-    title: "アビリティ発動回数",
+    title: "発動回数",
     element: <AbilityCountManager />,
   },
   {

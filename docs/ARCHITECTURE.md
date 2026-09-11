@@ -193,13 +193,23 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 ### 2-6. `src/components/`（画面）
 
+2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
+`calc/SetupBar.tsx`（上部の準備バー。所持状況／育成の前提／メモリーの済・未）、
+`calc/OptimizeResultCard.tsx`（探索の結果カード。前後の評価値・入替・踏み方・条件チップ・詳細）、
+`calc/PlanSummaryCard.tsx`（「レッスンの踏み方」ブロック。踏み方チップ・SP率・編集ボタン）、
+`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ）、`calc/MobileActionBar.tsx`（スマホの画面下固定バー）、
+`calc/OnboardingModal.tsx`（初回だけの3ステップガイド）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
+`Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
+`src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）。
+左端の縦タブ（発動回数／レッスン）は廃止し、`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
+
 ページの割り当ては `src/App.tsx` の `PAGES` 配列と `Routes` にあります。
 
 | フォルダ・ファイル | 画面 |
 |---|---|
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
-| `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「理論評価値の設定」（条件設定）モーダル |
+| `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
 | `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」 |
 | `calc/AbilityCountDrawer.tsx` | 計算ページから開く発動回数エディタ |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
@@ -368,7 +378,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 「理想編成」だけのボタン（`applyIdealFormation`）は今の踏み方のまま `findBestFormation` を 1 回、
 踏み方エディタの「選択サポカで踏み方を最適化」は今の編成のまま `optimizeSteppingForSlots` を回します。
 
-### 3-6. 条件設定の扱い（`理論評価値の設定` モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
+### 3-6. 探索の条件の扱い（「探索の条件」モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
 
 | 条件 | 探索でどう効くか（`formation.ts` / `autoOptimize.ts`） |
 |---|---|
@@ -572,7 +582,9 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 
 | キー名 | 中身 | 定義ファイル |
 |---|---|---|
-| `gakumas:calcSettings:v1` | 計算ページの今の設定（アイドル、Pアイドル、条件設定、本戦点数、ユーザー名など。`CalcSettings`） | `src/lib/useCalcSettings.ts` |
+| `gakumas:calcSettings:v1` | 計算ページの今の設定（アイドル、Pアイドル、探索の条件、本戦点数、ユーザー名など。`CalcSettings`） | `src/lib/useCalcSettings.ts` |
+| `gakumas:setup:ownershipAck:v1` | 準備バーで「全完凸のまま進む」を選んだ印（"1"） | `src/components/calc/SetupBar.tsx` |
+| `gakumas:onboarded:v1` | 初回ガイド（3ステップ）を閉じた印（"1"。消すとまた出る） | `src/components/calc/OnboardingModal.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
 | `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |

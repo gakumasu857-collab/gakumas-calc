@@ -1,11 +1,10 @@
-﻿import { useState } from "react";
-import { Link } from "react-router-dom";
+﻿import { useRef, useState } from "react";
 import {
   ChevronDown,
   HelpCircle,
   ImageDown,
+  Save,
   Settings,
-  Settings2,
   Sparkles,
   Table2,
 } from "lucide-react";
@@ -15,15 +14,29 @@ import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
+import { Card, Field } from "@/components/calc/CalcCard";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
+import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
+import MobileActionBar from "@/components/calc/MobileActionBar";
+import OnboardingModal, { shouldOnboard } from "@/components/calc/OnboardingModal";
+import OptimizeResultCard, {
+  type ConditionStatus,
+  type OptimizeOutcome,
+  type PlanSummary,
+} from "@/components/calc/OptimizeResultCard";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
+import PlanSummaryCard from "@/components/calc/PlanSummaryCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
 import {
   IdolPickerModal,
   ScenarioPickerModal,
   TheorySettingsModal,
 } from "@/components/calc/SettingPickers";
+import SetupBar, {
+  readOwnershipAck,
+  writeOwnershipAck,
+} from "@/components/calc/SetupBar";
 import SupportPickerModal from "@/components/calc/SupportPickerModal";
 import {
   AcquireToggle,
@@ -31,8 +44,11 @@ import {
   PreAssign,
   StatEventToggle,
 } from "@/components/EventControls";
+import Hint from "@/components/Hint";
+import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK, NOTE } from "@/components/ui";
 import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
 import { buildSnapshot } from "@/lib/calcSaveIO";
 import { imageUrl } from "@/lib/config";
@@ -46,6 +62,7 @@ import {
   sumEventContrib,
   typeConstraintFromRatio,
 } from "@/lib/formation";
+import { GLOSSARY } from "@/lib/glossary";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
   missingCalcInputs,
@@ -61,6 +78,7 @@ import {
 } from "@/lib/sheetScore";
 import { useCalcResult, type SelectedMember } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
+import { useOptimizePlan } from "@/lib/useOptimizePlan";
 import {
   TYPE_KEYS,
   TYPE_LABELS,
@@ -106,15 +124,9 @@ export default function CalcPage() {
   const { settings } = calc;
 
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
-  const [idealMsg, setIdealMsg] = useState<string | null>(null);
-  /** 直近の全自動最適化の診断ログ（JSON）。探索がおかしいときにコピーして送ってもらう */
-  const [diagLog, setDiagLog] = useState<string | null>(null);
-  /** クリップボードが使えない環境向けに、診断ログ本文をそのまま表示する */
-  const [diagLogShown, setDiagLogShown] = useState(false);
   const [idealBusy, setIdealBusy] = useState(false);
   const [detail, setDetail] = useState<SelectedMember | null>(null);
   const [optBusy, setOptBusy] = useState(false);
-  const [optMsg, setOptMsg] = useState<string | null>(null);
   // 全自動最適化がイベント予算に合わせて提案した前イベ/後イベ設定（未反映）。
   // ユーザーが「反映する」を押して初めてサポカ設定へ書き込む。
   const [pendingOps, setPendingOps] = useState<
@@ -128,6 +140,19 @@ export default function CalcPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [paraboOpen, setParaboOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [countsOpen, setCountsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [onboardOpen, setOnboardOpen] = useState(() => shouldOnboard());
+  const [ownershipAck, setOwnershipAck] = useState(() => readOwnershipAck());
+  /** 直近の探索の結果（結果カードに構造化して出す。文章の状態は持たない） */
+  const [outcome, setOutcome] = useState<OptimizeOutcome | null>(null);
+  /** 準備バーの「育成パターンを選ぶ」で、選択欄へスクロール＆フォーカスする */
+  const setSelectRef = useRef<HTMLSelectElement>(null);
+  /** 「今の編成のまま踏み方だけ」（分割メニュー） */
+  const planOpt = useOptimizePlan(r);
 
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
@@ -146,7 +171,7 @@ export default function CalcPage() {
    */
   const applyIdealFormation = () => {
     setIdealBusy(true);
-    setIdealMsg(null);
+    setOutcome(null);
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
@@ -192,17 +217,21 @@ export default function CalcPage() {
             : undefined,
         });
         if (!best) {
-          setIdealMsg(
-            "編成を組めません（プラン制限内の所持サポカが不足しています）",
-          );
+          setOutcome({
+            kind: "error",
+            message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
+          });
           return;
         }
         selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
-        setIdealMsg(
-          best.spShortfall > 0
-            ? `SPレッスン率の条件をあと${best.spShortfall}枚分満たせませんでした`
-            : null,
-        );
+        setOutcome({
+          kind: "info",
+          message:
+            `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(best.score).toLocaleString()}）` +
+            (best.spShortfall > 0
+              ? `。SPレッスン率の条件はあと${best.spShortfall}枚分満たせませんでした`
+              : ""),
+        });
       } finally {
         setIdealBusy(false);
       }
@@ -313,44 +342,199 @@ export default function CalcPage() {
       },
     });
 
+  /** サポカID列のタイプ枚数（アシストはどのタイプにも数えない） */
+  const typeCountsOfIds = (ids: string[]): Record<TypeKey, number> => {
+    const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    const map: Record<string, TypeKey> = {
+      Vocal: "vocal",
+      Dance: "dance",
+      Visual: "visual",
+    };
+    for (const id of ids) {
+      const t = map[CARD_BY_ID.get(id)?.cardType ?? ""];
+      if (t) counts[t]++;
+    }
+    return counts;
+  };
+
+  /** タイプ割合条件の達成（合計6=固定、6未満=最低枚数） */
+  const ratioStatus = (ids: string[]): ConditionStatus => {
+    const counts = typeCountsOfIds(ids);
+    const ratio = settings.typeRatio;
+    const sum = TYPE_KEYS.reduce((s, t) => s + ratio[t], 0);
+    const ok = TYPE_KEYS.every((t) =>
+      sum >= 6 ? counts[t] === ratio[t] : counts[t] >= ratio[t],
+    );
+    return {
+      label: "タイプ割合",
+      ok,
+      detail: `Vo${counts.vocal} Da${counts.dance} Vi${counts.visual}`,
+    };
+  };
+
+  /** 今の編成・ステでの条件の達成状況（結果列のチップ用。条件を設定していない項目は出さない） */
+  const currentConditions = (): ConditionStatus[] => {
+    const out: ConditionStatus[] = [];
+    const members = r.members.filter((m): m is SelectedMember => m !== null);
+    if (members.length < 6) return out;
+    if (settings.spTop.first > 0 || settings.spTop.second > 0) {
+      const resolved = resolveSpMin(r, settings);
+      let short = 0;
+      for (const t of TYPE_KEYS) {
+        short += Math.max(
+          0,
+          (resolved[t] ?? 0) - members.filter((m) => m.spTypes.includes(t)).length,
+        );
+      }
+      out.push({
+        label: "SP率持ち",
+        ok: short === 0,
+        detail: short > 0 ? `あと${short}枚` : undefined,
+      });
+    }
+    if (settings.typeRatio.enabled) out.push(ratioStatus(members.map((m) => m.id)));
+    if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {
+      const bad = TYPE_KEYS.filter(
+        (t) => settings.minStats[t] > 0 && r.perType[t].capped < settings.minStats[t],
+      );
+      out.push({
+        label: "最低ステ",
+        ok: bad.length === 0,
+        detail: bad.length ? bad.map((t) => TYPE_JA[t]).join("・") + "未達" : undefined,
+      });
+    }
+    if (
+      TYPE_KEYS.some((t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap)
+    ) {
+      const bad = TYPE_KEYS.filter(
+        (t) =>
+          settings.maxStats[t] > 0 &&
+          settings.maxStats[t] < r.statCap &&
+          r.perType[t].capped > settings.maxStats[t],
+      );
+      out.push({
+        label: "最高ステ",
+        ok: bad.length === 0,
+        detail: bad.length ? bad.map((t) => TYPE_JA[t]).join("・") + "超過" : undefined,
+      });
+    }
+    return out;
+  };
+
+  /** 探索結果での条件の達成状況（採用結果の未達は axisReport の採用軸に入っている） */
+  const resultConditions = (res: AutoOptimizeResult): ConditionStatus[] => {
+    const out: ConditionStatus[] = [];
+    const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
+    if (settings.spTop.first > 0 || settings.spTop.second > 0) {
+      out.push({
+        label: "SP率持ち",
+        ok: res.spShortfall === 0,
+        detail: res.spShortfall > 0 ? `あと${res.spShortfall}枚` : undefined,
+      });
+    }
+    if (settings.typeRatio.enabled) out.push(ratioStatus(res.slots.map((s) => s.id)));
+    if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {
+      const bad = issues.filter((i) => i.startsWith("最低ステ"));
+      out.push({
+        label: "最低ステ",
+        ok: bad.length === 0,
+        detail: bad.length ? bad.join("・") : undefined,
+      });
+    }
+    if (
+      TYPE_KEYS.some((t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap)
+    ) {
+      const bad = issues.filter((i) => i.startsWith("最高ステ"));
+      out.push({
+        label: "最高ステ",
+        ok: bad.length === 0,
+        detail: bad.length ? bad.join("・") : undefined,
+      });
+    }
+    return out;
+  };
+
+  /** 探索結果の踏み方を要約（結果カードのチップ用） */
+  const planSummaryOf = (res: AutoOptimizeResult): PlanSummary | undefined => {
+    if (res.hif) {
+      return {
+        lessons: res.hif.lessons.map((l) => ({ type: l.main, sp: l.sp })),
+        classes: res.hif.classTypes,
+      };
+    }
+    if (res.nia) {
+      return {
+        lessons: res.nia.lessons.map((l) => ({ type: l.main, sp: l.sp })),
+        sales: res.nia.sales.map((s) => s.type),
+      };
+    }
+    if (res.hatsu) {
+      return {
+        lessons: res.hatsu.lessons.map((l) => ({ type: l.main, sp: l.sp })),
+        classes: res.hatsu.classTypes,
+      };
+    }
+    return undefined;
+  };
+
+  /**
+   * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
+   * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
+   * 結果は文章ではなく OptimizeOutcome に分けて持ち、結果カードで見せる。
+   */
   const runAutoOptimize = () => {
     setOptBusy(true);
-    setOptMsg(null);
-    setDiagLog(null);
-    setDiagLogShown(false);
+    setOutcome(null);
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
     // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない
-    const before =
-      canShowRating && !settings.examAssist ? r.rating : null;
+    const before = canShowRating && !settings.examAssist ? r.rating : null;
     const beforeOk = before !== null && currentMeetsConditions();
+    const beforeSlots = r.selected.slots.filter(
+      (s): s is NonNullable<typeof s> => s !== null,
+    );
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
-        const res = runFullOptimize(
-          buildAutoOptimizeInput(r, flags, settings),
-        );
+        const res = runFullOptimize(buildAutoOptimizeInput(r, flags, settings));
         if (!res) {
-          setOptMsg(
-            "編成を組めません（プラン制限内の所持サポカが不足しています）",
-          );
+          setOutcome({
+            kind: "error",
+            message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
+          });
           return;
         }
+        const base: OptimizeOutcome = {
+          kind: "applied",
+          before,
+          after: res.rating,
+          elapsedMs: res.elapsedMs,
+          evaluated: res.evaluated,
+          axisReport: res.axisReport,
+          conditions: resultConditions(res),
+          plan: planSummaryOf(res),
+        };
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
         if (before !== null && beforeOk && res.rating < before) {
-          setDiagLog(buildDiagLog(res, before, beforeOk, false));
-          setOptMsg(
-            `探索結果（理論評価値 ${res.rating.toLocaleString()}）が今の評価値 ${before.toLocaleString()} を下回ったため、変更しませんでした。下の「診断ログをコピー」で状況を送ってもらえれば探索を改善します。`,
-          );
+          setOutcome({
+            ...base,
+            kind: "kept",
+            diagLog: buildDiagLog(res, before, beforeOk, false),
+          });
           return;
         }
-        setDiagLog(buildDiagLog(res, before, beforeOk, true));
+        const inIds = new Set(res.slots.map((s) => s.id));
+        const outIds = new Set(beforeSlots.map((s) => s.id));
+        const nameOf = (id: string) => CARD_BY_ID.get(id)?.name ?? id;
+        const swappedIn = res.slots
+          .filter((s) => !outIds.has(s.id))
+          .map((s) => ({ id: s.id, name: nameOf(s.id), rental: s.rental }));
+        const swappedOut = beforeSlots
+          .filter((s) => !inIds.has(s.id))
+          .map((s) => ({ id: s.id, name: nameOf(s.id) }));
+
         if (res.hif)
-          r.schedule.setPlan(
-            res.hif.lessons,
-            res.hif.classTypes,
-            res.hif.examScores,
-          );
+          r.schedule.setPlan(res.hif.lessons, res.hif.classTypes, res.hif.examScores);
         if (res.nia) r.niaSchedule.setPlan(res.nia.lessons, res.nia.sales);
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
@@ -362,36 +546,27 @@ export default function CalcPage() {
         setPendingOps(hasOps ? ops : null);
         // 取得制限つきの理論評価値を評価値ボックスに一時表示（サポカ設定は未変更）
         setPreviewRating(hasOps ? res.rating : null);
-        const sec = (res.elapsedMs / 1000).toFixed(1);
-        setOptMsg(
-          `理論評価値 ${res.rating.toLocaleString()} の組み合わせを踏み方・サポカ編成に反映しました（${res.evaluated.toLocaleString()}通りを探索・${sec}秒）` +
-            (before !== null && !beforeOk && res.rating < before
-              ? `。押す前より評価値が下がっていますが、元の編成は現在の条件設定に合っていなかったため置き換えました`
-              : "") +
-            (hasOps
-              ? `。評価値ボックスには前イベ/後イベの取得制限を反映した値を表示しています（下のボタンでサポカ設定にも反映できます）`
-              : "") +
-            (res.spShortfall > 0
-              ? `。SPレッスン率の条件はあと${res.spShortfall}枚分満たせませんでした`
-              : "") +
-            // 寄せ方（VoDa/DaVi/VoVi）の比較。仕上げ前の値なので採用軸は最終値より低く出る
-            (res.axisReport && res.axisReport.length > 1
-              ? `。寄せ方の比較: ${res.axisReport
-                  .map(
-                    (a) =>
-                      `${a.axis} ${a.rating.toLocaleString()}${
-                        a.chosen
-                          ? a.issues.length > 0
-                            ? `（採用・条件未達: ${a.issues.join("・")}）`
-                            : "（採用）"
-                          : a.issues.length > 0
-                            ? `（条件未達: ${a.issues.join("・")}）`
-                            : "（仕上げ前）"
-                      }`,
-                  )
-                  .join(" ／ ")}`
-              : ""),
-        );
+        const notes: string[] = [];
+        if (before !== null && !beforeOk && res.rating < before) {
+          notes.push(
+            "押す前より評価値が下がっていますが、元の編成は探索の条件に合っていなかったため置き換えました",
+          );
+        }
+        if (hasOps) {
+          notes.push(
+            "評価値ボックスには前イベ/後イベの取得制限を反映した値を表示しています（下のボタンでサポカ設定にも反映できます）",
+          );
+        }
+        if (res.spShortfall > 0) {
+          notes.push(`SPレッスン率の条件はあと${res.spShortfall}枚分満たせませんでした`);
+        }
+        setOutcome({
+          ...base,
+          swappedIn,
+          swappedOut,
+          notes,
+          diagLog: buildDiagLog(res, before, beforeOk, true),
+        });
       } finally {
         setOptBusy(false);
       }
@@ -408,7 +583,7 @@ export default function CalcPage() {
     }
     setPendingOps(null);
     setPreviewRating(null);
-    setOptMsg("前イベ/後イベの取得制限をサポカ設定に反映しました。");
+    setOutcome({ kind: "info", message: "前イベ/後イベの取得制限をサポカ設定に反映しました。" });
   };
 
   /**
@@ -440,24 +615,62 @@ export default function CalcPage() {
     calc.update({ idol, pIdol: pIdolCardName });
   };
 
+  const memoryCount = r.memoryStore.selected.length;
+  const conditionChips = currentConditions();
+  const scrollToResults = () =>
+    document
+      .getElementById("calc-results")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <div className="grid gap-4 pl-9 sm:pl-10 lg:grid-cols-[360px_1fr] lg:items-start lg:pl-0">
-      {/* 見出しと使い方・計算式ヘルプ（同じ行） */}
-      <div className="-mb-1 flex items-center justify-between lg:col-span-2 lg:order-first">
+    <div className="grid gap-4 pb-24 lg:grid-cols-[360px_1fr] lg:items-start lg:pb-0">
+      {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
+      <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
-        <button
-          type="button"
-          onClick={() => setHelpOpen(true)}
-          className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
-        >
-          <HelpCircle size={14} />
-          使い方・計算式ヘルプ
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSaveOpen(true)}
+            className={BTN_SECONDARY}
+            title="セーブデータの保存・読み込み、計算シートの画像保存"
+          >
+            <Save size={13} />
+            セーブデータ
+          </button>
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+          >
+            <HelpCircle size={14} />
+            使い方・計算式ヘルプ
+          </button>
+        </div>
       </div>
+
+      {/* 準備バー（①所持状況 ②育成の前提 ③メモリー の済・未） */}
+      <div className="lg:col-span-2 lg:order-first">
+        <SetupBar
+          r={r}
+          ack={ownershipAck}
+          onAck={() => {
+            writeOwnershipAck();
+            setOwnershipAck(true);
+          }}
+          onOpenScenario={() => setScenarioPickerOpen(true)}
+          onOpenIdol={() => setIdolPickerOpen(true)}
+          onOpenSet={() => {
+            setSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            setSelectRef.current?.focus();
+          }}
+          onOpenMemory={() => setMemoryOpen(true)}
+        />
+      </div>
+
       {/* ===== 入力（デスクトップでは右） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-2">
-        {/* 設定 */}
-        <Card title="設定">
+        {/* 育成の前提 */}
+        <Card title="育成の前提" hint={<Hint text={GLOSSARY.premise} />}>
           <div className="flex flex-col gap-3 sm:flex-row">
             {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花）。
                 プラン・おすすめ効果は特訓開花の下 */}
@@ -514,8 +727,16 @@ export default function CalcPage() {
                     <ChevronDown size={14} className="shrink-0 text-slate-400" />
                   </button>
                 </Field>
-                <Field label="育成（発動回数セット）">
+                <Field
+                  label={
+                    <span className="flex items-center gap-1">
+                      育成パターン（発動回数）
+                      <Hint text={GLOSSARY.pattern} />
+                    </span>
+                  }
+                >
                   <select
+                    ref={setSelectRef}
                     value={r.ability.selectedSetId ?? ""}
                     onChange={(e) => {
                       if (e.target.value !== r.ability.selectedSetId)
@@ -562,24 +783,20 @@ export default function CalcPage() {
             </div>
           </div>
 
-          {/* メモリー（メモリーページのスロットを使用）。未設定は目立つ警告にする */}
+          {/* メモリー（計算ページ内のモーダルで選ぶ）。未設定は目立つ警告にする */}
           <div
             className={`mt-3 flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm ${
-              r.memoryStore.selected.length === 0
+              memoryCount === 0
                 ? "border border-amber-300 bg-amber-50 text-amber-800"
                 : "bg-slate-50 text-slate-600"
             }`}
           >
-            <span className="font-semibold">
-              メモリー
-              {r.memoryStore.selected.length > 0 &&
-                `（${r.memoryStore.selected.length}枚）`}
-              :
+            <span className="flex items-center gap-1 font-semibold">
+              メモリー{memoryCount > 0 && `（${memoryCount}枚）`}:
+              <Hint text={GLOSSARY.memory} />
             </span>
-            {r.memoryStore.selected.length === 0 ? (
-              <span>
-                未設定です。実際の育成に合わせて設定しないと評価値が不正確になります。
-              </span>
+            {memoryCount === 0 ? (
+              <span>未設定です。実際の育成に合わせて設定しないと評価値が不正確になります。</span>
             ) : (
               TYPE_KEYS.map((t) => (
                 <span key={t} className={`rounded px-1.5 py-0.5 ${TYPE_CHIP[t]}`}>
@@ -587,96 +804,98 @@ export default function CalcPage() {
                 </span>
               ))
             )}
-            <Link
-              to="/memory"
-              className={`ml-auto text-xs underline ${
-                r.memoryStore.selected.length === 0
-                  ? "font-bold text-amber-700"
-                  : "text-blue-600"
+            <button
+              type="button"
+              onClick={() => setMemoryOpen(true)}
+              className={`ml-auto ${BTN_SECONDARY} ${
+                memoryCount === 0 ? "border-amber-400 text-amber-700" : ""
               }`}
             >
-              {r.memoryStore.selected.length === 0
-                ? "メモリーを設定する →"
-                : "メモリーページで編集"}
-            </Link>
+              {memoryCount === 0 ? "メモリーを選ぶ" : "変更"}
+            </button>
           </div>
 
           {/* 本戦・試験の点数（設定ブロック内） */}
           <ScenarioScoreCard r={r} />
         </Card>
 
-        {/* 全自動最適化 */}
-        <Card title="">
-          {/* 求めるボタンの右隣に設定ボタン */}
+        {/* 自動探索（主役ボタンは1つ。編成だけ／踏み方だけは ▾ から） */}
+        <Card
+          title="自動探索"
+          hint={
+            <Hint text="サポカ6枚とレッスンの踏み方をまとめて探索し、評価値がいちばん高い組み合わせを反映します。条件は「探索の条件」から。" />
+          }
+        >
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={runAutoOptimize}
-              disabled={optBusy || !optimizeReady}
-              title={notReadyTitle}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Sparkles size={15} />
-              {optBusy ? "計算中…" : "理想の評価値編成を求める（サポカ編成＋踏み方を自動探索）"}
-            </button>
+            <div className="flex items-stretch">
+              <button
+                type="button"
+                onClick={runAutoOptimize}
+                disabled={optBusy || !optimizeReady}
+                title={notReadyTitle}
+                className={`${BTN_PRIMARY} rounded-r-none`}
+              >
+                <Sparkles size={15} />
+                {optBusy ? "計算中…" : "理想の編成と踏み方を求める"}
+              </button>
+              <div className="relative flex">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  disabled={optBusy || idealBusy || planOpt.busy || !optimizeReady}
+                  title="編成だけ／踏み方だけを最適化"
+                  aria-label="そのほかの探索"
+                  className={`${BTN_PRIMARY} rounded-l-none border-l border-blue-400 px-2`}
+                >
+                  <ChevronDown size={14} />
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg">
+                      <MenuItem
+                        title="今の踏み方のまま、サポカ編成だけ"
+                        desc="レッスンの踏み方は変えずに6枚を選び直す"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          applyIdealFormation();
+                        }}
+                      />
+                      <MenuItem
+                        title="今のサポカ編成のまま、踏み方だけ"
+                        desc="6枚は変えずにレッスン・授業（営業）・選抜の配分を最適化"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setOutcome(null);
+                          planOpt.run((m) => setOutcome({ kind: "info", message: m }));
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => setTheoryOpen(true)}
-              className={SMALL_BTN}
+              className={BTN_SECONDARY}
+              title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
             >
               <Settings size={13} />
-              条件設定
+              探索の条件
             </button>
           </div>
           {!optimizeReady && (
             <p className="mt-2 text-xs font-semibold text-amber-600">
-              ↑の設定で {missingInputs.join("・")} を選ぶと押せます
+              上の「準備」で {missingInputs.join("・")} を選ぶと押せます
             </p>
           )}
-          {/* 所持サポカ・Pアイドルの登録がないと理想編成が組めないので導線を置く */}
-          <p className="mt-2 text-xs text-slate-500">
-            探索は
-            <Link
-              to="/support"
-              className="mx-1 font-bold text-blue-600 underline hover:text-blue-500"
-            >
-              所持状況（サポカ凸・Pアイドル）
-            </Link>
-            をもとに組みます。未登録なら先に入力してください。
-          </p>
-          {optMsg && (
-            <p className="mt-2 text-xs font-semibold text-blue-600">{optMsg}</p>
+          {(idealBusy || planOpt.busy) && (
+            <p className="mt-2 text-xs font-semibold text-blue-600">計算中…</p>
           )}
-          {diagLog && (
-            <div className="mt-1 flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  const clip = navigator.clipboard?.writeText(diagLog);
-                  if (!clip) {
-                    setDiagLogShown(true);
-                    return;
-                  }
-                  void clip.then(
-                    () =>
-                      setOptMsg((m) => `${m ?? ""}（診断ログをコピーしました）`),
-                    () => setDiagLogShown(true),
-                  );
-                }}
-                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（探索がおかしいときに送ってください）"
-                className="self-start rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:bg-slate-100"
-              >
-                診断ログをコピー
-              </button>
-              {diagLogShown && (
-                <textarea
-                  readOnly
-                  value={diagLog}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="h-24 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-[10px] text-slate-600"
-                  title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
-                />
-              )}
+          {outcome && (
+            <div className="mt-3">
+              <OptimizeResultCard outcome={outcome} />
             </div>
           )}
           {pendingOps && (
@@ -731,45 +950,20 @@ export default function CalcPage() {
           )}
         </Card>
 
-        {/* 選択サポカ */}
+        {/* サポカ編成 */}
         <Card
           title="サポカ編成"
+          hint={<Hint text={GLOSSARY.cardFlags} />}
           action={
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={applyIdealFormation}
-                disabled={idealBusy || !optimizeReady}
-                title={notReadyTitle}
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Sparkles size={13} />
-                {idealBusy ? "計算中…" : "今の踏み方でサポカ編成を最適化"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheoryOpen(true)}
-                title="条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助など）"
-                className="rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 transition hover:bg-slate-100"
-              >
-                <Settings2 size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => selected.clearAll()}
-                className={SMALL_BTN}
-              >
-                全て外す
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => selected.clearAll()}
+              className={BTN_SECONDARY}
+            >
+              全て外す
+            </button>
           }
         >
-          {!optimizeReady && (
-            <p className="mb-2 text-xs font-semibold text-amber-600">
-              最適化には {missingInputs.join("・")} の選択が必要です
-            </p>
-          )}
-          {idealMsg && <p className="mb-2 text-xs text-red-500">{idealMsg}</p>}
           {r.members.filter((m) => m?.rental).length >= 2 && (
             <p className="mb-2 text-xs font-semibold text-amber-600">
               ⚠ レンタルが
@@ -794,97 +988,33 @@ export default function CalcPage() {
               />
             ))}
           </div>
-          {/* 選択中カードの前イベ・後イベ回数（サポカ設定とは独立した計算ページ専用） */}
-          <EventCountEditor r={r} />
-          {/* SPレッスン率とこの踏み方の実現確率 */}
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-bold text-slate-700">SPレッスン率上昇</span>
-              {TYPE_KEYS.map((type) => (
-                <span key={type} className="tabular-nums">
-                  <span className={`font-bold ${TYPE_TEXT[type]}`}>
-                    {TYPE_LABELS[type]}
-                  </span>{" "}
-                  +{((r.spLesson.bonus[type] + 0.05) * 100).toFixed(1)}%
-                </span>
-              ))}
-              <span className="flex items-center gap-1 text-slate-400">
-                表記外推定SP率
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={settings.baseSpRate}
-                  onChange={(e) =>
-                    calc.update({
-                      baseSpRate: Math.max(0, Number(e.target.value) || 0),
-                    })
-                  }
-                  className="w-14 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-sm"
-                />
-                %
-              </span>
-            </div>
-            <p className="mt-1">
-              この踏み方の実現確率:{" "}
-              {r.scenario === "hif" ? (
-                // HIFは選抜・本戦が別の期間なので、それぞれのSP踏みの確率だけを出す
-                <span className="tabular-nums">
-                  選抜{" "}
-                  <b className="text-blue-700">{formatProb(r.spLesson.probSen)}</b>
-                  {" ／ "}本戦{" "}
-                  <b className="text-blue-700">{formatProb(r.spLesson.probHon)}</b>
-                </span>
-              ) : (
-                <b className="tabular-nums text-blue-700">
-                  {formatProb(r.spLesson.prob)}
-                </b>
-              )}
-            </p>
-          </div>
+          <p className={`mt-1.5 ${NOTE}`}>
+            枠をクリックで入れ替え、歯車で凸・固定・BAN。「+123」は評価値へのステ換算の貢献です。
+          </p>
+          {/* 選択中カードの前イベ・後イベ回数（サポカ設定とは独立した計算ページ専用）。普段は畳む */}
+          {r.members.some((m) => m !== null) && (
+            <details className="mt-2">
+              <summary className="cursor-pointer select-none text-xs font-semibold text-slate-600 hover:text-slate-900">
+                前イベ・後イベ・ステイベの発動を調整（この編成だけ）
+              </summary>
+              <EventCountEditor r={r} />
+            </details>
+          )}
         </Card>
 
-      </div>
-
-      {/* セーブデータ・画像出力（スマホでは一番下、デスクトップでは入力列の下） */}
-      <div className="order-last lg:order-3 lg:col-start-2">
-        <Card
-          title="セーブデータ"
-          action={
-            <span className="flex items-center gap-1.5">
-              <input
-                type="text"
-                value={settings.userName}
-                onChange={(e) => calc.update({ userName: e.target.value })}
-                placeholder="ユーザー名（画像に載る）"
-                maxLength={20}
-                className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
-              />
-              <button
-                type="button"
-                disabled={exportBusy}
-                onClick={() => {
-                  if (exportBusy) return;
-                  setExportBusy(true);
-                  void exportSheetImage(r, flags.pinned).finally(() =>
-                    setExportBusy(false),
-                  );
-                }}
-                title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画像で保存します"
-                className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60"
-              >
-                <ImageDown size={13} />
-                {exportBusy ? "保存中…" : "画像で保存"}
-              </button>
-            </span>
-          }
-        >
-          <SaveDataPanel r={r} />
-        </Card>
+        {/* レッスンの踏み方（旧: 左端の縦タブ） */}
+        <PlanSummaryCard
+          r={r}
+          onEditPlan={() => setPlanOpen(true)}
+          onEditCounts={() => setCountsOpen(true)}
+        />
       </div>
 
       {/* ===== 結果（デスクトップでは左・スクロールに追従） ===== */}
-      <div className="flex flex-col gap-4 lg:order-1 lg:sticky lg:top-14 lg:self-start">
+      <div
+        id="calc-results"
+        className="flex scroll-mt-16 flex-col gap-4 lg:order-1 lg:sticky lg:top-14 lg:self-start"
+      >
         {/* 評価値（提案中は取得制限を反映した理論値を一時表示） */}
         <div
           className={`rounded-xl border-2 bg-white p-4 text-center ${
@@ -895,15 +1025,16 @@ export default function CalcPage() {
                 : "border-blue-600"
           }`}
         >
-          <p className="text-xs font-semibold text-slate-500">
+          <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
             評価値
+            <Hint text={GLOSSARY.rating} />
             {canShowRating && previewRating !== null && (
               <span className="ml-1 text-amber-600">（取得制限を反映）</span>
             )}
           </p>
           {!canShowRating ? (
             <p className="mt-2 text-xs text-slate-400">
-              サポカを6枚編成し、育成を選んでください。
+              サポカを6枚編成し、育成パターンを選ぶと表示されます。
             </p>
           ) : (
             <>
@@ -954,12 +1085,28 @@ export default function CalcPage() {
                   </>
                 )}
               </p>
+              {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
+              {conditionChips.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-1">
+                  {conditionChips.map((c) => (
+                    <span key={c.label} className={c.ok ? CHIP_OK : CHIP_NG} title={c.detail}>
+                      {c.ok ? "✓" : "✗"} {c.label}
+                      {!c.ok && c.detail && (
+                        <span className="font-normal opacity-80">（{c.detail}）</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
 
-        {/* 最終ステータス */}
-        <Card title="最終ステータス" hint={`各タイプ上限${r.statCap}`}>
+        {/* 育成後のステータス */}
+        <Card
+          title="育成後のステータス"
+          hint={<Hint text={`${GLOSSARY.finalStats} 各タイプの上限は${r.statCap}です。`} />}
+        >
           <table className="w-full text-sm tabular-nums">
             <tbody className="divide-y divide-slate-100">
               {TYPE_KEYS.map((type) => {
@@ -1001,49 +1148,36 @@ export default function CalcPage() {
             {r.scenario === "hif" && (
               <p>
                 合計スター性: <b className="text-violet-600">{r.totalStar}</b>
-                {/* <span className="ml-1 text-[10px] text-slate-400">
-                  （ワッペン{r.wappenCount}回=★{r.starParts.wappen}＋レッスン
-                  {r.starParts.lesson}＋選抜{r.starParts.exam}＋本戦
-                  {r.starParts.final}）
-                </span> */}
               </p>
             )}
             {/* サポカ由来のPポイントだけをまとめて出す（固定P・前イベP・P率換算・
                 タイプSPレッスンP率）。開始時230や差し入れ・レッスン・メモリー分は含めない
                 （内訳はヘルプに記載） */}
-            <p
-              title="サポカ由来のPポイント（固定P・前イベP・レッスンP率換算・タイプSPレッスンP率）。開始時230（HIFボーナス200＋STEP3の30。選抜・本戦とも）・差し入れ80×5・レッスン・メモリー分は含みません"
-            >
+            <p className="flex items-center gap-1">
               Pポイント（サポカ分）:{" "}
               <b className="text-cyan-700">
                 {Math.round(r.resources.pCards).toLocaleString()}
               </b>
-              <span className="ml-1 text-[10px] text-slate-400">
-                ※開始時230・差し入れ・レッスン・メモリー分は含まず（詳細はヘルプ）
-              </span>
+              <Hint text="サポカ由来のPポイント（固定P・前イベP・レッスンP率換算・タイプSPレッスンP率）。開始時230（HIFボーナス200＋STEP3の30。選抜・本戦とも）・差し入れ80×5・レッスン・メモリー分は含みません" />
             </p>
             <p>
               体力:{" "}
               <b className="text-emerald-700">
                 {Math.round(r.resources.hpTotal)}
               </b>
-              {/* <span className="ml-1 text-[10px] text-slate-400">
-                （Pアイドル{r.resources.hpIdol}
-                {r.resources.hpCards > 0 && `＋サポカ${r.resources.hpCards}`}）
-              </span> */}
             </p>
           </div>
         </Card>
 
         {/* プロデュース開始時のステ */}
         <Card
-          title="プロデュース開始時のステータス"
+          title="開始時のステータス"
           action={
             <button
               type="button"
               onClick={() => setParaboOpen(true)}
               title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
-              className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+              className={BTN_SECONDARY}
             >
               <Table2 size={13} />
               パラボ変換表
@@ -1068,7 +1202,7 @@ export default function CalcPage() {
               </div>
             ))}
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-400">
+          <p className={`mt-1.5 ${NOTE}`}>
             審査基準:{" "}
             {TYPE_KEYS.map((t) => `${TYPE_JA[t]} ${r.ranks?.[t] ?? "—"}`).join(" / ")}
           </p>
@@ -1092,7 +1226,7 @@ export default function CalcPage() {
           />
         )}
 
-      {/* サポカ選択モーダル */}
+      {/* サポカ選択モーダル（凸もその場で直せる） */}
       {pickerSlot !== null && (
         <SupportPickerModal
           slotIndex={pickerSlot}
@@ -1108,6 +1242,7 @@ export default function CalcPage() {
           plan={r.plan}
           rentalNg={flags.rentalNg}
           getLevel={r.getLevel}
+          setLevel={r.setLevel}
           onPick={(entry) => {
             selected.setSlot(pickerSlot, entry);
             setPickerSlot(null);
@@ -1116,7 +1251,7 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 理論評価値の設定モーダル */}
+      {/* 探索の条件モーダル */}
       {theoryOpen && (
         <TheorySettingsModal
           settings={settings}
@@ -1128,6 +1263,14 @@ export default function CalcPage() {
       {/* 使い方・計算式ヘルプ */}
       {helpOpen && (
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+      )}
+
+      {/* 初回だけの3ステップガイド */}
+      {onboardOpen && (
+        <OnboardingModal
+          onClose={() => setOnboardOpen(false)}
+          onOpenHelp={() => setHelpOpen(true)}
+        />
       )}
 
       {/* パラボ%→固定値の変換表 */}
@@ -1159,10 +1302,82 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 左端タブから開く発動回数・レッスンのエディタ */}
-      <AbilityCountDrawer r={r} />
-      <PlanEditDrawer r={r} />
+      {/* メモリーを計算ページ内で選ぶ */}
+      {memoryOpen && (
+        <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} />
+      )}
+
+      {/* セーブデータ・画像保存 */}
+      {saveOpen && (
+        <Modal title="セーブデータ・画像で保存" onClose={() => setSaveOpen(false)}>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+            <span className="text-xs font-bold text-slate-700">画像で保存</span>
+            <input
+              type="text"
+              value={settings.userName}
+              onChange={(e) => calc.update({ userName: e.target.value })}
+              placeholder="ユーザー名（画像に載る）"
+              maxLength={20}
+              className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+            />
+            <button
+              type="button"
+              disabled={exportBusy}
+              onClick={() => {
+                if (exportBusy) return;
+                setExportBusy(true);
+                void exportSheetImage(r, flags.pinned).finally(() =>
+                  setExportBusy(false),
+                );
+              }}
+              title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画像で保存します"
+              className={BTN_PRIMARY}
+            >
+              <ImageDown size={13} />
+              {exportBusy ? "保存中…" : "画像で保存"}
+            </button>
+          </div>
+          <SaveDataPanel r={r} />
+        </Modal>
+      )}
+
+      {/* 発動回数・踏み方のエディタ（「レッスンの踏み方」ブロックから開く） */}
+      <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
+      <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
+
+      {/* スマホ: 画面下の固定バー（評価値＋主役ボタン） */}
+      <MobileActionBar
+        rating={previewRating ?? r.rating}
+        canShow={canShowRating}
+        busy={optBusy}
+        ready={optimizeReady}
+        notReadyTitle={notReadyTitle}
+        onRun={runAutoOptimize}
+        onShowResults={scrollToResults}
+      />
     </div>
+  );
+}
+
+/** 分割メニュー（▾）の1項目 */
+function MenuItem({
+  title,
+  desc,
+  onClick,
+}: {
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full rounded-md px-3 py-2 text-left transition hover:bg-slate-100"
+    >
+      <span className="block text-xs font-bold text-slate-800">{title}</span>
+      <span className="block text-[11px] text-slate-500">{desc}</span>
+    </button>
   );
 }
 
@@ -1772,59 +1987,9 @@ function VoteChip({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** 踏み方の実現確率の表示（小さい値でも桁が読めるように段階的に精度を上げる） */
-function formatProb(p: number): string {
-  const pct = p * 100;
-  if (pct >= 10) return `${pct.toFixed(1)}%`;
-  if (pct >= 1) return `${pct.toFixed(2)}%`;
-  if (pct >= 0.01) return `${pct.toFixed(3)}%`;
-  if (pct <= 0) return "0%";
-  return `${pct.toPrecision(2)}%`;
-}
-
 const INPUT =
   "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500";
 
 
 const SMALL_BTN =
   "flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
-
-function Card({
-  title,
-  hint,
-  action,
-  children,
-}: {
-  title: string;
-  hint?: React.ReactNode;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-bold text-slate-900">{title}</h2>
-        {hint && (
-          <span className="text-xs font-normal text-slate-400">{hint}</span>
-        )}
-        {action && <div className="ml-auto">{action}</div>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-slate-500">
-      {label}
-      {children}
-    </label>
-  );
-}

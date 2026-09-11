@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { ListOrdered } from "lucide-react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import SetEditModal from "@/components/ability-counts/SetEditModal";
 import Modal from "@/components/Modal";
@@ -10,16 +9,19 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
- * 計算ページの右端タブから開く発動回数エディタ。
+ * 計算ページの「レッスンの踏み方」ブロックの「発動回数を調整」から開く発動回数エディタ。
  * 発動回数ページでセット名をクリックしたときと同じモーダル（分類タブの表）を開く。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。
  */
 export default function AbilityCountDrawer({
   r,
+  open,
+  onClose,
 }: {
   r: ReturnType<typeof useCalcResult>;
+  open: boolean;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const set = r.selectedSet;
 
   // 編成中サポカ6枚が持つアビリティの集合
@@ -52,18 +54,6 @@ export default function AbilityCountDrawer({
 
   return (
     <>
-      {/* 左端の開くハンドル（上半分・縦書き。下半分はレッスン） */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="発動回数を編集"
-        className="fixed bottom-[calc(50%+4px)] left-0 top-16 z-30 flex w-8 items-center justify-center gap-1.5 rounded-r-xl bg-blue-600 text-xs font-bold text-white shadow-lg transition hover:bg-blue-500"
-        style={{ writingMode: "vertical-rl" }}
-      >
-        <ListOrdered size={14} />
-        発動回数
-      </button>
-
       {open &&
         (set ? (
           <SetEditModal
@@ -76,7 +66,7 @@ export default function AbilityCountDrawer({
             onDelete={() => r.ability.deleteSet(set.id)}
             onDuplicate={() => {
               r.ability.duplicateSet(set);
-              setOpen(false);
+              onClose();
             }}
             onRename={(name) => r.ability.renameSet(set.id, name)}
             onSetPlan={
@@ -84,12 +74,12 @@ export default function AbilityCountDrawer({
                 ? (plan) => r.ability.setPlan(set.id, plan)
                 : undefined
             }
-            onClose={() => setOpen(false)}
+            onClose={() => onClose()}
           />
         ) : (
-          <Modal title="発動回数" onClose={() => setOpen(false)}>
+          <Modal title="発動回数" onClose={() => onClose()}>
             <p className="text-sm text-slate-600">
-              参照セットが未選択です。「育成（発動回数セット）」で選ぶか、
+              参照セットが未選択です。「育成パターン（発動回数）」で選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">
                 発動回数ページ
               </Link>

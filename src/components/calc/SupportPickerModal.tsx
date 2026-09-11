@@ -71,6 +71,7 @@ export default function SupportPickerModal({
   plan,
   rentalNg,
   getLevel,
+  setLevel,
   onPick,
   onClose,
 }: {
@@ -82,6 +83,8 @@ export default function SupportPickerModal({
   plan: string | null;
   rentalNg: ReadonlySet<string>;
   getLevel: (id: string) => number;
+  /** 所持の凸をその場で変える（省略時は表示のみ） */
+  setLevel?: (id: string, level: number) => void;
   onPick: (entry: SelectedSlot) => void;
   onClose: () => void;
 }) {
@@ -207,15 +210,16 @@ export default function SupportPickerModal({
           {list.map((card) => {
             const used = usedIds.has(card.id);
             const url = imageUrl(card.image);
+            const editable = mode === "owned" && !!setLevel;
             return (
-              <li key={card.id}>
+              <li key={card.id} className="flex items-center gap-2 px-1">
                 <button
                   type="button"
                   disabled={used}
                   onClick={() =>
                     onPick({ id: card.id, rental: mode === "rental" })
                   }
-                  className={`flex w-full items-center gap-3 px-1 py-1.5 text-left text-sm transition ${
+                  className={`flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left text-sm transition ${
                     used
                       ? "cursor-not-allowed opacity-40"
                       : "hover:bg-blue-50"
@@ -248,19 +252,37 @@ export default function SupportPickerModal({
                       選択中
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-slate-500">
-                    {card.rental ? (
-                      <span className="font-semibold text-amber-600">
-                        レンタル 4凸
-                      </span>
-                    ) : (
-                      `${card.level}凸`
-                    )}
-                  </span>
+                  {!editable && (
+                    <span className="shrink-0 text-xs text-slate-500">
+                      {card.rental ? (
+                        <span className="font-semibold text-amber-600">
+                          レンタル 4凸
+                        </span>
+                      ) : (
+                        `${card.level}凸`
+                      )}
+                    </span>
+                  )}
                   <span className="w-14 shrink-0 text-right font-bold tabular-nums text-blue-600">
                     +{Math.round(card.points)}
                   </span>
                 </button>
+                {/* 所持の凸をその場で直す（所持状況ページへ行かなくてよい） */}
+                {editable && (
+                  <select
+                    value={card.level}
+                    onChange={(e) => setLevel!(card.id, Number(e.target.value))}
+                    title="所持の凸数を変更（未所持にすると一覧から消えます）"
+                    className="shrink-0 rounded-md border border-slate-300 bg-white px-1 py-0.5 text-xs text-slate-600"
+                  >
+                    <option value={-1}>未所持</option>
+                    {[0, 1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {n}凸
+                      </option>
+                    ))}
+                  </select>
+                )}
               </li>
             );
           })}

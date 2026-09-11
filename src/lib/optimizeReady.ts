@@ -13,7 +13,7 @@ export function missingCalcInputs(
     !r.scenarioStore.chosen && "シナリオ",
     !settings.idol && "アイドル名",
     !(settings.pIdol && r.pMaster) && "Pアイドル",
-    !r.selectedSet && "育成（発動回数セット）",
+    !r.selectedSet && "育成パターン（発動回数）",
     r.memoryStore.selected.length === 0 && "メモリー",
   ].filter((v): v is string => typeof v === "string");
 }
