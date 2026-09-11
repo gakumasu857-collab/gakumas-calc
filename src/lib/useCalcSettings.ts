@@ -77,7 +77,8 @@ export type CalcSettings = {
 };
 
 export const DEFAULT_SETTINGS: CalcSettings = {
-  idol: "花海咲季",
+  // アイドル・Pアイドルは未選択で始める（計算ページの「育成の前提」で選んでもらう）
+  idol: "",
   pIdol: "",
   spTop: { first: 0, second: 0 },
   eventBudget: { enabled: false, pre: 6, post: 6 },

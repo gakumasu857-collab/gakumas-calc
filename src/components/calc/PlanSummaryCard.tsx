@@ -15,7 +15,7 @@ const TYPE_TEXT = {
   visual: "text-yellow-600",
 } as const;
 
-/** 今の踏み方（シナリオ別のストア）を要約に変換する */
+/** 今の踏み方（シナリオ別のストア）を要約に変換する（サブ・授業／営業の並び込み） */
 export function currentPlanSummary(r: CalcResult): PlanSummary {
   if (r.scenario === "niaMaster") {
     return {
@@ -30,7 +30,11 @@ export function currentPlanSummary(r: CalcResult): PlanSummary {
     };
   }
   return {
-    lessons: r.schedule.lessons.map((l) => ({ type: l.main, sp: l.sp })),
+    lessons: r.schedule.lessons.map((l) => ({
+      type: l.main,
+      sub: l.sub,
+      sp: l.sp,
+    })),
     classes: r.schedule.classTypes,
   };
 }
@@ -46,8 +50,8 @@ export function formatProb(p: number): string {
 }
 
 /**
- * 「レッスンの踏み方」ブロック。今の踏み方をチップで常に見せ、
- * 編集（踏み方エディタ）と発動回数の調整はここから開く（左端の縦タブは廃止）。
+ * 「レッスンの踏み方」ブロック。今の踏み方（レッスンのメイン・サブ・SP、授業／営業の並び）を
+ * チップで常に見せる。編集と発動回数の調整は左の操作パネル（スマホは下バー）からも開ける。
  */
 export default function PlanSummaryCard({
   r,
@@ -61,12 +65,6 @@ export default function PlanSummaryCard({
   const { calc } = r;
   const { settings } = calc;
   const plan = currentPlanSummary(r);
-  const lessonLabel =
-    r.scenario === "niaMaster"
-      ? "自主レッスン・営業"
-      : r.scenario === "hatsuLegend"
-        ? "レッスン・授業"
-        : "公開レッスン・授業";
 
   return (
     <Card
@@ -94,11 +92,17 @@ export default function PlanSummaryCard({
         </>
       }
     >
-      <p className="mb-1.5 text-[11px] text-slate-500">{lessonLabel}</p>
-      <PlanChips plan={plan} />
+      <button
+        type="button"
+        onClick={onEditPlan}
+        title="クリックで踏み方を編集"
+        className="block w-full rounded-lg px-1 py-1 text-left transition hover:bg-slate-50"
+      >
+        <PlanChips plan={plan} />
+      </button>
 
       {/* SPレッスン率とこの踏み方の実現確率 */}
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="flex items-center gap-1 font-bold text-slate-700">
             SPレッスン率上昇

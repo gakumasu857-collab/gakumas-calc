@@ -7,6 +7,7 @@ import PIdolOwnership from "@/components/ownership/PIdolOwnership";
 import OwnedSaveBar from "@/components/ownership/OwnedSaveBar";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
+import { useOwnedSaves } from "@/lib/useOwnedSaves";
 
 const HEAD_BTN =
   "flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-100";
@@ -18,7 +19,11 @@ export default function OwnershipPage() {
   // （フックごとに独立したstateなので、複数箇所で呼ぶと保存の読み込みが同期しない）
   const levels = useOwnedLevels();
   const pIdols = useOwnedPIdols();
-  // 保存・読み込み・削除・CSVは1つのモーダルにまとめる
+  const saves = useOwnedSaves();
+  const active = saves.activeId
+    ? saves.saves.find((s) => s.id === saves.activeId)
+    : undefined;
+  // スロット（保存先）の切り替え・作成・削除・CSVは1つのモーダルにまとめる
   const [saveOpen, setSaveOpen] = useState(false);
 
   return (
@@ -37,15 +42,20 @@ export default function OwnershipPage() {
         <button
           type="button"
           onClick={() => setSaveOpen(true)}
-          title="所持状況に名前をつけて保存・読み込み・削除、CSVの書き出し・読み込み"
-          className={HEAD_BTN}
+          title="保存先スロットの切り替え・作成・削除、CSVの書き出し・読み込み"
+          className={`${HEAD_BTN} ${active ? "" : "border-amber-400 text-amber-700"}`}
         >
           <Save size={15} />
-          保存・読み込み・CSV
+          {active ? `保存先: ${active.name}` : "保存先: なし"}
         </button>
+        <span className="text-[11px] text-slate-500">
+          {active
+            ? "変更はこのスロットに自動保存されます"
+            : "スロットを作ると、変更が自動で保存されます"}
+        </span>
         <Link
           to="/card-import"
-          className="flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+          className="ml-auto flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
         >
           <Camera size={15} />
           画面キャプチャで所持入力（β版。PCのみ）
@@ -62,13 +72,10 @@ export default function OwnershipPage() {
         <PIdolOwnership store={pIdols} />
       )}
 
-      {/* 所持状況の保存・読み込み・削除・CSV（サポカ凸＋Pアイドル特訓/開花） */}
+      {/* 所持状況のスロット・CSV（サポカ凸＋Pアイドル特訓/開花） */}
       {saveOpen && (
-        <Modal
-          title="所持状況の保存・読み込み・CSV"
-          onClose={() => setSaveOpen(false)}
-        >
-          <OwnedSaveBar levels={levels} pIdols={pIdols} />
+        <Modal title="所持状況の保存先（スロット）・CSV" onClose={() => setSaveOpen(false)}>
+          <OwnedSaveBar levels={levels} pIdols={pIdols} store={saves} />
         </Modal>
       )}
     </div>

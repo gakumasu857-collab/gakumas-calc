@@ -4,12 +4,12 @@ import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import type { AutoOptimizeResult } from "@/lib/autoOptimize";
 import { imageUrl } from "@/lib/config";
 import type { TypeKey } from "@/lib/useCalcSettings";
-import { TYPE_KEYS } from "@/lib/useCalcSettings";
 import {
   BTN_GHOST,
   BTN_SECONDARY,
   CHIP_NG,
   CHIP_OK,
+  TYPE_CHIP,
   TYPE_SHORT,
   TYPE_SOLID,
 } from "@/components/ui";
@@ -19,10 +19,13 @@ const IMAGE_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c.image]));
 /** 探索の条件（SP率持ち・タイプ割合・最低ステ・最高ステ）の達成状況 */
 export type ConditionStatus = { label: string; ok: boolean; detail?: string };
 
-/** 踏み方の要約（レッスンの並び＋授業／営業） */
+/** 踏み方の要約（レッスンの並び＋授業／営業の並び） */
 export type PlanSummary = {
-  lessons: { type: TypeKey | null; sp: boolean }[];
+  /** type=メイン（null=踏まない）、sub=サブ（H.I.F.のみ）、sp=SPレッスン */
+  lessons: { type: TypeKey | null; sub?: TypeKey; sp: boolean }[];
+  /** 授業（H.I.F. 6コマ／初 4コマ）を順番どおりに */
   classes?: TypeKey[];
+  /** 営業（N.I.A.）を順番どおりに */
   sales?: TypeKey[];
 };
 
@@ -46,41 +49,77 @@ export type OptimizeOutcome = {
   diagLog?: string | null;
 };
 
-/** 踏み方チップ（レッスンの並び・授業・営業）。結果カードと「レッスンの踏み方」ブロックで共用 */
-export function PlanChips({ plan }: { plan: PlanSummary }) {
-  const count = (types: TypeKey[]) =>
-    TYPE_KEYS.filter((t) => types.includes(t))
-      .map((t) => `${TYPE_SHORT[t]}×${types.filter((x) => x === t).length}`)
-      .join(" ");
+/** 小さいタイプチップ（授業・営業の並び用） */
+function SmallTypeChip({ type, index }: { type: TypeKey; index: number }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span className="flex flex-wrap items-center gap-1">
-        {plan.lessons.map((l, i) => (
-          <span
-            key={i}
-            title={
-              l.type
-                ? `レッスン${i + 1}: ${TYPE_SHORT[l.type]}${l.sp ? "（SP）" : ""}`
-                : `レッスン${i + 1}: 踏まない`
-            }
-            className={`flex h-6 min-w-7 items-center justify-center rounded-md px-1 text-[11px] font-bold ${
-              l.type ? TYPE_SOLID[l.type] : "bg-slate-200 text-slate-500"
-            } ${l.sp && l.type ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
-          >
-            {l.type ? TYPE_SHORT[l.type] : "休"}
-          </span>
-        ))}
-        <span className="ml-1 text-[10px] text-slate-400">枠＝SP</span>
-      </span>
-      {plan.classes && plan.classes.length > 0 && (
-        <span className="text-[11px] text-slate-600">
-          授業 <b>{count(plan.classes)}</b>
+    <span
+      title={`${index + 1}回目: ${TYPE_SHORT[type]}`}
+      className={`flex h-5 w-6 items-center justify-center rounded text-[10px] font-bold ${TYPE_SOLID[type]}`}
+    >
+      {TYPE_SHORT[type]}
+    </span>
+  );
+}
+
+/**
+ * 踏み方チップ。レッスンはメイン（大）＋サブ（右下の小バッジ）＋SP（枠）、
+ * 授業・営業は順番どおりに並べる。結果カードと「レッスンの踏み方」ブロックで共用。
+ */
+export function PlanChips({ plan }: { plan: PlanSummary }) {
+  const hasSub = plan.lessons.some((l) => l.sub);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">
+          レッスン
         </span>
+        <span className="flex flex-wrap items-center gap-2">
+          {plan.lessons.map((l, i) => (
+            <span
+              key={i}
+              title={
+                l.type
+                  ? `レッスン${i + 1}: ${TYPE_SHORT[l.type]}${l.sub ? `（サブ ${TYPE_SHORT[l.sub]}）` : ""}${l.sp ? "・SP" : ""}`
+                  : `レッスン${i + 1}: 踏まない`
+              }
+              className={`relative flex h-7 min-w-8 items-center justify-center rounded-md px-1.5 text-[11px] font-bold ${
+                l.type ? TYPE_SOLID[l.type] : "bg-slate-200 text-slate-500"
+              } ${l.sp && l.type ? "ring-2 ring-amber-400 ring-offset-1" : ""}`}
+            >
+              {l.type ? TYPE_SHORT[l.type] : "休"}
+              {l.sub && (
+                <span
+                  className={`absolute -bottom-1.5 -right-1.5 rounded px-0.5 text-[8px] font-bold leading-3 ring-1 ring-white ${TYPE_CHIP[l.sub]}`}
+                >
+                  {TYPE_SHORT[l.sub]}
+                </span>
+              )}
+            </span>
+          ))}
+        </span>
+        <span className="text-[10px] text-slate-400">
+          枠＝SP{hasSub ? "・右下＝サブ" : ""}
+        </span>
+      </div>
+      {plan.classes && plan.classes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">授業</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {plan.classes.map((t, i) => (
+              <SmallTypeChip key={i} type={t} index={i} />
+            ))}
+          </span>
+        </div>
       )}
       {plan.sales && plan.sales.length > 0 && (
-        <span className="text-[11px] text-slate-600">
-          営業 <b>{count(plan.sales)}</b>
-        </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="w-9 shrink-0 text-[11px] font-bold text-slate-500">営業</span>
+          <span className="flex flex-wrap items-center gap-1">
+            {plan.sales.map((t, i) => (
+              <SmallTypeChip key={i} type={t} index={i} />
+            ))}
+          </span>
+        </div>
       )}
     </div>
   );

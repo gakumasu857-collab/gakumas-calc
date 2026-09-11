@@ -77,18 +77,27 @@ export default function CalcHelpModal({
       <div className="flex flex-col gap-2">
         <Step
           no={1}
-          title="準備バーの3つをそろえる"
+          title="育成の前提を入れる"
           visual={
             <>
-              <MockChip className="bg-emerald-500 text-white">✓ 所持状況</MockChip>
-              <MockChip className="bg-emerald-500 text-white">✓ 育成の前提</MockChip>
-              <MockChip className="bg-amber-500 text-white">3 メモリー 未設定</MockChip>
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
+                育成シナリオ ▾
+              </MockChip>
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
+                アイドル・Pアイドル ▾
+              </MockChip>
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
+                育成パターン ▾
+              </MockChip>
+              <MockChip className="border border-slate-300 bg-white text-slate-700">
+                メモリー ▾
+              </MockChip>
             </>
           }
         >
-          計算ページの上にある「準備」バーで、①所持状況（サポカの凸・Pアイドル）
-          ②育成の前提（シナリオ・Pアイドル・育成パターン）③メモリーを埋めます。
-          未設定の項目はバーのボタンからその場で設定できます。所持状況は「全完凸のまま進む」で後回しにもできます。
+          「育成の前提」ブロックで、育成シナリオ・アイドル（Pアイドル）・育成パターン（発動回数）・メモリー・本戦の点数を入れます。
+          黄色の欄が未選択です。全部そろうと青いボタンが押せるようになります。
+          所持状況（サポカの凸）は上のタブ「所持状況」からいつでも入力できます（未入力なら全サポカ完凸として計算）。
         </Step>
         <Step
           no={2}
@@ -105,8 +114,9 @@ export default function CalcHelpModal({
             </>
           }
         >
-          サポカ6枚とレッスンの踏み方を自動で探索し、評価値が高い組み合わせを反映します。
+          左の操作パネル（スマホは画面下）の青いボタンで、サポカ6枚とレッスンの踏み方を自動で探索し、評価値が高い組み合わせを反映します。
           右の ▾ から「編成だけ」「踏み方だけ」も選べます。「探索の条件」でタイプ割合・最低/最高ステ・SP率持ちの枚数などを指定できます。
+          所持状況が未入力のときは、最初の1回だけ確認が出ます。
         </Step>
         <Step
           no={3}
@@ -137,7 +147,7 @@ export default function CalcHelpModal({
               </MockChip>
               <MockChip className="border border-slate-300 bg-white text-slate-700">
                 <ListOrdered size={13} />
-                発動回数を調整
+                発動回数
               </MockChip>
               <MockChip className="border border-slate-300 bg-white text-slate-700">
                 <MousePointerClick size={13} />
@@ -146,8 +156,9 @@ export default function CalcHelpModal({
             </>
           }
         >
-          ここからが本番です。「レッスンの踏み方」ブロックの「踏み方を編集」「発動回数を調整」で実際の育成に寄せ、
-          サポカ枠をクリックして入れ替えながら、評価値と育成後のステータスの変化を見てください。
+          ここからが本番です。操作パネルの「踏み方を編集」「発動回数」で実際の育成に寄せ、
+          サポカ枠をクリックして入れ替えたり、サポカ編成の下で前イベ・後イベ・ステイベの発動を変えたりしながら、
+          評価値と育成後のステータスの変化を見てください。
         </Step>
       </div>
       <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-800">
@@ -162,7 +173,11 @@ export default function CalcHelpModal({
           サポカを6枚編成し、育成パターン（発動回数）を選ぶと表示されます。
         </QA>
         <QA q="「求める」ボタンが押せない">
-          準備バーの未設定の項目（黄色）を埋めてください。押せない理由はボタンの下にも出ます。
+          「育成の前提」の黄色い欄（未選択）を埋めてください。押せない理由はボタンの下にも出ます。
+        </QA>
+        <QA q="所持状況はいつ入れればいい？">
+          いつでも大丈夫です。未入力のうちは全サポカ完凸として計算します（最初の探索前に一度だけ確認が出ます）。
+          所持状況ページで保存先スロットを作っておくと、入力した変更はそこへ自動で保存されます。
         </QA>
         <QA q="押しても編成が変わらない／評価値が下がった">
           今の編成が探索の条件を満たしていて、探索結果がそれを下回ったときは変更しません（結果カードに「今の編成のまま」と出ます）。
@@ -176,7 +191,7 @@ export default function CalcHelpModal({
           数えます。「全SPレッスン率」持ちのアシストは全タイプの1枚として扱います。
         </QA>
         <QA q="スマホでの見方">
-          画面下の固定バーに評価値と「求める」があります。評価値をタップすると結果ブロックへ移動します。
+          画面下の固定バーに評価値・踏み方・回数・「求める」があります。評価値をタップすると結果ブロックへ移動します。
         </QA>
         <QA q="入力したデータはどこに保存されますか">
           すべてお使いのブラウザの中（localStorage）です。サーバーには送られません。
@@ -196,6 +211,10 @@ export default function CalcHelpModal({
         </li>
         <li className={LI}>
           <b>アイドル画像クリック</b>＝Pアイドル選択、<b>画像右上の歯車</b>＝特訓・才能開花の設定。
+        </li>
+        <li className={LI}>
+          <b>「レッスンの踏み方」のチップ</b>は、大きい文字がメイン、右下の小さい文字がサブ、黄色の枠がSPレッスンです。
+          授業（営業）は順番どおりに並んでいます。チップをクリックすると編集できます。
         </li>
         <li className={LI}>
           育成パターンの<b>【プラン】</b>（【センス】など）は、探索の条件「試験補助を強める」で

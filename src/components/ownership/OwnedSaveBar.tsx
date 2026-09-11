@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, FolderOpen, Save, Trash2 } from "lucide-react";
+import { Check, Save, Trash2 } from "lucide-react";
 import CsvTransfer from "@/components/ownership/CsvTransfer";
 import {
   PIDOL_CSV_FILENAME,
@@ -12,17 +12,18 @@ import {
   importSupportCsv,
 } from "@/lib/ownershipCsv";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { ownershipCustomized } from "@/lib/ownershipAck";
 import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import type { useOwnedLevels } from "@/lib/useOwnedLevels";
 import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
-import { useOwnedSaves, type OwnedSave } from "@/lib/useOwnedSaves";
+import type { useOwnedSaves, OwnedSave } from "@/lib/useOwnedSaves";
 
 /**
- * 既定のセーブ「全サポカ完凸」。理論値を見たいときに戻すための固定データで、
- * 読み込みだけできる（上書き・削除は不可）。Pアイドルは初回既定と同じ特訓6・開花4。
+ * 既定のスロット「全サポカ完凸」。理論値を見たいときに戻すための固定データで、
+ * 読み込みだけできる（変更の保存先にはならない）。Pアイドルは初回既定と同じ特訓6・開花4。
  * 保存はせず毎回DBから組み立てるので、新カードも自動的に完凸として含まれる。
  */
-const BUILTIN_ALL4: OwnedSave = {
+export const BUILTIN_ALL4: OwnedSave = {
   id: "builtin-all4",
   name: "全サポカ完凸（既定）",
   savedAt: "常に最新",
@@ -32,8 +33,6 @@ const BUILTIN_ALL4: OwnedSave = {
   ),
   cardCount: SUPPORT_CARD_DB.length,
 };
-const isBuiltin = (save: OwnedSave | undefined) =>
-  !!save && save.id.startsWith("builtin-");
 
 const SECTION =
   "flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5";
@@ -44,22 +43,22 @@ const BTN =
   "flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
 
 /**
- * 所持状況（サポカの凸＋Pアイドルの特訓/開花）の保存・読み込み・削除・CSV入出力。
- * 「名前をつけて保存」と、「保存した所持状況を選んで 読み込む／上書き保存／削除」、
- * 「CSV」の3段構成。計算ページのセーブデータと一緒に作られた控え（saveId 付き）は
- * 選択肢の中で「セーブデータ用」のグループに分けて出す。
+ * 所持状況のスロット（保存先）とCSV入出力。
+ * - スロットを選ぶ＝その内容を読み込み、以後の変更はそのスロットへ随時保存
+ * - 「名前をつけて保存」＝今の所持状況で新しいスロットを作り、保存先にする
+ * - 計算ページのセーブデータと一緒に作られた控え（saveId 付き）は「セーブデータ用」のグループ
  */
 export default function OwnedSaveBar({
   levels,
   pIdols,
+  store,
 }: {
   /** 所持ストアは親（OwnershipPage）が1つだけ持って配る（別インスタンスだと同期しない） */
   levels: ReturnType<typeof useOwnedLevels>;
   pIdols: ReturnType<typeof useOwnedPIdols>;
+  store: ReturnType<typeof useOwnedSaves>;
 }) {
-  const store = useOwnedSaves();
   const [name, setName] = useState("");
-  const [selectedId, setSelectedId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   // 完了メッセージは数秒で消す（出しっぱなしだと次の操作の結果と混ざる）
@@ -71,11 +70,40 @@ export default function OwnedSaveBar({
 
   const own = store.saves.filter((s) => !s.saveId);
   const linked = store.saves.filter((s) => s.saveId);
-  const selected =
-    selectedId === BUILTIN_ALL4.id
-      ? BUILTIN_ALL4
-      : store.saves.find((s) => s.id === selectedId);
+  const active = store.activeId
+    ? store.saves.find((s) => s.id === store.activeId)
+    : undefined;
   const placeholder = `所持状況 ${new Date().toLocaleDateString("ja-JP")}`;
+
+  /** スロットを選ぶ: その内容を読み込んで保存先にする（既定は読み込みのみ） */
+  const choose = (id: string) => {
+    if (!id) {
+      store.setActiveSlot(null);
+      setMessage("保存先なしにしました（これからの変更はどこにも保存されません）");
+      return;
+    }
+    const target =
+      id === BUILTIN_ALL4.id ? BUILTIN_ALL4 : store.saves.find((s) => s.id === id);
+    if (!target) return;
+    // 保存先が無いまま入力した内容は読み込みで消えるので、一度だけ確認する
+    if (
+      !store.activeId &&
+      ownershipCustomized(levels.levels) &&
+      !window.confirm(
+        `「${target.name}」を読み込みます。今の所持状況は保存先が無いため失われます。続けますか？`,
+      )
+    )
+      return;
+    // 先に保存先を切り替えてから読み込む（読み込み直後の自動保存が新しい保存先へ向くように）
+    store.setActiveSlot(id === BUILTIN_ALL4.id ? null : id);
+    levels.replaceAll(target.levels, target.cardCount);
+    if (target.pIdols) pIdols.replaceAll(target.pIdols);
+    setMessage(
+      id === BUILTIN_ALL4.id
+        ? "全サポカ完凸を読み込みました（保存先はなし。変更を残すには名前をつけて保存）"
+        : `「${target.name}」を読み込みました。これからの変更はここに自動保存されます`,
+    );
+  };
 
   const doSaveAs = () => {
     const finalName = name.trim() || placeholder;
@@ -84,36 +112,17 @@ export default function OwnedSaveBar({
       levels: levels.levels,
       pIdols: pIdols.map,
     });
+    store.setActiveSlot(id);
     setName("");
-    setSelectedId(id);
-    setMessage(`「${finalName}」に保存しました`);
-  };
-
-  const doLoad = () => {
-    if (!selected) return;
-    levels.replaceAll(selected.levels, selected.cardCount);
-    if (selected.pIdols) pIdols.replaceAll(selected.pIdols);
-    setMessage(
-      `「${selected.name}」を読み込みました（サポカ${Object.keys(selected.levels).length}枚${
-        selected.pIdols ? "・Pアイドル込み" : ""
-      }）`,
-    );
-  };
-
-  const doOverwrite = () => {
-    if (!selected) return;
-    if (!window.confirm(`「${selected.name}」を今の所持状況で上書きしますか？`))
-      return;
-    store.overwrite(selected.id, { levels: levels.levels, pIdols: pIdols.map });
-    setMessage(`「${selected.name}」を上書き保存しました`);
+    setMessage(`「${finalName}」に保存しました。これからの変更はここに自動保存されます`);
   };
 
   const doDelete = () => {
-    if (!selected) return;
-    if (!window.confirm(`「${selected.name}」を削除しますか？`)) return;
-    store.remove(selected.id);
-    setSelectedId("");
-    setMessage(`「${selected.name}」を削除しました`);
+    if (!active) return;
+    if (!window.confirm(`「${active.name}」を削除しますか？（所持状況の入力はそのまま残ります）`))
+      return;
+    store.remove(active.id);
+    setMessage(`「${active.name}」を削除しました（保存先はなしになりました）`);
   };
 
   const options = (list: OwnedSave[]) =>
@@ -125,9 +134,52 @@ export default function OwnedSaveBar({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 1. 新規保存 */}
+      {/* 1. 保存先スロット */}
       <section className={SECTION}>
-        <span className={HEAD}>名前をつけて保存</span>
+        <span className={HEAD}>今の所持状況の保存先（スロット）</span>
+        <select
+          value={store.activeId ?? ""}
+          onChange={(e) => choose(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+        >
+          <option value="">保存先なし（変更は保存されない）</option>
+          <optgroup label="既定（読み込みのみ）">
+            <option value={BUILTIN_ALL4.id}>{BUILTIN_ALL4.name}</option>
+          </optgroup>
+          <optgroup label="この画面で保存したもの">
+            {own.length > 0 ? (
+              options(own)
+            ) : (
+              <option disabled>（まだありません。下の「名前をつけて保存」で作れます）</option>
+            )}
+          </optgroup>
+          {linked.length > 0 && (
+            <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
+              {options(linked)}
+            </optgroup>
+          )}
+        </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-slate-500">
+            {active
+              ? `「${active.name}」に自動保存中（最終 ${active.savedAt}）`
+              : "スロットを選ぶとその内容を読み込み、以後の変更はそこへ自動で保存されます"}
+          </span>
+          <button
+            type="button"
+            disabled={!active}
+            onClick={doDelete}
+            className={`${BTN} ml-auto hover:bg-red-50 hover:text-red-600`}
+          >
+            <Trash2 size={13} />
+            このスロットを削除
+          </button>
+        </div>
+      </section>
+
+      {/* 2. 新規スロット */}
+      <section className={SECTION}>
+        <span className={HEAD}>名前をつけて保存（新しいスロット）</span>
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -143,66 +195,8 @@ export default function OwnedSaveBar({
           </button>
         </div>
         <span className="text-[11px] text-slate-400">
-          今のサポカの凸とPアイドルの特訓・才能開花をまとめて保存します。
+          今のサポカの凸とPアイドルの特訓・才能開花をまとめて保存し、保存先にします。
         </span>
-      </section>
-
-      {/* 2. 保存済みへの操作（選んで 読み込む／上書き保存／削除） */}
-      <section className={SECTION}>
-        <span className={HEAD}>保存した所持状況</span>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-        >
-          <option value="">操作するものを選択</option>
-          <optgroup label="既定（読み込みのみ）">
-            <option value={BUILTIN_ALL4.id}>{BUILTIN_ALL4.name}</option>
-          </optgroup>
-          <optgroup label="この画面で保存したもの">
-            {own.length > 0 ? (
-              options(own)
-            ) : (
-              <option disabled>（まだありません）</option>
-            )}
-          </optgroup>
-          {linked.length > 0 && (
-            <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
-              {options(linked)}
-            </optgroup>
-          )}
-        </select>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={!selected}
-            onClick={doLoad}
-            title="今の所持状況を選んだものに置き換えます"
-            className={BTN_PRIMARY}
-          >
-            <FolderOpen size={13} />
-            読み込む
-          </button>
-          <button
-            type="button"
-            disabled={!selected || isBuiltin(selected)}
-            onClick={doOverwrite}
-            title="選んだものを今の所持状況で上書きします（名前はそのまま）"
-            className={BTN}
-          >
-            <Save size={13} />
-            上書き保存
-          </button>
-          <button
-            type="button"
-            disabled={!selected || isBuiltin(selected)}
-            onClick={doDelete}
-            className={`${BTN} hover:bg-red-50 hover:text-red-600`}
-          >
-            <Trash2 size={13} />
-            削除
-          </button>
-        </div>
       </section>
 
       {/* 3. CSV */}
@@ -231,7 +225,7 @@ export default function OwnedSaveBar({
       </section>
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        ※ 所持状況と保存データはお使いのブラウザの中（localStorage）に保存されます。
+        ※ 所持状況とスロットはお使いのブラウザの中（localStorage）に保存されます。
         ブラウザのデータ削除・別の端末やブラウザ・シークレットモードでは引き継がれず、
         消えることがあります。控えが必要なときはCSVで書き出しておいてください。
       </p>

@@ -42,14 +42,9 @@ export function useMemoryStore() {
     load<Memory[]>(LIB_KEY, []).map(normalizeMemory),
   );
   const [selected, setSelected] = useState<string[]>(() =>
-    // 初回（保存なし）はメインパラボ60点×4をデフォルトにする
-    // （未設定のまま計算すると評価値が実態より高く出てしまうため）
-    load<string[]>(SEL_KEY, [
-      "tpl-role60",
-      "tpl-role60",
-      "tpl-role60",
-      "tpl-role60",
-    ]),
+    // 初回（保存なし）は未選択。計算ページの「育成の前提」で選んでもらう
+    // （既定を入れておくと、実態と違うメモリーのまま評価値が出てしまうため）
+    load<string[]>(SEL_KEY, []),
   );
   const [sets, setSets] = useState<MemorySet[]>(() =>
     load<MemorySet[]>(SETS_KEY, []),

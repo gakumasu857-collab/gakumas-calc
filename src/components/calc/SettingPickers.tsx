@@ -412,7 +412,8 @@ export function IdolPickerModal({
   onPick: (idol: string, pIdolCardName: string) => void;
   onClose: () => void;
 }) {
-  const [filterIdol, setFilterIdol] = useState(currentIdol);
+  // アイドル未選択（初期状態）なら一覧の先頭のアイドルから見せる
+  const [filterIdol, setFilterIdol] = useState(currentIdol || IDOLS[0] || "");
   const cards = P_IDOL_MASTERS.filter((m) => m.idol === filterIdol);
   return (
     <Modal

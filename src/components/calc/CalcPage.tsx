@@ -1,11 +1,10 @@
-﻿import { useRef, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   ChevronDown,
   HelpCircle,
   ImageDown,
   Save,
   Settings,
-  Sparkles,
   Table2,
 } from "lucide-react";
 import { setVisibleInScenario } from "@/data/abilityCounts";
@@ -14,16 +13,17 @@ import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
+import ActionPanel from "@/components/calc/ActionPanel";
 import { Card, Field } from "@/components/calc/CalcCard";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import MobileActionBar from "@/components/calc/MobileActionBar";
-import OnboardingModal, { shouldOnboard } from "@/components/calc/OnboardingModal";
 import OptimizeResultCard, {
   type ConditionStatus,
   type OptimizeOutcome,
   type PlanSummary,
 } from "@/components/calc/OptimizeResultCard";
+import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import PlanSummaryCard from "@/components/calc/PlanSummaryCard";
@@ -33,10 +33,6 @@ import {
   ScenarioPickerModal,
   TheorySettingsModal,
 } from "@/components/calc/SettingPickers";
-import SetupBar, {
-  readOwnershipAck,
-  writeOwnershipAck,
-} from "@/components/calc/SetupBar";
 import SupportPickerModal from "@/components/calc/SupportPickerModal";
 import {
   AcquireToggle,
@@ -63,6 +59,11 @@ import {
   typeConstraintFromRatio,
 } from "@/lib/formation";
 import { GLOSSARY } from "@/lib/glossary";
+import {
+  ownershipCustomized,
+  readOwnershipAck,
+  writeOwnershipAck,
+} from "@/lib/ownershipAck";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
   missingCalcInputs,
@@ -144,15 +145,20 @@ export default function CalcPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [onboardOpen, setOnboardOpen] = useState(() => shouldOnboard());
-  const [ownershipAck, setOwnershipAck] = useState(() => readOwnershipAck());
+  /** 初回の探索前の所持状況の確認モーダル */
+  const [ownConfirmOpen, setOwnConfirmOpen] = useState(false);
   /** 直近の探索の結果（結果カードに構造化して出す。文章の状態は持たない） */
   const [outcome, setOutcome] = useState<OptimizeOutcome | null>(null);
-  /** 準備バーの「育成パターンを選ぶ」で、選択欄へスクロール＆フォーカスする */
-  const setSelectRef = useRef<HTMLSelectElement>(null);
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
+  // 探索の結果が出たら結果カードへスクロール（押す場所と結果が離れていても見える）
+  useEffect(() => {
+    if (outcome && (outcome.kind === "applied" || outcome.kind === "kept")) {
+      document
+        .getElementById("opt-result")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [outcome]);
 
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
@@ -458,7 +464,7 @@ export default function CalcPage() {
   const planSummaryOf = (res: AutoOptimizeResult): PlanSummary | undefined => {
     if (res.hif) {
       return {
-        lessons: res.hif.lessons.map((l) => ({ type: l.main, sp: l.sp })),
+        lessons: res.hif.lessons.map((l) => ({ type: l.main, sub: l.sub, sp: l.sp })),
         classes: res.hif.classTypes,
       };
     }
@@ -617,10 +623,39 @@ export default function CalcPage() {
 
   const memoryCount = r.memoryStore.selected.length;
   const conditionChips = currentConditions();
+  const ownershipUnset = !ownershipCustomized(r.ownedLevels.levels);
   const scrollToResults = () =>
     document
       .getElementById("calc-results")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  /** 主役ボタン: 所持状況が未入力なら初回だけ確認してから探索する */
+  const requestAutoOptimize = () => {
+    if (ownershipUnset && !readOwnershipAck()) {
+      setOwnConfirmOpen(true);
+      return;
+    }
+    runAutoOptimize();
+  };
+
+  const actionPanel = (
+    <ActionPanel
+      busy={optBusy || idealBusy || planOpt.busy}
+      ready={optimizeReady}
+      missingInputs={missingInputs}
+      notReadyTitle={notReadyTitle}
+      ownershipUnset={ownershipUnset}
+      onRun={requestAutoOptimize}
+      onFormationOnly={applyIdealFormation}
+      onPlanOnly={() => {
+        setOutcome(null);
+        planOpt.run((m) => setOutcome({ kind: "info", message: m }));
+      }}
+      onConditions={() => setTheoryOpen(true)}
+      onEditPlan={() => setPlanOpen(true)}
+      onEditCounts={() => setCountsOpen(true)}
+    />
+  );
 
   return (
     <div className="grid gap-4 pb-24 lg:grid-cols-[360px_1fr] lg:items-start lg:pb-0">
@@ -648,28 +683,9 @@ export default function CalcPage() {
         </div>
       </div>
 
-      {/* 準備バー（①所持状況 ②育成の前提 ③メモリー の済・未） */}
-      <div className="lg:col-span-2 lg:order-first">
-        <SetupBar
-          r={r}
-          ack={ownershipAck}
-          onAck={() => {
-            writeOwnershipAck();
-            setOwnershipAck(true);
-          }}
-          onOpenScenario={() => setScenarioPickerOpen(true)}
-          onOpenIdol={() => setIdolPickerOpen(true)}
-          onOpenSet={() => {
-            setSelectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-            setSelectRef.current?.focus();
-          }}
-          onOpenMemory={() => setMemoryOpen(true)}
-        />
-      </div>
-
       {/* ===== 入力（デスクトップでは右） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-2">
-        {/* 育成の前提 */}
+        {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数）。全部そろうと探索できる */}
         <Card title="育成の前提" hint={<Hint text={GLOSSARY.premise} />}>
           <div className="flex flex-col gap-3 sm:flex-row">
             {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花）。
@@ -681,7 +697,7 @@ export default function CalcPage() {
               />
               <PIdolInfo r={r} />
             </div>
-            {/* 入力欄（3つ縦並び） */}
+            {/* 入力欄（縦並び） */}
             <div className="min-w-0 flex-1">
               <div className="grid gap-2">
                 <Field label="育成シナリオ">
@@ -713,14 +729,18 @@ export default function CalcPage() {
                   <button
                     type="button"
                     onClick={() => setIdolPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center justify-between gap-2 text-left`}
+                    className={`${INPUT} flex w-full items-center justify-between gap-2 text-left ${
+                      settings.pIdol && r.pMaster ? "" : "border-amber-400 bg-amber-50"
+                    }`}
                   >
                     <span className="truncate">
                       {settings.pIdol && r.pMaster ? (
                         `${settings.idol} / ${r.pMaster.cardName}`
                       ) : (
                         <b className="text-amber-700">
-                          {settings.idol}（Pアイドル未選択）
+                          {settings.idol
+                            ? `${settings.idol}（Pアイドル未選択）`
+                            : "未選択（クリックして選ぶ）"}
                         </b>
                       )}
                     </span>
@@ -736,7 +756,6 @@ export default function CalcPage() {
                   }
                 >
                   <select
-                    ref={setSelectRef}
                     value={r.ability.selectedSetId ?? ""}
                     onChange={(e) => {
                       if (e.target.value !== r.ability.selectedSetId)
@@ -779,176 +798,106 @@ export default function CalcPage() {
                     })()}
                   </select>
                 </Field>
+                {/* メモリー（計算ページ内のモーダルで4枚を選ぶ） */}
+                <Field
+                  label={
+                    <span className="flex items-center gap-1">
+                      メモリー
+                      <Hint text={GLOSSARY.memory} />
+                    </span>
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => setMemoryOpen(true)}
+                    className={`${INPUT} flex w-full items-center gap-2 text-left ${
+                      memoryCount === 0 ? "border-amber-400 bg-amber-50" : ""
+                    }`}
+                  >
+                    {memoryCount === 0 ? (
+                      <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
+                        未選択（クリックして選ぶ）
+                      </span>
+                    ) : (
+                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                        <span className="text-xs text-slate-500">{memoryCount}枚</span>
+                        {TYPE_KEYS.map((t) => (
+                          <span
+                            key={t}
+                            className={`rounded px-1.5 py-0.5 text-xs ${TYPE_CHIP[t]}`}
+                          >
+                            {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    <ChevronDown size={14} className="shrink-0 text-slate-400" />
+                  </button>
+                </Field>
               </div>
             </div>
-          </div>
-
-          {/* メモリー（計算ページ内のモーダルで選ぶ）。未設定は目立つ警告にする */}
-          <div
-            className={`mt-3 flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm ${
-              memoryCount === 0
-                ? "border border-amber-300 bg-amber-50 text-amber-800"
-                : "bg-slate-50 text-slate-600"
-            }`}
-          >
-            <span className="flex items-center gap-1 font-semibold">
-              メモリー{memoryCount > 0 && `（${memoryCount}枚）`}:
-              <Hint text={GLOSSARY.memory} />
-            </span>
-            {memoryCount === 0 ? (
-              <span>未設定です。実際の育成に合わせて設定しないと評価値が不正確になります。</span>
-            ) : (
-              TYPE_KEYS.map((t) => (
-                <span key={t} className={`rounded px-1.5 py-0.5 ${TYPE_CHIP[t]}`}>
-                  {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
-                </span>
-              ))
-            )}
-            <button
-              type="button"
-              onClick={() => setMemoryOpen(true)}
-              className={`ml-auto ${BTN_SECONDARY} ${
-                memoryCount === 0 ? "border-amber-400 text-amber-700" : ""
-              }`}
-            >
-              {memoryCount === 0 ? "メモリーを選ぶ" : "変更"}
-            </button>
           </div>
 
           {/* 本戦・試験の点数（設定ブロック内） */}
           <ScenarioScoreCard r={r} />
         </Card>
 
-        {/* 自動探索（主役ボタンは1つ。編成だけ／踏み方だけは ▾ から） */}
-        <Card
-          title="自動探索"
-          hint={
-            <Hint text="サポカ6枚とレッスンの踏み方をまとめて探索し、評価値がいちばん高い組み合わせを反映します。条件は「探索の条件」から。" />
-          }
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-stretch">
-              <button
-                type="button"
-                onClick={runAutoOptimize}
-                disabled={optBusy || !optimizeReady}
-                title={notReadyTitle}
-                className={`${BTN_PRIMARY} rounded-r-none`}
-              >
-                <Sparkles size={15} />
-                {optBusy ? "計算中…" : "理想の編成と踏み方を求める"}
-              </button>
-              <div className="relative flex">
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  disabled={optBusy || idealBusy || planOpt.busy || !optimizeReady}
-                  title="編成だけ／踏み方だけを最適化"
-                  aria-label="そのほかの探索"
-                  className={`${BTN_PRIMARY} rounded-l-none border-l border-blue-400 px-2`}
-                >
-                  <ChevronDown size={14} />
-                </button>
-                {menuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg">
-                      <MenuItem
-                        title="今の踏み方のまま、サポカ編成だけ"
-                        desc="レッスンの踏み方は変えずに6枚を選び直す"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          applyIdealFormation();
-                        }}
-                      />
-                      <MenuItem
-                        title="今のサポカ編成のまま、踏み方だけ"
-                        desc="6枚は変えずにレッスン・授業（営業）・選抜の配分を最適化"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setOutcome(null);
-                          planOpt.run((m) => setOutcome({ kind: "info", message: m }));
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
+        {/* 探索の結果（押した直後にここへスクロール。下のサポカ編成・踏み方が新しい内容） */}
+        {(outcome || pendingOps) && (
+          <div id="opt-result" className="scroll-mt-16">
+            {outcome && <OptimizeResultCard outcome={outcome} />}
+            {pendingOps && (
+              <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
+                <p className="font-semibold text-amber-700">
+                  予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
+                </p>
+                <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                  {pendingOps.map((op) => (
+                    <li key={op.id}>
+                      <span className="text-slate-500">
+                        {CARD_BY_ID.get(op.id)?.name ?? op.id}
+                      </span>
+                      {op.acquire === false && (
+                        <span className="ml-1 font-semibold text-red-600">
+                          取得OFF
+                        </span>
+                      )}
+                      {op.pre !== undefined && (
+                        <span className="ml-1 font-semibold text-red-600">
+                          前イベ{op.pre}回
+                        </span>
+                      )}
+                      {op.post === 0 && (
+                        <span className="ml-1 font-semibold text-red-600">
+                          後イベ✕
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applyPendingOps}
+                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-500"
+                  >
+                    サポカ設定に反映する
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingOps(null);
+                      setPreviewRating(null);
+                    }}
+                    className={SMALL_BTN}
+                  >
+                    反映しない
+                  </button>
+                </div>
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTheoryOpen(true)}
-              className={BTN_SECONDARY}
-              title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
-            >
-              <Settings size={13} />
-              探索の条件
-            </button>
+            )}
           </div>
-          {!optimizeReady && (
-            <p className="mt-2 text-xs font-semibold text-amber-600">
-              上の「準備」で {missingInputs.join("・")} を選ぶと押せます
-            </p>
-          )}
-          {(idealBusy || planOpt.busy) && (
-            <p className="mt-2 text-xs font-semibold text-blue-600">計算中…</p>
-          )}
-          {outcome && (
-            <div className="mt-3">
-              <OptimizeResultCard outcome={outcome} />
-            </div>
-          )}
-          {pendingOps && (
-            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
-              <p className="font-semibold text-amber-700">
-                予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
-              </p>
-              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                {pendingOps.map((op) => (
-                  <li key={op.id}>
-                    <span className="text-slate-500">
-                      {CARD_BY_ID.get(op.id)?.name ?? op.id}
-                    </span>
-                    {op.acquire === false && (
-                      <span className="ml-1 font-semibold text-red-600">
-                        取得OFF
-                      </span>
-                    )}
-                    {op.pre !== undefined && (
-                      <span className="ml-1 font-semibold text-red-600">
-                        前イベ{op.pre}回
-                      </span>
-                    )}
-                    {op.post === 0 && (
-                      <span className="ml-1 font-semibold text-red-600">
-                        後イベ✕
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={applyPendingOps}
-                  className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-500"
-                >
-                  サポカ設定に反映する
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingOps(null);
-                    setPreviewRating(null);
-                  }}
-                  className={SMALL_BTN}
-                >
-                  反映しない
-                </button>
-              </div>
-            </div>
-          )}
-        </Card>
+        )}
 
         {/* サポカ編成 */}
         <Card
@@ -991,18 +940,11 @@ export default function CalcPage() {
           <p className={`mt-1.5 ${NOTE}`}>
             枠をクリックで入れ替え、歯車で凸・固定・BAN。「+123」は評価値へのステ換算の貢献です。
           </p>
-          {/* 選択中カードの前イベ・後イベ回数（サポカ設定とは独立した計算ページ専用）。普段は畳む */}
-          {r.members.some((m) => m !== null) && (
-            <details className="mt-2">
-              <summary className="cursor-pointer select-none text-xs font-semibold text-slate-600 hover:text-slate-900">
-                前イベ・後イベ・ステイベの発動を調整（この編成だけ）
-              </summary>
-              <EventCountEditor r={r} />
-            </details>
-          )}
+          {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用。常に表示） */}
+          <EventCountEditor r={r} />
         </Card>
 
-        {/* レッスンの踏み方（旧: 左端の縦タブ） */}
+        {/* レッスンの踏み方（メイン・サブ・SP、授業／営業の並び） */}
         <PlanSummaryCard
           r={r}
           onEditPlan={() => setPlanOpen(true)}
@@ -1010,7 +952,7 @@ export default function CalcPage() {
         />
       </div>
 
-      {/* ===== 結果（デスクトップでは左・スクロールに追従） ===== */}
+      {/* ===== 結果と操作（デスクトップでは左・スクロールに追従） ===== */}
       <div
         id="calc-results"
         className="flex scroll-mt-16 flex-col gap-4 lg:order-1 lg:sticky lg:top-14 lg:self-start"
@@ -1101,6 +1043,9 @@ export default function CalcPage() {
             </>
           )}
         </div>
+
+        {/* 操作（主役ボタン・探索の条件・踏み方・発動回数）。デスクトップでは常に見える */}
+        <div className="hidden lg:block">{actionPanel}</div>
 
         {/* 育成後のステータス */}
         <Card
@@ -1209,6 +1154,9 @@ export default function CalcPage() {
         </Card>
       </div>
 
+      {/* スマホ: 操作パネルは入力列の先頭（画面下の固定バーにも主要操作あり） */}
+      <div className="lg:hidden">{actionPanel}</div>
+
       {/* カードの最終ステータス詳細（イベント補正込み） */}
       {detail &&
         r.roles.typeRole[detail.type] &&
@@ -1265,11 +1213,15 @@ export default function CalcPage() {
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
       )}
 
-      {/* 初回だけの3ステップガイド */}
-      {onboardOpen && (
-        <OnboardingModal
-          onClose={() => setOnboardOpen(false)}
-          onOpenHelp={() => setHelpOpen(true)}
+      {/* 初回の探索前: 所持状況が未入力なら確認 */}
+      {ownConfirmOpen && (
+        <OwnershipConfirmModal
+          onProceed={() => {
+            writeOwnershipAck();
+            setOwnConfirmOpen(false);
+            runAutoOptimize();
+          }}
+          onClose={() => setOwnConfirmOpen(false)}
         />
       )}
 
@@ -1341,43 +1293,23 @@ export default function CalcPage() {
         </Modal>
       )}
 
-      {/* 発動回数・踏み方のエディタ（「レッスンの踏み方」ブロックから開く） */}
+      {/* 発動回数・踏み方のエディタ（操作パネル／踏み方ブロック／下バーから開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
 
-      {/* スマホ: 画面下の固定バー（評価値＋主役ボタン） */}
+      {/* スマホ: 画面下の固定バー（評価値・踏み方・回数・主役ボタン） */}
       <MobileActionBar
         rating={previewRating ?? r.rating}
         canShow={canShowRating}
         busy={optBusy}
         ready={optimizeReady}
         notReadyTitle={notReadyTitle}
-        onRun={runAutoOptimize}
+        onRun={requestAutoOptimize}
         onShowResults={scrollToResults}
+        onEditPlan={() => setPlanOpen(true)}
+        onEditCounts={() => setCountsOpen(true)}
       />
     </div>
-  );
-}
-
-/** 分割メニュー（▾）の1項目 */
-function MenuItem({
-  title,
-  desc,
-  onClick,
-}: {
-  title: string;
-  desc: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="block w-full rounded-md px-3 py-2 text-left transition hover:bg-slate-100"
-    >
-      <span className="block text-xs font-bold text-slate-800">{title}</span>
-      <span className="block text-[11px] text-slate-500">{desc}</span>
-    </button>
   );
 }
 

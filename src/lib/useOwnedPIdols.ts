@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { useSaveNotifier } from "./storeSync";
+import { autoSaveToActiveSlot } from "./useOwnedSaves";
 
 /**
  * Pアイドルの所持状況（特訓段階・才能開花）を localStorage に保存するストア。
@@ -30,6 +31,8 @@ export function useOwnedPIdols() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+      // 保存先スロットがあれば、そこへも随時保存
+      autoSaveToActiveSlot({ pIdols: map });
       notifySave();
     } catch {
       // 容量超過などは無視

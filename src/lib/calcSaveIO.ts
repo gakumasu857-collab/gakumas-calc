@@ -12,7 +12,7 @@ import type { AbilityName } from "@/data/constants";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import type { CalcSave, CalcSaveSnapshot } from "./useCalcSettings";
 import type { useCalcResult } from "./useCalcResult";
-import type { useOwnedSaves } from "./useOwnedSaves";
+import { writeActiveSlotId, type useOwnedSaves } from "./useOwnedSaves";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 type OwnedSaves = ReturnType<typeof useOwnedSaves>;
@@ -115,6 +115,8 @@ export function applySave(
   save: CalcSave,
 ): { full: boolean } {
   r.calc.loadSave(save);
+  // セーブの所持状況に置き換えるので、所持状況の保存先スロットは外す（別スロットへ上書きしないように）
+  writeActiveSlotId(null);
   const snap = save.snapshot;
   if (!snap) {
     // 旧セーブ: 所持状況だけ分かれば戻す

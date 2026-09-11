@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { useSaveNotifier } from "./storeSync";
+import { autoSaveToActiveSlot } from "./useOwnedSaves";
 
 /**
  * サポカの所持レベルを localStorage に保存する簡易ストア。
@@ -53,6 +54,8 @@ export function useOwnedLevels() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(levels));
+      // 保存先スロットがあれば、そこへも随時保存（所持状況ページの「上書き保存」を不要にする）
+      autoSaveToActiveSlot({ levels });
       notifySave();
     } catch {
       // 容量超過などは無視
