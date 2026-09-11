@@ -1,5 +1,5 @@
 /**
- * 画面共通の見た目（ボタン・注記・チップ）。
+ * 画面共通の見た目（ボタン・入力欄・注記・チップ）。
  * 色の意味を固定する: 青＝押す／黄＝未設定・注意／緑＝条件OK／赤＝条件NG・上限超え。
  * 文字は 3 段階（見出し text-sm font-bold ／ 本文 text-sm ／ 注記 text-xs text-slate-500）。
  */
@@ -14,6 +14,9 @@ export const BTN_SECONDARY =
 /** 控えめな文字ボタン */
 export const BTN_GHOST =
   "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800";
+/** 入力欄・選択欄（ボタン型の欄もこれで統一する） */
+export const FIELD =
+  "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500";
 /** 注記（本文の下に添える説明。長い説明は Hint（ⓘ）へ） */
 export const NOTE = "text-xs leading-relaxed text-slate-500";
 

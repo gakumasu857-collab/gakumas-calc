@@ -7,7 +7,6 @@ import {
   Settings,
   Table2,
 } from "lucide-react";
-import { setVisibleInScenario } from "@/data/abilityCounts";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
@@ -22,11 +21,13 @@ import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
+import SetPickerField from "@/components/calc/SetPickerField";
 import {
   IdolPickerModal,
   ScenarioPickerModal,
   TheorySettingsModal,
 } from "@/components/calc/SettingPickers";
+import StatsCard from "@/components/calc/StatsCard";
 import SupportPickerModal from "@/components/calc/SupportPickerModal";
 import {
   AcquireToggle,
@@ -38,7 +39,7 @@ import Hint from "@/components/Hint";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK, NOTE } from "@/components/ui";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
 import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
 import { buildSnapshot } from "@/lib/calcSaveIO";
 import { imageUrl } from "@/lib/config";
@@ -74,11 +75,7 @@ import {
 import { useCalcResult, type SelectedMember } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
 import { useOptimizePlan } from "@/lib/useOptimizePlan";
-import {
-  TYPE_KEYS,
-  TYPE_LABELS,
-  type TypeKey,
-} from "@/lib/useCalcSettings";
+import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
 const CARD_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
@@ -531,7 +528,9 @@ export default function CalcPage() {
 
   const memoryCount = r.memoryStore.selected.length;
   const conditionChips = currentConditions();
+  // 所持状況ページをまだ開いていない（全サポカ完凸で計算中）。「全完凸のまま進む」を選んだ後は出さない
   const ownershipUnset = !readOwnershipVisited();
+  const ownershipNote = ownershipUnset && !readOwnershipAck();
   /** 前イベ・後イベ・ステイベを手で変えている編成カードの数（全体像カードのバッジ） */
   const eventOverrideCount = r.members.filter((m) => {
     if (!m) return false;
@@ -554,7 +553,7 @@ export default function CalcPage() {
       ready={optimizeReady}
       missingInputs={missingInputs}
       notReadyTitle={notReadyTitle}
-      ownershipUnset={ownershipUnset}
+      ownershipUnset={ownershipNote}
       status={lastRun}
       onRun={requestAutoOptimize}
       onFormationOnly={applyIdealFormation}
@@ -594,170 +593,130 @@ export default function CalcPage() {
 
       {/* ===== 入力（デスクトップでは左） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-1">
-        {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数）。全部そろうと探索できる */}
+        {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数・開始時のステ）。全部そろうと探索できる */}
         <Card title="育成の前提" hint={<Hint text={GLOSSARY.premise} />}>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            {/* Pアイドルの画像と情報（画像クリック=Pアイドル選択・歯車=特訓/開花）。
-                プラン・おすすめ効果は特訓開花の下 */}
-            <div className="flex w-28 shrink-0 flex-col gap-1.5">
-              <PIdolImageEditor
-                r={r}
-                onOpenPicker={() => setIdolPickerOpen(true)}
-              />
-              <PIdolInfo r={r} />
-            </div>
-            {/* 入力欄（縦並び） */}
-            <div className="min-w-0 flex-1">
-              <div className="grid gap-2">
-                <Field label="育成シナリオ">
-                  <button
-                    type="button"
-                    onClick={() => setScenarioPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center gap-2 text-left ${
-                      r.scenarioStore.chosen ? "" : "border-amber-400 bg-amber-50"
-                    }`}
-                  >
-                    {r.scenarioStore.chosen ? (
-                      <>
-                        <span
-                          className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          {SCENARIO_LABELS[r.scenario]}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
-                        未選択（クリックして選ぶ）
-                      </span>
-                    )}
-                    <ChevronDown size={14} className="shrink-0 text-slate-400" />
-                  </button>
-                </Field>
-                <Field label="アイドル・Pアイドル">
-                  <button
-                    type="button"
-                    onClick={() => setIdolPickerOpen(true)}
-                    className={`${INPUT} flex w-full items-center justify-between gap-2 text-left ${
-                      settings.pIdol && r.pMaster ? "" : "border-amber-400 bg-amber-50"
-                    }`}
-                  >
-                    <span className="truncate">
-                      {settings.pIdol && r.pMaster ? (
-                        `${settings.idol} / ${r.pMaster.cardName}`
-                      ) : (
-                        <b className="text-amber-700">
-                          {settings.idol
-                            ? `${settings.idol}（Pアイドル未選択）`
-                            : "未選択（クリックして選ぶ）"}
-                        </b>
-                      )}
-                    </span>
-                    <ChevronDown size={14} className="shrink-0 text-slate-400" />
-                  </button>
-                </Field>
-                <Field
-                  label={
-                    <span className="flex items-center gap-1">
-                      育成パターン（発動回数）
-                      <Hint text={GLOSSARY.pattern} />
-                    </span>
-                  }
-                >
-                  {/* 他の欄と同じ見た目にする（矢印は自前。選択後は「未選択」を出さない） */}
-                  <span className="relative block">
-                    <select
-                      value={r.ability.selectedSetId ?? ""}
-                      onChange={(e) => {
-                        if (e.target.value !== r.ability.selectedSetId)
-                          r.ability.selectSet(e.target.value);
-                      }}
-                      className={`${INPUT} w-full appearance-none pr-8 ${
-                        r.ability.selectedSetId
-                          ? ""
-                          : "border-amber-400 bg-amber-50 font-bold text-amber-700"
-                      }`}
-                    >
-                      {!r.ability.selectedSetId && (
-                        <option value="">未選択（クリックして選ぶ）</option>
-                      )}
-                      {/* セーブデータ用のセットは数が増えるので別グループにまとめる */}
-                      {(() => {
-                        const visible = r.ability.sets.filter((set) =>
-                          setVisibleInScenario(set.id, r.scenario),
-                        );
-                        const option = (set: (typeof visible)[number]) => (
-                          <option key={set.id} value={set.id}>
-                            {set.plan ? `【${set.plan}】` : ""}
-                            {set.name}
-                          </option>
-                        );
-                        const normal = visible.filter(
-                          (s) => !r.ability.saveIdOf(s.id),
-                        );
-                        const saveSets = visible.filter((s) =>
-                          r.ability.saveIdOf(s.id),
-                        );
-                        return (
-                          <>
-                            {normal.map(option)}
-                            {saveSets.length > 0 && (
-                              <optgroup label="セーブデータ用">
-                                {saveSets.map(option)}
-                              </optgroup>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </select>
-                    <ChevronDown
-                      size={14}
-                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="育成シナリオ">
+              <button
+                type="button"
+                onClick={() => setScenarioPickerOpen(true)}
+                className={`${INPUT} flex w-full items-center gap-2 text-left ${
+                  r.scenarioStore.chosen ? "" : "border-amber-400 bg-amber-50"
+                }`}
+              >
+                {r.scenarioStore.chosen ? (
+                  <>
+                    <span
+                      className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
                     />
-                  </span>
-                </Field>
-                {/* メモリー（計算ページ内のモーダルで4枚を選ぶ） */}
-                <Field
-                  label={
-                    <span className="flex items-center gap-1">
-                      メモリー
-                      <Hint text={GLOSSARY.memory} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {SCENARIO_LABELS[r.scenario]}
                     </span>
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={() => setMemoryOpen(true)}
-                    className={`${INPUT} flex w-full items-center gap-2 text-left ${
-                      memoryCount === 0 ? "border-amber-400 bg-amber-50" : ""
-                    }`}
-                  >
-                    {memoryCount === 0 ? (
-                      <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
-                        未選択（クリックして選ぶ）
+                  </>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
+                    未選択（クリックして選ぶ）
+                  </span>
+                )}
+                <ChevronDown size={14} className="shrink-0 text-slate-400" />
+              </button>
+            </Field>
+            <Field label="アイドル・Pアイドル">
+              <button
+                type="button"
+                onClick={() => setIdolPickerOpen(true)}
+                className={`${INPUT} flex w-full items-center justify-between gap-2 text-left ${
+                  settings.pIdol && r.pMaster ? "" : "border-amber-400 bg-amber-50"
+                }`}
+              >
+                <span className="truncate">
+                  {settings.pIdol && r.pMaster ? (
+                    `${settings.idol} / ${r.pMaster.cardName}`
+                  ) : (
+                    <b className="text-amber-700">
+                      {settings.idol
+                        ? `${settings.idol}（Pアイドル未選択）`
+                        : "未選択（クリックして選ぶ）"}
+                    </b>
+                  )}
+                </span>
+                <ChevronDown size={14} className="shrink-0 text-slate-400" />
+              </button>
+            </Field>
+            <Field
+              label={
+                <span className="flex items-center gap-1">
+                  育成パターン（発動回数）
+                  <Hint text={GLOSSARY.pattern} />
+                </span>
+              }
+            >
+              <SetPickerField r={r} />
+            </Field>
+            {/* メモリー（計算ページ内のモーダルで4枚を選ぶ） */}
+            <Field
+              label={
+                <span className="flex items-center gap-1">
+                  メモリー
+                  <Hint text={GLOSSARY.memory} />
+                </span>
+              }
+            >
+              <button
+                type="button"
+                onClick={() => setMemoryOpen(true)}
+                className={`${INPUT} flex w-full items-center gap-2 text-left ${
+                  memoryCount === 0 ? "border-amber-400 bg-amber-50" : ""
+                }`}
+              >
+                {memoryCount === 0 ? (
+                  <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
+                    未選択（クリックして選ぶ）
+                  </span>
+                ) : (
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                    <span className="text-xs text-slate-500">{memoryCount}枚</span>
+                    {TYPE_KEYS.map((t) => (
+                      <span
+                        key={t}
+                        className={`rounded px-1.5 py-0.5 text-xs ${TYPE_CHIP[t]}`}
+                      >
+                        {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
                       </span>
-                    ) : (
-                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                        <span className="text-xs text-slate-500">{memoryCount}枚</span>
-                        {TYPE_KEYS.map((t) => (
-                          <span
-                            key={t}
-                            className={`rounded px-1.5 py-0.5 text-xs ${TYPE_CHIP[t]}`}
-                          >
-                            {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                    <ChevronDown size={14} className="shrink-0 text-slate-400" />
-                  </button>
-                </Field>
-              </div>
-            </div>
+                    ))}
+                  </span>
+                )}
+                <ChevronDown size={14} className="shrink-0 text-slate-400" />
+              </button>
+            </Field>
           </div>
 
           {/* 本戦・試験の点数（設定ブロック内） */}
           <ScenarioScoreCard r={r} />
+
+          {/* 開始時のステータス（前提から決まる値なのでここに。パラボ変換表もここから） */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <span className="font-bold text-slate-700">開始時のステータス</span>
+            {TYPE_KEYS.map((type) => (
+              <span key={type} className="tabular-nums">
+                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_JA[type]}</span>{" "}
+                <b className="text-slate-800">{Math.round(r.perType[type].startFixed)}</b>
+                <span className="text-slate-400"> +{r.perType[type].startPct}%</span>
+              </span>
+            ))}
+            <span className="text-slate-400">
+              審査基準 {TYPE_KEYS.map((t) => `${TYPE_JA[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
+            </span>
+            <button
+              type="button"
+              onClick={() => setParaboOpen(true)}
+              title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
+              className={`${BTN_GHOST} ml-auto`}
+            >
+              <Table2 size={12} />
+              パラボ変換表
+            </button>
+          </div>
         </Card>
 
         {/* スマホ: 操作パネルは前提のすぐ下（デスクトップでは右列） */}
@@ -827,14 +786,14 @@ export default function CalcPage() {
         </FormationPlanCard>
       </div>
 
-      {/* ===== 結果と操作（デスクトップでは右・スクロールに追従） ===== */}
+      {/* ===== 結果と操作（デスクトップでは右・スクロールに追従。1画面に収まる高さにしてある） ===== */}
       <div
         id="calc-results"
-        className="flex scroll-mt-16 flex-col gap-4 lg:order-2 lg:sticky lg:top-14 lg:self-start"
+        className="flex scroll-mt-16 flex-col gap-3 lg:order-2 lg:sticky lg:top-14 lg:self-start"
       >
-        {/* 評価値（提案中は取得制限を反映した理論値を一時表示） */}
+        {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示） */}
         <div
-          className={`rounded-xl border-2 bg-white p-4 text-center ${
+          className={`rounded-xl border-2 bg-white p-3 ${
             !canShowRating
               ? "border-slate-300"
               : previewRating !== null
@@ -842,191 +801,97 @@ export default function CalcPage() {
                 : "border-blue-600"
           }`}
         >
-          <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
-            評価値
-            <Hint text={GLOSSARY.rating} />
-            {canShowRating && previewRating !== null && (
-              <span className="ml-1 text-amber-600">（取得制限を反映）</span>
-            )}
-          </p>
-          {!canShowRating ? (
-            <p className="mt-2 text-xs text-slate-400">
-              サポカを6枚編成し、育成パターンを選ぶと表示されます。
-            </p>
-          ) : (
-            <>
-              <div className="mt-1 flex items-baseline justify-center gap-2">
-                <p
-                  className={`text-4xl font-bold tabular-nums ${
-                    previewRating !== null ? "text-amber-600" : "text-blue-600"
-                  }`}
-                >
-                  {(previewRating ?? r.rating).toLocaleString()}
-                </p>
-                <span
-                  className={`rounded-md px-2 py-0.5 text-lg font-black text-white ${
-                    previewRating !== null ? "bg-amber-500" : "bg-blue-600"
-                  }`}
-                >
-                  {produceRank(previewRating ?? r.rating)}
-                </span>
-              </div>
-              <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                {r.scenario === "niaMaster" ? (
-                  <>
-                    ステ合計×2.3（
-                    {Math.floor(r.cappedSum * 2.3).toLocaleString()}）＋
-                    ファン投票数の換算値（
-                    {(r.scenarioValues.fanValue ?? 0).toLocaleString()}）
-                  </>
-                ) : r.scenario === "hatsuLegend" ? (
-                  <>
-                    ステ合計×2.1（
-                    {Math.floor(r.cappedSum * 2.1).toLocaleString()}）＋
-                    順位ボーナス（
-                    {(r.scenarioValues.rankValue ?? 0).toLocaleString()}）＋
-                    試験スコアの換算値（
-                    {(
-                      (r.scenarioValues.midValue ?? 0) +
-                      (r.scenarioValues.finalValue ?? 0)
-                    ).toLocaleString()}）
-                  </>
-                ) : (
-                  <>
-                    ステ合計×2（{(r.cappedSum * 2).toLocaleString()}）＋
-                    スター性{r.totalStar}×7.5（
-                    {Math.floor(r.totalStar * 7.5).toLocaleString()}）＋
-                    本戦ラウンド点数の評価値（
-                    {(r.roundValues[0] + r.roundValues[1]).toLocaleString()}）−
-                    2,000
-                  </>
+          <div className="flex items-center gap-3">
+            {/* Pアイドル（画像クリック=選択・歯車=特訓/開花） */}
+            <div className="flex w-24 shrink-0 flex-col items-center gap-1">
+              <PIdolImageEditor r={r} onOpenPicker={() => setIdolPickerOpen(true)} />
+              <PIdolInfo r={r} />
+            </div>
+            <div className="min-w-0 flex-1 text-center">
+              <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
+                評価値
+                <Hint text={GLOSSARY.rating} />
+                {canShowRating && previewRating !== null && (
+                  <span className="ml-1 text-amber-600">（取得制限を反映）</span>
                 )}
               </p>
-              {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
-              {conditionChips.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-1">
-                  {conditionChips.map((c) => (
-                    <span key={c.label} className={c.ok ? CHIP_OK : CHIP_NG} title={c.detail}>
-                      {c.ok ? "✓" : "✗"} {c.label}
-                      {!c.ok && c.detail && (
-                        <span className="font-normal opacity-80">（{c.detail}）</span>
-                      )}
+              {!canShowRating ? (
+                <p className="mt-2 text-xs text-slate-400">
+                  サポカを6枚編成し、育成パターンを選ぶと表示されます。
+                </p>
+              ) : (
+                <>
+                  <div className="mt-0.5 flex items-baseline justify-center gap-2">
+                    <p
+                      className={`text-4xl font-bold tabular-nums ${
+                        previewRating !== null ? "text-amber-600" : "text-blue-600"
+                      }`}
+                    >
+                      {(previewRating ?? r.rating).toLocaleString()}
+                    </p>
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-lg font-black text-white ${
+                        previewRating !== null ? "bg-amber-500" : "bg-blue-600"
+                      }`}
+                    >
+                      {produceRank(previewRating ?? r.rating)}
                     </span>
-                  ))}
-                </div>
+                  </div>
+                  <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                    {r.scenario === "niaMaster" ? (
+                      <>
+                        ステ合計×2.3（
+                        {Math.floor(r.cappedSum * 2.3).toLocaleString()}）＋
+                        ファン投票数の換算値（
+                        {(r.scenarioValues.fanValue ?? 0).toLocaleString()}）
+                      </>
+                    ) : r.scenario === "hatsuLegend" ? (
+                      <>
+                        ステ合計×2.1（
+                        {Math.floor(r.cappedSum * 2.1).toLocaleString()}）＋
+                        順位ボーナス（
+                        {(r.scenarioValues.rankValue ?? 0).toLocaleString()}）＋
+                        試験スコアの換算値（
+                        {(
+                          (r.scenarioValues.midValue ?? 0) +
+                          (r.scenarioValues.finalValue ?? 0)
+                        ).toLocaleString()}）
+                      </>
+                    ) : (
+                      <>
+                        ステ合計×2（{(r.cappedSum * 2).toLocaleString()}）＋
+                        スター性{r.totalStar}×7.5（
+                        {Math.floor(r.totalStar * 7.5).toLocaleString()}）＋
+                        本戦ラウンド点数の評価値（
+                        {(r.roundValues[0] + r.roundValues[1]).toLocaleString()}）−
+                        2,000
+                      </>
+                    )}
+                  </p>
+                  {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
+                  {conditionChips.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
+                      {conditionChips.map((c) => (
+                        <span key={c.label} className={c.ok ? CHIP_OK : CHIP_NG} title={c.detail}>
+                          {c.ok ? "✓" : "✗"} {c.label}
+                          {!c.ok && c.detail && (
+                            <span className="font-normal opacity-80">（{c.detail}）</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
 
         {/* 操作（主役ボタン・探索の条件・前回の探索）。デスクトップでは常に見える */}
         <div className="hidden lg:block">{actionPanel}</div>
 
-        {/* 育成後のステータス */}
-        <Card
-          title="育成後のステータス"
-          hint={<Hint text={`${GLOSSARY.finalStats} 各タイプの上限は${r.statCap}です。`} />}
-        >
-          <table className="w-full text-sm tabular-nums">
-            <tbody className="divide-y divide-slate-100">
-              {TYPE_KEYS.map((type) => {
-                const p = r.perType[type];
-                const over = p.current > r.statCap;
-                return (
-                  <tr key={type}>
-                    <td className="py-1.5">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-bold ${TYPE_CHIP[type]}`}
-                      >
-                        {TYPE_LABELS[type]}
-                      </span>
-                    </td>
-                    <td
-                      className={`py-1.5 text-right text-2xl font-bold ${over ? "text-red-500" : "text-slate-800"}`}
-                    >
-                      {Math.round(p.current).toLocaleString()}
-                    </td>
-                    <td className="py-1.5 text-right text-xs text-slate-400">
-                      あと {Math.round(r.statCap - p.current).toLocaleString()}
-                    </td>
-                  </tr>
-                );
-              })}
-              <tr>
-                <td className="py-1.5 text-xs font-semibold text-slate-500">
-                  合計（上限適用後）
-                </td>
-                <td className="py-1.5 text-right text-2xl font-bold text-blue-600">
-                  {Math.round(r.cappedSum).toLocaleString()}
-                </td>
-                <td />
-              </tr>
-            </tbody>
-          </table>
-          {/* スター性・Pポイント・体力は1項目1行（3段）で見やすく */}
-          <div className="mt-1.5 flex flex-col gap-1 border-t border-slate-100 pt-1.5 text-sm text-slate-500">
-            {r.scenario === "hif" && (
-              <p>
-                合計スター性: <b className="text-violet-600">{r.totalStar}</b>
-              </p>
-            )}
-            {/* サポカ由来のPポイントだけをまとめて出す（固定P・前イベP・P率換算・
-                タイプSPレッスンP率）。開始時230や差し入れ・レッスン・メモリー分は含めない
-                （内訳はヘルプに記載） */}
-            <p className="flex items-center gap-1">
-              Pポイント（サポカ分）:{" "}
-              <b className="text-cyan-700">
-                {Math.round(r.resources.pCards).toLocaleString()}
-              </b>
-              <Hint text="サポカ由来のPポイント（固定P・前イベP・レッスンP率換算・タイプSPレッスンP率）。開始時230（HIFボーナス200＋STEP3の30。選抜・本戦とも）・差し入れ80×5・レッスン・メモリー分は含みません" />
-            </p>
-            <p>
-              体力:{" "}
-              <b className="text-emerald-700">
-                {Math.round(r.resources.hpTotal)}
-              </b>
-            </p>
-          </div>
-        </Card>
-
-        {/* プロデュース開始時のステ */}
-        <Card
-          title="開始時のステータス"
-          action={
-            <button
-              type="button"
-              onClick={() => setParaboOpen(true)}
-              title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
-              className={BTN_SECONDARY}
-            >
-              <Table2 size={13} />
-              パラボ変換表
-            </button>
-          }
-        >
-          <div className="grid grid-cols-3 gap-2">
-            {TYPE_KEYS.map((type) => (
-              <div
-                key={type}
-                className="rounded-lg bg-slate-50 px-2 py-2 text-center"
-              >
-                <p className={`text-xs font-bold ${TYPE_TEXT[type]}`}>
-                  {TYPE_LABELS[type]}
-                </p>
-                <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-800">
-                  {Math.round(r.perType[type].startFixed)}
-                </p>
-                <p className="text-xs tabular-nums text-slate-800">
-                  ＋{r.perType[type].startPct}%
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className={`mt-1.5 ${NOTE}`}>
-            審査基準:{" "}
-            {TYPE_KEYS.map((t) => `${TYPE_JA[t]} ${r.ranks?.[t] ?? "—"}`).join(" / ")}
-          </p>
-        </Card>
+        {/* 育成後のステータス（内訳バーつき） */}
+        <StatsCard r={r} minStats={settings.minStats} maxStats={settings.maxStats} />
       </div>
 
       {/* カードの最終ステータス詳細（イベント補正込み） */}
@@ -1482,10 +1347,10 @@ function PIdolImageEditor({
           <img
             src={url}
             alt={r.pMaster?.cardName ?? ""}
-            className="h-28 w-28 rounded-xl border border-slate-200 object-cover shadow-sm transition hover:brightness-95"
+            className="h-24 w-24 rounded-xl border border-slate-200 object-cover shadow-sm transition hover:brightness-95"
           />
         ) : (
-          <div className="flex h-28 w-28 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
+          <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
             Pアイドル
           </div>
         )}
@@ -1507,7 +1372,7 @@ function PIdolImageEditor({
           type="button"
           onClick={() => setOpen((v) => !v)}
           title="クリックで特訓・才能開花を設定"
-          className={`mt-1 block w-28 text-center text-xs font-bold transition hover:text-blue-600 ${
+          className={`mt-1 block w-24 text-center text-xs font-bold transition hover:text-blue-600 ${
             own ? "text-slate-700" : "text-red-500"
           }`}
         >

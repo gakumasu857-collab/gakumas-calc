@@ -1,4 +1,4 @@
-import { TYPE_CHIP, TYPE_SHORT, TYPE_SOLID } from "@/components/ui";
+import { TYPE_SHORT, TYPE_SOLID } from "@/components/ui";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -54,12 +54,21 @@ export function formatProb(p: number): string {
 }
 
 /** 1タイプのチップ（授業・営業・レッスンのメイン部分。すべて同じ大きさ） */
-function TypeBlock({ type, className = "" }: { type: TypeKey | null; className?: string }) {
+function TypeBlock({
+  type,
+  muted,
+  className = "",
+}: {
+  type: TypeKey | null;
+  /** SPなし（通常レッスン）: 薄くして点線の枠 */
+  muted?: boolean;
+  className?: string;
+}) {
   return (
     <span
-      className={`flex h-8 w-8 items-center justify-center text-[12px] font-bold ${
+      className={`flex h-8 w-8 items-center justify-center rounded-md text-[12px] font-bold ${
         type ? TYPE_SOLID[type] : "bg-slate-200 text-slate-500"
-      } ${className}`}
+      } ${muted ? "opacity-55 outline-2 outline-dashed outline-slate-400 outline-offset-1" : ""} ${className}`}
     >
       {type ? TYPE_SHORT[type] : "休"}
     </span>
@@ -76,43 +85,47 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="w-12 shrink-0 text-[11px] font-bold text-slate-500">{label}</span>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{children}</div>
-      {note && <span className="w-full text-[10px] text-slate-400 sm:ml-14">{note}</span>}
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">{children}</div>
+      {note && <span className="w-full text-[10px] text-slate-400 sm:pl-14">{note}</span>}
     </div>
   );
 }
 
-/** 選抜3回のスコア配分（タイプ別の割合を積み上げバーで） */
+/** 選抜3回のスコア配分（細い積み上げバー＋割合の文字） */
 function ExamBars({ exams }: { exams: Record<TypeKey, number>[] }) {
   return (
     <div className="flex w-full flex-col gap-1">
       {exams.map((scores, i) => {
         const total = TYPE_KEYS.reduce((sum, t) => sum + (scores[t] ?? 0), 0);
+        const shares = TYPE_KEYS.map((t) => ({
+          t,
+          share: total > 0 ? (scores[t] ?? 0) / total : 0,
+        }));
         return (
-          <div key={i} className="flex items-center gap-2 text-[11px]">
+          <div key={i} className="flex items-center gap-2 text-[11px] tabular-nums">
             <span className="w-7 shrink-0 font-bold text-slate-500">{i + 1}次</span>
-            <div className="flex h-6 min-w-0 flex-1 overflow-hidden rounded-md bg-slate-100">
-              {total > 0 &&
-                TYPE_KEYS.map((t) => {
-                  const share = (scores[t] ?? 0) / total;
-                  if (share <= 0) return null;
-                  return (
+            <div className="flex h-2 w-28 shrink-0 overflow-hidden rounded-full bg-slate-100 sm:w-36">
+              {shares.map(
+                ({ t, share }) =>
+                  share > 0 && (
                     <span
                       key={t}
                       style={{ width: `${share * 100}%` }}
+                      className={TYPE_SOLID[t]}
                       title={`${TYPE_SHORT[t]} ${scores[t].toLocaleString()}（${Math.round(share * 100)}%）`}
-                      className={`flex items-center justify-center overflow-hidden whitespace-nowrap text-[10px] font-bold ${TYPE_SOLID[t]}`}
-                    >
-                      {share >= 0.14 ? `${TYPE_SHORT[t]} ${Math.round(share * 100)}%` : ""}
-                    </span>
-                  );
-                })}
+                    />
+                  ),
+              )}
             </div>
-            <span className="w-16 shrink-0 text-right tabular-nums text-slate-500">
-              {total.toLocaleString()}
+            <span className="text-slate-600">
+              {shares
+                .filter(({ share }) => share > 0)
+                .map(({ t, share }) => `${TYPE_SHORT[t]} ${Math.round(share * 100)}%`)
+                .join("・") || "—"}
             </span>
+            <span className="text-slate-400">（{total.toLocaleString()}）</span>
           </div>
         );
       })}
@@ -121,33 +134,37 @@ function ExamBars({ exams }: { exams: Record<TypeKey, number>[] }) {
 }
 
 /**
- * 踏み方チップ。レッスンは「メイン｜サブ」の2連チップ（黄枠＝SP）、授業・営業は順番どおり、
- * 選抜はタイプ別スコアの配分バー。授業とレッスンのメイン部分は同じ大きさにそろえる。
+ * 踏み方チップ。レッスンはメイン（黄・青・赤の1マス）＋右下の小さなサブバッジ（編集モーダルと同じ形）、
+ * SPは付いているのが基本なので、SPなし（通常）だけ薄く点線の枠で目立たせる。
+ * 授業・営業は順番どおりに同じ大きさで、選抜は細い配分バー＋割合。
  */
 export function PlanChips({ plan }: { plan: PlanSummary }) {
   const hasSub = plan.lessons.some((l) => l.sub);
+  const hasNormal = plan.lessons.some((l) => l.type && !l.sp);
+  const notes = [
+    hasSub ? "右下＝サブ" : "",
+    hasNormal ? "薄い点線＝通常レッスン（SPなし）" : "",
+  ]
+    .filter(Boolean)
+    .join("　");
   return (
-    <div className="flex flex-col gap-2">
-      <Row
-        label="レッスン"
-        note={hasSub ? "黄色の枠＝SPレッスン、左＝メイン、右＝サブ" : "黄色の枠＝SPレッスン"}
-      >
+    <div className="flex flex-col gap-2.5">
+      <Row label="レッスン" note={notes || undefined}>
         {plan.lessons.map((l, i) => (
           <span
             key={i}
             title={
               l.type
-                ? `レッスン${i + 1}: ${TYPE_SHORT[l.type]}${l.sub ? `（サブ ${TYPE_SHORT[l.sub]}）` : ""}${l.sp ? "・SP" : ""}`
+                ? `レッスン${i + 1}: ${TYPE_SHORT[l.type]}${l.sub ? `（サブ ${TYPE_SHORT[l.sub]}）` : ""}${l.sp ? "・SP" : "・通常"}`
                 : `レッスン${i + 1}: 踏まない`
             }
-            className={`flex items-stretch overflow-hidden rounded-md ${
-              l.sp && l.type ? "ring-2 ring-amber-400 ring-offset-1" : ""
-            }`}
+            // サブバッジがはみ出す分（下・右）を余白として確保し、下の行と重ならないようにする
+            className="relative inline-block pb-1.5 pr-1.5"
           >
-            <TypeBlock type={l.type} />
+            <TypeBlock type={l.type} muted={!!l.type && !l.sp} />
             {l.sub && (
               <span
-                className={`flex h-8 w-7 items-center justify-center text-[11px] font-bold ${TYPE_CHIP[l.sub]}`}
+                className={`absolute bottom-0 right-0 flex h-4 min-w-5 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-2 ring-white ${TYPE_SOLID[l.sub]}`}
               >
                 {TYPE_SHORT[l.sub]}
               </span>
@@ -158,7 +175,7 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       {plan.classes && plan.classes.length > 0 && (
         <Row label="授業">
           {plan.classes.map((t, i) => (
-            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`} className="overflow-hidden rounded-md">
+            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`}>
               <TypeBlock type={t} />
             </span>
           ))}
@@ -167,7 +184,7 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       {plan.sales && plan.sales.length > 0 && (
         <Row label="営業">
           {plan.sales.map((t, i) => (
-            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`} className="overflow-hidden rounded-md">
+            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`}>
               <TypeBlock type={t} />
             </span>
           ))}
@@ -181,7 +198,10 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       {plan.auditions && plan.auditions.length > 0 && (
         <Row label="オーデ">
           {plan.auditions.map((a, i) => (
-            <span key={i} className="rounded-md bg-slate-100 px-2 py-1 text-[11px] tabular-nums text-slate-700">
+            <span
+              key={i}
+              className="rounded-md bg-slate-100 px-2 py-1 text-[11px] tabular-nums text-slate-700"
+            >
               {i + 1}次 Vo{a.vocal} Da{a.dance} Vi{a.visual}
             </span>
           ))}

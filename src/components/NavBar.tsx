@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -20,6 +21,7 @@ const MORE = [
   { href: "/card-scores", label: "サポカ点数表", note: "全カードの点数を一覧で見る" },
   { href: "/database", label: "データベース", note: "サポカのアビリティ・イベント一覧" },
 ];
+const MENU_W = 256;
 
 const TAB_CLASS = (active: boolean) =>
   `shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
@@ -30,8 +32,24 @@ const TAB_CLASS = (active: boolean) =>
 
 export default function NavBar() {
   const pathname = useLocation().pathname;
-  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // 「その他」の一覧は、横スクロールするナビの中に置くと切れて見えないので、
+  // ボタンの位置を測って画面直付け（portal）で出す
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number } | null>(null);
   const moreActive = MORE.some((m) => m.href === pathname);
+
+  const toggleMenu = () => {
+    if (menuPos) {
+      setMenuPos(null);
+      return;
+    }
+    const rect = moreRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuPos({
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - MENU_W - 8)),
+      top: rect.bottom + 4,
+    });
+  };
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -51,48 +69,46 @@ export default function NavBar() {
               {tab.label}
             </Link>
           ))}
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setMoreOpen((v) => !v)}
-              className={`${TAB_CLASS(moreActive)} flex items-center gap-0.5`}
-              aria-haspopup="menu"
-              aria-expanded={moreOpen}
-            >
-              {moreActive ? MORE.find((m) => m.href === pathname)?.label : "その他"}
-              <ChevronDown size={14} />
-            </button>
-            {moreOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setMoreOpen(false)} />
-                <div
-                  role="menu"
-                  className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
-                >
-                  {MORE.map((m) => (
-                    <Link
-                      key={m.href}
-                      to={m.href}
-                      role="menuitem"
-                      onClick={() => setMoreOpen(false)}
-                      className={`block rounded-md px-3 py-2 transition hover:bg-slate-100 ${
-                        pathname === m.href ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      <span className="block text-sm font-semibold text-slate-800">
-                        {m.label}
-                      </span>
-                      <span className="block whitespace-normal text-[11px] text-slate-500">
-                        {m.note}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            ref={moreRef}
+            type="button"
+            onClick={toggleMenu}
+            className={`${TAB_CLASS(moreActive)} flex items-center gap-0.5`}
+            aria-haspopup="menu"
+            aria-expanded={!!menuPos}
+          >
+            {moreActive ? MORE.find((m) => m.href === pathname)?.label : "その他"}
+            <ChevronDown size={14} />
+          </button>
         </nav>
       </div>
+      {menuPos &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMenuPos(null)} />
+            <div
+              role="menu"
+              style={{ left: menuPos.left, top: menuPos.top, width: MENU_W }}
+              className="fixed z-50 rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
+            >
+              {MORE.map((m) => (
+                <Link
+                  key={m.href}
+                  to={m.href}
+                  role="menuitem"
+                  onClick={() => setMenuPos(null)}
+                  className={`block rounded-md px-3 py-2 transition hover:bg-slate-100 ${
+                    pathname === m.href ? "bg-blue-50" : ""
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-slate-800">{m.label}</span>
+                  <span className="block whitespace-normal text-[11px] text-slate-500">{m.note}</span>
+                </Link>
+              ))}
+            </div>
+          </>,
+          document.body,
+        )}
     </header>
   );
 }

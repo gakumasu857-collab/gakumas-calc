@@ -196,7 +196,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
 `calc/ActionPanel.tsx`（右列の操作パネル: 求める▾・探索の条件・前回の探索の内訳と診断ログ）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋SP率＋前イベ調整の折りたたみ）、
-`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン｜サブ・SP枠、授業／営業は順番、選抜は配分バー。要約 `currentPlanSummary`）、
+`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印）、`calc/SetPickerField.tsx`（育成パターンの選択欄。自前の一覧）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
