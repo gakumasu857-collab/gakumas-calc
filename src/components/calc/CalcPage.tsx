@@ -5,7 +5,6 @@ import {
   ImageDown,
   Save,
   Settings,
-  Table2,
 } from "lucide-react";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
@@ -17,6 +16,7 @@ import { Card, Field } from "@/components/calc/CalcCard";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
+import MobileActionBar from "@/components/calc/MobileActionBar";
 import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
@@ -39,7 +39,7 @@ import Hint from "@/components/Hint";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
 import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
 import { buildSnapshot } from "@/lib/calcSaveIO";
 import { imageUrl } from "@/lib/config";
@@ -93,11 +93,6 @@ const TYPE_CHIP: Record<TypeKey, string> = {
   vocal: "bg-red-100 text-red-700",
   dance: "bg-blue-100 text-blue-700",
   visual: "bg-yellow-100 text-yellow-700",
-};
-const TYPE_TEXT: Record<TypeKey, string> = {
-  vocal: "text-red-600",
-  dance: "text-blue-600",
-  visual: "text-yellow-600",
 };
 /** シナリオごとの色と短縮名（設定ボタンのミニ■用。NIAは紫） */
 const SCENARIO_STYLE: Record<ScenarioKey, { short: string; bg: string }> = {
@@ -547,9 +542,15 @@ export default function CalcPage() {
     runAutoOptimize();
   };
 
+  const anyBusy = optBusy || idealBusy || planOpt.busy;
+  const runPlanOnly = () => {
+    setLastRun(null);
+    planOpt.run((m) => setLastRun({ message: m }));
+  };
+  /** 操作パネル（前提のすぐ下）。スマホではボタン部は画面下のバー（MobileActionBar）に出る */
   const actionPanel = (
     <ActionPanel
-      busy={optBusy || idealBusy || planOpt.busy}
+      busy={anyBusy}
       ready={optimizeReady}
       missingInputs={missingInputs}
       notReadyTitle={notReadyTitle}
@@ -557,16 +558,13 @@ export default function CalcPage() {
       status={lastRun}
       onRun={requestAutoOptimize}
       onFormationOnly={applyIdealFormation}
-      onPlanOnly={() => {
-        setLastRun(null);
-        planOpt.run((m) => setLastRun({ message: m }));
-      }}
+      onPlanOnly={runPlanOnly}
       onConditions={() => setTheoryOpen(true)}
     />
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
+    <div className="grid gap-4 pb-24 lg:grid-cols-[1fr_360px] lg:items-start lg:pb-0">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -594,7 +592,16 @@ export default function CalcPage() {
       {/* ===== 入力（デスクトップでは左） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-1">
         {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数・開始時のステ）。全部そろうと探索できる */}
-        <Card title="育成の前提" hint={<Hint text={GLOSSARY.premise} />}>
+        <Card
+          title="育成の前提"
+          hint={<Hint text={GLOSSARY.premise} />}
+          frameClass="border-2 border-blue-500"
+          action={
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+              探索に必要な入力
+            </span>
+          }
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             <Field label="育成シナリオ">
               <button
@@ -694,33 +701,10 @@ export default function CalcPage() {
           {/* 本戦・試験の点数（設定ブロック内） */}
           <ScenarioScoreCard r={r} />
 
-          {/* 開始時のステータス（前提から決まる値なのでここに。パラボ変換表もここから） */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            <span className="font-bold text-slate-700">開始時のステータス</span>
-            {TYPE_KEYS.map((type) => (
-              <span key={type} className="tabular-nums">
-                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_JA[type]}</span>{" "}
-                <b className="text-slate-800">{Math.round(r.perType[type].startFixed)}</b>
-                <span className="text-slate-400"> +{r.perType[type].startPct}%</span>
-              </span>
-            ))}
-            <span className="text-slate-400">
-              審査基準 {TYPE_KEYS.map((t) => `${TYPE_JA[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
-            </span>
-            <button
-              type="button"
-              onClick={() => setParaboOpen(true)}
-              title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
-              className={`${BTN_GHOST} ml-auto`}
-            >
-              <Table2 size={12} />
-              パラボ変換表
-            </button>
-          </div>
         </Card>
 
-        {/* スマホ: 操作パネルは前提のすぐ下（デスクトップでは右列） */}
-        <div className="lg:hidden">{actionPanel}</div>
+        {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す。スマホではボタンは画面下のバー */}
+        {actionPanel}
 
         {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
         {pendingOps && (
@@ -780,34 +764,32 @@ export default function CalcPage() {
           onEditPlan={() => setPlanOpen(true)}
           onEditCounts={() => setCountsOpen(true)}
           onClearAll={() => selected.clearAll()}
+          onOpenParabo={() => setParaboOpen(true)}
         >
           {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用） */}
           <EventCountEditor r={r} />
         </FormationPlanCard>
       </div>
 
-      {/* ===== 結果と操作（デスクトップでは右・スクロールに追従。1画面に収まる高さにしてある） ===== */}
+      {/* ===== 結果（デスクトップでは右・スクロールに追従。1画面に収まる高さにしてある） ===== */}
       <div
         id="calc-results"
         className="flex scroll-mt-16 flex-col gap-3 lg:order-2 lg:sticky lg:top-14 lg:self-start"
       >
-        {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示） */}
-        <div
-          className={`rounded-xl border-2 bg-white p-3 ${
-            !canShowRating
-              ? "border-slate-300"
-              : previewRating !== null
-                ? "border-amber-500"
-                : "border-blue-600"
-          }`}
-        >
+        {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示）。
+            青い枠は「育成の前提」に譲り、ここは数字の背景色で状態を出す */}
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center gap-3">
             {/* Pアイドル（画像クリック=選択・歯車=特訓/開花） */}
             <div className="flex w-24 shrink-0 flex-col items-center gap-1">
               <PIdolImageEditor r={r} onOpenPicker={() => setIdolPickerOpen(true)} />
               <PIdolInfo r={r} />
             </div>
-            <div className="min-w-0 flex-1 text-center">
+            <div
+              className={`min-w-0 flex-1 rounded-lg py-1.5 text-center ${
+                !canShowRating ? "" : previewRating !== null ? "bg-amber-50" : "bg-blue-50"
+              }`}
+            >
               <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
                 評価値
                 <Hint text={GLOSSARY.rating} />
@@ -886,9 +868,6 @@ export default function CalcPage() {
             </div>
           </div>
         </div>
-
-        {/* 操作（主役ボタン・探索の条件・前回の探索）。デスクトップでは常に見える */}
-        <div className="hidden lg:block">{actionPanel}</div>
 
         {/* 育成後のステータス（内訳バーつき） */}
         <StatsCard r={r} minStats={settings.minStats} maxStats={settings.maxStats} />
@@ -1035,6 +1014,21 @@ export default function CalcPage() {
       {/* 発動回数・踏み方のエディタ（「サポカ編成と踏み方」から開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
+
+      {/* スマホの画面下バー（求める▾・条件・評価値→結果へ）。PCでは出さない */}
+      <MobileActionBar
+        busy={anyBusy}
+        ready={optimizeReady}
+        missingInputs={missingInputs}
+        notReadyTitle={notReadyTitle}
+        rating={canShowRating ? (previewRating ?? r.rating) : null}
+        rank={canShowRating ? produceRank(previewRating ?? r.rating) : null}
+        preview={previewRating !== null}
+        onRun={requestAutoOptimize}
+        onFormationOnly={applyIdealFormation}
+        onPlanOnly={runPlanOnly}
+        onConditions={() => setTheoryOpen(true)}
+      />
     </div>
   );
 }

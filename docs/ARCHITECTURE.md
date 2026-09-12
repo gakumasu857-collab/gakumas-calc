@@ -194,9 +194,9 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/ActionPanel.tsx`（右列の操作パネル: 求める▾・探索の条件・前回の探索の内訳と診断ログ）、
-`calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋SP率＋前イベ調整の折りたたみ）、
-`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印）、`calc/SetPickerField.tsx`（育成パターンの選択欄。自前の一覧）、
+`calc/ActionPanel.tsx`（「育成の前提」直下の操作パネル: 求める▾・探索の条件（PCで表示）・所持状況の注記・前回の探索の内訳と診断ログ。ボタン部は `RunButtons` として輸出）、`calc/MobileActionBar.tsx`（スマホの画面下バー: 求める▾・条件・今の評価値→結果へ移動）、
+`calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
+`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（育成パターンの選択欄。自前の一覧）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
@@ -377,7 +377,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 「寄せ方の比較」（`axisReport`）は軸ごとの最良候補の評価値と、条件未達（SP率持ち不足・最低ステ未達・最高ステ超過）を画面に出します。
 
 「理想編成」だけのボタン（`applyIdealFormation`）は今の踏み方のまま `findBestFormation` を 1 回、
-踏み方エディタの「選択サポカで踏み方を最適化」は今の編成のまま `optimizeSteppingForSlots` を回します。
+踏み方エディタの「選択サポカで踏み方を最適化」（計算ページの ▾「踏み方だけ」も同じ）は今の編成のまま `optimizeSteppingForSlots` を回します。
+仕上げの授業寄せ（`applyClassPreference`）はこちらにも掛かります（2026-09-12。以前は掛かっておらず、第3流行が 1100 に届かない配分のまま返していた）。
 
 ### 3-6. 探索の条件の扱い（「探索の条件」モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
 
@@ -587,6 +588,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:ownership:visited:v1` | 所持状況ページを開いたことがある印（"1"。無ければ計算ページで「所持状況が未入力」扱い） | `src/lib/ownershipAck.ts` |
 | `gakumas:setup:ownershipAck:v1` | 初回の探索前の確認で「このまま求める（全完凸）」を選んだ印（"1"） | `src/lib/ownershipAck.ts` |
 | `gakumas:ownedSaves:active:v1` | 所持状況の保存先スロットのID。サポカ凸・Pアイドルの変更は随時ここへ保存される（無ければ保存しない） | `src/lib/useOwnedSaves.ts` |
+| `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
 | `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |

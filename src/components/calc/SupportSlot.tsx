@@ -7,7 +7,8 @@ const CARD_PLAN_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.plan]));
 
 /**
  * 選択サポカの1枠。画像クリック＝入れ替え（凸・固定・BAN・レンタルNGも選択画面で変える）。
- * 枠の左上に凸とレンタル・固定・BANの印、右下に評価値への貢献（クリックで内訳）。
+ * 枠の左上に凸とレンタル・固定・BANの印。画像の下は「名前（長ければ…）｜+点数」の1行で、
+ * 点数を押すと内訳が開く。
  */
 export default function SupportSlot({
   member,
@@ -62,12 +63,26 @@ export default function SupportSlot({
             </span>
           )}
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-1">
-          <span className="min-w-0 truncate text-[10px] text-slate-600" title={member.name}>
-            {member.name}
-          </span>
-        </div>
       </button>
+      {/* 名前と点数は同じ行に並べ、名前は残り幅で省略（点数と重ならない） */}
+      <div className="mt-0.5 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onOpen}
+          title={member.name}
+          className="min-w-0 flex-1 truncate text-left text-[10px] text-slate-600 transition hover:text-blue-600"
+        >
+          {member.name}
+        </button>
+        <button
+          type="button"
+          onClick={onDetail}
+          className="shrink-0 text-xs font-bold tabular-nums text-blue-600 underline decoration-blue-300 decoration-dotted underline-offset-2 hover:text-blue-500"
+          title={`クリックで内訳を表示（基本 ${Math.round(member.points)} ＋ イベント相互作用 ${Math.round(member.synergy)}）`}
+        >
+          +{Math.round(member.points + member.synergy)}
+        </button>
+      </div>
       {/* 凸バッジ＋レンタル・固定・BANの印（表示のみ。変更は選択画面で） */}
       <span className="absolute left-1 top-1 z-10 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
         {member.level}凸
@@ -75,14 +90,6 @@ export default function SupportSlot({
         {flags.pinned.has(member.id) && <span className="ml-0.5 text-sky-300">📌固定</span>}
         {flags.banned.has(member.id) && <span className="ml-0.5 text-red-300">BAN</span>}
       </span>
-      <button
-        type="button"
-        onClick={onDetail}
-        className="absolute bottom-0 right-0 text-xs font-bold tabular-nums text-blue-600 underline decoration-blue-300 decoration-dotted underline-offset-2 hover:text-blue-500"
-        title={`クリックで内訳を表示（基本 ${Math.round(member.points)} ＋ イベント相互作用 ${Math.round(member.synergy)}）`}
-      >
-        +{Math.round(member.points + member.synergy)}
-      </button>
     </div>
   );
 }

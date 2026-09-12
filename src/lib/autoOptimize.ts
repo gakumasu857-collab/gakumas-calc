@@ -612,6 +612,12 @@ export function optimizeSteppingForSlots(
   engine.deadline = finalDeadline;
   const fine = engine.refineExamsAndClasses(slots, best.stepping, best.score);
   if (fine && fine.score > best.score) best = fine;
+  // 授業を流行タイプの閾値ルール（第1流行2100+/第3流行1100+/余りは第1流行）へ寄せる。
+  // 全自動最適化と同じ仕上げ（合計を落とさない範囲で割り当て直すだけ）。
+  // これが無いと「踏み方だけ」では第3流行が1100に届かない授業配分のまま返していた。
+  const packed = { stepping: best.stepping, slots, score: best.score };
+  engine.applyClassPreference(packed);
+  best = { stepping: packed.stepping, score: best.score };
   const ectx = engine.buildEctx(best.stepping);
   const { cappedSum } = engine.preciseObjective(slots, ectx);
   return { ...engine.toSteppingResult(best.stepping), cappedSum };

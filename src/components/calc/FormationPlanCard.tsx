@@ -5,12 +5,13 @@ import {
   ChevronUp,
   ListOrdered,
   SlidersHorizontal,
+  Table2,
 } from "lucide-react";
 import { Card } from "@/components/calc/CalcCard";
 import { currentPlanSummary, formatProb, PlanChips } from "@/components/calc/PlanChips";
 import SupportSlot from "@/components/calc/SupportSlot";
 import Hint from "@/components/Hint";
-import { BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
+import { BTN_GHOST, BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import type { CardFlagSets } from "@/lib/formation";
 import type { SelectedMember, useCalcResult } from "@/lib/useCalcResult";
@@ -25,8 +26,8 @@ const TYPE_TEXT = {
 } as const;
 
 /**
- * 「サポカ編成と踏み方」: サポカ6枚・レッスン（メイン｜サブ・SP）・授業／営業・選抜配分・SP率を
- * 1つのカードで一度に見せる。探索を押すとここが書き換わる。
+ * 「サポカ編成と踏み方」: サポカ6枚・レッスン（メイン＋サブ・SP）・授業／営業・選抜配分・
+ * 開始時のステータス・SP率を1つのカードで一度に見せる。探索を押すとここが書き換わる。
  * 前イベ・後イベ・ステイベの調整（children）は目立つボタンの下に畳んでおく。
  */
 export default function FormationPlanCard({
@@ -38,6 +39,7 @@ export default function FormationPlanCard({
   onEditPlan,
   onEditCounts,
   onClearAll,
+  onOpenParabo,
   children,
 }: {
   r: CalcResult;
@@ -49,6 +51,8 @@ export default function FormationPlanCard({
   onEditPlan: () => void;
   onEditCounts: () => void;
   onClearAll: () => void;
+  /** パラボ変換表を開く（開始時のステータスの行から） */
+  onOpenParabo: () => void;
   children: React.ReactNode;
 }) {
   const [eventsOpen, setEventsOpen] = useState(false);
@@ -119,6 +123,30 @@ export default function FormationPlanCard({
       >
         <PlanChips plan={plan} />
       </button>
+
+      {/* 開始時のステータス（メモリー・Pアイドルの固定値とパラボ%。パラボ変換表もここから） */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+        <span className="font-bold text-slate-700">開始時のステータス</span>
+        {TYPE_KEYS.map((type) => (
+          <span key={type} className="tabular-nums">
+            <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+            <b className="text-slate-800">{Math.round(r.perType[type].startFixed)}</b>
+            <span className="text-slate-400"> +{r.perType[type].startPct}%</span>
+          </span>
+        ))}
+        <span className="text-slate-400">
+          審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
+        </span>
+        <button
+          type="button"
+          onClick={onOpenParabo}
+          title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
+          className={`${BTN_GHOST} ml-auto`}
+        >
+          <Table2 size={12} />
+          パラボ変換表
+        </button>
+      </div>
 
       {/* SPレッスン率とこの踏み方の実現確率（1行） */}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">

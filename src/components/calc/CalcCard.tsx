@@ -6,6 +6,7 @@ export function Card({
   action,
   children,
   className = "",
+  frameClass = "border border-slate-200",
 }: {
   id?: string;
   title: string;
@@ -13,12 +14,11 @@ export function Card({
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  /** 枠線。目立たせたいカードは "border-2 border-blue-500" のように差し替える */
+  frameClass?: string;
 }) {
   return (
-    <section
-      id={id}
-      className={`rounded-xl border border-slate-200 bg-white p-4 ${className}`}
-    >
+    <section id={id} className={`rounded-xl bg-white p-4 ${frameClass} ${className}`}>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-1 text-sm font-bold text-slate-900">
           {title}

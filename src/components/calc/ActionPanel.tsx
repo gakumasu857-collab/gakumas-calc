@@ -17,10 +17,95 @@ export type RunStatus = {
   diagLog?: string | null;
 };
 
+/** 探索ボタンに必要なもの（操作パネルとスマホの下バーで共通） */
+export type RunHandlers = {
+  busy: boolean;
+  ready: boolean;
+  notReadyTitle?: string;
+  onRun: () => void;
+  onFormationOnly: () => void;
+  onPlanOnly: () => void;
+};
+
 /**
- * 操作パネル（デスクトップでは右列に固定表示＝スクロールしなくても押せる）。
- * 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ）と「探索の条件」。
- * 下に直近の探索の内訳（何通り・何秒・前後の評価値）と診断ログ。
+ * 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ）。
+ * PCの操作パネルとスマホの下バーで共用する（下バーでは一覧を上へ開く）。
+ */
+export function RunButtons({
+  busy,
+  ready,
+  notReadyTitle,
+  onRun,
+  onFormationOnly,
+  onPlanOnly,
+  menuUp = false,
+  className = "",
+}: RunHandlers & { menuUp?: boolean; className?: string }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <div className={`flex items-stretch ${className}`}>
+      <button
+        type="button"
+        onClick={onRun}
+        disabled={busy || !ready}
+        title={notReadyTitle}
+        className={`${BTN_PRIMARY} min-w-0 flex-1 justify-center rounded-r-none`}
+      >
+        <Sparkles size={15} className="shrink-0" />
+        <span className="min-w-0 truncate">
+          {busy ? "計算中…" : "理想の編成と踏み方を求める"}
+        </span>
+      </button>
+      <div className="relative flex">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          disabled={busy || !ready}
+          title="編成だけ／踏み方だけを最適化"
+          aria-label="そのほかの探索"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className={`${BTN_PRIMARY} rounded-l-none border-l border-blue-400 px-2`}
+        >
+          <ChevronDown size={14} className={menuUp ? "rotate-180" : ""} />
+        </button>
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+            <div
+              role="menu"
+              className={`absolute right-0 z-30 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg ${
+                menuUp ? "bottom-full mb-1" : "top-full mt-1"
+              }`}
+            >
+              <MenuItem
+                title="今の踏み方のまま、サポカ編成だけ"
+                desc="レッスンの踏み方は変えずに6枚を選び直す"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onFormationOnly();
+                }}
+              />
+              <MenuItem
+                title="今のサポカ編成のまま、踏み方だけ"
+                desc="6枚は変えずにレッスン・授業（営業）・選抜の配分を最適化"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onPlanOnly();
+                }}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 操作パネル（「育成の前提」のすぐ下＝前提を入れたらそのまま押す）。
+ * PCでは主役ボタン＋「探索の条件」をここに出す。スマホではボタンは画面下のバー
+ * （MobileActionBar）にあるので、ここには所持状況の注記と直近の探索の内訳だけを出す。
  */
 export default function ActionPanel({
   busy,
@@ -33,20 +118,13 @@ export default function ActionPanel({
   onFormationOnly,
   onPlanOnly,
   onConditions,
-}: {
-  busy: boolean;
-  ready: boolean;
+}: RunHandlers & {
   missingInputs: string[];
-  notReadyTitle?: string;
   /** 所持状況ページをまだ開いていない（全サポカ完凸で計算中） */
   ownershipUnset: boolean;
   status: RunStatus | null;
-  onRun: () => void;
-  onFormationOnly: () => void;
-  onPlanOnly: () => void;
   onConditions: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [logShown, setLogShown] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -71,137 +149,110 @@ export default function ActionPanel({
     status && status.before != null && status.after != null
       ? status.after - status.before
       : null;
+  // 注記も内訳も無いときはスマホでは何も出さない（PCはボタンがあるので常に出す）
+  const hasBody = ownershipUnset || !!status;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="flex items-stretch">
-        <button
-          type="button"
-          onClick={onRun}
-          disabled={busy || !ready}
-          title={notReadyTitle}
-          className={`${BTN_PRIMARY} min-w-0 flex-1 justify-center rounded-r-none`}
-        >
-          <Sparkles size={15} />
-          {busy ? "計算中…" : "理想の編成と踏み方を求める"}
-        </button>
-        <div className="relative flex">
+    <section
+      className={`rounded-xl border border-slate-200 bg-white p-3 ${hasBody ? "" : "hidden lg:block"}`}
+    >
+      {/* ボタン列はPCだけ（スマホは画面下のバーに同じボタンがある） */}
+      <div className="hidden lg:block">
+        <RunButtons
+          busy={busy}
+          ready={ready}
+          notReadyTitle={notReadyTitle}
+          onRun={onRun}
+          onFormationOnly={onFormationOnly}
+          onPlanOnly={onPlanOnly}
+        />
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            disabled={busy || !ready}
-            title="編成だけ／踏み方だけを最適化"
-            aria-label="そのほかの探索"
-            className={`${BTN_PRIMARY} rounded-l-none border-l border-blue-400 px-2`}
+            onClick={onConditions}
+            className={`${BTN_SECONDARY} shrink-0`}
+            title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
           >
-            <ChevronDown size={14} />
+            <Settings size={13} />
+            探索の条件
           </button>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg">
-                <MenuItem
-                  title="今の踏み方のまま、サポカ編成だけ"
-                  desc="レッスンの踏み方は変えずに6枚を選び直す"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onFormationOnly();
-                  }}
-                />
-                <MenuItem
-                  title="今のサポカ編成のまま、踏み方だけ"
-                  desc="6枚は変えずにレッスン・授業（営業）・選抜の配分を最適化"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onPlanOnly();
-                  }}
-                />
-              </div>
-            </>
+          {!ready && (
+            <p className="text-[11px] font-semibold text-amber-600">
+              「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
+            </p>
           )}
         </div>
       </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onConditions}
-          className={`${BTN_SECONDARY} shrink-0`}
-          title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
-        >
-          <Settings size={13} />
-          探索の条件
-        </button>
-        {!ready && (
-          <p className="text-[11px] font-semibold text-amber-600">
-            「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
-          </p>
-        )}
-      </div>
-      {ownershipUnset && (
-        <p className="mt-1.5 text-[11px] text-amber-700">
-          所持状況が未入力です（全サポカ完凸で計算）
-          <Link to="/support" className="ml-1 font-bold underline">
-            入力する
-          </Link>
-        </p>
-      )}
 
-      {/* 直近の探索の内訳 */}
-      {status && (
-        <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-          {status.message ? (
-            <p className="font-semibold text-slate-700">{status.message}</p>
-          ) : (
-            <p className="tabular-nums">
-              前回の探索:{" "}
-              {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
-              {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
-              {status.before != null && status.after != null && (
-                <>
-                  {" ／ "}
-                  {status.before.toLocaleString()} → {status.after.toLocaleString()}
-                  {delta !== null && (
-                    <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
-                      （{delta >= 0 ? "+" : ""}
-                      {delta.toLocaleString()}）
+      {hasBody && (
+        <div className="flex flex-col gap-1.5 lg:mt-2">
+          {ownershipUnset && (
+            <p className="text-[11px] text-amber-700">
+              所持状況が未入力です（全サポカ完凸で計算）
+              <Link to="/support" className="ml-1 font-bold underline">
+                入力する
+              </Link>
+            </p>
+          )}
+
+          {/* 直近の探索の内訳 */}
+          {status && (
+            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+              {status.message ? (
+                <p className="font-semibold text-slate-700">{status.message}</p>
+              ) : (
+                <p className="tabular-nums">
+                  前回の探索:{" "}
+                  {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
+                  {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
+                  {status.before != null && status.after != null && (
+                    <>
+                      {" ／ "}
+                      {status.before.toLocaleString()} → {status.after.toLocaleString()}
+                      {delta !== null && (
+                        <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                          （{delta >= 0 ? "+" : ""}
+                          {delta.toLocaleString()}）
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {status.kept && (
+                    <span className="ml-1 font-semibold text-slate-700">
+                      今の評価値を下回ったため変更なし
                     </span>
                   )}
-                </>
+                </p>
               )}
-              {status.kept && (
-                <span className="ml-1 font-semibold text-slate-700">
-                  今の評価値を下回ったため変更なし
-                </span>
+              {status.notes?.map((n) => (
+                <p key={n} className="text-amber-700">
+                  ・{n}
+                </p>
+              ))}
+              {status.diagLog && (
+                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={copyLog}
+                    className={`${BTN_GHOST} -ml-2`}
+                    title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
+                  >
+                    <ClipboardCopy size={12} />
+                    診断ログをコピー
+                  </button>
+                  {copied && <span className="text-emerald-600">コピーしました</span>}
+                </div>
               )}
-            </p>
-          )}
-          {status.notes?.map((n) => (
-            <p key={n} className="text-amber-700">
-              ・{n}
-            </p>
-          ))}
-          {status.diagLog && (
-            <div className="mt-0.5 flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                onClick={copyLog}
-                className={`${BTN_GHOST} -ml-2`}
-                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
-              >
-                <ClipboardCopy size={12} />
-                診断ログをコピー
-              </button>
-              {copied && <span className="text-emerald-600">コピーしました</span>}
+              {logShown && status.diagLog && (
+                <textarea
+                  readOnly
+                  value={status.diagLog}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
+                  title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
+                />
+              )}
             </div>
-          )}
-          {logShown && status.diagLog && (
-            <textarea
-              readOnly
-              value={status.diagLog}
-              onFocus={(e) => e.currentTarget.select()}
-              className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
-              title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
-            />
           )}
         </div>
       )}
