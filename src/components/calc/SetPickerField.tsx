@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { setVisibleInScenario } from "@/data/abilityCounts";
+import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
@@ -8,16 +8,15 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 /**
  * プロデュース（アビリティ発動回数のセット）の選択欄。
  * ネイティブの select は他の欄と見た目がそろわないので、ボタン＋自前の一覧にしている。
- * Pアイドルを選んでいれば、そのプラン（センス／ロジック／アノマリー）のものだけ出す。
+ * Pアイドルを選んでいれば、そのプランで使えるもの（センス→センス・好調・集中、
+ * ロジック→ロジック・好印象・やる気、アノマリー→アノマリー・全力・強気）だけ出す。
  */
 export default function SetPickerField({ r }: { r: CalcResult }) {
   const [open, setOpen] = useState(false);
   const current = r.selectedSet;
   const plan = r.pMaster?.plan ?? null;
   const visible = r.ability.sets.filter(
-    (set) =>
-      setVisibleInScenario(set.id, r.scenario) &&
-      (!plan || !set.plan || set.plan === plan),
+    (set) => setVisibleInScenario(set.id, r.scenario) && setPlanMatches(set.plan, plan),
   );
   const normal = visible.filter((s) => !r.ability.saveIdOf(s.id));
   const saveSets = visible.filter((s) => r.ability.saveIdOf(s.id));
@@ -59,7 +58,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-11 w-full items-center gap-2 rounded-lg border px-3 text-left text-base text-slate-900 transition ${
+        className={`flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-left text-sm text-slate-900 transition ${
           current
             ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
             : "border-amber-400 bg-amber-50 hover:bg-amber-100"
@@ -68,7 +67,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
         {current ? (
           <>
             {current.plan && (
-              <span className="shrink-0 rounded bg-slate-100 px-1.5 text-xs font-bold text-slate-600">
+              <span className="shrink-0 rounded bg-slate-100 px-1.5 text-[11px] font-bold text-slate-600">
                 {current.plan}
               </span>
             )}
@@ -79,7 +78,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
             選んでください
           </span>
         )}
-        <ChevronDown size={16} className="shrink-0 text-slate-400" />
+        <ChevronDown size={15} className="shrink-0 text-slate-400" />
       </button>
       {open && (
         <>
@@ -87,7 +86,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
           <div className="absolute left-0 top-full z-30 mt-1 max-h-80 w-full min-w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
             {visible.length === 0 ? (
               <p className="px-2 py-2 text-xs text-slate-500">
-                このシナリオ{plan ? `・${plan}` : ""}のプロデュースがありません（発動回数ページで作れます）
+                このシナリオ{plan ? `・${plan}` : ""}で使えるプロデュースがありません（発動回数ページで作れます）
               </p>
             ) : (
               <>
@@ -97,8 +96,8 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
             )}
             <p className="border-t border-slate-100 px-2 pb-1 pt-1.5 text-[10px] text-slate-400">
               {plan
-                ? `Pアイドルのプラン「${plan}」のものだけ表示しています`
-                : "アイドルを選ぶと、そのプランのものだけになります"}
+                ? `Pアイドルのプラン「${plan}」で使えるものだけ表示しています`
+                : "アイドルを選ぶと、そのプランで使えるものだけになります"}
             </p>
           </div>
         </>

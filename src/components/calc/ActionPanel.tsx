@@ -104,7 +104,8 @@ function RunButtons({
 
 /**
  * 操作パネル（「育成の前提」のすぐ下＝前提を入れたらそのまま押す。PC・スマホ共通）。
- * 主役ボタン＋▾と「探索の条件」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す。
+ * 主役ボタン＋▾と「探索の条件」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す
+ * （所持状況が未入力なら「全完凸の想定で探索できる」ことと入力先を一緒に案内する）。
  * 下に所持状況の注記と、直近の探索の内訳（何通り・何秒・前後の評価値）と診断ログ。
  */
 export default function ActionPanel({
@@ -156,9 +157,21 @@ export default function ActionPanel({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-3">
       {showArrow && (
-        <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-blue-700">
-          <ArrowDown size={18} className="shrink-0 animate-bounce" />
-          前提がそろいました。押すと理想のサポカ編成と踏み方が出ます
+        <p className="mb-2 flex items-start gap-1.5 text-sm font-bold text-blue-700">
+          <ArrowDown size={18} className="mt-0.5 shrink-0 animate-bounce" />
+          {ownershipUnset ? (
+            <span>
+              サポカが全部完凸の想定で探索できます。
+              <span className="font-normal text-slate-600">
+                自分の所持状況に合わせたいときは{" "}
+                <Link to="/support" className="font-bold text-blue-700 underline">
+                  ここから入力
+                </Link>
+              </span>
+            </span>
+          ) : (
+            <span>前提がそろいました。押すと理想のサポカ編成と踏み方が出ます</span>
+          )}
         </p>
       )}
       <div className="flex items-stretch gap-2">
@@ -187,7 +200,7 @@ export default function ActionPanel({
           「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
         </p>
       )}
-      {ownershipUnset && (
+      {ownershipUnset && !showArrow && (
         <p className="mt-1.5 text-[11px] text-amber-700">
           所持状況が未入力です（全サポカ完凸で計算）
           <Link to="/support" className="ml-1 font-bold underline">

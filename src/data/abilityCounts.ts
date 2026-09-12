@@ -168,6 +168,26 @@ export function planFromSetName(name: string): string {
 }
 
 /**
+ * Pアイドルのプランで使えるセットのプラン（系統）。
+ * センス→センス・好調・集中、ロジック→ロジック・好印象・やる気、アノマリー→アノマリー・全力・強気。
+ */
+export const PLAN_FAMILY: Record<string, readonly string[]> = {
+  センス: ["センス", "好調", "集中"],
+  ロジック: ["ロジック", "好印象", "やる気"],
+  アノマリー: ["アノマリー", "全力", "強気"],
+};
+
+/** セットのプランがPアイドルのプランで使えるか（どちらか未設定なら制限しない） */
+export function setPlanMatches(
+  setPlan: string | undefined,
+  idolPlan: string | null | undefined,
+): boolean {
+  if (!idolPlan || !setPlan) return true;
+  const family = PLAN_FAMILY[idolPlan];
+  return family ? family.includes(setPlan) : setPlan === idolPlan;
+}
+
+/**
  * 発動回数の元データは現行スプシの発動回数タブ（generated/abilityCounts.json、gen:counts で生成）。
  * ラベル→アプリのキー変換は constants に集約（abilityKeyFromLabel）。
  * 「(N回まで)」スロットはタブに独立行が無いので、基準アビリティの回数を上限Nでクランプして派生させる

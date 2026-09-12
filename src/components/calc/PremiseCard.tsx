@@ -1,11 +1,11 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ListOrdered } from "lucide-react";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { Field } from "@/components/calc/CalcCard";
 import SetPickerField from "@/components/calc/SetPickerField";
 import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
-import { TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
+import { BTN_SECONDARY, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS } from "@/lib/useCalcSettings";
@@ -22,7 +22,7 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
 /**
  * 「まず、育成の前提を設定」カード。
  * 青い見出し帯（手順1・あと何つ）＋番号つきの4つの欄（シナリオ・アイドル・プロデュース・メモリー）
- * ＋シナリオ別の本戦の点数。欄の下に「これで何が決まるか」を1行で書く。
+ * ＋シナリオ別の本戦の点数。説明文は置かず、プロデュースだけ「発動回数を調整」のボタンを欄の下に出す。
  * 未設定の欄は黄色、設定済みは番号が青。4つそろうと帯に「そろいました」と出て、すぐ下の探索ボタンへつなぐ。
  */
 export default function PremiseCard({
@@ -30,11 +30,14 @@ export default function PremiseCard({
   onOpenScenario,
   onOpenIdol,
   onOpenMemory,
+  onOpenCounts,
 }: {
   r: CalcResult;
   onOpenScenario: () => void;
   onOpenIdol: () => void;
   onOpenMemory: () => void;
+  /** 発動回数の調整モーダルを開く（プロデュースを選んだあと） */
+  onOpenCounts: () => void;
 }) {
   const { settings } = r.calc;
   const memoryCount = r.memoryStore.selected.length;
@@ -75,29 +78,17 @@ export default function PremiseCard({
 
       <div className="p-4">
         <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-          <PremiseField
-            no={1}
-            label="育成シナリオ"
-            note="評価値の式とステータスの上限が決まります"
-            done={done.scenario}
-            onClick={onOpenScenario}
-          >
+          <PremiseField no={1} label="育成シナリオ" done={done.scenario} onClick={onOpenScenario}>
             {r.scenarioStore.chosen ? (
               <>
-                <span className={`h-4 w-4 shrink-0 rounded ${SCENARIO_COLOR[r.scenario]}`} />
+                <span className={`h-3.5 w-3.5 shrink-0 rounded ${SCENARIO_COLOR[r.scenario]}`} />
                 <span className="min-w-0 flex-1 truncate">{SCENARIO_LABELS[r.scenario]}</span>
               </>
             ) : (
               <Unset />
             )}
           </PremiseField>
-          <PremiseField
-            no={2}
-            label="アイドル・Pアイドル"
-            note="審査基準（流行）と開始時のステータス・パラボが決まります"
-            done={done.idol}
-            onClick={onOpenIdol}
-          >
+          <PremiseField no={2} label="アイドル・Pアイドル" done={done.idol} onClick={onOpenIdol}>
             {settings.pIdol && r.pMaster ? (
               <span className="min-w-0 flex-1 truncate">
                 {settings.idol} / {r.pMaster.cardName}
@@ -106,32 +97,34 @@ export default function PremiseCard({
               <Unset text={settings.idol ? `${settings.idol}（Pアイドルを選ぶ）` : undefined} />
             )}
           </PremiseField>
-          <PremiseField
-            no={3}
-            label="プロデュース"
-            hint={GLOSSARY.pattern}
-            note="サポカのアビリティが何回発動するかが決まります（あとで「発動回数」ボタンから細かく調整できます）"
-            done={done.set}
-          >
+          <PremiseField no={3} label="プロデュース" hint={GLOSSARY.pattern} done={done.set}>
             <SetPickerField r={r} />
+            {r.selectedSet ? (
+              // 選んだら、その下で発動回数を調整できることを示す
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={onOpenCounts} className={BTN_SECONDARY}>
+                  <ListOrdered size={13} />
+                  アビリティの発動回数を調整
+                </button>
+                <span className="text-[11px] text-slate-500">回数はここで変えられます</span>
+              </div>
+            ) : (
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                サポカのアビリティが何回発動するかのテンプレです（Pアイドルのプランで使えるものだけ出ます）。
+                選ぶと、回数を調整するボタンが出ます。
+              </p>
+            )}
           </PremiseField>
-          <PremiseField
-            no={4}
-            label="メモリー"
-            hint={GLOSSARY.memory}
-            note="育成開始時に持ち込む4枚。固定値とパラボ%が効きます（まだ無ければテンプレでOK）"
-            done={done.memory}
-            onClick={onOpenMemory}
-          >
+          <PremiseField no={4} label="メモリー" hint={GLOSSARY.memory} done={done.memory} onClick={onOpenMemory}>
             {memoryCount === 0 ? (
               <Unset />
             ) : (
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                <span className="text-sm text-slate-500">{memoryCount}枚</span>
+                <span className="text-xs text-slate-500">{memoryCount}枚</span>
                 {TYPE_KEYS.map((t) => (
                   <span
                     key={t}
-                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${TYPE_CHIP[t]}`}
+                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${TYPE_CHIP[t]}`}
                   >
                     {TYPE_SHORT[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
                   </span>
@@ -148,11 +141,10 @@ export default function PremiseCard({
   );
 }
 
-/** 番号つきの欄。onClick があれば大きなボタン、無ければ children をそのまま置く（自前の選択欄用） */
+/** 番号つきの欄。onClick があればボタン、無ければ children をそのまま置く（自前の選択欄用） */
 function PremiseField({
   no,
   label,
-  note,
   hint,
   done,
   onClick,
@@ -160,7 +152,6 @@ function PremiseField({
 }: {
   no: number;
   label: string;
-  note: string;
   hint?: string;
   done: boolean;
   onClick?: () => void;
@@ -176,26 +167,25 @@ function PremiseField({
         >
           {no}
         </span>
-        <span className="text-sm font-bold text-slate-800">{label}</span>
+        <span className="text-xs font-bold text-slate-700">{label}</span>
         {hint && <Hint text={hint} />}
       </div>
       {onClick ? (
         <button
           type="button"
           onClick={onClick}
-          className={`flex h-11 w-full items-center gap-2 rounded-lg border px-3 text-left text-base text-slate-900 transition ${
+          className={`flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-left text-sm text-slate-900 transition ${
             done
               ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
               : "border-amber-400 bg-amber-50 hover:bg-amber-100"
           }`}
         >
           {children}
-          <ChevronDown size={16} className="shrink-0 text-slate-400" />
+          <ChevronDown size={15} className="shrink-0 text-slate-400" />
         </button>
       ) : (
         children
       )}
-      <p className="mt-1 text-[11px] leading-snug text-slate-500">{note}</p>
     </div>
   );
 }
@@ -220,9 +210,9 @@ function SettingSub({
 }) {
   return (
     <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2">
-      <p className="mb-1.5 text-sm font-bold text-slate-700">
+      <p className="mb-1.5 text-xs font-bold text-slate-700">
         {title}
-        {hint && <span className="ml-1.5 text-xs font-normal text-slate-400">{hint}</span>}
+        {hint && <span className="ml-1.5 text-[11px] font-normal text-slate-400">{hint}</span>}
       </p>
       {children}
     </div>

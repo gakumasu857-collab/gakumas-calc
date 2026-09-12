@@ -439,6 +439,8 @@ export function runFullOptimize(
   if (
     cur &&
     cur.length === 6 &&
+    // 固定カードが入っていない今の編成は候補にしない（固定を外した結果が勝ってしまう）
+    engine.pinnedShortfall(cur) === 0 &&
     cur.every(
       (x) =>
         !input.flags.banned.has(x.id) &&
@@ -536,7 +538,7 @@ export function runFullOptimize(
 
   // ---- 最終評価値の算出（勝者のみ・計算ページと同じ式） ----
   // 試験補助の加点（examAssist）は探索専用なので、表示する評価値からは外す
-  // 授業を流行タイプの閾値ルール（第1流行2100+/第3流行1100+/余りは第1流行）へ寄せる
+  // 授業を流行タイプの閾値ルール（第1流行2100+→第2流行1400+→第3流行1100+／余りは第1流行）へ寄せる
   finalEngine.applyClassPreference(best);
   const ectx = finalEngine.buildEctx(best.stepping);
   const {
@@ -612,7 +614,7 @@ export function optimizeSteppingForSlots(
   engine.deadline = finalDeadline;
   const fine = engine.refineExamsAndClasses(slots, best.stepping, best.score);
   if (fine && fine.score > best.score) best = fine;
-  // 授業を流行タイプの閾値ルール（第1流行2100+/第3流行1100+/余りは第1流行）へ寄せる。
+  // 授業を流行タイプの閾値ルール（第1流行2100+→第2流行1400+→第3流行1100+／余りは第1流行）へ寄せる。
   // 全自動最適化と同じ仕上げ（合計を落とさない範囲で割り当て直すだけ）。
   // これが無いと「踏み方だけ」では第3流行が1100に届かない授業配分のまま返していた。
   const packed = { stepping: best.stepping, slots, score: best.score };
@@ -1240,8 +1242,8 @@ export class OptimizeEngine {
   }
 
   /**
-   * 授業を「第1流行タイプが2100以上・第3流行タイプが1100以上・両方満たすなら
-   * 第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
+   * 授業を「第1流行タイプが2100以上 → 第2流行タイプが1400以上 → 第3流行タイプが1100以上 →
+   * 余りは第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
    * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
    * 全割当（3^授業数）を正確に評価し、合計最優先→閾値優先の辞書式で選ぶ。
    */
@@ -1256,8 +1258,9 @@ export class OptimizeEngine {
     if (n === 0 || n > 6) return; // 3^6=729評価まで（パッケージ時に1回だけ）
     const ranks = this.input.ranks;
     const t1 = TYPE_KEYS.find((t) => ranks[t] === 1) ?? "vocal";
+    const t2 = TYPE_KEYS.find((t) => ranks[t] === 2) ?? "dance";
     const t3 = TYPE_KEYS.find((t) => ranks[t] === 3) ?? "visual";
-    type Key = [number, number, number, number];
+    type Key = [number, number, number, number, number];
     const better = (a: Key, b: Key) => {
       for (let i = 0; i < a.length; i++) {
         if (a[i] !== b[i]) return a[i] > b[i];
@@ -1278,6 +1281,7 @@ export class OptimizeEngine {
         const key: Key = [
           Math.round(cappedSum),
           Math.min(stats[t1], 2100),
+          Math.min(stats[t2], 1400),
           Math.min(stats[t3], 1100),
           stats[t1],
         ];
@@ -1662,7 +1666,10 @@ export class OptimizeEngine {
       minStatBonus(stats, this.minStatCond) -
       spConditionShortfall(members, ectx.spMin) * SP_PENALTY -
       // サポカ編成のタイプ割合は必須条件（違反した候補はどの段階でも勝たせない）
-      typeRatioShortfall(members, this.ratioCons) * RATIO_PENALTY;
+      typeRatioShortfall(members, this.ratioCons) * RATIO_PENALTY -
+      // 固定カードも必須条件。ビームは最初に投入するが、「今の編成」の候補や
+      // 1枚入れ替え・組み直しで外れた候補が勝たないよう目的関数でも弾く
+      this.pinnedShortfall(members) * RATIO_PENALTY;
     return { obj, cappedSum, members, stats, overflow };
   }
 
@@ -1784,6 +1791,8 @@ export class OptimizeEngine {
   /** 探索対象のショートリスト（buildShortlistで作る。null=全プール） */
   private shortlistIds: Set<string> | null = null;
   private rentalShortlistIds: Set<string> | null = null;
+  /** 必ず編成に入れる固定カード（プランが合うものだけ。候補に入れられない固定は数えない） */
+  private pinnedEnforced = new Set<string>();
   /** /debug用: 決定的探索の分割別推定スコア（上位から） */
   lastPartitionEsts: number[] = [];
   /** 軸（レッスンを多く踏む2タイプ）ごとの最良候補 */
@@ -1900,9 +1909,20 @@ export class OptimizeEngine {
       const card = DB_BY_ID.get(id);
       if (card && !planAllows(card.plan, this.input.plan)) continue;
       ids.add(id);
+      this.pinnedEnforced.add(id);
     }
     this.shortlistIds = ids;
     this.rentalShortlistIds = rentalIds;
+  }
+
+  /** 編成に入っていない固定カードの枚数（候補に入れられる固定だけ数える） */
+  pinnedShortfall(members: readonly { id: string }[]): number {
+    if (this.pinnedEnforced.size === 0) return 0;
+    let n = 0;
+    for (const id of this.pinnedEnforced) {
+      if (!members.some((m) => m.id === id)) n++;
+    }
+    return n;
   }
 
   /** 候補出しに使う代表踏み方（単タイプ×3＋バランス） */

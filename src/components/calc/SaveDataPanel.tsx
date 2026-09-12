@@ -75,6 +75,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
 
   return (
     <div className="flex flex-col gap-2.5">
+      <p className="text-xs font-bold text-slate-700">今の育成を保存する</p>
       <div className="flex flex-wrap items-center gap-1.5">
         <button
           type="button"
@@ -90,6 +91,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
         </span>
       </div>
 
+      <p className="mt-1 text-xs font-bold text-slate-700">保存したものを読み込む・管理する</p>
       <div className="flex flex-wrap items-center gap-1.5">
         <select
           value={selectedSaveId}

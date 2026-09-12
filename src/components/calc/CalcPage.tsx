@@ -1,5 +1,6 @@
 ﻿import { useState } from "react";
 import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
+import { setPlanMatches } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
@@ -133,6 +134,9 @@ export default function CalcPage() {
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
+  /** 探索が終わった回数（評価値の数字を探索後にも動かすための key） */
+  const [runSeq, setRunSeq] = useState(0);
+  const bumpRun = () => setRunSeq((n) => n + 1);
   const markRun = () => {
     if (everRun) return;
     setEverRun(true);
@@ -211,6 +215,7 @@ export default function CalcPage() {
           return;
         }
         selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
+        bumpRun();
         setLastRun({
           message:
             `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(best.score).toLocaleString()}）` +
@@ -443,6 +448,7 @@ export default function CalcPage() {
             notes,
             diagLog: buildDiagLog(res, before, beforeOk, false),
           });
+          bumpRun();
           return;
         }
         if (res.hif)
@@ -476,6 +482,7 @@ export default function CalcPage() {
           notes,
           diagLog: buildDiagLog(res, before, beforeOk, true),
         });
+        bumpRun();
       } finally {
         setOptBusy(false);
       }
@@ -522,10 +529,10 @@ export default function CalcPage() {
   const applyIdolAndPIdol = (idol: string, pIdolCardName: string) => {
     if (idol !== settings.idol) remapSchedulesForIdol(idol);
     calc.update({ idol, pIdol: pIdolCardName });
-    // プロデュース（発動回数セット）はPアイドルのプランのものだけ選べる。
-    // 別プランのものを選んだままなら外して、選び直してもらう
+    // プロデュース（発動回数セット）はPアイドルのプランで使えるものだけ選べる。
+    // 使えないものを選んだままなら外して、選び直してもらう
     const plan = findPIdolMaster(idol, pIdolCardName)?.plan ?? null;
-    if (plan && r.selectedSet?.plan && r.selectedSet.plan !== plan) r.ability.clearSelected();
+    if (!setPlanMatches(r.selectedSet?.plan, plan)) r.ability.clearSelected();
   };
 
   const conditionChips = currentConditions();
@@ -552,7 +559,10 @@ export default function CalcPage() {
   const runPlanOnly = () => {
     markRun();
     setLastRun(null);
-    planOpt.run((m) => setLastRun({ message: m }));
+    planOpt.run((m) => {
+      setLastRun({ message: m });
+      bumpRun();
+    });
   };
   /** 操作パネル（前提のすぐ下＝入れたらそのまま押す。PC・スマホ共通） */
   const actionPanel = (
@@ -581,7 +591,7 @@ export default function CalcPage() {
             type="button"
             onClick={() => setSaveOpen(true)}
             className={BTN_SECONDARY}
-            title="セーブデータの保存・読み込み、計算シートの画像保存"
+            title="育成の状態（前提・踏み方・編成・所持状況）をまるごと保存・読み込み"
           >
             <Save size={13} />
             セーブデータ
@@ -605,6 +615,7 @@ export default function CalcPage() {
           onOpenScenario={() => setScenarioPickerOpen(true)}
           onOpenIdol={() => setIdolPickerOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}
+          onOpenCounts={() => setCountsOpen(true)}
         />
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
@@ -713,7 +724,7 @@ export default function CalcPage() {
                 <>
                   <div className="mt-0.5 flex items-baseline justify-center gap-2">
                     <p
-                      key={previewRating ?? r.rating}
+                      key={`${previewRating ?? r.rating}-${runSeq}`}
                       className={`animate-rating-pop text-4xl font-bold tabular-nums ${
                         previewRating !== null ? "text-amber-600" : "text-blue-600"
                       }`}
@@ -728,37 +739,6 @@ export default function CalcPage() {
                       {produceRank(previewRating ?? r.rating)}
                     </span>
                   </div>
-                  <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                    {r.scenario === "niaMaster" ? (
-                      <>
-                        ステ合計×2.3（
-                        {Math.floor(r.cappedSum * 2.3).toLocaleString()}）＋
-                        ファン投票数の換算値（
-                        {(r.scenarioValues.fanValue ?? 0).toLocaleString()}）
-                      </>
-                    ) : r.scenario === "hatsuLegend" ? (
-                      <>
-                        ステ合計×2.1（
-                        {Math.floor(r.cappedSum * 2.1).toLocaleString()}）＋
-                        順位ボーナス（
-                        {(r.scenarioValues.rankValue ?? 0).toLocaleString()}）＋
-                        試験スコアの換算値（
-                        {(
-                          (r.scenarioValues.midValue ?? 0) +
-                          (r.scenarioValues.finalValue ?? 0)
-                        ).toLocaleString()}）
-                      </>
-                    ) : (
-                      <>
-                        ステ合計×2（{(r.cappedSum * 2).toLocaleString()}）＋
-                        スター性{r.totalStar}×7.5（
-                        {Math.floor(r.totalStar * 7.5).toLocaleString()}）＋
-                        本戦ラウンド点数の評価値（
-                        {(r.roundValues[0] + r.roundValues[1]).toLocaleString()}）−
-                        2,000
-                      </>
-                    )}
-                  </p>
                   {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
                   {conditionChips.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
@@ -772,6 +752,33 @@ export default function CalcPage() {
                       ))}
                     </div>
                   )}
+                  {/* 画像に出力（セーブデータとは別物なので評価値の下に置く） */}
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                    <input
+                      type="text"
+                      value={settings.userName}
+                      onChange={(e) => calc.update({ userName: e.target.value })}
+                      placeholder="名前（任意・画像に載る）"
+                      maxLength={20}
+                      className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      disabled={exportBusy}
+                      onClick={() => {
+                        if (exportBusy) return;
+                        setExportBusy(true);
+                        void exportSheetImage(r, flags.pinned).finally(() =>
+                          setExportBusy(false),
+                        );
+                      }}
+                      title="今の計算（評価値・ステ・サポカ・レッスン・発動回数など）を1枚の画像にして保存します"
+                      className={BTN_SECONDARY}
+                    >
+                      <ImageDown size={13} />
+                      {exportBusy ? "出力中…" : "画像に出力"}
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -888,34 +895,7 @@ export default function CalcPage() {
 
       {/* セーブデータ・画像保存 */}
       {saveOpen && (
-        <Modal title="セーブデータ・画像で保存" onClose={() => setSaveOpen(false)}>
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-            <span className="text-xs font-bold text-slate-700">画像で保存</span>
-            <input
-              type="text"
-              value={settings.userName}
-              onChange={(e) => calc.update({ userName: e.target.value })}
-              placeholder="ユーザー名（画像に載る）"
-              maxLength={20}
-              className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
-            />
-            <button
-              type="button"
-              disabled={exportBusy}
-              onClick={() => {
-                if (exportBusy) return;
-                setExportBusy(true);
-                void exportSheetImage(r, flags.pinned).finally(() =>
-                  setExportBusy(false),
-                );
-              }}
-              title="今の計算シートの内容（評価値・ステ・サポカ・レッスン・発動回数など）を画像で保存します"
-              className={BTN_PRIMARY}
-            >
-              <ImageDown size={13} />
-              {exportBusy ? "保存中…" : "画像で保存"}
-            </button>
-          </div>
+        <Modal title="セーブデータ（育成の状態を保存・読み込み）" onClose={() => setSaveOpen(false)}>
           <SaveDataPanel r={r} />
         </Modal>
       )}

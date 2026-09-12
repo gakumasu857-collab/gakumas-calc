@@ -26,9 +26,15 @@ export default function MemoryManager() {
 
   return (
     // モバイルは スロット → 作成フォーム → ライブラリ の順（orderで制御）。
-    // lg以上は 左カラム(スロット+ライブラリ) / 右カラム(作成フォーム) の2カラム。
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_340px] lg:items-start">
-      {/* 左カラム: モバイルでは contents で解体して order を効かせる */}
+    // lg以上は 左カラム(作成フォーム) / 右カラム(スロット+ライブラリ) の2カラム
+    // （作成フォームを左に置いて「まず追加する」動線を先に見せる）。
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[340px_1fr] lg:items-start">
+      {/* 左カラム: 作成フォーム（モバイルではスロットの直後） */}
+      <div className="order-2 lg:order-0">
+        <MemoryCreator onAdd={store.addMemory} />
+      </div>
+
+      {/* 右カラム（スロット＋ライブラリ）: モバイルでは contents で解体して order を効かせる */}
       <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
         {/* items-stretch でボタン列をスロット枠と同じ高さに伸ばし、flex-1で半分ずつ分ける */}
         <div className="order-1 flex flex-wrap items-stretch gap-3 lg:order-0">
@@ -65,11 +71,6 @@ export default function MemoryManager() {
             onDelete={store.deleteMemory}
           />
         </div>
-      </div>
-
-      {/* 右カラム: 作成フォーム（モバイルではスロットの直後） */}
-      <div className="order-2 lg:order-0">
-        <MemoryCreator onAdd={store.addMemory} />
       </div>
 
       {setModal && (

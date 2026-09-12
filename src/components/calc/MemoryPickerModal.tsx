@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Wand2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import MemoryLibrary from "@/components/memory-manager/MemoryLibrary";
 import MemorySlot from "@/components/memory-manager/MemorySlot";
 import Hint from "@/components/Hint";
-import { BTN_PRIMARY, BTN_SECONDARY, NOTE } from "@/components/ui";
+import { BTN_PRIMARY, NOTE } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useCalcResult } from "@/lib/useCalcResult";
@@ -15,10 +14,15 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 /** 目安のテンプレ（メインパラボ60点）を4枚 */
 const TEMPLATE_FILL = ["tpl-role60", "tpl-role60", "tpl-role60", "tpl-role60"];
 
+const TILE =
+  "block cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-left transition hover:border-blue-400 hover:bg-blue-50/40";
+const BADGE = "mb-1 inline-block rounded bg-blue-600 px-1.5 py-0.5 text-[11px] font-bold text-white";
+
 /**
  * 計算ページ内でメモリー4枚を選ぶモーダル。
- * 説明は1行にして、道を2つ（A: 自分のメモリーを登録して選ぶ／B: 未定なら目安のテンプレを1クリックで4枚）
- * 大きく見せる。長い説明は ⓘ に寄せる。作成・セット保存はメモリーページ。
+ * まだ何も選んでおらず自分のメモリーも無いときだけ、道を2つ（A: メモリーページで登録する／
+ * B: 目安のテンプレを4枚入れる）押せる枠で見せる。どちらかを押したら枠は消える。
+ * 長い説明は ⓘ に寄せる。作成・セット保存はメモリーページ。
  */
 export default function MemoryPickerModal({
   r,
@@ -36,6 +40,8 @@ export default function MemoryPickerModal({
   }, [store.selected]);
   // 自分で登録したメモリーがまだ無い（テンプレだけ）
   const noOwn = store.allMemories.every((m) => m.isTemplate);
+  const showPaths = store.selected.length === 0 && noOwn;
+  const fillTemplate = () => store.setSelection(TEMPLATE_FILL);
 
   return (
     <Modal title="メモリーを4枚選ぶ" onClose={onClose} widthClass="max-w-4xl">
@@ -44,41 +50,40 @@ export default function MemoryPickerModal({
         <b>固定ステータスとパラメータボーナス%</b>が評価値に大きく効きます。
       </p>
 
-      {/* 2つの道 */}
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-            <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[11px] text-white">A</span>
-            持っているメモリーで計算する
-          </p>
-          <p className="text-xs leading-relaxed text-slate-500">
-            メモリーページで登録すると、下の一覧に出て選べます。
-            {noOwn && <b className="text-amber-700">（まだ登録がありません）</b>}
-          </p>
-          <Link to="/memory" className={`${BTN_SECONDARY} self-start`}>
-            <Plus size={13} />
-            自分のメモリーを登録する
+      {showPaths && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Link to="/memory" className={TILE}>
+            <span className={BADGE}>A</span>
+            <span className="block text-sm font-bold text-slate-800">
+              持っているメモリーを登録して使う
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              メモリーページで登録します（まだ登録がありません）
+            </span>
           </Link>
-        </div>
-        <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-          <p className="flex items-center gap-1.5 text-sm font-bold text-slate-800">
-            <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[11px] text-white">B</span>
-            まだ決まっていない → 目安のテンプレ
-          </p>
-          <p className="flex flex-wrap items-center gap-1 text-xs leading-relaxed text-slate-600">
-            「メインパラボ60点」＝ パラボ+2.8%が上位2タイプ、残りの1タイプは固定+20 の想定
-            <Hint text={GLOSSARY.mainParabo} />
-          </p>
-          <button
-            type="button"
-            onClick={() => store.setSelection(TEMPLATE_FILL)}
-            className={`${BTN_PRIMARY} self-start`}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={fillTemplate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fillTemplate();
+              }
+            }}
+            className={TILE}
           >
-            <Wand2 size={14} />
-            メインパラボ60点 ×4枚を入れる
-          </button>
+            <span className={BADGE}>B</span>
+            <span className="block text-sm font-bold text-slate-800">
+              まだ決まっていない → メインパラボ60点 ×4枚を入れる
+            </span>
+            <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+              パラボ+2.8%が上位2タイプ、残りの1タイプは固定+20 の想定
+              <Hint text={GLOSSARY.mainParabo} />
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-3">
         <MemorySlot memories={slotMemories} onRemove={store.deselectAt} />
@@ -97,7 +102,13 @@ export default function MemoryPickerModal({
         <button type="button" onClick={onClose} className={BTN_PRIMARY}>
           この{store.selected.length}枚で決定
         </button>
-        <span className={NOTE}>一覧のカードをクリックで追加、−で外せます。</span>
+        <span className={NOTE}>
+          一覧のカードをクリックで追加、−で外せます。登録・セット保存は{" "}
+          <Link to="/memory" className="text-blue-600 underline">
+            メモリーページ
+          </Link>
+          。
+        </span>
       </div>
     </Modal>
   );
