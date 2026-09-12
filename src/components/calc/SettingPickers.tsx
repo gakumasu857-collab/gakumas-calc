@@ -97,8 +97,8 @@ function TypeSlotAllocator({
 
 /**
  * 探索の条件（理論評価値を求めるときの前提）をまとめるモーダル。
- * 「基本」（タイプ割合・最低/最高ステ・ステージアイテム）と
- * 「詳細」（SP率持ちの枚数・取得回数・試験補助）の2タブ。説明は ⓘ に寄せる。
+ * 「基本」（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN）と
+ * 「詳細」（最低/最高ステ・取得回数）の2タブ。説明は ⓘ に寄せる。
  */
 export function TheorySettingsModal({
   settings,
@@ -159,71 +159,6 @@ export function TheorySettingsModal({
       <div className="flex flex-col gap-4 text-sm text-slate-700">
         {tab === "basic" ? (
           <>
-            {/* サポカ編成のタイプ割合 */}
-            <section>
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={ratio.enabled}
-                  onChange={(e) =>
-                    onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
-                  }
-                  className="accent-blue-600"
-                />
-                サポカ編成のタイプ割合を決める
-                <Hint text={GLOSSARY.typeRatio} />
-              </label>
-              <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
-                <TypeSlotAllocator
-                  ratio={ratio}
-                  disabled={!ratio.enabled}
-                  onChange={(type, v) =>
-                    onUpdate({ typeRatio: { ...ratio, [type]: v } })
-                  }
-                />
-              </div>
-            </section>
-
-            {/* タイプ別の最低ステータス */}
-            <section className="border-t border-slate-100 pt-3">
-              <p className="flex items-center gap-1 font-semibold">
-                最低ステータス
-                <span className="text-xs font-normal text-slate-400">（0=条件なし）</span>
-                <Hint text={GLOSSARY.minStat} />
-              </p>
-              {statRow(settings.minStats, (type, v) =>
-                onUpdate({ minStats: { ...settings.minStats, [type]: v } }),
-              )}
-            </section>
-
-            {/* タイプ別の最高ステータス */}
-            <section className="border-t border-slate-100 pt-3">
-              <p className="flex items-center gap-1 font-semibold">
-                最高ステータス
-                <span className="text-xs font-normal text-slate-400">（3200=制限なし）</span>
-                <Hint text={GLOSSARY.maxStat} />
-              </p>
-              {statRow(settings.maxStats, (type, v) =>
-                onUpdate({ maxStats: { ...settings.maxStats, [type]: v } }),
-              )}
-            </section>
-
-            {/* ステージアイテム */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={settings.noStageItems}
-                  onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
-                  className="accent-blue-600"
-                />
-                ステージに入るPアイテム・スキルのサポカを編成しない
-                <Hint text={GLOSSARY.stageItems} />
-              </label>
-            </section>
-          </>
-        ) : (
-          <>
             {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
             <section>
               <p className="flex items-center gap-1 font-semibold">
@@ -260,6 +195,84 @@ export function TheorySettingsModal({
               <p className="mt-1 text-[11px] text-slate-400">
                 トレーナーなど「全SPレッスン率」持ちは全タイプの1枚として数えます。
               </p>
+            </section>
+
+            {/* サポカ編成のタイプ割合 */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={ratio.enabled}
+                  onChange={(e) =>
+                    onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
+                  }
+                  className="accent-blue-600"
+                />
+                サポカ編成のタイプ割合を決める
+                <Hint text={GLOSSARY.typeRatio} />
+              </label>
+              <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
+                <TypeSlotAllocator
+                  ratio={ratio}
+                  disabled={!ratio.enabled}
+                  onChange={(type, v) =>
+                    onUpdate({ typeRatio: { ...ratio, [type]: v } })
+                  }
+                />
+              </div>
+            </section>
+
+            {/* 試験補助 */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.examAssist}
+                  onChange={(e) => onUpdate({ examAssist: e.target.checked })}
+                  className="accent-blue-600"
+                />
+                試験補助を強めにする（試験に強いサポカで編成）
+                <Hint text={GLOSSARY.examAssist} />
+              </label>
+            </section>
+            {/* ステージアイテム */}
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.noStageItems}
+                  onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
+                  className="accent-blue-600"
+                />
+                ステージに入るPアイテム・スキルのサポカを編成しない
+                <Hint text={GLOSSARY.stageItems} />
+              </label>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* タイプ別の最低ステータス */}
+            <section>
+              <p className="flex items-center gap-1 font-semibold">
+                最低ステータス
+                <span className="text-xs font-normal text-slate-400">（0=条件なし）</span>
+                <Hint text={GLOSSARY.minStat} />
+              </p>
+              {statRow(settings.minStats, (type, v) =>
+                onUpdate({ minStats: { ...settings.minStats, [type]: v } }),
+              )}
+            </section>
+
+            {/* タイプ別の最高ステータス */}
+            <section className="border-t border-slate-100 pt-3">
+              <p className="flex items-center gap-1 font-semibold">
+                最高ステータス
+                <span className="text-xs font-normal text-slate-400">（3200=制限なし）</span>
+                <Hint text={GLOSSARY.maxStat} />
+              </p>
+              {statRow(settings.maxStats, (type, v) =>
+                onUpdate({ maxStats: { ...settings.maxStats, [type]: v } }),
+              )}
             </section>
 
             {/* 取得回数（前イベ取得・後イベ発動の上限） */}
@@ -308,19 +321,6 @@ export function TheorySettingsModal({
               </div>
             </section>
 
-            {/* 試験補助 */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={settings.examAssist}
-                  onChange={(e) => onUpdate({ examAssist: e.target.checked })}
-                  className="accent-blue-600"
-                />
-                試験補助を強めにする（試験に強いサポカで編成）
-                <Hint text={GLOSSARY.examAssist} />
-              </label>
-            </section>
           </>
         )}
       </div>

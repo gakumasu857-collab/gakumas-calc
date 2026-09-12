@@ -17,3 +17,19 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN",
     "Noto Sans JP", Meiryo, sans-serif;
 }
+
+/* 評価値が変わった瞬間に少し大きくして目立たせる（要素の key を変えて再マウントすると再生される） */
+@keyframes rating-pop {
+  0% {
+    transform: scale(1.18);
+  }
+  60% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-rating-pop {
+  animation: rating-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ClipboardCopy, Settings, Sparkles } from "lucide-react";
+import { ArrowDown, ChevronDown, ClipboardCopy, Settings, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
 
@@ -17,8 +17,7 @@ export type RunStatus = {
   diagLog?: string | null;
 };
 
-/** 探索ボタンに必要なもの（操作パネルとスマホの下バーで共通） */
-export type RunHandlers = {
+type RunHandlers = {
   busy: boolean;
   ready: boolean;
   notReadyTitle?: string;
@@ -27,23 +26,26 @@ export type RunHandlers = {
   onPlanOnly: () => void;
 };
 
-/**
- * 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ）。
- * PCの操作パネルとスマホの下バーで共用する（下バーでは一覧を上へ開く）。
- */
-export function RunButtons({
+/** 主役ボタン「理想の編成と踏み方を求める」＋ ▾（編成だけ／踏み方だけ） */
+function RunButtons({
   busy,
   ready,
   notReadyTitle,
+  highlight,
   onRun,
   onFormationOnly,
   onPlanOnly,
-  menuUp = false,
-  className = "",
-}: RunHandlers & { menuUp?: boolean; className?: string }) {
+}: RunHandlers & {
+  /** 初回（前提がそろって、まだ一度も押していない）は光らせる */
+  highlight: boolean;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div className={`flex items-stretch ${className}`}>
+    <div
+      className={`flex min-w-0 flex-1 items-stretch rounded-lg ${
+        highlight ? "shadow-[0_0_0_4px_rgba(147,197,253,0.7)]" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={onRun}
@@ -67,16 +69,14 @@ export function RunButtons({
           aria-expanded={menuOpen}
           className={`${BTN_PRIMARY} rounded-l-none border-l border-blue-400 px-2`}
         >
-          <ChevronDown size={14} className={menuUp ? "rotate-180" : ""} />
+          <ChevronDown size={14} />
         </button>
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
             <div
               role="menu"
-              className={`absolute right-0 z-30 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg ${
-                menuUp ? "bottom-full mb-1" : "top-full mt-1"
-              }`}
+              className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg"
             >
               <MenuItem
                 title="今の踏み方のまま、サポカ編成だけ"
@@ -103,9 +103,9 @@ export function RunButtons({
 }
 
 /**
- * 操作パネル（「育成の前提」のすぐ下＝前提を入れたらそのまま押す）。
- * PCでは主役ボタン＋「探索の条件」をここに出す。スマホではボタンは画面下のバー
- * （MobileActionBar）にあるので、ここには所持状況の注記と直近の探索の内訳だけを出す。
+ * 操作パネル（「育成の前提」のすぐ下＝前提を入れたらそのまま押す。PC・スマホ共通）。
+ * 主役ボタン＋▾と「探索の条件」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す。
+ * 下に所持状況の注記と、直近の探索の内訳（何通り・何秒・前後の評価値）と診断ログ。
  */
 export default function ActionPanel({
   busy,
@@ -113,6 +113,7 @@ export default function ActionPanel({
   missingInputs,
   notReadyTitle,
   ownershipUnset,
+  showArrow,
   status,
   onRun,
   onFormationOnly,
@@ -122,6 +123,8 @@ export default function ActionPanel({
   missingInputs: string[];
   /** 所持状況ページをまだ開いていない（全サポカ完凸で計算中） */
   ownershipUnset: boolean;
+  /** 前提がそろっていて、まだ一度も探索を押していない */
+  showArrow: boolean;
   status: RunStatus | null;
   onConditions: () => void;
 }) {
@@ -149,110 +152,106 @@ export default function ActionPanel({
     status && status.before != null && status.after != null
       ? status.after - status.before
       : null;
-  // 注記も内訳も無いときはスマホでは何も出さない（PCはボタンがあるので常に出す）
-  const hasBody = ownershipUnset || !!status;
 
   return (
-    <section
-      className={`rounded-xl border border-slate-200 bg-white p-3 ${hasBody ? "" : "hidden lg:block"}`}
-    >
-      {/* ボタン列はPCだけ（スマホは画面下のバーに同じボタンがある） */}
-      <div className="hidden lg:block">
+    <section className="rounded-xl border border-slate-200 bg-white p-3">
+      {showArrow && (
+        <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-blue-700">
+          <ArrowDown size={18} className="shrink-0 animate-bounce" />
+          前提がそろいました。押すと理想のサポカ編成と踏み方が出ます
+        </p>
+      )}
+      <div className="flex items-stretch gap-2">
         <RunButtons
           busy={busy}
           ready={ready}
           notReadyTitle={notReadyTitle}
+          highlight={showArrow}
           onRun={onRun}
           onFormationOnly={onFormationOnly}
           onPlanOnly={onPlanOnly}
         />
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onConditions}
-            className={`${BTN_SECONDARY} shrink-0`}
-            title="タイプ割合・最低/最高ステ・SP率持ち・取得回数・試験補助など"
-          >
-            <Settings size={13} />
-            探索の条件
-          </button>
-          {!ready && (
-            <p className="text-[11px] font-semibold text-amber-600">
-              「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
-            </p>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={onConditions}
+          className={`${BTN_SECONDARY} shrink-0`}
+          title="探索の条件（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BANなど）"
+        >
+          <Settings size={14} />
+          {/* 幅の狭い画面では主役ボタンの文字を切らないよう、アイコンだけにする（説明は title） */}
+          <span className="hidden sm:inline">探索の条件</span>
+        </button>
       </div>
+      {!ready && (
+        <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
+          「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
+        </p>
+      )}
+      {ownershipUnset && (
+        <p className="mt-1.5 text-[11px] text-amber-700">
+          所持状況が未入力です（全サポカ完凸で計算）
+          <Link to="/support" className="ml-1 font-bold underline">
+            入力する
+          </Link>
+        </p>
+      )}
 
-      {hasBody && (
-        <div className="flex flex-col gap-1.5 lg:mt-2">
-          {ownershipUnset && (
-            <p className="text-[11px] text-amber-700">
-              所持状況が未入力です（全サポカ完凸で計算）
-              <Link to="/support" className="ml-1 font-bold underline">
-                入力する
-              </Link>
-            </p>
-          )}
-
-          {/* 直近の探索の内訳 */}
-          {status && (
-            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-              {status.message ? (
-                <p className="font-semibold text-slate-700">{status.message}</p>
-              ) : (
-                <p className="tabular-nums">
-                  前回の探索:{" "}
-                  {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
-                  {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
-                  {status.before != null && status.after != null && (
-                    <>
-                      {" ／ "}
-                      {status.before.toLocaleString()} → {status.after.toLocaleString()}
-                      {delta !== null && (
-                        <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
-                          （{delta >= 0 ? "+" : ""}
-                          {delta.toLocaleString()}）
-                        </span>
-                      )}
-                    </>
-                  )}
-                  {status.kept && (
-                    <span className="ml-1 font-semibold text-slate-700">
-                      今の評価値を下回ったため変更なし
+      {/* 直近の探索の内訳 */}
+      {status && (
+        <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
+          {status.message ? (
+            <p className="font-semibold text-slate-700">{status.message}</p>
+          ) : (
+            <p className="tabular-nums">
+              前回の探索:{" "}
+              {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
+              {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
+              {status.before != null && status.after != null && (
+                <>
+                  {" ／ "}
+                  {status.before.toLocaleString()} → {status.after.toLocaleString()}
+                  {delta !== null && (
+                    <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      （{delta >= 0 ? "+" : ""}
+                      {delta.toLocaleString()}）
                     </span>
                   )}
-                </p>
+                </>
               )}
-              {status.notes?.map((n) => (
-                <p key={n} className="text-amber-700">
-                  ・{n}
-                </p>
-              ))}
-              {status.diagLog && (
-                <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={copyLog}
-                    className={`${BTN_GHOST} -ml-2`}
-                    title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
-                  >
-                    <ClipboardCopy size={12} />
-                    診断ログをコピー
-                  </button>
-                  {copied && <span className="text-emerald-600">コピーしました</span>}
-                </div>
+              {status.kept && (
+                <span className="ml-1 font-semibold text-slate-700">
+                  今の評価値を下回ったため変更なし
+                </span>
               )}
-              {logShown && status.diagLog && (
-                <textarea
-                  readOnly
-                  value={status.diagLog}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
-                  title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
-                />
-              )}
+            </p>
+          )}
+          {status.notes?.map((n) => (
+            <p key={n} className="text-amber-700">
+              ・{n}
+            </p>
+          ))}
+          {status.diagLog && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={copyLog}
+                className={`${BTN_GHOST} -ml-2`}
+                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
+              >
+                <ClipboardCopy size={12} />
+                診断ログをコピー
+              </button>
+              {copied && <span className="text-emerald-600">コピーしました</span>}
             </div>
+          )}
+          {logShown && status.diagLog && (
+            <textarea
+              readOnly
+              value={status.diagLog}
+              onFocus={(e) => e.currentTarget.select()}
+              className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
+              title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
+            />
           )}
         </div>
       )}

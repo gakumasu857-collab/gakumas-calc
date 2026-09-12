@@ -139,14 +139,8 @@ function ExamBars({ exams }: { exams: Record<TypeKey, number>[] }) {
  * 授業・営業は順番どおりに同じ大きさで、選抜は細い配分バー＋割合。
  */
 export function PlanChips({ plan }: { plan: PlanSummary }) {
-  const hasSub = plan.lessons.some((l) => l.sub);
   const hasNormal = plan.lessons.some((l) => l.type && !l.sp);
-  const notes = [
-    hasSub ? "右下＝サブ" : "",
-    hasNormal ? "薄い点線＝通常レッスン（SPなし）" : "",
-  ]
-    .filter(Boolean)
-    .join("　");
+  const notes = hasNormal ? "薄い点線＝通常レッスン（SPなし）" : "";
   return (
     <div className="flex flex-col gap-2.5">
       <Row label="レッスン" note={notes || undefined}>

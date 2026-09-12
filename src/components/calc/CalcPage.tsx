@@ -1,27 +1,17 @@
 ﻿import { useState } from "react";
-import {
-  ChevronDown,
-  HelpCircle,
-  ImageDown,
-  Save,
-  Settings,
-} from "lucide-react";
-import { FINAL_ROUNDS } from "@/data/schedule";
-import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
+import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
-import { Card, Field } from "@/components/calc/CalcCard";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
-import MobileActionBar from "@/components/calc/MobileActionBar";
 import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
+import PremiseCard from "@/components/calc/PremiseCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
-import SetPickerField from "@/components/calc/SetPickerField";
 import {
   IdolPickerModal,
   ScenarioPickerModal,
@@ -64,7 +54,7 @@ import {
   missingCalcInputs,
   notReadyTitle as notReadyTitleOf,
 } from "@/lib/optimizeReady";
-import { IDOL_RANKS } from "@/lib/pIdol";
+import { findPIdolMaster, IDOL_RANKS } from "@/lib/pIdol";
 import { produceRank } from "@/lib/produceRank";
 import {
   preEventAutoActivations,
@@ -89,16 +79,21 @@ const TYPE_JA: Record<TypeKey, "Vo" | "Da" | "Vi"> = {
   dance: "Da",
   visual: "Vi",
 };
-const TYPE_CHIP: Record<TypeKey, string> = {
-  vocal: "bg-red-100 text-red-700",
-  dance: "bg-blue-100 text-blue-700",
-  visual: "bg-yellow-100 text-yellow-700",
+/** 一度でも探索を押したか（押すまでは、前提がそろったらボタンの上に動く矢印を出す） */
+const EVER_RUN_KEY = "gakumas:calc:everRun:v1";
+const readEverRun = (): boolean => {
+  try {
+    return localStorage.getItem(EVER_RUN_KEY) === "1";
+  } catch {
+    return false;
+  }
 };
-/** シナリオごとの色と短縮名（設定ボタンのミニ■用。NIAは紫） */
-const SCENARIO_STYLE: Record<ScenarioKey, { short: string; bg: string }> = {
-  hif: { short: "H.I.F.", bg: "bg-sky-500" },
-  niaMaster: { short: "N.I.A.", bg: "bg-violet-500" },
-  hatsuLegend: { short: "初", bg: "bg-amber-500" },
+const writeEverRun = () => {
+  try {
+    localStorage.setItem(EVER_RUN_KEY, "1");
+  } catch {
+    // 保存できなくても動作には影響しない
+  }
 };
 
 /**
@@ -137,6 +132,12 @@ export default function CalcPage() {
   const [ownConfirmOpen, setOwnConfirmOpen] = useState(false);
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
+  const [everRun, setEverRun] = useState<boolean>(readEverRun);
+  const markRun = () => {
+    if (everRun) return;
+    setEverRun(true);
+    writeEverRun();
+  };
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
 
@@ -156,6 +157,7 @@ export default function CalcPage() {
    * 全自動最適化（理論評価値）と同じものを引き継ぐ。
    */
   const applyIdealFormation = () => {
+    markRun();
     setIdealBusy(true);
     setLastRun(null);
     // 「計算中…」を先に描画させてから重い探索を回す
@@ -408,6 +410,7 @@ export default function CalcPage() {
    * （何通り・何秒・前後の評価値）と注意だけを残す。
    */
   const runAutoOptimize = () => {
+    markRun();
     setOptBusy(true);
     setLastRun(null);
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
@@ -519,9 +522,12 @@ export default function CalcPage() {
   const applyIdolAndPIdol = (idol: string, pIdolCardName: string) => {
     if (idol !== settings.idol) remapSchedulesForIdol(idol);
     calc.update({ idol, pIdol: pIdolCardName });
+    // プロデュース（発動回数セット）はPアイドルのプランのものだけ選べる。
+    // 別プランのものを選んだままなら外して、選び直してもらう
+    const plan = findPIdolMaster(idol, pIdolCardName)?.plan ?? null;
+    if (plan && r.selectedSet?.plan && r.selectedSet.plan !== plan) r.ability.clearSelected();
   };
 
-  const memoryCount = r.memoryStore.selected.length;
   const conditionChips = currentConditions();
   // 所持状況ページをまだ開いていない（全サポカ完凸で計算中）。「全完凸のまま進む」を選んだ後は出さない
   const ownershipUnset = !readOwnershipVisited();
@@ -544,10 +550,11 @@ export default function CalcPage() {
 
   const anyBusy = optBusy || idealBusy || planOpt.busy;
   const runPlanOnly = () => {
+    markRun();
     setLastRun(null);
     planOpt.run((m) => setLastRun({ message: m }));
   };
-  /** 操作パネル（前提のすぐ下）。スマホではボタン部は画面下のバー（MobileActionBar）に出る */
+  /** 操作パネル（前提のすぐ下＝入れたらそのまま押す。PC・スマホ共通） */
   const actionPanel = (
     <ActionPanel
       busy={anyBusy}
@@ -555,6 +562,7 @@ export default function CalcPage() {
       missingInputs={missingInputs}
       notReadyTitle={notReadyTitle}
       ownershipUnset={ownershipNote}
+      showArrow={optimizeReady && !everRun}
       status={lastRun}
       onRun={requestAutoOptimize}
       onFormationOnly={applyIdealFormation}
@@ -564,7 +572,7 @@ export default function CalcPage() {
   );
 
   return (
-    <div className="grid gap-4 pb-24 lg:grid-cols-[1fr_360px] lg:items-start lg:pb-0">
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -591,119 +599,15 @@ export default function CalcPage() {
 
       {/* ===== 入力（デスクトップでは左） ===== */}
       <div className="flex min-w-0 flex-col gap-4 lg:order-1">
-        {/* 育成の前提（シナリオ・Pアイドル・育成パターン・メモリー・本戦点数・開始時のステ）。全部そろうと探索できる */}
-        <Card
-          title="育成の前提"
-          hint={<Hint text={GLOSSARY.premise} />}
-          frameClass="border-2 border-blue-500"
-          action={
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-              探索に必要な入力
-            </span>
-          }
-        >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Field label="育成シナリオ">
-              <button
-                type="button"
-                onClick={() => setScenarioPickerOpen(true)}
-                className={`${INPUT} flex w-full items-center gap-2 text-left ${
-                  r.scenarioStore.chosen ? "" : "border-amber-400 bg-amber-50"
-                }`}
-              >
-                {r.scenarioStore.chosen ? (
-                  <>
-                    <span
-                      className={`h-4 w-4 shrink-0 rounded ${SCENARIO_STYLE[r.scenario].bg}`}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {SCENARIO_LABELS[r.scenario]}
-                    </span>
-                  </>
-                ) : (
-                  <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
-                    未選択（クリックして選ぶ）
-                  </span>
-                )}
-                <ChevronDown size={14} className="shrink-0 text-slate-400" />
-              </button>
-            </Field>
-            <Field label="アイドル・Pアイドル">
-              <button
-                type="button"
-                onClick={() => setIdolPickerOpen(true)}
-                className={`${INPUT} flex w-full items-center justify-between gap-2 text-left ${
-                  settings.pIdol && r.pMaster ? "" : "border-amber-400 bg-amber-50"
-                }`}
-              >
-                <span className="truncate">
-                  {settings.pIdol && r.pMaster ? (
-                    `${settings.idol} / ${r.pMaster.cardName}`
-                  ) : (
-                    <b className="text-amber-700">
-                      {settings.idol
-                        ? `${settings.idol}（Pアイドル未選択）`
-                        : "未選択（クリックして選ぶ）"}
-                    </b>
-                  )}
-                </span>
-                <ChevronDown size={14} className="shrink-0 text-slate-400" />
-              </button>
-            </Field>
-            <Field
-              label={
-                <span className="flex items-center gap-1">
-                  育成パターン（発動回数）
-                  <Hint text={GLOSSARY.pattern} />
-                </span>
-              }
-            >
-              <SetPickerField r={r} />
-            </Field>
-            {/* メモリー（計算ページ内のモーダルで4枚を選ぶ） */}
-            <Field
-              label={
-                <span className="flex items-center gap-1">
-                  メモリー
-                  <Hint text={GLOSSARY.memory} />
-                </span>
-              }
-            >
-              <button
-                type="button"
-                onClick={() => setMemoryOpen(true)}
-                className={`${INPUT} flex w-full items-center gap-2 text-left ${
-                  memoryCount === 0 ? "border-amber-400 bg-amber-50" : ""
-                }`}
-              >
-                {memoryCount === 0 ? (
-                  <span className="min-w-0 flex-1 truncate font-bold text-amber-700">
-                    未選択（クリックして選ぶ）
-                  </span>
-                ) : (
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                    <span className="text-xs text-slate-500">{memoryCount}枚</span>
-                    {TYPE_KEYS.map((t) => (
-                      <span
-                        key={t}
-                        className={`rounded px-1.5 py-0.5 text-xs ${TYPE_CHIP[t]}`}
-                      >
-                        {TYPE_JA[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
-                      </span>
-                    ))}
-                  </span>
-                )}
-                <ChevronDown size={14} className="shrink-0 text-slate-400" />
-              </button>
-            </Field>
-          </div>
+        {/* まず、育成の前提を設定（シナリオ・Pアイドル・プロデュース・メモリー・本戦点数）。4つそろうと探索できる */}
+        <PremiseCard
+          r={r}
+          onOpenScenario={() => setScenarioPickerOpen(true)}
+          onOpenIdol={() => setIdolPickerOpen(true)}
+          onOpenMemory={() => setMemoryOpen(true)}
+        />
 
-          {/* 本戦・試験の点数（設定ブロック内） */}
-          <ScenarioScoreCard r={r} />
-
-        </Card>
-
-        {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す。スマホではボタンは画面下のバー */}
+        {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         {actionPanel}
 
         {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
@@ -777,19 +681,23 @@ export default function CalcPage() {
         className="flex scroll-mt-16 flex-col gap-3 lg:order-2 lg:sticky lg:top-14 lg:self-start"
       >
         {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示）。
-            青い枠は「育成の前提」に譲り、ここは数字の背景色で状態を出す */}
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+            数字は key を変えて再マウントし、変わった瞬間に少し大きくなる（手で変えると効くのが分かる） */}
+        <div
+          className={`rounded-xl border-2 bg-white p-3 ${
+            !canShowRating
+              ? "border-slate-300"
+              : previewRating !== null
+                ? "border-amber-500"
+                : "border-blue-600"
+          }`}
+        >
           <div className="flex items-center gap-3">
             {/* Pアイドル（画像クリック=選択・歯車=特訓/開花） */}
             <div className="flex w-24 shrink-0 flex-col items-center gap-1">
               <PIdolImageEditor r={r} onOpenPicker={() => setIdolPickerOpen(true)} />
               <PIdolInfo r={r} />
             </div>
-            <div
-              className={`min-w-0 flex-1 rounded-lg py-1.5 text-center ${
-                !canShowRating ? "" : previewRating !== null ? "bg-amber-50" : "bg-blue-50"
-              }`}
-            >
+            <div className="min-w-0 flex-1 text-center">
               <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
                 評価値
                 <Hint text={GLOSSARY.rating} />
@@ -799,13 +707,14 @@ export default function CalcPage() {
               </p>
               {!canShowRating ? (
                 <p className="mt-2 text-xs text-slate-400">
-                  サポカを6枚編成し、育成パターンを選ぶと表示されます。
+                  サポカを6枚編成し、プロデュースを選ぶと表示されます。
                 </p>
               ) : (
                 <>
                   <div className="mt-0.5 flex items-baseline justify-center gap-2">
                     <p
-                      className={`text-4xl font-bold tabular-nums ${
+                      key={previewRating ?? r.rating}
+                      className={`animate-rating-pop text-4xl font-bold tabular-nums ${
                         previewRating !== null ? "text-amber-600" : "text-blue-600"
                       }`}
                     >
@@ -1014,149 +923,7 @@ export default function CalcPage() {
       {/* 発動回数・踏み方のエディタ（「サポカ編成と踏み方」から開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
-
-      {/* スマホの画面下バー（求める▾・条件・評価値→結果へ）。PCでは出さない */}
-      <MobileActionBar
-        busy={anyBusy}
-        ready={optimizeReady}
-        missingInputs={missingInputs}
-        notReadyTitle={notReadyTitle}
-        rating={canShowRating ? (previewRating ?? r.rating) : null}
-        rank={canShowRating ? produceRank(previewRating ?? r.rating) : null}
-        preview={previewRating !== null}
-        onRun={requestAutoOptimize}
-        onFormationOnly={applyIdealFormation}
-        onPlanOnly={runPlanOnly}
-        onConditions={() => setTheoryOpen(true)}
-      />
     </div>
-  );
-}
-
-/** シナリオ別の本戦・試験スコア入力（評価値の上に置く） */
-/** 設定ブロック内の小見出しつきサブセクション */
-function SettingSub({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2">
-      <p className="mb-1.5 text-xs font-bold text-slate-600">
-        {title}
-        {hint && (
-          <span className="ml-1.5 font-normal text-slate-400">{hint}</span>
-        )}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function ScenarioScoreCard({ r }: { r: ReturnType<typeof useCalcResult> }) {
-  const { calc } = r;
-  const { settings } = calc;
-  if (r.scenario === "hif") {
-    return (
-      <SettingSub title="本戦ラウンド点数" hint="ボーナス前の点数を入力">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(
-            [
-              ["ラウンド1", settings.round1, (v: number) => calc.update({ round1: v }), 0],
-              ["ラウンド2", settings.round2, (v: number) => calc.update({ round2: v }), 1],
-            ] as const
-          ).map(([label, value, onChange, i]) => (
-            <Field key={label} label={label}>
-              <div className="flex items-center gap-2">
-                <NumberField
-                  value={value}
-                  onChange={onChange}
-                  max={FINAL_ROUNDS[i].maxScore}
-                  className="w-32"
-                />
-                <span className="text-xs text-slate-500">
-                  → 評価値 {r.roundValues[i].toLocaleString()} / ★
-                  {FINAL_ROUNDS[i].star}
-                </span>
-              </div>
-            </Field>
-          ))}
-        </div>
-      </SettingSub>
-    );
-  }
-  if (r.scenario === "niaMaster") {
-    return (
-      <SettingSub
-        title="ファン投票数"
-        hint="営業・オーディション・札から自動集計（入力はレッスンページ）"
-      >
-        <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
-          <VoteChip label="営業" value={r.scenarioValues.votesSales ?? 0} />
-          <VoteChip
-            label="1次・2次"
-            value={r.scenarioValues.votesAuditions ?? 0}
-          />
-          <VoteChip label="最終" value={r.scenarioValues.votesFinale ?? 0} />
-          <VoteChip
-            label={`札${r.scenarioValues.totalFuda ?? 0}枚`}
-            value={r.scenarioValues.votesFuda ?? 0}
-          />
-          <span className="font-bold text-slate-800">
-            = 合計 {(r.scenarioValues.totalVotes ?? 0).toLocaleString()}
-          </span>
-          <span className="text-slate-500">
-            → 評価値換算{" "}
-            <b className="text-blue-600">
-              {(r.scenarioValues.fanValue ?? 0).toLocaleString()}
-            </b>
-          </span>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          札 = 発動回数セットの「スキル獲得」{r.scenarioValues.setFuda ?? 0}枚
-          ＋サポカ分 {r.scenarioValues.supportFuda ?? 0}
-          枚（編成のスキル獲得から自動）。2枚ごとに3,000票、余りの1枚は無効。
-        </p>
-      </SettingSub>
-    );
-  }
-  return (
-    <SettingSub title="試験スコア・順位" hint="レッスンページと共有">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Field label="中間試験スコア">
-          <div className="flex items-center gap-2">
-            <NumberField
-              value={r.hatsuSchedule.midScore}
-              onChange={(v) => r.hatsuSchedule.update({ midScore: v })}
-              sliderMax={250000}
-              className="w-32"
-            />
-            <span className="text-xs text-slate-500">
-              → 評価値 {(r.scenarioValues.midValue ?? 0).toLocaleString()}
-            </span>
-          </div>
-        </Field>
-        <Field label="最終試験スコア">
-          <div className="flex items-center gap-2">
-            <NumberField
-              value={r.hatsuSchedule.finalScore}
-              onChange={(v) => r.hatsuSchedule.update({ finalScore: v })}
-              sliderMax={2000000}
-              className="w-32"
-            />
-            <span className="text-xs text-slate-500">
-              → 評価値{" "}
-              {(r.scenarioValues.finalValue ?? 0).toLocaleString()} ／ 順位分{" "}
-              {(r.scenarioValues.rankValue ?? 0).toLocaleString()}
-            </span>
-          </div>
-        </Field>
-      </div>
-    </SettingSub>
   );
 }
 
@@ -1435,19 +1202,6 @@ function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
     </div>
   );
 }
-
-/** ファン投票数の内訳チップ */
-function VoteChip({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="rounded bg-slate-100 px-1.5 py-0.5">
-      {label} <b className="text-slate-700">{value.toLocaleString()}</b>
-    </span>
-  );
-}
-
-const INPUT =
-  "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-blue-500";
-
 
 const SMALL_BTN =
   "flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";

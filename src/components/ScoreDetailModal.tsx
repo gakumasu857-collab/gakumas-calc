@@ -110,7 +110,7 @@ export default function ScoreDetailModal({
                       )}
                       {item.kind === "parabo" && (
                         <span className="text-slate-500">
-                          レッスン・試験の獲得×%を個別にfloorして合算
+                          レッスン・試験の獲得×%をそれぞれ切り捨てて合算
                         </span>
                       )}
                       {item.kind === "excluded" && "—"}
@@ -136,7 +136,7 @@ export default function ScoreDetailModal({
                   <td className={td}>
                     × {bd.itemBonus.activations}回
                     <span className="ml-1 text-slate-400">
-                      （{bd.itemBonus.refKey}・floor）
+                      （{bd.itemBonus.refKey}・切り捨て）
                     </span>
                   </td>
                   <td

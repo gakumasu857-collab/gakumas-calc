@@ -22,12 +22,13 @@ function segmentsOf(scenario: CalcResult["scenario"]): Segment[] {
         : { label: "選抜", short: "選抜" };
   const cls = scenario === "niaMaster" ? "営業" : "授業";
   return [
-    { key: "start", label: "開始時（メモリー・Pアイドル・サポカ初期値）", short: "開始", color: "bg-slate-400" },
-    { key: "lesson", label: "レッスン", short: "レッスン", color: "bg-sky-500" },
-    { key: "exam", label: exam.label, short: exam.short, color: "bg-violet-500" },
-    { key: "class", label: cls, short: cls, color: "bg-amber-500" },
-    { key: "support", label: "サポカ", short: "サポカ", color: "bg-emerald-500" },
-    { key: "parabo", label: "パラボ変換", short: "パラボ", color: "bg-pink-500" },
+    // 色は淡め（ビビッドだと数字より目立つ）
+    { key: "start", label: "開始時（メモリー・Pアイドル・サポカ初期値）", short: "開始", color: "bg-slate-300" },
+    { key: "lesson", label: "レッスン", short: "レッスン", color: "bg-sky-300" },
+    { key: "exam", label: exam.label, short: exam.short, color: "bg-violet-300" },
+    { key: "class", label: cls, short: cls, color: "bg-amber-300" },
+    { key: "support", label: "サポカ", short: "サポカ", color: "bg-emerald-300" },
+    { key: "parabo", label: "パラボ変換", short: "パラボ", color: "bg-pink-300" },
   ];
 }
 

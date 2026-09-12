@@ -13,7 +13,7 @@ import HomePage from "@/components/home/HomePage";
 import MemoryManager from "@/components/memory-manager/MemoryManager";
 import OwnershipPage from "@/components/ownership/OwnershipPage";
 
-/** サポカ編成計算機のメイン（/calc）以外のページ（共通の余白＋見出しで包む） */
+/** プロデュース計算機のメイン（/calc）以外のページ（共通の余白＋見出しで包む） */
 const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
   { path: "/support", title: "所持状況入力", element: <OwnershipPage /> },
   {
@@ -61,7 +61,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           {/* イベントカウンター（開発中・独立ツール） */}
           <Route path="/event-counter" element={<EventCounterPage />} />
-          {/* サポカ編成計算機のメイン */}
+          {/* プロデュース計算機のメイン */}
           <Route
             path="/calc"
             element={

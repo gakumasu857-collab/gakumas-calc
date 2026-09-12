@@ -75,7 +75,7 @@ export default function AbilityCountDrawer({
         ) : (
           <Modal title="発動回数" onClose={() => onClose()}>
             <p className="text-sm text-slate-600">
-              参照セットが未選択です。「育成パターン（発動回数）」で選ぶか、
+              参照セットが未選択です。「育成の前提」のプロデュースで選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">
                 発動回数ページ
               </Link>

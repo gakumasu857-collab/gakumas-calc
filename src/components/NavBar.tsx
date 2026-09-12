@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
-// サポカ編成計算機のナビ（メインは /calc）。使う順（計算→所持状況→メモリー→発動回数）に並べ、
+// プロデュース計算機のナビ（メインは /calc）。使う順（計算→所持状況→メモリー→発動回数）に並べ、
 // 参照系・上級者向け（サポカ設定／点数表／データベース）は「その他」にまとめる。
 // ブランド名クリックでホームへ戻る。
 const TABS = [
@@ -60,7 +60,7 @@ export default function NavBar() {
           className="flex shrink-0 items-center gap-1.5 text-base font-bold tracking-tight text-blue-600 transition hover:text-blue-500"
         >
           <img src="/icon-192.png" alt="" className="h-6 w-6 object-contain" />
-          サポカ編成計算機
+          プロデュース計算機
         </Link>
         {/* タブは折り返さず横スクロール（2行にしない） */}
         <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-thin">

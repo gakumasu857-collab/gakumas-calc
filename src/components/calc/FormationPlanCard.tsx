@@ -27,7 +27,8 @@ const TYPE_TEXT = {
 
 /**
  * 「サポカ編成と踏み方」: サポカ6枚・レッスン（メイン＋サブ・SP）・授業／営業・選抜配分・
- * 開始時のステータス・SP率を1つのカードで一度に見せる。探索を押すとここが書き換わる。
+ * 開始時のステータス・SP率を1つのカードで一度に見せる。探索を押すとここが書き換わり、
+ * 手で変えると評価値がその場で変わる（その旨を1行で書いておく）。
  * 前イベ・後イベ・ステイベの調整（children）は目立つボタンの下に畳んでおく。
  */
 export default function FormationPlanCard({
@@ -65,7 +66,7 @@ export default function FormationPlanCard({
     <Card
       title="サポカ編成と踏み方"
       hint={
-        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（クリックで編集）。自動探索を押すとここが書き換わります。" />
+        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（クリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
       }
       action={
         <>
@@ -79,8 +80,8 @@ export default function FormationPlanCard({
             className={BTN_SECONDARY}
             title={
               r.selectedSet
-                ? `育成パターン「${r.selectedSet.name}」の発動回数を調整`
-                : "育成パターンを選ぶと調整できます"
+                ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
+                : "プロデュースを選ぶと調整できます"
             }
           >
             <ListOrdered size={13} />
@@ -113,78 +114,83 @@ export default function FormationPlanCard({
           />
         ))}
       </div>
+      <p className="mt-2 text-[11px] text-slate-500">
+        サポカ・踏み方・前イベなどを手で変えると、評価値と育成後のステータスがその場で変わります。
+      </p>
 
       {/* 踏み方（クリックで編集） */}
       <button
         type="button"
         onClick={onEditPlan}
         title="クリックで踏み方を編集"
-        className="mt-3 block w-full rounded-lg border border-transparent px-1.5 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50"
+        className="mt-1.5 block w-full rounded-lg border border-transparent px-1.5 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50"
       >
         <PlanChips plan={plan} />
       </button>
 
-      {/* 開始時のステータス（メモリー・Pアイドルの固定値とパラボ%。パラボ変換表もここから） */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
-        <span className="font-bold text-slate-700">開始時のステータス</span>
-        {TYPE_KEYS.map((type) => (
-          <span key={type} className="tabular-nums">
-            <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-            <b className="text-slate-800">{Math.round(r.perType[type].startFixed)}</b>
-            <span className="text-slate-400"> +{r.perType[type].startPct}%</span>
+      {/* 開始時のステータスとSPレッスン率（1つの枠に2行。数字は大きめ） */}
+      <div className="mt-2 divide-y divide-slate-200 rounded-lg bg-slate-50 text-sm text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+          <span className="w-36 font-bold text-slate-700">開始時のステータス</span>
+          {TYPE_KEYS.map((type) => (
+            <span key={type} className="tabular-nums">
+              <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+              <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
+              <span className="text-slate-500"> +{r.perType[type].startPct}%</span>
+            </span>
+          ))}
+          <span className="text-xs text-slate-500">
+            審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
           </span>
-        ))}
-        <span className="text-slate-400">
-          審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
-        </span>
-        <button
-          type="button"
-          onClick={onOpenParabo}
-          title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
-          className={`${BTN_GHOST} ml-auto`}
-        >
-          <Table2 size={12} />
-          パラボ変換表
-        </button>
-      </div>
-
-      {/* SPレッスン率とこの踏み方の実現確率（1行） */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
-        <span className="flex items-center gap-1 font-bold text-slate-700">
-          SPレッスン率上昇
-          <Hint text={GLOSSARY.spRate} />
-        </span>
-        {TYPE_KEYS.map((type) => (
-          <span key={type} className="tabular-nums">
-            <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-            +{(r.spLesson.shown[type] * 100).toFixed(1)}%
+          <button
+            type="button"
+            onClick={onOpenParabo}
+            title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
+            className={`${BTN_GHOST} ml-auto`}
+          >
+            <Table2 size={12} />
+            パラボ変換表
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+          <span className="flex w-36 items-center gap-1 font-bold text-slate-700">
+            SPレッスン率上昇
+            <Hint text={GLOSSARY.spRate} />
           </span>
-        ))}
-        <label className="flex items-center gap-1 text-[11px] text-slate-400">
-          表記外推定SP率
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={settings.baseSpRate}
-            onChange={(e) =>
-              calc.update({ baseSpRate: Math.max(0, Number(e.target.value) || 0) })
-            }
-            className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs text-slate-700"
-          />
-          %
-        </label>
-        <span className="ml-auto tabular-nums">
-          実現確率{" "}
-          {r.scenario === "hif" ? (
-            <>
-              選抜 <b className="text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
-              <b className="text-blue-700">{formatProb(r.spLesson.probHon)}</b>
-            </>
-          ) : (
-            <b className="text-blue-700">{formatProb(r.spLesson.prob)}</b>
-          )}
-        </span>
+          {TYPE_KEYS.map((type) => (
+            <span key={type} className="tabular-nums">
+              <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+              <b className="text-base text-slate-900">
+                +{(r.spLesson.shown[type] * 100).toFixed(1)}%
+              </b>
+            </span>
+          ))}
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            表記外推定SP率
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={settings.baseSpRate}
+              onChange={(e) =>
+                calc.update({ baseSpRate: Math.max(0, Number(e.target.value) || 0) })
+              }
+              className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs text-slate-700"
+            />
+            %
+          </label>
+          <span className="ml-auto text-xs tabular-nums">
+            実現確率{" "}
+            {r.scenario === "hif" ? (
+              <>
+                選抜 <b className="text-sm text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
+                <b className="text-sm text-blue-700">{formatProb(r.spLesson.probHon)}</b>
+              </>
+            ) : (
+              <b className="text-sm text-blue-700">{formatProb(r.spLesson.prob)}</b>
+            )}
+          </span>
+        </div>
       </div>
 
       {/* 前イベ・後イベ・ステイベの調整（畳んであるが目立たせる） */}
@@ -200,7 +206,7 @@ export default function FormationPlanCard({
             }`}
           >
             <SlidersHorizontal size={14} />
-            前イベ・後イベ・ステイベの発動を調整
+            前イベ・後イベ・ステイベの発動を調整（評価値に反映）
             {eventOverrideCount > 0 && (
               <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {eventOverrideCount}枚変更中

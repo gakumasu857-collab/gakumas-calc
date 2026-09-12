@@ -135,7 +135,7 @@ export default function DebugPage() {
               <>
                 <Row label="ステ×2" value={num(r.cappedSum * 2)} />
                 <Row
-                  label={`スター性 ${r.totalStar}（ワッペン${r.starParts.wappen}＋レッスン${r.starParts.lesson}＋選抜${r.starParts.exam}＋本戦${r.starParts.final}）→ floor(×7.5)`}
+                  label={`スター性 ${r.totalStar}（ワッペン${r.starParts.wappen}＋レッスン${r.starParts.lesson}＋選抜${r.starParts.exam}＋本戦${r.starParts.final}）→ ×7.5（切り捨て）`}
                   value={num(Math.floor(r.totalStar * 7.5))}
                 />
                 <Row
