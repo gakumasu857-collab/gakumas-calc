@@ -469,7 +469,7 @@ export default function CalcPage() {
   );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -508,7 +508,7 @@ export default function CalcPage() {
         </div>
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
-        <div className="order-2">{actionPanel}</div>
+        <div className="order-2 min-w-0">{actionPanel}</div>
 
         {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
         {pendingOps && (

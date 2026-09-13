@@ -54,7 +54,7 @@ function RunButtons({
         className={`${BTN_PRIMARY} min-w-0 flex-1 justify-center rounded-r-none`}
       >
         <Sparkles size={15} className="shrink-0" />
-        <span className="min-w-0 truncate">
+        <span className="min-w-0 text-center leading-tight sm:truncate">
           {busy ? "計算中…" : "評価値が最も高くなる編成と踏み方を求める"}
         </span>
       </button>
