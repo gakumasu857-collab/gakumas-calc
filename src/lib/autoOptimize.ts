@@ -159,6 +159,8 @@ export type AutoOptimizeInput = {
     lessons: LessonPick[];
     classTypes: TypeKey[];
     examScores: ExamScores[];
+    /** 選抜ごとの上昇ステの直接入力（null=スコアから）。入力済みの選抜は探索で動かさない */
+    examStats?: (ExamScores | null)[];
   };
   nia: NiaStateLike;
   hatsu: HatsuStateLike & { midScore: number; finalScore: number };
@@ -752,6 +754,7 @@ export class OptimizeEngine {
       lessons: hif.lessons.map((l) => ({ ...l })),
       classTypes: [...hif.classTypes],
       examScores: hif.examScores.map((e) => ({ ...e })),
+      examLocked: hif.examStats?.map((x) => !!x),
     };
   }
 
@@ -829,7 +832,9 @@ export class OptimizeEngine {
         for (const ratio of EXAM_PRESET_RATIOS) {
           seeds.push({
             ...seed,
-            examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+            examScores: seed.examScores.map((e, i) =>
+              this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
+            ),
           });
         }
       }
@@ -904,6 +909,7 @@ export class OptimizeEngine {
       for (let i = 0; i < current.examScores.length; i++) {
         if (performance.now() > this.deadline)
           return { stepping: current, score };
+        if (this.input.hif.examStats?.[i]) continue; // ステ直接入力の選抜は動かさない
         for (const ratio of EXAM_RATIOS_FINE) {
           const e = examScoresFromRatio(i, ratio);
           if (sameExamScores(e, current.examScores[i])) continue;
@@ -1010,8 +1016,8 @@ export class OptimizeEngine {
             type === "dance" ? 1 : 0,
             type === "visual" ? 1 : 0,
           ];
-          const exams = cur.examScores.map((_, k) =>
-            examScoresFromRatio(k, ratio),
+          const exams = cur.examScores.map((e, k) =>
+            this.input.hif.examStats?.[k] ? e : examScoresFromRatio(k, ratio),
           );
           const s: Stepping = { ...cur, lessons, examScores: exams };
           const ectx = this.buildEctx(s);
@@ -1210,8 +1216,8 @@ export class OptimizeEngine {
             ];
             examVariants.push({
               ...base,
-              examScores: base.examScores.map((_, k) =>
-                examScoresFromRatio(k, ratio),
+              examScores: base.examScores.map((e, k) =>
+                this.input.hif.examStats?.[k] ? e : examScoresFromRatio(k, ratio),
               ),
             });
           }
@@ -1490,6 +1496,7 @@ export class OptimizeEngine {
         lessons: s.lessons,
         classTypes: s.classTypes,
         examScores: s.examScores,
+        examStats: input.hif.examStats,
       };
       const sched = computeScheduleGains(state);
       bd = sched.breakdown;
@@ -2056,7 +2063,13 @@ export class OptimizeEngine {
         sp: true,
       })),
       classTypes: CLASSES.map(() => "visual" as TypeKey),
-      examScores: EXAMS.map((_, i) => examScoresUniform(i)),
+      // ステ直接入力の選抜は今のスコアのまま（探索で動かさない）
+      examScores: EXAMS.map((_, i) =>
+        this.input.hif.examStats?.[i]
+          ? this.input.hif.examScores[i]
+          : examScoresUniform(i),
+      ),
+      examLocked: this.input.hif.examStats?.map((x) => !!x),
     };
   }
 
@@ -2301,7 +2314,9 @@ export class OptimizeEngine {
       for (const ratio of EXAM_PRESET_RATIOS) {
         const stepping: Stepping = {
           ...baseStepping,
-          examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+          examScores: baseStepping.examScores.map((e, i) =>
+            this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
+          ),
         };
         const varEctx = this.buildEctx(stepping);
         for (const f of top) {
@@ -2539,7 +2554,9 @@ export class OptimizeEngine {
     const rated = EXAM_PRESET_RATIOS.map((ratio) => {
       const trial: Stepping = {
         ...base,
-        examScores: EXAMS.map((_, i) => examScoresFromRatio(i, ratio)),
+        examScores: base.examScores.map((e, i) =>
+          this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
+        ),
       };
       return {
         stepping: trial,

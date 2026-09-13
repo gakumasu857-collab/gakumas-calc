@@ -496,7 +496,7 @@ export default function CalcPage() {
 
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-        {/* まず、育成の前提を設定（シナリオ・Pアイドル・プロデュース・メモリー・本戦点数）。4つそろうと探索できる */}
+        {/* まずここを設定＝育成の前提（シナリオ・Pアイドル・プロデュース・メモリー・本戦点数）。4つそろうと探索できる */}
         <div className="order-1 min-w-0">
         <PremiseCard
           r={r}

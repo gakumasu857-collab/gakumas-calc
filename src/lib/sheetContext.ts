@@ -80,6 +80,8 @@ export type ScheduleStateLike = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
+  /** 選抜ごとの上昇ステの直接入力（null=スコアから分配） */
+  examStats?: (ExamScores | null)[];
 };
 
 /**

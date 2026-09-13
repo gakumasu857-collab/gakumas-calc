@@ -195,7 +195,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/PremiseCard.tsx`（「まず、育成の前提を設定」: 青い見出し帯（手順1・あと何つ）＋番号つきの4欄（シナリオ・アイドル・プロデュース・メモリー）＋本戦の点数。説明文は置かず、プロデュースを選ぶとその下に「発動回数を調整」ボタン）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
+`calc/PremiseCard.tsx`（「まずここを設定」（育成の前提）: 青い見出し帯（手順1・あと何つ）＋番号つきの4欄（シナリオ・アイドル・プロデュース・メモリー）＋本戦の点数。説明文は置かず、プロデュースを選ぶとその下に「発動回数を調整」ボタン）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
@@ -385,6 +385,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 
 「理想編成」だけのボタン（`applyIdealFormation`）は今の踏み方のまま `findBestFormation` を 1 回、
 踏み方エディタの「選択サポカで踏み方を最適化」（計算ページの ▾「踏み方だけ」も同じ）は今の編成のまま `optimizeSteppingForSlots` を回します。
+ステ直接入力にした選抜（`examStats`）は、全自動でも踏み方だけでも動かしません（`Stepping.examLocked`。スコアの候補を作らず、結果を当てるときも元のスコアを保つ）。
 仕上げの授業寄せ（`applyClassPreference`）はこちらにも掛かります（2026-09-12。以前は掛かっておらず、第3流行が 1100 に届かない配分のまま返していた）。
 
 ### 3-6. 探索の条件の扱い（「探索の条件」モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
@@ -598,7 +599,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calc:everRun:v1` | 探索を一度でも押した印（"1"。無ければ、前提がそろったときボタンの上に動く矢印を出す） | `src/components/calc/CalcPage.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
-| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア） | `src/lib/useSchedule.ts` |
+| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:hatsuSchedule:v1` | 初の踏み方（レッスン、授業、中間／最終の順位とスコア） | `src/lib/useHatsuSchedule.ts` |
 | `gakumas:scenario:v1` | 選択中のシナリオ（`hif` / `niaMaster` / `hatsuLegend` の文字列） | `src/lib/useScenario.ts` |

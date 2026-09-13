@@ -45,6 +45,12 @@ export type ScheduleState = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
+  /**
+   * 選抜ごとの上昇ステの直接入力（パラメータボーナス%は含まない値）。
+   * null はスコアから分配式で出す（既定）。入力した選抜は自動探索で動かさない。
+   * スター性はどちらのときもスコアの合計から計算する。
+   */
+  examStats: (ExamScores | null)[];
 };
 
 const EMPTY_EXAM: ExamScores = { vocal: 0, dance: 0, visual: 0 };
@@ -60,6 +66,7 @@ const DEFAULT_STATE: ScheduleState = {
     const each = DEFAULT_EXAM_EACH[i] ?? 0;
     return { vocal: each, dance: each, visual: each };
   }),
+  examStats: EXAMS.map(() => null),
 };
 
 function otherType(type: TypeKey): TypeKey {
@@ -116,6 +123,7 @@ export function computeScheduleGains(state: {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
+  examStats?: (ExamScores | null)[];
 }) {
   const gains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const lessonGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -149,9 +157,11 @@ export function computeScheduleGains(state: {
   const examRows = EXAMS.map((exam, i) => {
     const scores = state.examScores[i];
     const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
-    const rawDist = distributeExam(i, scores, TYPE_KEYS);
+    // ステ直接入力の選抜はその値をそのまま使う（スター性はスコアの合計から）
+    const manual = state.examStats?.[i] ?? null;
+    const rawDist = manual ?? distributeExam(i, scores, TYPE_KEYS);
     const dist = Object.fromEntries(
-      TYPE_KEYS.map((t) => [t, Math.floor(rawDist[t])]),
+      TYPE_KEYS.map((t) => [t, Math.max(0, Math.floor(rawDist[t]))]),
     ) as Record<TypeKey, number>;
     const starGain = total > 0 ? examStar(i, total) : 0;
     for (const type of TYPE_KEYS) {
@@ -230,7 +240,17 @@ export function loadScheduleState(): ScheduleState {
         return converted;
       });
 
-      return { lessons, classTypes, examScores };
+      // 選抜のステ直接入力（無い旧データはスコア入力）
+      const examStatsRaw = (stored.examStats ?? []) as (Record<string, number> | null)[];
+      const examStats: (ExamScores | null)[] = EXAMS.map((_, i) => {
+        const raw = examStatsRaw[i];
+        if (!raw || typeof raw !== "object") return null;
+        const converted = { ...EMPTY_EXAM };
+        for (const t of TYPE_KEYS) converted[t] = Math.max(0, Number(raw[t]) || 0);
+        return converted;
+      });
+
+      return { lessons, classTypes, examScores, examStats };
     }
   } catch {
     // 破損データは無視
@@ -354,7 +374,14 @@ export function useSchedule() {
         ...prev,
         lessons,
         classTypes,
-        ...(examScores ? { examScores } : {}),
+        // ステ直接入力の選抜はスコアを動かさない（スター性がずれないように）
+        ...(examScores
+          ? {
+              examScores: examScores.map((e, i) =>
+                prev.examStats[i] ? prev.examScores[i] : e,
+              ),
+            }
+          : {}),
       }));
     },
     [],
@@ -391,6 +418,37 @@ export function useSchedule() {
     [],
   );
 
+  /** 選抜ごとの入力の切り替え。ステ入力にするときは今の分配結果を初期値にする */
+  const setExamMode = useCallback((examIndex: number, mode: "score" | "stat") => {
+    setState((prev) => ({
+      ...prev,
+      examStats: prev.examStats.map((s, i) => {
+        if (i !== examIndex) return s;
+        if (mode === "score") return null;
+        if (s) return s;
+        const dist = distributeExam(examIndex, prev.examScores[examIndex], TYPE_KEYS);
+        return {
+          vocal: Math.floor(dist.vocal),
+          dance: Math.floor(dist.dance),
+          visual: Math.floor(dist.visual),
+        };
+      }),
+    }));
+  }, []);
+
+  /** ステ直接入力の値を変える（パラメータボーナス%は含まない） */
+  const setExamStat = useCallback(
+    (examIndex: number, type: TypeKey, value: number) => {
+      setState((prev) => ({
+        ...prev,
+        examStats: prev.examStats.map((s, i) =>
+          i === examIndex && s ? { ...s, [type]: Math.max(0, Math.round(value)) } : s,
+        ),
+      }));
+    },
+    [],
+  );
+
   /**
    * タイプ間の入れ替え（アイドル切替時の審査基準合わせ用）。
    * map[t] = 旧タイプtの踏み方・スコアの移動先タイプ。
@@ -409,6 +467,12 @@ export function useSchedule() {
         for (const t of TYPE_KEYS) next[map[t]] = s[t];
         return next;
       }),
+      examStats: prev.examStats.map((s) => {
+        if (!s) return null;
+        const next = { ...EMPTY_EXAM };
+        for (const t of TYPE_KEYS) next[map[t]] = s[t];
+        return next;
+      }),
     }));
   }, []);
 
@@ -417,7 +481,8 @@ export function useSchedule() {
    * マスタ（LESSONS/CLASSES/EXAMS）の件数が保存時と違っても壊れないよう、
    * 現行の件数に合わせて詰め直す。
    */
-  const replaceAll = useCallback((snapshot: ScheduleState) => {
+  const replaceAll = useCallback(
+    (snapshot: Omit<ScheduleState, "examStats"> & { examStats?: (ExamScores | null)[] }) => {
     setState({
       lessons: LESSONS.map(
         (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
@@ -428,8 +493,12 @@ export function useSchedule() {
       examScores: EXAMS.map(
         (_, i) => snapshot.examScores[i] ?? DEFAULT_STATE.examScores[i],
       ),
+      // 旧セーブ（examStats 無し）はスコア入力
+      examStats: EXAMS.map((_, i) => snapshot.examStats?.[i] ?? null),
     });
-  }, []);
+    },
+    [],
+  );
 
   return {
     ...state,
@@ -446,6 +515,8 @@ export function useSchedule() {
     setPlan,
     setExamScore,
     setExamScores,
+    setExamMode,
+    setExamStat,
     remapTypes,
     loaded: true,
   };

@@ -53,6 +53,7 @@ export function buildAutoOptimizeInput(
       lessons: r.schedule.lessons,
       classTypes: r.schedule.classTypes,
       examScores: r.schedule.examScores,
+      examStats: r.schedule.examStats,
     },
     nia: r.niaSchedule,
     hatsu: r.hatsuSchedule,

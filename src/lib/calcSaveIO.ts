@@ -29,6 +29,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
       lessons: r.schedule.lessons,
       classTypes: r.schedule.classTypes,
       examScores: r.schedule.examScores,
+      examStats: r.schedule.examStats,
     },
     nia: {
       lessons: r.niaSchedule.lessons,

@@ -1,3 +1,4 @@
+import { EXAMS } from "@/data/schedule";
 import { TYPE_SHORT, TYPE_SOLID } from "@/components/ui";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
@@ -12,8 +13,10 @@ export type PlanSummary = {
   classes?: TypeKey[];
   /** 営業（N.I.A.）を順番どおりに */
   sales?: TypeKey[];
-  /** H.I.F. 選抜3回のタイプ別スコア（配分の割合を出す） */
+  /** H.I.F. 選抜3回のタイプ別スコア（配分の割合を出す）。ステ直接入力の選抜はその上昇量 */
   exams?: Record<TypeKey, number>[];
+  /** 選抜ごとに、ステ直接入力なら true */
+  examManual?: boolean[];
   /** N.I.A. オーディション（1次・2次）のタイプ別ステ上昇 */
   auditions?: Record<TypeKey, number>[];
   /** 初 試験（中間・最終）の順位 */
@@ -39,7 +42,8 @@ export function currentPlanSummary(r: CalcResult): PlanSummary {
   return {
     lessons: r.schedule.lessons.map((l) => ({ type: l.main, sub: l.sub, sp: l.sp })),
     classes: r.schedule.classTypes,
-    exams: r.schedule.examScores,
+    exams: EXAMS.map((_, i) => r.schedule.examStats[i] ?? r.schedule.examScores[i]),
+    examManual: r.schedule.examStats.map((x) => !!x),
   };
 }
 
@@ -94,7 +98,13 @@ function Row({
 }
 
 /** 選抜3回のスコア配分（細い積み上げバー＋割合の文字） */
-function ExamBars({ exams }: { exams: Record<TypeKey, number>[] }) {
+function ExamBars({
+  exams,
+  manual,
+}: {
+  exams: Record<TypeKey, number>[];
+  manual?: boolean[];
+}) {
   return (
     <div className="flex w-full flex-col gap-1">
       {exams.map((scores, i) => {
@@ -120,12 +130,16 @@ function ExamBars({ exams }: { exams: Record<TypeKey, number>[] }) {
               )}
             </div>
             <span className="text-slate-600">
-              {shares
-                .filter(({ share }) => share > 0)
-                .map(({ t, share }) => `${TYPE_SHORT[t]} ${Math.round(share * 100)}%`)
-                .join("・") || "—"}
+              {manual?.[i]
+                ? TYPE_KEYS.map((t) => `${TYPE_SHORT[t]} +${scores[t] ?? 0}`).join("・")
+                : shares
+                    .filter(({ share }) => share > 0)
+                    .map(({ t, share }) => `${TYPE_SHORT[t]} ${Math.round(share * 100)}%`)
+                    .join("・") || "—"}
             </span>
-            <span className="text-slate-400">（{total.toLocaleString()}）</span>
+            <span className="text-slate-400">
+              {manual?.[i] ? "（ステ入力）" : `（${total.toLocaleString()}）`}
+            </span>
           </div>
         );
       })}
@@ -186,7 +200,7 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       )}
       {plan.exams && plan.exams.length > 0 && (
         <Row label="選抜">
-          <ExamBars exams={plan.exams} />
+          <ExamBars exams={plan.exams} manual={plan.examManual} />
         </Row>
       )}
       {plan.auditions && plan.auditions.length > 0 && (

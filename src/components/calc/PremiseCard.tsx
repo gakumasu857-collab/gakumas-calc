@@ -20,7 +20,7 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
 };
 
 /**
- * 「まず、育成の前提を設定」カード。
+ * 「まずここを設定」（育成の前提）カード。
  * 青い見出し帯（手順1・あと何つ）＋番号つきの4つの欄（シナリオ・アイドル・プロデュース・メモリー）
  * ＋シナリオ別の本戦の点数。説明文は置かず、プロデュースだけ「発動回数を調整」のボタンを欄の下に出す。
  * 未設定の欄は黄色、設定済みは番号が青。4つそろうと帯に「そろいました」と出て、すぐ下の探索ボタンへつなぐ。
@@ -57,7 +57,7 @@ export default function PremiseCard({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-blue-700">
         </span>
         <h2 className="flex items-center gap-1 text-base font-bold">
-          まず、育成の前提を設定
+          まずここを設定
           <Hint
             text={GLOSSARY.premise}
             className="[&>button]:text-blue-200 [&>button:hover]:text-white"
@@ -103,9 +103,9 @@ export default function PremiseCard({
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <button type="button" onClick={onOpenCounts} className={BTN_SECONDARY}>
                   <ListOrdered size={13} />
-                  アビリティの発動回数を調整
+                  発動回数
                 </button>
-                <span className="text-[11px] text-slate-500">回数はここで変えられます</span>
+                <span className="text-[11px] text-slate-500">回数はこのボタンから変えられます</span>
               </div>
             ) : (
               <p className="mt-1 text-[11px] leading-snug text-slate-500">

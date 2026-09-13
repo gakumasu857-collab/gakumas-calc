@@ -670,10 +670,11 @@ function HifPlan({ r }: { r: CalcResult }) {
         <PlanTable
           head={["選抜", "Vo", "Da", "Vi", "合計"]}
           rows={EXAMS.map((exam, i) => {
-            const scores = r.schedule.examScores[i];
+            const manual = r.schedule.examStats[i];
+            const scores = manual ?? r.schedule.examScores[i];
             const total = TYPE_KEYS.reduce((s, t) => s + scores[t], 0);
             return [
-              exam.name,
+              manual ? `${exam.name}（ステ）` : exam.name,
               ...TYPE_KEYS.map((t) => fmt(scores[t])),
               <b key="total">{fmt(total)}</b>,
             ];

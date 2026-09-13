@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import CsvTransfer from "@/components/ownership/CsvTransfer";
 import {
   PIDOL_CSV_FILENAME,
@@ -17,6 +17,7 @@ import {
   BUILTIN_ALL4,
   BUILTIN_ID,
   DEFAULT_OWN_NAME,
+  type OwnedSave,
   type useOwnedSaves,
 } from "@/lib/useOwnedSaves";
 
@@ -31,7 +32,8 @@ const INPUT =
   "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-xs text-slate-900 outline-none focus:border-blue-500";
 
 /**
- * 所持状況の管理（新しく作る／名前・複製・削除／CSV）。切り替えは所持状況ページのプルダウン。
+ * 所持状況の管理（新しく作る／名前・複製・削除／CSV）。切り替えは所持状況ページのプルダウンでも、
+ * ここの「対象」を選んで「これを使う」でもできる。
  * - 「新しく作る」＝今の内容か全サポカ完凸から作って、そのまま使用中にする
  * - 使用中のものは変更が自動保存されているので、「上書き保存」は無い
  */
@@ -48,65 +50,96 @@ export default function OwnedSaveBar({
   /** 操作が終わったら閉じて、ページ側に一言出す */
   onDone: (message?: string) => void;
 }) {
-  const active =
-    store.activeId === BUILTIN_ID
-      ? BUILTIN_ALL4
-      : (store.saves.find((s) => s.id === store.activeId) ?? BUILTIN_ALL4);
-  const isBuiltin = active.id === BUILTIN_ID;
+  const findSave = (id: string): OwnedSave =>
+    id === BUILTIN_ID ? BUILTIN_ALL4 : (store.saves.find((s) => s.id === id) ?? BUILTIN_ALL4);
   const [name, setName] = useState("");
   const [base, setBase] = useState<"current" | "all4">("current");
-  const [newName, setNewName] = useState(active.name);
+  /** 名前・複製・削除の対象（初期値は使っているもの） */
+  const [targetId, setTargetId] = useState(store.activeId);
+  const target = findSave(targetId);
+  const targetIsBuiltin = target.id === BUILTIN_ID;
+  const targetIsActive = target.id === store.activeId;
+  const [newName, setNewName] = useState(target.name);
+  const own = store.saves.filter((s) => !s.saveId);
+  const linked = store.saves.filter((s) => s.saveId);
 
-  const loadBuiltin = () => {
-    levels.replaceAll(BUILTIN_ALL4.levels, BUILTIN_ALL4.cardCount);
-    pIdols.replaceAll(BUILTIN_ALL4.pIdols ?? {});
+  const chooseTarget = (id: string) => {
+    setTargetId(id);
+    setNewName(findSave(id).name);
+  };
+
+  /** 所持ストアへ読み込む（使用中を切り替えた直後に呼ぶ） */
+  const loadInto = (save: OwnedSave) => {
+    levels.replaceAll(save.levels, save.cardCount);
+    if (save.pIdols) pIdols.replaceAll(save.pIdols);
   };
 
   const doCreate = () => {
     const rec = store.createFrom(name, base);
     // 先に使用中を切り替えてから読み込む（読み込み直後の自動保存が新しいものへ向くように）
     store.setActiveSlot(rec.id);
-    if (base === "all4") loadBuiltin();
+    if (base === "all4") loadInto(BUILTIN_ALL4);
     onDone(`「${rec.name}」を作りました。これからの変更はここに自動で保存されます`);
   };
 
+  const doUse = () => {
+    if (targetIsActive) return;
+    store.setActiveSlot(target.id);
+    loadInto(target);
+    onDone(
+      targetIsBuiltin
+        ? `「全サポカ完凸」に切り替えました（凸を変えると「${DEFAULT_OWN_NAME}」が自動で作られます）`
+        : `「${target.name}」に切り替えました。変更はここに自動で保存されます`,
+    );
+  };
+
   const doRename = () => {
-    if (isBuiltin) return;
-    const finalName = newName.trim() || active.name;
-    store.rename(active.id, finalName);
+    if (targetIsBuiltin) return;
+    const finalName = newName.trim() || target.name;
+    store.rename(target.id, finalName);
     onDone(`名前を「${finalName}」に変えました`);
   };
 
   const doDuplicate = () => {
-    const rec = store.duplicate(active.id, "");
+    const rec = store.duplicate(target.id, "");
     if (!rec) return;
     store.setActiveSlot(rec.id);
-    onDone(`「${rec.name}」を作りました（複製）。これからの変更はここに自動で保存されます`);
+    loadInto(rec);
+    onDone(`「${rec.name}」を作りました（「${target.name}」の複製）。これからの変更はここに自動で保存されます`);
   };
 
   const doDelete = () => {
-    if (isBuiltin) return;
-    if (!window.confirm(`「${active.name}」を削除しますか？`)) return;
-    store.remove(active.id);
-    loadBuiltin();
-    onDone(`「${active.name}」を削除しました。全サポカ完凸に戻りました`);
+    if (targetIsBuiltin) return;
+    if (!window.confirm(`「${target.name}」を削除しますか？`)) return;
+    const wasActive = targetIsActive;
+    store.remove(target.id);
+    if (wasActive) loadInto(BUILTIN_ALL4);
+    onDone(
+      wasActive
+        ? `「${target.name}」を削除しました。全サポカ完凸に戻りました`
+        : `「${target.name}」を削除しました`,
+    );
   };
+
+  const option = (s: OwnedSave) => (
+    <option key={s.id} value={s.id}>
+      {s.name}（{s.savedAt}）{s.id === store.activeId ? "・使用中" : ""}
+    </option>
+  );
 
   return (
     <div className="flex flex-col gap-3">
       {/* 1. 新しく作る */}
       <section className={SECTION}>
         <span className={HEAD}>新しく作る</span>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && doCreate()}
-            placeholder={`名前（空なら「${DEFAULT_OWN_NAME}」）`}
-            className={INPUT}
-          />
-        </div>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && doCreate()}
+          placeholder={`名前（空なら「${DEFAULT_OWN_NAME}」）`}
+          className={INPUT}
+        />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-700">
           <span className="text-slate-500">元にする内容:</span>
           <label className="flex items-center gap-1">
@@ -139,15 +172,27 @@ export default function OwnedSaveBar({
         </span>
       </section>
 
-      {/* 2. 使っているもの */}
+      {/* 2. 名前・複製・削除（対象を選べる） */}
       <section className={SECTION}>
-        <span className={HEAD}>
-          使っているもの: <span className="text-blue-700">{active.name}</span>
-          {!isBuiltin && (
-            <span className="ml-1.5 font-normal text-slate-400">（最終保存 {active.savedAt}）</span>
-          )}
-        </span>
-        {isBuiltin ? (
+        <label className="flex flex-wrap items-center gap-2">
+          <span className={HEAD}>対象</span>
+          <select
+            value={targetId}
+            onChange={(e) => chooseTarget(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+          >
+            <option value={BUILTIN_ID}>
+              全サポカ完凸（既定）{store.activeId === BUILTIN_ID ? "・使用中" : ""}
+            </option>
+            {own.length > 0 && <optgroup label="自分で作ったもの">{own.map(option)}</optgroup>}
+            {linked.length > 0 && <optgroup label="セーブデータ用">{linked.map(option)}</optgroup>}
+          </select>
+          <button type="button" disabled={targetIsActive} onClick={doUse} className={BTN}>
+            <ArrowRightLeft size={13} />
+            {targetIsActive ? "使用中" : "これを使う"}
+          </button>
+        </label>
+        {targetIsBuiltin ? (
           <span className="text-[11px] text-slate-500">
             既定は名前の変更・削除ができません。カードの凸などを変えると「{DEFAULT_OWN_NAME}」が自動で作られます。
           </span>
@@ -173,7 +218,7 @@ export default function OwnedSaveBar({
           </button>
           <button
             type="button"
-            disabled={isBuiltin}
+            disabled={targetIsBuiltin}
             onClick={doDelete}
             className={`${BTN} ml-auto hover:bg-red-50 hover:text-red-600`}
           >
@@ -206,7 +251,7 @@ export default function OwnedSaveBar({
             bare
           />
         </div>
-        {isBuiltin && (
+        {store.activeId === BUILTIN_ID && (
           <span className="text-[11px] text-slate-400">
             全サポカ完凸を使っているときに読み込むと、「{DEFAULT_OWN_NAME}」が自動で作られてそこに入ります。
           </span>

@@ -20,6 +20,8 @@ export type Stepping =
       classTypes: TypeKey[];
       /** 選抜試験のタイプ別スコア（分配も最適化対象）。 */
       examScores: ExamScores[];
+      /** ステ直接入力の選抜（true）は探索で動かさない */
+      examLocked?: boolean[];
     }
   | { kind: "nia"; lessons: NiaLessonPick[]; sales: NiaSalePick[] }
   | { kind: "hatsu"; lessons: HatsuLessonPick[]; classTypes: TypeKey[] };
@@ -192,6 +194,7 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
       // 選抜: スコアの分配比を入れ替える
       ...axesOver(s.examScores.length, (cur, i) => {
         const c = cur as HifStepping;
+        if (c.examLocked?.[i]) return []; // ステ直接入力の選抜は動かさない
         return EXAM_RATIOS.map((r) => examScoresFromRatio(i, r))
           .filter((e) => !sameExamScores(c.examScores[i], e))
           .map((e) => ({ ...c, examScores: replaceAt(c.examScores, i, e) }));
@@ -263,7 +266,9 @@ export function uniformStepping(
       })),
       classTypes: base.classTypes.map(() => secondType),
       // 選抜スコアは初期状態に依存しない一様配分から始める
-      examScores: base.examScores.map((_, i) => examScoresUniform(i)),
+      examScores: base.examScores.map((e, i) =>
+        base.examLocked?.[i] ? e : examScoresUniform(i),
+      ),
     };
   }
   if (base.kind === "nia") {

@@ -48,6 +48,7 @@ type HifState = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
+  examStats: (ExamScores | null)[];
 };
 
 function loadHifState(): HifState {
@@ -65,6 +66,7 @@ function loadHifState(): HifState {
         dance: each[i] ?? 0,
         visual: each[i] ?? 0,
       })),
+    examStats: stored.examStats ?? EXAMS.map(() => null),
   };
 }
 

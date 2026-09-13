@@ -265,11 +265,16 @@ function HifEditor({ r }: { r: CalcResult }) {
         />
       </div>
 
-      {/* 選抜スコア（タイプ別・総スコアは自動合計・極振り付き） */}
-      <Section title="選抜スコア">
+      {/* 選抜（タイプ別スコア、または上昇ステを直接入力。選抜ごとに切り替え） */}
+      <Section title="選抜">
+        <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
+          スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて直接入力
+          （パラメータボーナス%を含めない値）。ステ入力の選抜は自動探索で動かしません。
+        </p>
         <div className="flex flex-col divide-y divide-slate-200">
           {EXAMS.map((exam, i) => {
             const scores = schedule.examScores[i];
+            const stats = schedule.examStats[i];
             const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
             /** 極振り: 現在の総スコアを1タイプに全部 */
             const allIn = (type: TypeKey) => {
@@ -281,6 +286,19 @@ function HifEditor({ r }: { r: CalcResult }) {
               next[type] = total;
               schedule.setExamScores(i, next);
             };
+            const modeBtn = (mode: "score" | "stat", label: string) => (
+              <button
+                type="button"
+                onClick={() => schedule.setExamMode(i, mode)}
+                className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition ${
+                  (stats ? "stat" : "score") === mode
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            );
             return (
               <div
                 key={exam.name}
@@ -289,63 +307,106 @@ function HifEditor({ r }: { r: CalcResult }) {
                 <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
                   {exam.name}
                 </span>
-                {TYPE_KEYS.map((type) => (
-                  <label
-                    key={type}
-                    className="flex items-center gap-1 text-xs text-slate-500"
-                  >
-                    <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                      {TYPE_LABELS[type]}
-                    </span>
-                    <NumberField
-                      value={scores[type]}
-                      onChange={(v) => schedule.setExamScore(i, type, v)}
-                      sliderMax={EXAM_SLIDER_MAX[i] ?? 500000}
-                      className="w-24"
-                    />
-                  </label>
-                ))}
-                <span className="flex items-center gap-1 text-xs text-slate-500">
-                  極振り:
-                  {TYPE_KEYS.map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      disabled={total === 0}
-                      onClick={() => allIn(type)}
-                      title={`総スコアを全部${TYPE_LABELS[type]}に`}
-                      className={`rounded-md px-1.5 py-1 text-xs font-bold transition disabled:opacity-40 ${TYPE_STYLE[type].chip} hover:brightness-95`}
-                    >
-                      {TYPE_LABELS[type].slice(0, 2)}
-                    </button>
-                  ))}
+                {/* 入力の切り替え（スコア／ステ） */}
+                <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+                  {modeBtn("score", "スコア")}
+                  {modeBtn("stat", "ステ")}
                 </span>
-                <span className="ml-auto text-xs tabular-nums text-slate-500">
-                  総スコア{" "}
-                  <b className="text-slate-800">{total.toLocaleString()}</b>
-                </span>
-                {/* この配分での上昇量とスター性 */}
-                {total > 0 && (
-                  <span className="w-full text-[11px] tabular-nums text-slate-500">
-                    →{" "}
-                    {(() => {
-                      const dist = distributeExam(i, scores, TYPE_KEYS);
-                      return TYPE_KEYS.map((t) => (
-                        <span key={t} className="mr-2">
-                          <b className={TYPE_STYLE[t].head}>
-                            {TYPE_LABELS[t]}
-                          </b>{" "}
-                          +{Math.round(dist[t])}
+                {stats ? (
+                  <>
+                    {TYPE_KEYS.map((type) => (
+                      <label
+                        key={type}
+                        className="flex items-center gap-1 text-xs text-slate-500"
+                      >
+                        <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                          {TYPE_LABELS[type]}
                         </span>
-                      ));
-                    })()}
-                    <span className="text-violet-600">
-                      ★{examStar(i, total)}
+                        <NumberField
+                          value={stats[type]}
+                          onChange={(v) => schedule.setExamStat(i, type, v)}
+                          max={999}
+                          sliderMax={exam.base}
+                          className="w-20"
+                        />
+                      </label>
+                    ))}
+                    <span className="ml-auto text-xs tabular-nums text-slate-500">
+                      合計{" "}
+                      <b className="text-slate-800">
+                        {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
+                      </b>
+                      <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
                     </span>
-                    <span className="ml-2 text-slate-400">
-                      ※パラメータボーナス%は別途上乗せ
+                    <span className="w-full text-[11px] tabular-nums text-slate-500">
+                      上昇ステを直接使います（パラメータボーナス%は別途上乗せ）。
+                      <span className="ml-2 text-violet-600">★{examStar(i, total)}</span>
+                      <span className="ml-1 text-slate-400">
+                        はスコア入力の値（合計 {total.toLocaleString()}）から計算
+                      </span>
                     </span>
-                  </span>
+                  </>
+                ) : (
+                  <>
+                    {TYPE_KEYS.map((type) => (
+                      <label
+                        key={type}
+                        className="flex items-center gap-1 text-xs text-slate-500"
+                      >
+                        <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                          {TYPE_LABELS[type]}
+                        </span>
+                        <NumberField
+                          value={scores[type]}
+                          onChange={(v) => schedule.setExamScore(i, type, v)}
+                          sliderMax={EXAM_SLIDER_MAX[i] ?? 500000}
+                          className="w-24"
+                        />
+                      </label>
+                    ))}
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      極振り:
+                      {TYPE_KEYS.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          disabled={total === 0}
+                          onClick={() => allIn(type)}
+                          title={`総スコアを全部${TYPE_LABELS[type]}に`}
+                          className={`rounded-md px-1.5 py-1 text-xs font-bold transition disabled:opacity-40 ${TYPE_STYLE[type].chip} hover:brightness-95`}
+                        >
+                          {TYPE_LABELS[type].slice(0, 2)}
+                        </button>
+                      ))}
+                    </span>
+                    <span className="ml-auto text-xs tabular-nums text-slate-500">
+                      総スコア{" "}
+                      <b className="text-slate-800">{total.toLocaleString()}</b>
+                    </span>
+                    {/* この配分での上昇量とスター性 */}
+                    {total > 0 && (
+                      <span className="w-full text-[11px] tabular-nums text-slate-500">
+                        →{" "}
+                        {(() => {
+                          const dist = distributeExam(i, scores, TYPE_KEYS);
+                          return TYPE_KEYS.map((t) => (
+                            <span key={t} className="mr-2">
+                              <b className={TYPE_STYLE[t].head}>
+                                {TYPE_LABELS[t]}
+                              </b>{" "}
+                              +{Math.round(dist[t])}
+                            </span>
+                          ));
+                        })()}
+                        <span className="text-violet-600">
+                          ★{examStar(i, total)}
+                        </span>
+                        <span className="ml-2 text-slate-400">
+                          ※パラメータボーナス%は別途上乗せ
+                        </span>
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             );
