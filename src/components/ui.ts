@@ -11,6 +11,9 @@ export const BTN_PRIMARY =
 /** 脇役ボタン（白地・枠線） */
 export const BTN_SECONDARY =
   "inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40";
+/** 目立たせる操作ボタン（青地・枠線・影で「ここを押す」と分かるように） */
+export const BTN_ACTION =
+  "inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 shadow-sm transition hover:border-blue-400 hover:bg-blue-100 hover:shadow active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40";
 /** 控えめな文字ボタン */
 export const BTN_GHOST =
   "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800";

@@ -67,7 +67,7 @@ const EXAM_SLIDER_MAX = [30000, 300000, 500000] as const;
 type CalcResult = ReturnType<typeof useCalcResult>;
 
 /**
- * 踏み方エディタ（モーダル）。計算ページの「レッスンの踏み方」ブロックの「踏み方を編集」から開く
+ * 踏み方エディタ（モーダル）。計算ページの「サポカ編成と踏み方」の「レッスン等の踏み方」から開く
  * （open / onClose は親が持つ。以前の左端縦タブは廃止）。
  */
 export default function PlanEditDrawer({

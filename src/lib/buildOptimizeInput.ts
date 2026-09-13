@@ -57,9 +57,7 @@ export function buildAutoOptimizeInput(
     },
     nia: r.niaSchedule,
     hatsu: r.hatsuSchedule,
-    memories: r.memoryStore.selected.map(
-      (id) => r.memoryStore.findMemory(id) ?? undefined,
-    ),
+    memories: r.memoryStore.slotMemories.map((m) => m ?? undefined),
     pStats: r.pStats,
     plan: r.plan,
     statCap: r.statCap,

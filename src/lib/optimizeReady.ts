@@ -14,7 +14,7 @@ export function missingCalcInputs(
     !settings.idol && "アイドル名",
     !(settings.pIdol && r.pMaster) && "Pアイドル",
     !r.selectedSet && "プロデュース",
-    r.memoryStore.selected.length === 0 && "メモリー",
+    r.memoryStore.count === 0 && "メモリー",
   ].filter((v): v is string => typeof v === "string");
 }
 

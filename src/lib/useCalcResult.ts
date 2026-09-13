@@ -201,10 +201,9 @@ export function useCalcResult() {
     // パラボ追従メモリーは「パラボ母数が大きい上位2タイプに%・残りに固定値」で展開
     const paraboAssign = paraboAssignFromGains(ctx.gains);
     const mem = calcMemoryTotals(
-      memoryStore.selected.map((id) => {
-        const memory = memoryStore.findMemory(id);
-        return memory && resolveParaboMemory(memory, paraboAssign);
-      }),
+      memoryStore.slotMemories.map((memory) =>
+        memory ? resolveParaboMemory(memory, paraboAssign) : undefined,
+      ),
     );
     const memFixed: Record<TypeKey, number> = {
       vocal: mem.Vo.flat,

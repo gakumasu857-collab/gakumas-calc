@@ -17,7 +17,8 @@ type Props = {
   memories: Memory[];
   /** id -> スロットに入っている枚数 */
   selectedCounts: Map<string, number>;
-  slotFull: boolean;
+  /** いま編集中の枠（見出しの案内用） */
+  activeIndex?: number;
   /** カードクリック=スロットへ追加（同じカード複数枚可） */
   onSelect: (id: string) => void;
   /** −ボタンで選択を1枚解除 */
@@ -25,11 +26,11 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-/** 画面左下のメモリー一覧。テンプレ表示・削除モード・フィルター付き。 */
+/** 保存したメモリーの一覧。クリックで編集中の枠に入れる。テンプレ表示・削除モード・フィルター付き。 */
 export default function MemoryLibrary({
   memories,
   selectedCounts,
-  slotFull,
+  activeIndex,
   onSelect,
   onRemoveOne,
   onDelete,
@@ -91,9 +92,9 @@ export default function MemoryLibrary({
     <section>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <h2 className="text-sm font-bold text-slate-900">
-          メモリー選択
+          保存したメモリー
           <span className="ml-2 text-xs font-normal text-slate-500">
-            クリックで追加（同じカード複数枚可）。−ボタンで1枚解除
+            クリックで{activeIndex !== undefined ? `枠${activeIndex + 1}` : "枠"}に入れる（同じカード何枚でも可）。−で外す
           </span>
         </h2>
         <div className="ml-auto flex gap-1.5">
@@ -213,9 +214,9 @@ export default function MemoryLibrary({
         </p>
       )}
 
-      {/* 一覧（6〜7列グリッド） */}
+      {/* 一覧（置き場の幅に合わせて列数が変わる） */}
       {visible.length > 0 ? (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-2">
           {visible.map((memory) => {
             const count = selectedCounts.get(memory.id) ?? 0;
             return (
@@ -223,8 +224,6 @@ export default function MemoryLibrary({
                 key={memory.id}
                 memory={memory}
                 deleteMode={deleteMode}
-                // スロット満杯でも選択済みカードは−ボタンを使えるよう押せる状態を保つ
-                disabled={!deleteMode && slotFull && count === 0}
                 selectedCount={count}
                 onRemoveOne={
                   !deleteMode && count > 0
@@ -240,7 +239,7 @@ export default function MemoryLibrary({
         </div>
       ) : (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-          条件に合うメモリーがありません。右のフォームから作成するか、フィルターを変更してください。
+          条件に合うメモリーがありません。枠を選んで中身を作り「メモリーとして保存」するか、フィルターを変更してください。
         </p>
       )}
     </section>

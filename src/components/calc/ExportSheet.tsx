@@ -407,7 +407,7 @@ function ExportSheet({
 
 /** メモリー（タイプ別の合計値。固定値/％） */
 function MemoryList({ r }: { r: CalcResult }) {
-  const count = r.memoryStore.selected.length;
+  const count = r.memoryStore.count;
   if (count === 0) {
     return <div style={{ color: "#dc2626", fontSize: 12 }}>未設定</div>;
   }

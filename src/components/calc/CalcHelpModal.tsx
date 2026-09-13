@@ -141,11 +141,11 @@ export default function CalcHelpModal({
           title="自分の育成に合わせて調整する"
           visual={
             <>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
+              <MockChip className="border border-blue-300 bg-blue-50 text-blue-800 shadow-sm">
                 <CalendarCheck size={13} />
-                踏み方を編集
+                レッスン等の踏み方
               </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
+              <MockChip className="border border-blue-300 bg-blue-50 text-blue-800 shadow-sm">
                 <ListOrdered size={13} />
                 発動回数
               </MockChip>
@@ -156,7 +156,7 @@ export default function CalcHelpModal({
             </>
           }
         >
-          ここからが本番です。「サポカ編成と踏み方」の「踏み方を編集」「発動回数」で実際の育成に寄せ、
+          ここからが本番です。「サポカ編成と踏み方」の「レッスン等の踏み方」「発動回数」で実際の育成に寄せ、
           サポカ枠をクリックして入れ替え（凸・固定・BANも選択画面で）たり、黄色い「前イベ・後イベ・ステイベの発動を調整」で
           イベントの発動を変えたりしながら、評価値と育成後のステータスの変化を見てください。
         </Step>

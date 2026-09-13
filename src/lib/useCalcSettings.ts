@@ -3,7 +3,7 @@ import { useSaveNotifier } from "./storeSync";
 import { IDLE_NAMES, type AbilityName } from "@/data/constants";
 import type { ScenarioKey } from "@/data/scenarios";
 import type { SelectedSlot } from "./formation";
-import type { Memory } from "./memoryTypes";
+import type { Memory, SlotMemory } from "./memoryTypes";
 import type { EventCountOverride } from "./sheetScore";
 import type { PIdolOwnership } from "./useOwnedPIdols";
 import type { HatsuState } from "./useHatsuSchedule";
@@ -104,9 +104,11 @@ export type CalcSaveSnapshot = {
   schedule: ScheduleState;
   nia: NiaState;
   hatsu: HatsuState;
-  /** メモリースロット4枚のID＋実体（ライブラリから消えていても復元できるように） */
-  memoryIds: string[];
-  memories: Memory[];
+  /** メモリースロット4枠の中身（保存していないメモリーもそのまま。空枠は null） */
+  memorySlots?: (SlotMemory | null)[];
+  /** 旧形式: スロットのID＋実体（読み込み時に memorySlots へ展開） */
+  memoryIds?: string[];
+  memories?: Memory[];
   /** 参照していた発動回数セットの実効回数と名前・プラン */
   abilityCounts: Partial<Record<AbilityName, number>>;
   abilitySetName: string;

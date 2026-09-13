@@ -41,7 +41,7 @@ export default function PremiseCard({
   onOpenCounts: () => void;
 }) {
   const { settings } = r.calc;
-  const memoryCount = r.memoryStore.selected.length;
+  const memoryCount = r.memoryStore.count;
   const done = {
     scenario: r.scenarioStore.chosen,
     idol: !!(settings.pIdol && r.pMaster),

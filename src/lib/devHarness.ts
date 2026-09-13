@@ -22,7 +22,13 @@ import {
   type AutoOptimizeInput,
 } from "./autoOptimize";
 import { examStyleTags } from "./formation";
-import { TEMPLATE_MEMORIES, type Memory } from "./memoryTypes";
+import {
+  TEMPLATE_MEMORIES,
+  slotToMemory,
+  slotsFromIds,
+  type Memory,
+  type SlotMemory,
+} from "./memoryTypes";
 import type { Stepping } from "./optimize/stepping";
 import { computePIdolStats, findPIdolMaster, IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
@@ -80,18 +86,19 @@ export function buildInput(): AutoOptimizeInput {
     "hif") as ScenarioKey;
   const hif = loadHifState();
 
-  // メモリー（デフォルト: メインパラボ60×4）
+  // メモリー（v2: 4枠の中身。無ければ旧形式のID配列、それも無ければメインパラボ60×4）
   const library = loadJson<Memory[]>("gakumas:memories:v1", []);
+  const pool = [...TEMPLATE_MEMORIES, ...library];
+  const slotsV2 = loadJson<(SlotMemory | null)[] | null>("gakumas:memorySlots:v2", null);
   const selected = loadJson<string[]>("gakumas:memorySelection:v1", [
     "tpl-role60",
     "tpl-role60",
     "tpl-role60",
     "tpl-role60",
   ]);
-  const findMemory = (id: string) =>
-    library.find((m) => m.id === id) ??
-    TEMPLATE_MEMORIES.find((m) => m.id === id);
-  const memories = selected.map((id) => findMemory(id));
+  const memories = (slotsV2 ?? slotsFromIds(selected, pool)).map((s, i) =>
+    s ? slotToMemory(s, i) : undefined,
+  );
 
   // Pアイドル（ストア未初期化なら特訓6・開花4）
   const pMaster = findPIdolMaster(settings.idol, settings.pIdol);

@@ -172,14 +172,14 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
 | `useSchedule.ts` | H.I.F. の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
 | `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存 |
-| `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開 |
+| `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
 | `useCalcSettings.ts` | 計算ページの設定（アイドル・Pアイドル・条件設定・本戦点数など）とセーブ一覧のストア |
 | `useOwnedLevels.ts` / `useOwnedPIdols.ts` / `useOwnedSaves.ts` | 所持状況（サポカ凸・Pアイドル特訓/開花）とその名前つき保存 |
 | `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存）、参照セットの選択 |
 | `useEventCounts.ts` | カードごとの前イベ・後イベ・ステイベの手動設定 |
-| `useMemoryStore.ts` | メモリーの一覧・スロット 4 枚・メモリーセット |
+| `useMemoryStore.ts` | スロット 4 枠の中身（保存していないメモリーもそのまま持つ。`gakumas:memorySlots:v2`）・保存したメモリー（ライブラリ）・メモリーセット（4 枠の中身のスナップショット）。枠の保存状態 `slotStatus`（空／テンプレ／未保存／保存済み／変更あり）、`saveSlot`（新規／上書き）、`pickIntoSlot`（一覧から枠へコピー）、`fillSlots`（4 枠すべて同じテンプレ） |
 | `useSelectedSupports.ts` | 計算ページの「選択サポカ」6 枠 |
 | `useCardFlags.ts` | BAN／固定／レンタルNG |
 | `useScenario.ts` | 選択中のシナリオ |
@@ -200,7 +200,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
-`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。自分のメモリーが無いときは、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す。どちらかを押したら以後は出さない（`gakumas:calc:memoryPathsDone:v1`。メモリーを全部外しても戻らない））、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
+`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。中身はメモリーページと同じ作業台 `memory-manager/MemoryWorkbench.tsx`。自分のメモリーが無いときは、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す。どちらかを押したら以後は出さない（`gakumas:calc:memoryPathsDone:v1`。メモリーを全部外しても戻らない））、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
@@ -221,7 +221,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calc/ParaboTableModal.tsx` / `calc/CalcHelpModal.tsx` | パラボ変換表、ヘルプ |
 | `ownership/` | `/support` 所持状況入力（サポカ・Pアイドル、CSV、名前つき保存。`OwnedSaveBar.tsx` に既定の「全サポカ完凸」） |
 | `card-import/CardImportPage.tsx` | `/card-import` 画面キャプチャで所持入力（β） |
-| `memory-manager/` | `/memory` メモリー設定（スロット・作成・一覧・セット）。`MemoryForm.tsx` が作成と編集の共通フォーム、`MemoryEditModal.tsx` がスロットのカードをその場で編集するモーダル（「この内容で更新」＝ライブラリのメモリー自体を書き換え／「別のメモリーとして保存して差し替え」＝新規を作ってその枠だけ差し替え。計算ページのメモリー選択でも使う） |
+| `memory-manager/` | `/memory` メモリー設定。`MemoryWorkbench.tsx` が作業台（計算ページのメモリー選択でも同じもの）: 上＝`MemorySlot.tsx`（4 枠のカード。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`。4 枚そろうと「この4枚をセットとして保存」）、下＝左 `SlotEditor.tsx`（選んだ枠の中身を値ボタンでその場で作る・変える。保存は任意で「メモリーとして保存」、保存元があれば「上書き保存」「別のメモリーとして保存」。テンプレの枠は変えられない）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレの一覧。クリックで編集中の枠に入れて次の空枠へ進む。−で外す・削除モード・フィルター）。操作の単位はアビリティ（編集枠）・メモリー（保存／一覧）・メモリーセット（4 枚まとめて）の 3 段 |
 | `ability-counts/` | `/ability-counts` アビリティ発動回数（セットの表・編集モーダル `SetEditModal.tsx`・1 件の入力 `AbilityCounter.tsx`） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表 |
@@ -604,9 +604,10 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:hatsuSchedule:v1` | 初の踏み方（レッスン、授業、中間／最終の順位とスコア） | `src/lib/useHatsuSchedule.ts` |
 | `gakumas:scenario:v1` | 選択中のシナリオ（`hif` / `niaMaster` / `hatsuLegend` の文字列） | `src/lib/useScenario.ts` |
-| `gakumas:memories:v1` | 利用者が作ったメモリー（テンプレは含まない） | `src/lib/useMemoryStore.ts` |
-| `gakumas:memorySelection:v1` | スロット 4 枚のメモリー ID（初回は「メインパラボ60点」×4） | 同上 |
-| `gakumas:memorySets:v1` | メモリーセット（セーブデータ由来のものは `saveId` 付き） | 同上 |
+| `gakumas:memories:v1` | 保存したメモリー（テンプレは含まない） | `src/lib/useMemoryStore.ts` |
+| `gakumas:memorySlots:v2` | スロット 4 枠の中身（`SlotMemory`。空枠は null。保存していないメモリーもそのまま入る） | 同上 |
+| `gakumas:memorySelection:v1` | 旧形式（スロットのメモリー ID の配列）。v2 が無いときだけ読んで中身に展開する | 同上 |
+| `gakumas:memorySets:v1` | メモリーセット（4 枠の中身 `memories`。旧 `memoryIds` は読み込み時に展開。セーブデータ由来のものは `saveId` 付き） | 同上 |
 | `gakumas:abilityCountOverrides:v1` | 発動回数の「テンプレとの差分」（セット ID → アビリティ → 回数） | `src/lib/useAbilityCounts.ts` |
 | `gakumas:abilityUserSets:v1` | 利用者が追加した発動回数セット（名前・プラン。セーブ由来は `saveId` 付き） | 同上 |
 | `gakumas:abilitySelectedSet:v1` | 参照中のセット ID | 同上 |

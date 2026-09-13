@@ -13,6 +13,7 @@ import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import type { CalcSave, CalcSaveSnapshot } from "./useCalcSettings";
 import type { useCalcResult } from "./useCalcResult";
 import { adoptSaveSnapshot, type useOwnedSaves } from "./useOwnedSaves";
+import { TEMPLATE_MEMORIES, slotsFromIds } from "./memoryTypes";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 type OwnedSaves = ReturnType<typeof useOwnedSaves>;
@@ -46,12 +47,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
       midScore: r.hatsuSchedule.midScore,
       finalScore: r.hatsuSchedule.finalScore,
     },
-    memoryIds: [...r.memoryStore.selected],
-    memories: r.memoryStore.selected
-      .map((id) => r.memoryStore.findMemory(id))
-      .filter((m): m is NonNullable<typeof m> => m !== undefined)
-      // 同じメモリーを複数スロットに入れている場合の重複を除く
-      .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i),
+    memorySlots: r.memoryStore.slots.map((s) => (s ? { ...s } : null)),
     abilityCounts: selectedSet ? r.ability.snapshotCounts(selectedSet) : {},
     abilitySetName: selectedSet?.name ?? "",
     abilitySetPlan: selectedSet?.plan ?? "",
@@ -80,7 +76,7 @@ export function saveExtrasFor(
   const memorySetId = r.memoryStore.upsertSaveSet(
     saveId,
     label,
-    snapshot.memoryIds,
+    snapshot.memorySlots ?? [],
   );
   // 発動回数セットは未選択のまま保存されることがあるので、そのときは控えを作らない
   const abilitySetId = snapshot.abilitySetName
@@ -132,9 +128,11 @@ export function applySave(
   r.niaSchedule.replaceAll(snap.nia);
   r.hatsuSchedule.replaceAll(snap.hatsu);
 
-  // メモリー: 消えている実体を補充してからスロットを復元
-  r.memoryStore.ensureMemories(snap.memories);
-  r.memoryStore.setSelection(snap.memoryIds);
+  // メモリー: 4枠の中身を復元（旧セーブは ID＋実体から中身に展開）
+  r.memoryStore.setSlots(
+    snap.memorySlots ??
+      slotsFromIds(snap.memoryIds ?? [], [...(snap.memories ?? []), ...TEMPLATE_MEMORIES]),
+  );
 
   // 発動回数: 控えセットを保存時の回数へ戻してから参照セットに設定
   // （保存時に未選択だったセーブは、読み込んでも未選択のままにする）
@@ -169,7 +167,7 @@ export function renameSaveLinked(
   const label = `${SAVE_SET_PREFIX}${newName}`;
   const memorySet = r.memoryStore.sets.find((s) => s.saveId === save.id);
   if (memorySet) {
-    r.memoryStore.upsertSaveSet(save.id, label, memorySet.memoryIds);
+    r.memoryStore.upsertSaveSet(save.id, label, memorySet.memories);
   }
   const abilitySetId = save.linked?.abilitySetId;
   if (abilitySetId) r.ability.renameSaveSet(save.id, label);
@@ -197,7 +195,7 @@ export function saveSummary(save: CalcSave): string {
   const cards = snap.slots.filter(Boolean).length;
   const parts = [
     `サポカ${cards}枚`,
-    `メモリー${snap.memoryIds.length}枚`,
+    `メモリー${(snap.memorySlots ?? snap.memoryIds ?? []).filter(Boolean).length}枚`,
     snap.abilitySetName ? `発動回数「${snap.abilitySetName}」` : "発動回数なし",
     `所持${Object.keys(snap.ownedLevels).length}枚`,
   ];

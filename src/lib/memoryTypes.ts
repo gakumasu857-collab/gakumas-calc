@@ -33,11 +33,26 @@ export type Memory = {
   roleSpec?: { mainPct: number; subFlat: number };
 };
 
+/**
+ * スロット（4枠）に入っているメモリーの中身。ライブラリのIDではなく中身そのものを持つので、
+ * 保存していないメモリーでも計算に使える。sourceId は「どの保存メモリー／テンプレから入れたか」
+ * （上書き保存の対象、一覧の「×n」バッジ）。中身を変えても sourceId は残す。
+ */
+export type SlotMemory = {
+  plan: PlanKey;
+  skillName?: string;
+  abilities: Ability[];
+  roleSpec?: Memory["roleSpec"];
+  sourceId?: string;
+};
+
 export type MemorySet = {
   id: string;
   name: string;
-  /** スロット4枚分のメモリーID（重複可） */
-  memoryIds: string[];
+  /** スロット4枚分の中身（保存したときのスナップショット。空枠は null） */
+  memories: (SlotMemory | null)[];
+  /** 旧形式（メモリーIDの配列）。読み込み時に memories へ変換する */
+  memoryIds?: string[];
   /**
    * 計算ページのセーブデータから作られたセットはそのセーブID。
    * メモリーページでは「セーブデータ用」としてまとめて畳んで表示する。
@@ -188,3 +203,55 @@ export const TEMPLATE_MEMORIES: Memory[] = [
 
 /** スロットの最大枚数 */
 export const SLOT_SIZE = 4;
+
+/** ライブラリ／テンプレのメモリーをスロットの中身としてコピーする（sourceId に元IDを残す） */
+export function toSlotMemory(m: Memory): SlotMemory {
+  return {
+    plan: m.plan,
+    skillName: m.skillName,
+    abilities: m.abilities.map((a) => ({ ...a })),
+    roleSpec: m.roleSpec ? { ...m.roleSpec } : undefined,
+    sourceId: m.id,
+  };
+}
+
+/** スロットの中身を表示・計算用の Memory にする（id は元IDか枠番号。roleSpec 持ちはテンプレ扱い） */
+export function slotToMemory(s: SlotMemory, index: number): Memory {
+  return {
+    id: s.sourceId ?? `slot-${index}`,
+    plan: s.plan,
+    skillName: s.skillName,
+    abilities: s.abilities,
+    roleSpec: s.roleSpec,
+    isTemplate: !!s.roleSpec,
+  };
+}
+
+/** 4枠に揃える（不足は null、余りは切り捨て） */
+export function padSlots(list: (SlotMemory | null)[]): (SlotMemory | null)[] {
+  return Array.from({ length: SLOT_SIZE }, (_, i) => list[i] ?? null);
+}
+
+/** 旧形式（メモリーIDの配列）を中身に展開する。見つからないIDは飛ばして前に詰める */
+export function slotsFromIds(ids: string[], pool: Memory[]): (SlotMemory | null)[] {
+  const found = ids
+    .map((id) => pool.find((m) => m.id === id))
+    .filter((m): m is Memory => !!m)
+    .map(toSlotMemory);
+  return padSlots(found);
+}
+
+/** 中身が同じか（プラン・名前・アビリティ・roleSpec）。保存済みかどうかの判定に使う */
+export function sameMemoryContent(
+  a: Pick<Memory, "plan" | "skillName" | "abilities" | "roleSpec">,
+  b: Pick<Memory, "plan" | "skillName" | "abilities" | "roleSpec">,
+): boolean {
+  const key = (m: typeof a) =>
+    JSON.stringify([
+      m.plan,
+      m.skillName ?? "",
+      sortAbilities(m.abilities).map((x) => `${x.attr}${x.value}`),
+      m.roleSpec ? [m.roleSpec.mainPct, m.roleSpec.subFlat] : null,
+    ]);
+  return key(a) === key(b);
+}

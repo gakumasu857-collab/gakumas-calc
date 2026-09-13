@@ -11,7 +11,7 @@ import { Card } from "@/components/calc/CalcCard";
 import { currentPlanSummary, formatProb, PlanChips } from "@/components/calc/PlanChips";
 import SupportSlot from "@/components/calc/SupportSlot";
 import Hint from "@/components/Hint";
-import { BTN_GHOST, BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
+import { BTN_ACTION, BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import type { CardFlagSets } from "@/lib/formation";
 import type { SelectedMember, useCalcResult } from "@/lib/useCalcResult";
@@ -66,25 +66,25 @@ export default function FormationPlanCard({
     <Card
       title="サポカ編成と踏み方"
       hint={
-        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（クリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
+        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（「レッスン等の踏み方」かチップのクリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
       }
       action={
         <>
-          <button type="button" onClick={onEditPlan} className={BTN_SECONDARY}>
-            <CalendarCheck size={13} />
-            踏み方を編集
+          <button type="button" onClick={onEditPlan} className={BTN_ACTION}>
+            <CalendarCheck size={14} />
+            レッスン等の踏み方
           </button>
           <button
             type="button"
             onClick={onEditCounts}
-            className={BTN_SECONDARY}
+            className={BTN_ACTION}
             title={
               r.selectedSet
                 ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
                 : "プロデュースを選ぶと調整できます"
             }
           >
-            <ListOrdered size={13} />
+            <ListOrdered size={14} />
             発動回数
           </button>
           <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
@@ -119,7 +119,7 @@ export default function FormationPlanCard({
       <button
         type="button"
         onClick={onEditPlan}
-        title="クリックで踏み方を編集"
+        title="クリックでレッスン等の踏み方を編集"
         className="mt-1.5 block w-full rounded-lg border border-transparent px-1.5 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50"
       >
         <PlanChips plan={plan} />
@@ -143,7 +143,7 @@ export default function FormationPlanCard({
             type="button"
             onClick={onOpenParabo}
             title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
-            className={`${BTN_GHOST} ml-auto`}
+            className={`${BTN_SECONDARY} ml-auto`}
           >
             <Table2 size={12} />
             パラボ変換表
