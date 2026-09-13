@@ -73,14 +73,34 @@ export function useMemoryStore() {
     [allMemories],
   );
 
-  /** メモリーを作成してライブラリへ追加 */
+  /** メモリーを作成してライブラリへ追加（付けたIDを返す） */
   const addMemory = useCallback(
-    (memory: Omit<Memory, "id" | "isTemplate">) => {
+    (memory: Omit<Memory, "id" | "isTemplate">): string => {
       const id = `mem-${crypto.randomUUID()}`;
       setLibrary((prev) => [...prev, { ...memory, id }]);
+      return id;
     },
     [],
   );
+
+  /**
+   * 既存メモリーの中身を書き換える（テンプレは不可）。
+   * IDは変わらないので、使っているスロット・メモリーセットにはそのまま反映される。
+   */
+  const updateMemory = useCallback(
+    (id: string, patch: Omit<Memory, "id" | "isTemplate" | "roleSpec">) => {
+      if (id.startsWith("tpl-")) return;
+      setLibrary((prev) =>
+        prev.map((m) => (m.id === id ? normalizeMemory({ ...m, ...patch }) : m)),
+      );
+    },
+    [],
+  );
+
+  /** スロットの i 番目を別のメモリーに差し替える（「別のメモリーとして保存して差し替え」用） */
+  const replaceSelectionAt = useCallback((index: number, id: string) => {
+    setSelected((prev) => prev.map((s, i) => (i === index ? id : s)));
+  }, []);
 
   /** ライブラリから削除（テンプレは不可）。スロットからも取り除く */
   const deleteMemory = useCallback((id: string) => {
@@ -187,6 +207,8 @@ export function useMemoryStore() {
     sets,
     findMemory,
     addMemory,
+    updateMemory,
+    replaceSelectionAt,
     deleteMemory,
     selectMemory,
     deselectAt,

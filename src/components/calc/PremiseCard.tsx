@@ -1,4 +1,5 @@
 import { ChevronDown, ListOrdered } from "lucide-react";
+import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { Field } from "@/components/calc/CalcCard";
@@ -105,7 +106,13 @@ export default function PremiseCard({
                   <ListOrdered size={13} />
                   発動回数
                 </button>
-                <span className="text-[11px] text-slate-500">回数はこのボタンから変えられます</span>
+                <span className="text-[11px] text-slate-500">
+                  デフォルトの回数は
+                  <Link to="/ability-counts" className="font-bold text-blue-700 underline">
+                    発動回数ページ
+                  </Link>
+                  から変えられます
+                </span>
               </div>
             ) : (
               <p className="mt-1 text-[11px] leading-snug text-slate-500">

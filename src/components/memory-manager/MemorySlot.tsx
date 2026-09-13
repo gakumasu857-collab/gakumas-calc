@@ -11,10 +11,12 @@ type Props = {
   /** スロット内のメモリー（selected のIDを解決済み） */
   memories: (Memory | undefined)[];
   onRemove: (index: number) => void;
+  /** 指定すると、カードのクリックで編集（テンプレ以外）。外すのは右上の× */
+  onEdit?: (index: number) => void;
 };
 
-/** 画面左上のスロット。4枠に選択中メモリーを表示し、クリックで解除。 */
-export default function MemorySlot({ memories, onRemove }: Props) {
+/** 画面左上のスロット。4枠に選択中メモリーを表示。クリックで編集（onEdit）または解除。 */
+export default function MemorySlot({ memories, onRemove, onEdit }: Props) {
   // パラボ追従メモリーは現在の踏み方から決まる割当（パラボ母数上位2タイプ）で展開して合計する
   const r = useCalcResult();
   const totals = calcMemoryTotals(
@@ -30,7 +32,8 @@ export default function MemorySlot({ memories, onRemove }: Props) {
       <h2 className="mb-2 text-sm font-bold text-slate-900">
         メモリースロット
         <span className="ml-2 text-xs font-normal text-slate-500">
-          {memories.filter(Boolean).length}/{SLOT_SIZE}枚（クリックで解除）
+          {memories.filter(Boolean).length}/{SLOT_SIZE}枚
+          {onEdit ? "（クリックで編集・×で外す）" : "（クリックで解除）"}
         </span>
       </h2>
       {/* 固定幅グリッドにして4枚とも同じ大きさに（幅が中身で変わらないように） */}
@@ -40,7 +43,20 @@ export default function MemorySlot({ memories, onRemove }: Props) {
           return (
             <div key={i}>
               {memory ? (
-                <MemoryCard memory={memory} onClick={() => onRemove(i)} />
+                <MemoryCard
+                  memory={memory}
+                  onClick={() =>
+                    onEdit && !memory.isTemplate ? onEdit(i) : onRemove(i)
+                  }
+                  onRemoveSlot={onEdit ? () => onRemove(i) : undefined}
+                  title={
+                    onEdit
+                      ? memory.isTemplate
+                        ? "テンプレは編集できません（クリックで外す）"
+                        : "クリックでアビリティを編集"
+                      : undefined
+                  }
+                />
               ) : (
                 // MemoryCardと同じ行構成（ヘッダー行＋アビリティ3行）で高さを合わせる
                 <div className="flex w-full flex-col gap-1.5 rounded-lg border border-dashed border-slate-300 p-1.5">

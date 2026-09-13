@@ -221,7 +221,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calc/ParaboTableModal.tsx` / `calc/CalcHelpModal.tsx` | パラボ変換表、ヘルプ |
 | `ownership/` | `/support` 所持状況入力（サポカ・Pアイドル、CSV、名前つき保存。`OwnedSaveBar.tsx` に既定の「全サポカ完凸」） |
 | `card-import/CardImportPage.tsx` | `/card-import` 画面キャプチャで所持入力（β） |
-| `memory-manager/` | `/memory` メモリー設定（スロット・作成・一覧・セット） |
+| `memory-manager/` | `/memory` メモリー設定（スロット・作成・一覧・セット）。`MemoryForm.tsx` が作成と編集の共通フォーム、`MemoryEditModal.tsx` がスロットのカードをその場で編集するモーダル（「この内容で更新」＝ライブラリのメモリー自体を書き換え／「別のメモリーとして保存して差し替え」＝新規を作ってその枠だけ差し替え。計算ページのメモリー選択でも使う） |
 | `ability-counts/` | `/ability-counts` アビリティ発動回数（セットの表・編集モーダル `SetEditModal.tsx`・1 件の入力 `AbilityCounter.tsx`） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表 |

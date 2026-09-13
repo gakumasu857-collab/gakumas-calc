@@ -2,6 +2,7 @@
 import { FolderInput, FolderPlus } from "lucide-react";
 import { useMemoryStore } from "@/lib/useMemoryStore";
 import MemoryCreator from "./MemoryCreator";
+import MemoryEditModal from "./MemoryEditModal";
 import MemoryLibrary from "./MemoryLibrary";
 import MemorySetModal from "./MemorySetModal";
 import MemorySlot from "./MemorySlot";
@@ -11,6 +12,8 @@ import { SLOT_SIZE } from "@/lib/memoryTypes";
 export default function MemoryManager() {
   const store = useMemoryStore();
   const [setModal, setSetModal] = useState<"create" | "load" | null>(null);
+  /** スロットのどの枠を編集中か */
+  const [editIndex, setEditIndex] = useState<number | null>(null);
 
   // スロット表示用にIDをメモリー本体へ解決
   const slotMemories = store.selected.map((id) => store.findMemory(id));
@@ -38,7 +41,7 @@ export default function MemoryManager() {
       <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
         {/* items-stretch でボタン列をスロット枠と同じ高さに伸ばし、flex-1で半分ずつ分ける */}
         <div className="order-1 flex flex-wrap items-stretch gap-3 lg:order-0">
-          <MemorySlot memories={slotMemories} onRemove={store.deselectAt} />
+          <MemorySlot memories={slotMemories} onRemove={store.deselectAt} onEdit={setEditIndex} />
           {/* メモリーセット操作: スマホでは横並び、sm以上は右寄せ縦積み（2つでスロットと同じ高さ） */}
           <div className="flex w-full flex-row gap-2 sm:ml-auto sm:min-h-40 sm:w-auto sm:flex-col">
             <button
@@ -72,6 +75,16 @@ export default function MemoryManager() {
           />
         </div>
       </div>
+
+      {/* スロットのメモリーをその場で編集（アビリティ単位）。更新か、別メモリーとして保存して差し替え */}
+      {editIndex !== null && slotMemories[editIndex] && (
+        <MemoryEditModal
+          memory={slotMemories[editIndex]!}
+          onUpdate={(draft) => store.updateMemory(slotMemories[editIndex]!.id, draft)}
+          onSaveAsNew={(draft) => store.replaceSelectionAt(editIndex, store.addMemory(draft))}
+          onClose={() => setEditIndex(null)}
+        />
+      )}
 
       {setModal && (
         <MemorySetModal

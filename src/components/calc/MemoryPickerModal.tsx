@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Modal from "@/components/Modal";
+import MemoryEditModal from "@/components/memory-manager/MemoryEditModal";
 import MemoryLibrary from "@/components/memory-manager/MemoryLibrary";
 import MemorySlot from "@/components/memory-manager/MemorySlot";
 import Hint from "@/components/Hint";
@@ -40,6 +41,8 @@ export default function MemoryPickerModal({
   }, [store.selected]);
   // 自分で登録したメモリーがまだ無い（テンプレだけ）
   const noOwn = store.allMemories.every((m) => m.isTemplate);
+  /** スロットのどの枠を編集中か（アビリティ単位の変更） */
+  const [editIndex, setEditIndex] = useState<number | null>(null);
   const showPaths = store.selected.length === 0 && noOwn;
   const fillTemplate = () => store.setSelection(TEMPLATE_FILL);
 
@@ -85,7 +88,7 @@ export default function MemoryPickerModal({
       )}
 
       <div className="mt-3">
-        <MemorySlot memories={slotMemories} onRemove={store.deselectAt} />
+        <MemorySlot memories={slotMemories} onRemove={store.deselectAt} onEdit={setEditIndex} />
       </div>
       <div className="mt-3">
         <MemoryLibrary
@@ -102,13 +105,23 @@ export default function MemoryPickerModal({
           この{store.selected.length}枚で決定
         </button>
         <span className={NOTE}>
-          一覧のカードをクリックで追加、−で外せます。登録・セット保存は{" "}
+          一覧のカードをクリックで追加、−で外せます。スロットのカードをクリックすると中身を編集できます。登録・セット保存は{" "}
           <Link to="/memory" className="text-blue-600 underline">
             メモリーページ
           </Link>
           。
         </span>
       </div>
+
+      {/* スロットのメモリーをその場で編集（アビリティ単位）。更新か、別メモリーとして保存して差し替え */}
+      {editIndex !== null && slotMemories[editIndex] && (
+        <MemoryEditModal
+          memory={slotMemories[editIndex]!}
+          onUpdate={(draft) => store.updateMemory(slotMemories[editIndex]!.id, draft)}
+          onSaveAsNew={(draft) => store.replaceSelectionAt(editIndex, store.addMemory(draft))}
+          onClose={() => setEditIndex(null)}
+        />
+      )}
     </Modal>
   );
 }

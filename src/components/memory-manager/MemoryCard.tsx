@@ -16,6 +16,10 @@ type Props = {
   onRemoveOne?: () => void;
   /** 削除モードのとき true（赤い見た目に） */
   deleteMode?: boolean;
+  /** 指定すると右上に「×」が出る（スロットから外す）。カード本体のクリックは編集などに使える */
+  onRemoveSlot?: () => void;
+  /** ホバー時の説明（省略時は名前） */
+  title?: string;
 };
 
 /** メモリー1枚の縦長カード。上=プランのアイコン、下=アビリティ一覧。 */
@@ -26,6 +30,8 @@ export default function MemoryCard({
   selectedCount = 0,
   onRemoveOne,
   deleteMode = false,
+  onRemoveSlot,
+  title,
 }: Props) {
   // アイコンは常にプランのもの（名前はプランと独立の自由入力）
   const iconSrc = PLAN_ICON_SRC[memory.plan] ?? PLAN_ICON_SRC.共通;
@@ -36,7 +42,7 @@ export default function MemoryCard({
       type="button"
       onClick={onClick}
       disabled={disabled || (deleteMode && memory.isTemplate)}
-      title={memory.skillName ?? memory.plan}
+      title={title ?? memory.skillName ?? memory.plan}
       className={`relative flex w-full flex-col gap-1.5 rounded-lg border bg-white p-1.5 text-left transition ${
         disabled
           ? "cursor-not-allowed border-slate-200 opacity-40"
@@ -65,6 +71,20 @@ export default function MemoryCard({
           className="absolute -left-1.5 -top-1.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500/90 text-sm font-bold leading-none text-white shadow hover:bg-red-400"
         >
           −
+        </span>
+      )}
+      {/* スロットから外す×（右上角） */}
+      {onRemoveSlot && (
+        <span
+          role="button"
+          title="この枠から外す"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemoveSlot();
+          }}
+          className="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-slate-500/90 text-[11px] font-bold leading-none text-white shadow hover:bg-red-500"
+        >
+          ×
         </span>
       )}
       {/* 削除モードのバッジ */}
