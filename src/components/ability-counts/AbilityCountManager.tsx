@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Pencil,
@@ -61,7 +62,8 @@ type ActiveCell = {
  * 表: 縦=アビリティ全件、横=セット（固定幅・あふれたら横スクロール）。
  * ヘッダーは2段（上段=参照チェックボックス、下段=セット名）。
  * チェックしたセットはアビリティ名の右隣の参照列にコピー表示される。
- * 操作は「追加」「削除&リセット」「その他の操作」の3ボタン（それぞれモーダル）。
+ * 操作は「追加」「削除&リセット」「表示の絞り込み」の3ボタン（それぞれモーダル）。
+ * ここで編集するのはプロデュースごとのデフォルトの回数。編成後の「この育成での回数」は計算ページ側（adjust）。
  */
 export default function AbilityCountManager() {
   const store = useAbilityCounts();
@@ -112,14 +114,26 @@ export default function AbilityCountManager() {
 
   return (
     <div>
+      {/* このページの位置づけ: プロデュースごとのデフォルトの回数。編成後の実際の回数は計算ページで */}
+      <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-slate-700">
+        <b className="text-sm text-slate-900">
+          ここで決めるのは、プロデュース（発動回数セット）ごとの「デフォルトの回数」です。
+        </b>
+        <br />
+        サポカ編成を決めたあとの実際の回数（前イベ・後イベの上乗せや、この育成だけの調整）は、
+        <Link to="/calc" className="font-bold text-blue-700 underline">
+          計算ページ
+        </Link>
+        の「発動回数」ボタンで行います（そこで変えてもここのデフォルトは変わりません）。
+        <span className="ml-1 font-bold text-red-500">
+          ここにはサポカの前イベ・後イベによる発動分は含めないでください。
+        </span>
+      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p>
-          <b className="text-xs text-red-500">
-            サポカの前イベ・後イベによる発動分は含めないでください。
-          </b>
           {!selectedSet && (
-            <b className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
-              参照セット未選択です。セット名の上のチェックで選んでください。
+            <b className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
+              計算ページで使うプロデュースが未選択です。セット名の上のチェックで選べます（計算ページの「まずここを設定」でも選べます）。
             </b>
           )}
         </p>
@@ -162,7 +176,7 @@ export default function AbilityCountManager() {
             }`}
           >
             <Settings2 size={13} />
-            その他の操作
+            表示の絞り込み
             {filterActive && "（絞り込み中）"}
           </button>
         </div>
@@ -200,7 +214,7 @@ export default function AbilityCountManager() {
                 {selectedSet ? (
                   <div className="flex flex-col items-center gap-0.5 px-1 py-1">
                     <span className="text-[9px] font-medium text-blue-500">
-                      選択されているセット
+                      計算ページで使用中
                     </span>
                     <div className="flex w-full items-center gap-0.5">
                       <button
@@ -220,7 +234,7 @@ export default function AbilityCountManager() {
                       <button
                         type="button"
                         onClick={() => store.selectSet(selectedSet.id)}
-                        title="参照を解除"
+                        title="使用をやめる（未選択にする）"
                         className="shrink-0 rounded p-0.5 text-blue-400 hover:bg-blue-200 hover:text-blue-700"
                       >
                         <X size={12} />
@@ -229,9 +243,9 @@ export default function AbilityCountManager() {
                   </div>
                 ) : (
                   <div className="px-1 py-1 text-center text-[10px] font-semibold leading-tight text-blue-400">
-                    選択されている
+                    計算ページで
                     <br />
-                    セット
+                    使用中
                   </div>
                 )}
               </th>
@@ -248,7 +262,7 @@ export default function AbilityCountManager() {
                       type="checkbox"
                       checked={selected}
                       onChange={() => store.selectSet(set.id)}
-                      title="このセットを参照対象にする"
+                      title="計算ページで使うプロデュースにする"
                       className="accent-blue-600"
                     />
                   </th>
@@ -427,7 +441,7 @@ export default function AbilityCountManager() {
       )}
 
       {otherOpen && (
-        <Modal title="その他の操作" onClose={() => setOtherOpen(false)}>
+        <Modal title="表示の絞り込み" onClose={() => setOtherOpen(false)}>
           <div className="flex flex-col gap-3">
             <label className="flex items-start gap-2 text-sm text-slate-700">
               <input

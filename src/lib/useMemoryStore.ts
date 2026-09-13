@@ -5,6 +5,7 @@ import {
   SLOT_SIZE,
   TEMPLATE_MEMORIES,
   padSlots,
+  sameAbilities,
   sameMemoryContent,
   slotToMemory,
   slotsFromIds,
@@ -188,13 +189,29 @@ export function useMemoryStore() {
     return id;
   }, []);
 
-  /** 保存したメモリーの中身を書き換える（テンプレは不可） */
-  const updateMemory = useCallback((id: string, patch: MemoryDraft) => {
-    if (id.startsWith("tpl-")) return;
-    setLibrary((prev) =>
-      prev.map((m) => (m.id === id ? normalizeMemory({ ...m, ...patch }) : m)),
-    );
-  }, []);
+  /**
+   * 保存したメモリーの中身を書き換える（テンプレは不可）。
+   * 枠に入れてある「保存元から変えていないコピー」も一緒に書き換える（変えてあるものはそのまま）。
+   */
+  const updateMemory = useCallback(
+    (id: string, patch: MemoryDraft) => {
+      if (id.startsWith("tpl-")) return;
+      const old = library.find((m) => m.id === id);
+      setLibrary((prev) =>
+        prev.map((m) => (m.id === id ? normalizeMemory({ ...m, ...patch }) : m)),
+      );
+      if (old) {
+        setSlotsState((prev) =>
+          prev.map((s) =>
+            s && s.sourceId === id && sameMemoryContent(s, old)
+              ? { ...s, plan: patch.plan, skillName: patch.skillName, abilities: patch.abilities }
+              : s,
+          ),
+        );
+      }
+    },
+    [library],
+  );
 
   /** ライブラリから削除（テンプレは不可）。枠の中身は残し、保存元のつながりだけ外す */
   const deleteMemory = useCallback((id: string) => {
@@ -214,6 +231,16 @@ export function useMemoryStore() {
       const source = s.sourceId ? library.find((m) => m.id === s.sourceId) : undefined;
       if (!source) return "unsaved";
       return sameMemoryContent(s, source) ? "saved" : "modified";
+    },
+    [slots, library],
+  );
+
+  /** 枠と同じアビリティ・プランで保存済みのメモリー（名前は問わない。保存元そのものは除く） */
+  const findDuplicate = useCallback(
+    (index: number): Memory | undefined => {
+      const s = slots[index];
+      if (!s || s.roleSpec || s.abilities.length === 0) return undefined;
+      return library.find((m) => m.id !== s.sourceId && sameAbilities(m, s));
     },
     [slots, library],
   );
@@ -311,6 +338,7 @@ export function useMemoryStore() {
     updateMemory,
     deleteMemory,
     slotStatus,
+    findDuplicate,
     saveSlot,
     sets,
     saveSet,

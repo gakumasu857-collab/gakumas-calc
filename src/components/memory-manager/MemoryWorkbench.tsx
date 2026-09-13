@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { FolderInput, FolderPlus } from "lucide-react";
 import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useMemoryStore } from "@/lib/useMemoryStore";
+import LibraryEditModal from "./LibraryEditModal";
 import MemoryLibrary from "./MemoryLibrary";
 import MemorySetModal from "./MemorySetModal";
 import MemorySlot from "./MemorySlot";
@@ -16,12 +17,14 @@ const SET_BTN =
  * メモリーの作業台。メモリーページと計算ページのメモリー選択の両方で使う。
  * 上: スロット4枠（クリックで編集する枠を選ぶ）＋ セットの保存／呼び出し
  * 下: 左＝選んだ枠の編集枠（値を押すとそのまま入る。保存は任意）／右＝保存したメモリーの一覧（クリックで枠に入れる）
- * 操作の単位: アビリティ（編集枠）・メモリー（保存／一覧）・メモリーセット（4枚まとめて）。
+ * 操作の単位: アビリティ（編集枠）・メモリー（保存／一覧。✎で直接編集）・メモリーセット（4枚まとめて）。
  */
 export default function MemoryWorkbench({ store }: { store: Store }) {
   const firstEmpty = store.slots.findIndex((s) => !s);
   const [active, setActive] = useState<number>(firstEmpty === -1 ? 0 : firstEmpty);
   const [setModal, setSetModal] = useState<"save" | "load" | null>(null);
+  /** 一覧の✎で直接編集している保存済みメモリー */
+  const [editId, setEditId] = useState<string | null>(null);
 
   // 一覧のバッジ用: 保存元ID -> 枠に入っている枚数
   const selectedCounts = useMemo(() => {
@@ -104,6 +107,11 @@ export default function MemoryWorkbench({ store }: { store: Store }) {
           onClear={() => store.clearSlot(active)}
           onSaveNew={() => store.saveSlot(active, "new")}
           onOverwrite={() => store.saveSlot(active, "overwrite")}
+          duplicate={store.findDuplicate(active)}
+          onUseDuplicate={() => {
+            const dup = store.findDuplicate(active);
+            if (dup) store.pickIntoSlot(active, dup.id);
+          }}
         />
         <MemoryLibrary
           memories={store.allMemories}
@@ -112,8 +120,19 @@ export default function MemoryWorkbench({ store }: { store: Store }) {
           onSelect={pick}
           onRemoveOne={removeOne}
           onDelete={store.deleteMemory}
+          onEdit={setEditId}
         />
       </div>
+
+      {/* 保存したメモリーを一覧から直接編集（枠に入れなくてよい） */}
+      {editId && store.findMemory(editId) && (
+        <LibraryEditModal
+          memory={store.findMemory(editId)!}
+          onOverwrite={(draft) => store.updateMemory(editId, draft)}
+          onSaveAsNew={(draft) => store.addMemory(draft)}
+          onClose={() => setEditId(null)}
+        />
+      )}
 
       {setModal && (
         <MemorySetModal

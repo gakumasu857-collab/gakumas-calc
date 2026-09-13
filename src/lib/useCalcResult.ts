@@ -146,7 +146,7 @@ export function useCalcResult() {
     const statCap = SCENARIO_CAPS[scenario];
 
     const manual = manualCountFromSet(
-      selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
+      selectedSet ? (key) => ability.getRunCount(selectedSet, key) : null,
     );
 
     // ---- スケジュール（シナリオ別・%なしの生値・タイプ直接紐づけ） ----

@@ -1,20 +1,8 @@
 import { Save, Trash2 } from "lucide-react";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTE } from "@/components/ui";
-import {
-  ATTR_LABEL,
-  ATTR_LIST,
-  ATTR_STYLES,
-  ATTR_VALUES,
-  BTN_DISABLED,
-  PLAN_LIST,
-  PLAN_STYLES,
-  sortAbilities,
-  type AttrKey,
-  type SlotMemory,
-} from "@/lib/memoryTypes";
+import type { Memory, SlotMemory } from "@/lib/memoryTypes";
 import type { SlotStatus } from "@/lib/useMemoryStore";
-
-const MAX_ABILITIES = 3;
+import MemoryFields from "./MemoryFields";
 
 /** 保存状態のバッジ */
 const STATUS_BADGE: Record<SlotStatus, { label: string; cls: string } | null> = {
@@ -29,50 +17,40 @@ const STATUS_BADGE: Record<SlotStatus, { label: string; cls: string } | null> = 
  * 選んだ枠のメモリーをその場で作る・変える編集枠。
  * 値のボタンを押すとそのまま枠の中身が変わる（保存は任意。保存しなくても計算に使える）。
  * 保存元がある枠で中身を変えたら「上書き保存」か「別のメモリーとして保存」。
+ * 同じアビリティ・プランのメモリーが保存済みなら、保存の前に注意を出す。
  */
 export default function SlotEditor({
   index,
   value,
   status,
   sourceName,
+  duplicate,
   onChange,
   onClear,
   onSaveNew,
   onOverwrite,
+  onUseDuplicate,
 }: {
   index: number;
   value: SlotMemory | null;
   status: SlotStatus;
   /** 保存元のメモリー名（上書き保存ボタンに出す） */
   sourceName?: string;
+  /** 同じアビリティ・プランで保存済みのメモリー（あれば注意を出す） */
+  duplicate?: Memory;
   onChange: (next: SlotMemory) => void;
   onClear: () => void;
   onSaveNew: () => void;
   onOverwrite: () => void;
+  /** 保存済みの同じメモリーをこの枠に使う（保存せずにつなぐ） */
+  onUseDuplicate: () => void;
 }) {
   const base: SlotMemory = value ?? { plan: "共通", abilities: [] };
   const locked = status === "template";
-  const abilities = base.abilities;
-  const canSave = abilities.length > 0;
-
-  /** 値ボタンのクリック: 同属性は値の置き換え、同じ値なら解除、新属性は3つまで追加 */
-  const toggleValue = (attr: AttrKey, val: string) => {
-    if (locked) return;
-    const existing = abilities.find((a) => a.attr === attr);
-    let next;
-    if (existing) {
-      next =
-        existing.value === val
-          ? abilities.filter((a) => a.attr !== attr)
-          : abilities.map((a) => (a.attr === attr ? { attr, value: val } : a));
-    } else {
-      if (abilities.length >= MAX_ABILITIES) return;
-      next = [...abilities, { attr, value: val }];
-    }
-    onChange({ ...base, abilities: sortAbilities(next) });
-  };
-
+  const canSave = base.abilities.length > 0;
   const badge = STATUS_BADGE[status];
+  const dupName = duplicate ? (duplicate.skillName ?? duplicate.plan) : "";
+  const showDup = !!duplicate && canSave && (status === "unsaved" || status === "modified");
 
   return (
     <section className="rounded-xl border-2 border-blue-300 bg-white p-4">
@@ -91,94 +69,32 @@ export default function SlotEditor({
           別のメモリーにするには、一覧から選ぶか、この枠を空にしてから作ってください。
         </p>
       ) : (
-        <>
-          {/* アビリティ選択（最大3つ・同一属性の重複不可） */}
-          <div className="flex flex-col gap-3">
-            <p className={NOTE}>
-              アビリティを最大3つ（同じ属性は1つまで）:{" "}
-              <span className="font-semibold text-slate-700">
-                {abilities.length}/{MAX_ABILITIES}
-              </span>
-            </p>
-            {ATTR_LIST.map((attr) => {
-              const style = ATTR_STYLES[attr];
-              const current = abilities.find((a) => a.attr === attr);
-              // この属性が未選択で、すでに3属性選ばれていたら選択不可
-              const full = !current && abilities.length >= MAX_ABILITIES;
-              return (
-                <div key={attr}>
-                  <span
-                    className={`mb-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${style.chip} ${
-                      full ? "opacity-40" : ""
-                    }`}
-                  >
-                    {ATTR_LABEL[attr]}
-                    {attr === "回復" && <span className="ml-1 font-normal">(対象を選択)</span>}
-                  </span>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {ATTR_VALUES[attr].map((val) => {
-                      const on = current?.value === val;
-                      return (
-                        <button
-                          key={val}
-                          type="button"
-                          disabled={full}
-                          onClick={() => toggleValue(attr, val)}
-                          className={`rounded-md border px-1 py-1.5 text-xs font-semibold transition ${
-                            full ? BTN_DISABLED : on ? style.btnOn : style.btnOff
-                          }`}
-                        >
-                          {val}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <MemoryFields
+          value={{ plan: base.plan, skillName: base.skillName, abilities: base.abilities }}
+          onChange={(next) => onChange({ ...base, ...next })}
+        />
+      )}
 
-          {/* プランと名前 */}
-          <div className="mt-4">
-            <p className={`mb-1 ${NOTE}`}>プラン:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PLAN_LIST.map((p) => {
-                const s = PLAN_STYLES[p];
-                const on = base.plan === p;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => onChange({ ...base, plan: p })}
-                    className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
-                      on ? s.btnOn : s.btnOff
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
+      {/* 同じ中身がもう保存されているときの注意 */}
+      {showDup && (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs leading-relaxed text-amber-900">
+          <b>同じアビリティ・プランのメモリー「{dupName}」がもう保存されています。</b>
+          <br />
+          同じものなら「保存済みを使う」でつなげます。別物として残したいときは、名前を付けるかプランを変えてから保存してください。
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={onUseDuplicate} className={BTN_PRIMARY}>
+              保存済みの「{dupName}」を使う
+            </button>
+            <button type="button" onClick={onSaveNew} className={BTN_SECONDARY}>
+              それでも別に保存
+            </button>
           </div>
-          <div className="mt-3">
-            <p className={`mb-1 ${NOTE}`}>名前（任意）:</p>
-            <input
-              type="text"
-              value={base.skillName ?? ""}
-              onChange={(e) =>
-                onChange({ ...base, skillName: e.target.value || undefined })
-              }
-              placeholder="例: 咲季用パラボ"
-              maxLength={20}
-              className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            />
-          </div>
-        </>
+        </div>
       )}
 
       {/* 保存・空にする */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {status === "unsaved" && (
+        {status === "unsaved" && !showDup && (
           <button
             type="button"
             onClick={onSaveNew}
@@ -201,14 +117,16 @@ export default function SlotEditor({
               <Save size={14} />
               上書き保存{sourceName ? `（${sourceName}）` : ""}
             </button>
-            <button
-              type="button"
-              onClick={onSaveNew}
-              disabled={!canSave}
-              className={BTN_SECONDARY}
-            >
-              別のメモリーとして保存
-            </button>
+            {!showDup && (
+              <button
+                type="button"
+                onClick={onSaveNew}
+                disabled={!canSave}
+                className={BTN_SECONDARY}
+              >
+                別のメモリーとして保存
+              </button>
+            )}
           </>
         )}
         {status !== "empty" && (

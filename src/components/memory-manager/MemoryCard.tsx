@@ -20,6 +20,8 @@ type Props = {
   onRemoveSlot?: () => void;
   /** ホバー時の説明（省略時は名前） */
   title?: string;
+  /** 指定すると右下に ✎ が出る（保存したメモリーの中身を直接編集） */
+  onEdit?: () => void;
 };
 
 /** メモリー1枚の縦長カード。上=プランのアイコン、下=アビリティ一覧。 */
@@ -32,6 +34,7 @@ export default function MemoryCard({
   deleteMode = false,
   onRemoveSlot,
   title,
+  onEdit,
 }: Props) {
   // アイコンは常にプランのもの（名前はプランと独立の自由入力）
   const iconSrc = PLAN_ICON_SRC[memory.plan] ?? PLAN_ICON_SRC.共通;
@@ -91,6 +94,21 @@ export default function MemoryCard({
       {deletable && (
         <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white">
           ×
+        </span>
+      )}
+
+      {/* 中身を編集する✎（右下角） */}
+      {onEdit && !deleteMode && (
+        <span
+          role="button"
+          title="中身を編集"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="absolute -bottom-1.5 -right-1.5 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-slate-300 bg-white text-[11px] leading-none text-slate-500 shadow hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+        >
+          ✎
         </span>
       )}
 

@@ -14,6 +14,19 @@ import AbilityCounter from "./AbilityCounter";
 
 type Props = {
   set: AbilityCountSet;
+  /**
+   * default: 発動回数ページ（このセットのデフォルトの回数を編集）
+   * run: 計算ページ（この育成だけの回数。デフォルトは変えない）
+   */
+  mode?: "default" | "run";
+  /** run のとき: デフォルトの回数（調整中の表示用） */
+  defaultCount?: (set: AbilityCountSet, key: AbilityName) => number;
+  /** run のとき: この育成だけの調整が入っているか */
+  isAdjusted?: (set: AbilityCountSet, key: AbilityName) => boolean;
+  /** run のとき: 調整の件数 */
+  adjustedCount?: number;
+  /** run のとき: 調整をすべて消してデフォルトに戻す */
+  onResetAdjust?: () => void;
   /** 開いたときに選択しておく分類 */
   initialCategory?: CategoryKey;
   /** ユーザー追加セットなら削除可能 */
@@ -35,6 +48,11 @@ type Props = {
 /** セット1つの発動回数を編集するモーダル。左=分類、右=選択中分類のアビリティのみ。 */
 export default function SetEditModal({
   set,
+  mode = "default",
+  defaultCount,
+  isAdjusted,
+  adjustedCount = 0,
+  onResetAdjust,
   initialCategory,
   deletable,
   getCount,
@@ -69,10 +87,42 @@ export default function SetEditModal({
 
   return (
     <Modal
-      title={`${set.name} の発動回数`}
+      title={
+        mode === "run"
+          ? `${set.name} の発動回数（この育成での回数）`
+          : `${set.name} の発動回数（デフォルト）`
+      }
       onClose={onClose}
       widthClass="max-w-4xl"
     >
+      {/* デフォルト（発動回数ページ）と、この育成での回数（計算ページ）の違いを明示する */}
+      {mode === "run" ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
+          <span>
+            <b>この育成（今の編成）での回数</b>です。ここで変えても、発動回数ページのデフォルトは変わりません。
+          </span>
+          {adjustedCount > 0 && (
+            <span className="flex items-center gap-2">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">
+                調整中 {adjustedCount}件
+              </span>
+              {onResetAdjust && (
+                <button
+                  type="button"
+                  onClick={onResetAdjust}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  すべてデフォルトに戻す
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
+          <b>このプロデュース（セット）のデフォルトの回数</b>です。サポカ編成を決めたあとの、この育成だけの調整は計算ページの「発動回数」ボタンで（そこで変えてもここは変わりません）。
+        </div>
+      )}
       {/* ユーザーセットは名前・プランを変更できる */}
       {deletable ? (
         <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -207,6 +257,8 @@ export default function SetEditModal({
                   scenario={scenario}
                   count={getCount(set, key)}
                   extraCount={withEvents ? (eventExtras?.[key] ?? 0) : 0}
+                  adjusted={isAdjusted ? isAdjusted(set, key) : false}
+                  defaultCount={defaultCount ? defaultCount(set, key) : undefined}
                   onChange={(value) => setCount(set, key, value)}
                 />
               ))

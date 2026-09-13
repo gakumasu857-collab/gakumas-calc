@@ -120,12 +120,19 @@ export function buildInput(): AutoOptimizeInput {
   const overrides = loadJson<
     Record<string, Partial<Record<AbilityName, number>>>
   >("gakumas:abilityCountOverrides:v1", {});
+  // 計算ページの「この育成だけ」の調整（あればデフォルトより優先）
+  const adjust = loadJson<
+    Record<string, Partial<Record<AbilityName, number>>>
+  >("gakumas:calc:countAdjust:v1", {});
   const manual = manualCountFromSet(
     set
       ? (key) =>
           Math.min(
             abilityMax(key),
-            Math.max(0, overrides[set.id]?.[key] ?? set.defaults[key] ?? 0),
+            Math.max(
+              0,
+              adjust[set.id]?.[key] ?? overrides[set.id]?.[key] ?? set.defaults[key] ?? 0,
+            ),
           )
       : null,
   );

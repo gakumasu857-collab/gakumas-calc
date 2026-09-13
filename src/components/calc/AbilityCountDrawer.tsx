@@ -9,8 +9,9 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
- * 計算ページの「レッスンの踏み方」ブロックの「発動回数を調整」から開く発動回数エディタ。
- * 発動回数ページでセット名をクリックしたときと同じモーダル（分類タブの表）を開く。
+ * 計算ページの「発動回数」ボタン（まずここを設定／サポカ編成と踏み方）から開く発動回数エディタ。
+ * 発動回数ページと同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
+ * 発動回数ページのデフォルトは変えない（useAbilityCounts の adjust レイヤー）。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。
  */
 export default function AbilityCountDrawer({
@@ -58,9 +59,14 @@ export default function AbilityCountDrawer({
         (set ? (
           <SetEditModal
             set={set}
+            mode="run"
             deletable={r.ability.isUserSet(set.id)}
-            getCount={r.ability.getCount}
-            setCount={r.ability.setCount}
+            getCount={r.ability.getRunCount}
+            setCount={r.ability.setRunCount}
+            defaultCount={r.ability.getCount}
+            isAdjusted={r.ability.isRunAdjusted}
+            adjustedCount={r.ability.runAdjustCount(set)}
+            onResetAdjust={() => r.ability.resetRunAdjust(set.id)}
             formationKeys={formationKeys}
             eventExtras={eventExtras}
             onDelete={() => r.ability.deleteSet(set.id)}

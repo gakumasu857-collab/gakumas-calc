@@ -23,6 +23,11 @@ import {
 const STORAGE_KEY = "gakumas:abilityCountOverrides:v1";
 const USER_SETS_KEY = "gakumas:abilityUserSets:v1";
 const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
+/**
+ * 計算ページでの「この育成だけ」の回数調整（セットID→アビリティ→回数）。
+ * 発動回数ページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
+ */
+const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
 
 /** setId -> (アビリティキー -> 上書き回数) */
 type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
@@ -55,6 +60,9 @@ export function useAbilityCounts() {
   const [userSets, setUserSets] = useState<UserSet[]>(() =>
     loadJson<UserSet[]>(USER_SETS_KEY, []),
   );
+  const [adjust, setAdjust] = useState<Overrides>(() =>
+    loadJson<Overrides>(ADJUST_KEY, {}),
+  );
   const [selectedSetId, setSelectedSetId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(SELECTED_SET_KEY);
@@ -68,13 +76,14 @@ export function useAbilityCounts() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
       localStorage.setItem(USER_SETS_KEY, JSON.stringify(userSets));
+      localStorage.setItem(ADJUST_KEY, JSON.stringify(adjust));
       if (selectedSetId) localStorage.setItem(SELECTED_SET_KEY, selectedSetId);
       else localStorage.removeItem(SELECTED_SET_KEY);
       notifySave();
     } catch {
       // 容量超過などは無視
     }
-  }, [overrides, userSets, selectedSetId, notifySave]);
+  }, [overrides, userSets, adjust, selectedSetId, notifySave]);
 
   const defaultFor = (set: AbilityCountSet, key: AbilityName): number =>
     set.defaults[key] ?? 0;
@@ -114,6 +123,58 @@ export function useAbilityCounts() {
     [],
   );
 
+  /**
+   * 計算ページで使う「この育成での回数」。この育成だけの調整（adjust）があればそれ、
+   * なければセットのデフォルト（発動回数ページの値）。
+   */
+  const getRunCount = useCallback(
+    (set: AbilityCountSet, key: AbilityName): number => {
+      const value = adjust[set.id]?.[key] ?? getCount(set, key);
+      return clamp(value, abilityMax(key));
+    },
+    [adjust, getCount],
+  );
+
+  /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。発動回数ページの値は変えない */
+  const setRunCount = useCallback(
+    (set: AbilityCountSet, key: AbilityName, value: number) => {
+      const next = clamp(value, abilityMax(key));
+      const base = getCount(set, key);
+      setAdjust((prev) => {
+        const forSet = { ...(prev[set.id] ?? {}) };
+        if (next === base) delete forSet[key];
+        else forSet[key] = next;
+        const result = { ...prev, [set.id]: forSet };
+        if (Object.keys(forSet).length === 0) delete result[set.id];
+        return result;
+      });
+    },
+    [getCount],
+  );
+
+  /** この育成だけの調整が入っているか */
+  const isRunAdjusted = useCallback(
+    (set: AbilityCountSet, key: AbilityName): boolean =>
+      adjust[set.id]?.[key] !== undefined,
+    [adjust],
+  );
+
+  /** この育成だけの調整の件数 */
+  const runAdjustCount = useCallback(
+    (set: AbilityCountSet): number => Object.keys(adjust[set.id] ?? {}).length,
+    [adjust],
+  );
+
+  /** この育成だけの調整をすべて消してデフォルトに戻す */
+  const resetRunAdjust = useCallback((setId: string) => {
+    setAdjust((prev) => {
+      if (!prev[setId]) return prev;
+      const next = { ...prev };
+      delete next[setId];
+      return next;
+    });
+  }, []);
+
   /** セット選択を解除する（シナリオ変更時など） */
   const clearSelected = useCallback(() => {
     setSelectedSetId(null);
@@ -122,6 +183,7 @@ export function useAbilityCounts() {
   /** 全て初期状態に戻す（回数の変更・追加セット・選択をすべて破棄） */
   const resetEverything = useCallback(() => {
     setOverrides({});
+    setAdjust({});
     setUserSets([]);
     setSelectedSetId(null);
   }, []);
@@ -159,6 +221,11 @@ export function useAbilityCounts() {
     if (!setId.startsWith("uset-")) return;
     setUserSets((prev) => prev.filter((s) => s.id !== setId));
     setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[setId];
+      return next;
+    });
+    setAdjust((prev) => {
       const next = { ...prev };
       delete next[setId];
       return next;
@@ -223,6 +290,13 @@ export function useAbilityCounts() {
         if (value) clamped[k] = clamp(value, abilityMax(k));
       }
       setOverrides((prev) => ({ ...prev, [id]: clamped }));
+      // 回数はこの育成の調整込みで固めたので、このセットの調整は消す
+      setAdjust((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       return id;
     },
     [userSets],
@@ -244,6 +318,11 @@ export function useAbilityCounts() {
       if (targets.length === 0) return;
       setUserSets((prev) => prev.filter((s) => !targets.includes(s.id)));
       setOverrides((prev) => {
+        const next = { ...prev };
+        for (const id of targets) delete next[id];
+        return next;
+      });
+      setAdjust((prev) => {
         const next = { ...prev };
         for (const id of targets) delete next[id];
         return next;
@@ -288,19 +367,19 @@ export function useAbilityCounts() {
   const saveIdOf = (setId: string): string | undefined =>
     userSets.find((s) => s.id === setId)?.saveId;
 
-  /** セットの実効回数を丸ごと取り出す（セーブデータのスナップショット用） */
+  /** この育成での回数を丸ごと取り出す（セーブデータのスナップショット用。この育成だけの調整込み） */
   const snapshotCounts = useCallback(
     (set: AbilityCountSet): Partial<Record<AbilityName, number>> => {
       const out: Partial<Record<AbilityName, number>> = {};
       for (const category of ABILITY_CATEGORIES) {
         for (const ability of category.abilities) {
-          const value = getCount(set, ability);
+          const value = getRunCount(set, ability);
           if (value !== 0) out[ability] = value;
         }
       }
       return out;
     },
-    [getCount],
+    [getRunCount],
   );
 
   return {
@@ -308,6 +387,11 @@ export function useAbilityCounts() {
     getCount,
     setCount,
     isOverridden,
+    getRunCount,
+    setRunCount,
+    isRunAdjusted,
+    runAdjustCount,
+    resetRunAdjust,
     resetSets,
     resetEverything,
     clearSelected,

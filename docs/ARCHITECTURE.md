@@ -177,7 +177,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
 | `useCalcSettings.ts` | 計算ページの設定（アイドル・Pアイドル・条件設定・本戦点数など）とセーブ一覧のストア |
 | `useOwnedLevels.ts` / `useOwnedPIdols.ts` / `useOwnedSaves.ts` | 所持状況（サポカ凸・Pアイドル特訓/開花）とその名前つき保存 |
-| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存）、参照セットの選択 |
+| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存＝プロデュースごとのデフォルト）、計算ページで使うセットの選択、計算ページでの「この育成だけ」の調整レイヤー `adjust`（`getRunCount`／`setRunCount`／`isRunAdjusted`／`resetRunAdjust`。デフォルトは変えず、計算・探索・セーブはこちらを使う。セーブ用セットを作るときは調整込みで固めて調整を消す） |
 | `useEventCounts.ts` | カードごとの前イベ・後イベ・ステイベの手動設定 |
 | `useMemoryStore.ts` | スロット 4 枠の中身（保存していないメモリーもそのまま持つ。`gakumas:memorySlots:v2`）・保存したメモリー（ライブラリ）・メモリーセット（4 枠の中身のスナップショット）。枠の保存状態 `slotStatus`（空／テンプレ／未保存／保存済み／変更あり）、`saveSlot`（新規／上書き）、`pickIntoSlot`（一覧から枠へコピー）、`fillSlots`（4 枠すべて同じテンプレ） |
 | `useSelectedSupports.ts` | 計算ページの「選択サポカ」6 枠 |
@@ -221,8 +221,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calc/ParaboTableModal.tsx` / `calc/CalcHelpModal.tsx` | パラボ変換表、ヘルプ |
 | `ownership/` | `/support` 所持状況入力（サポカ・Pアイドル、CSV、名前つき保存。`OwnedSaveBar.tsx` に既定の「全サポカ完凸」） |
 | `card-import/CardImportPage.tsx` | `/card-import` 画面キャプチャで所持入力（β） |
-| `memory-manager/` | `/memory` メモリー設定。`MemoryWorkbench.tsx` が作業台（計算ページのメモリー選択でも同じもの）: 上＝`MemorySlot.tsx`（4 枠のカード。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`。4 枚そろうと「この4枚をセットとして保存」）、下＝左 `SlotEditor.tsx`（選んだ枠の中身を値ボタンでその場で作る・変える。保存は任意で「メモリーとして保存」、保存元があれば「上書き保存」「別のメモリーとして保存」。テンプレの枠は変えられない）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレの一覧。クリックで編集中の枠に入れて次の空枠へ進む。−で外す・削除モード・フィルター）。操作の単位はアビリティ（編集枠）・メモリー（保存／一覧）・メモリーセット（4 枚まとめて）の 3 段 |
-| `ability-counts/` | `/ability-counts` アビリティ発動回数（セットの表・編集モーダル `SetEditModal.tsx`・1 件の入力 `AbilityCounter.tsx`） |
+| `memory-manager/` | `/memory` メモリー設定。`MemoryWorkbench.tsx` が作業台（計算ページのメモリー選択でも同じもの）: 上＝`MemorySlot.tsx`（4 枠のカード。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`。4 枚そろうと「この4枚をセットとして保存」）、下＝左 `SlotEditor.tsx`（選んだ枠の中身を値ボタンでその場で作る・変える。保存は任意で「メモリーとして保存」、保存元があれば「上書き保存」「別のメモリーとして保存」。テンプレの枠は変えられない）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレの一覧。クリックで編集中の枠に入れて次の空枠へ進む。−で外す・削除モード・フィルター）。操作の単位はアビリティ（編集枠）・メモリー（保存／一覧）・メモリーセット（4 枚まとめて）の 3 段。一覧のカードの ✎ で保存したメモリーを直接編集（`LibraryEditModal.tsx`。上書き保存は枠に入れてある変えていないコピーにも反映）。保存時に同じアビリティ・プランのメモリーがあれば注意（`findDuplicate`。「保存済みを使う」か、名前・プランを変えて別に保存）。入力欄は `MemoryFields.tsx` を共用 |
+| `ability-counts/` | `/ability-counts` アビリティ発動回数＝プロデュースごとの**デフォルトの回数**（上の説明帯で「編成を決めたあとの実際の回数は計算ページの発動回数ボタンで」と案内）。セットの表（「計算ページで使用中」列）・編集モーダル `SetEditModal.tsx`（`mode`: default＝ページ／run＝計算ページ。run では「この育成での回数」の帯・「調整中 N件」・すべてデフォルトに戻す）・1 件の入力 `AbilityCounter.tsx`（調整中の印） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表 |
 | `database/DatabasePage.tsx` | `/database` データベース（サポカ・Pアイドルの一覧閲覧。スプシの見た目に近い） |
@@ -610,7 +610,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:memorySets:v1` | メモリーセット（4 枠の中身 `memories`。旧 `memoryIds` は読み込み時に展開。セーブデータ由来のものは `saveId` 付き） | 同上 |
 | `gakumas:abilityCountOverrides:v1` | 発動回数の「テンプレとの差分」（セット ID → アビリティ → 回数） | `src/lib/useAbilityCounts.ts` |
 | `gakumas:abilityUserSets:v1` | 利用者が追加した発動回数セット（名前・プラン。セーブ由来は `saveId` 付き） | 同上 |
-| `gakumas:abilitySelectedSet:v1` | 参照中のセット ID | 同上 |
+| `gakumas:abilitySelectedSet:v1` | 計算ページで使うセット（プロデュース）の ID | 同上 |
+| `gakumas:calc:countAdjust:v1` | 計算ページでの「この育成だけ」の回数調整（セット ID → アビリティ → 回数。デフォルトより優先。セーブ用セットに固めたら消える） | 同上 |
 | `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定 | `src/lib/useEventCounts.ts` |
 | `gakumas:calcEventCounts:v1` | 計算ページ専用の同じ設定（サポカ設定と混ざらないよう別キー） | 同上 |
 | `gakumas:ownedLevels:v1` | サポカの所持凸（`card:<名前>` → -1 未所持／0〜4 凸。初回は全カード 4） | `src/lib/useOwnedLevels.ts` |

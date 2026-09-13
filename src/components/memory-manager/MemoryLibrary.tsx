@@ -24,6 +24,8 @@ type Props = {
   /** −ボタンで選択を1枚解除 */
   onRemoveOne: (id: string) => void;
   onDelete: (id: string) => void;
+  /** ✎で保存したメモリーの中身を直接編集（テンプレは不可） */
+  onEdit?: (id: string) => void;
 };
 
 /** 保存したメモリーの一覧。クリックで編集中の枠に入れる。テンプレ表示・削除モード・フィルター付き。 */
@@ -34,6 +36,7 @@ export default function MemoryLibrary({
   onSelect,
   onRemoveOne,
   onDelete,
+  onEdit,
 }: Props) {
   const [deleteMode, setDeleteMode] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -94,7 +97,7 @@ export default function MemoryLibrary({
         <h2 className="text-sm font-bold text-slate-900">
           保存したメモリー
           <span className="ml-2 text-xs font-normal text-slate-500">
-            クリックで{activeIndex !== undefined ? `枠${activeIndex + 1}` : "枠"}に入れる（同じカード何枚でも可）。−で外す
+            クリックで{activeIndex !== undefined ? `枠${activeIndex + 1}` : "枠"}に入れる（同じカード何枚でも可）。✎で中身を編集、−で外す
           </span>
         </h2>
         <div className="ml-auto flex gap-1.5">
@@ -232,6 +235,11 @@ export default function MemoryLibrary({
                 }
                 onClick={() =>
                   deleteMode ? onDelete(memory.id) : onSelect(memory.id)
+                }
+                onEdit={
+                  !deleteMode && onEdit && !memory.isTemplate
+                    ? () => onEdit(memory.id)
+                    : undefined
                 }
               />
             );

@@ -792,7 +792,7 @@ function AbilityCountTable({ r }: { r: CalcResult }) {
   const entries = (Object.keys(ABILITY_NAMES) as AbilityName[])
     .map((key) => {
       const label = ABILITY_NAMES[key];
-      const base = r.ability.getCount(set, key);
+      const base = r.ability.getRunCount(set, key);
       // 「〜回まで」の上限を超える上乗せは切り捨て（計算と同じ扱い）
       const extra = clampExtraCount(
         label,

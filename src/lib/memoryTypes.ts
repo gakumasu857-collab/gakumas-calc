@@ -255,3 +255,13 @@ export function sameMemoryContent(
     ]);
   return key(a) === key(b);
 }
+
+/** アビリティとプランが同じか（名前は問わない）。保存時の「同じメモリーがもうある」判定に使う */
+export function sameAbilities(
+  a: Pick<Memory, "plan" | "abilities">,
+  b: Pick<Memory, "plan" | "abilities">,
+): boolean {
+  const key = (m: typeof a) =>
+    JSON.stringify([m.plan, sortAbilities(m.abilities).map((x) => `${x.attr}${x.value}`)]);
+  return key(a) === key(b);
+}

@@ -44,7 +44,7 @@ export function buildAutoOptimizeInput(
   settings: CalcSettings,
 ): AutoOptimizeInput {
   const manual = manualCountFromSet(
-    r.selectedSet ? (key) => r.ability.getCount(r.selectedSet!, key) : null,
+    r.selectedSet ? (key) => r.ability.getRunCount(r.selectedSet!, key) : null,
   );
   const tag = IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat";
   return {
