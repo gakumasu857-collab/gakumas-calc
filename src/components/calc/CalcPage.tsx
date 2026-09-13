@@ -38,12 +38,17 @@ import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
   examStyleTags,
   findBestFormation,
-  planAllows,
   scoreOwnedCards,
   scoreRentalCandidates,
   sumEventContrib,
   typeConstraintFromRatio,
 } from "@/lib/formation";
+import {
+  conditionChips as conditionChipsOf,
+  currentMeetsConditions as meetsConditions,
+  formationIssues,
+  type ConditionInput,
+} from "@/lib/formationConditions";
 import { GLOSSARY } from "@/lib/glossary";
 import {
   readOwnershipAck,
@@ -70,16 +75,9 @@ import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
 const CARD_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
-/** 探索の条件（SP率持ち・タイプ割合・最低ステ・最高ステ）の達成状況（評価値の下のチップ） */
-type ConditionStatus = { label: string; ok: boolean; detail?: string };
 const SUPPORT_IMAGE_BY_ID = new Map(
   SUPPORT_CATALOG.map((c) => [c.id, c.image]),
 );
-const TYPE_JA: Record<TypeKey, "Vo" | "Da" | "Vi"> = {
-  vocal: "Vo",
-  dance: "Da",
-  visual: "Vi",
-};
 /** 一度でも探索を押したか（押すまでは、前提がそろったらボタンの上に動く矢印を出す） */
 const EVER_RUN_KEY = "gakumas:calc:everRun:v1";
 const readEverRun = (): boolean => {
@@ -229,63 +227,28 @@ export default function CalcPage() {
     }, 30);
   };
 
+  /** 条件判定の入力（今の編成・設定・今の踏み方で決まるSP率持ち枚数・今のステ） */
+  const conditionInput = (): ConditionInput => ({
+    members: r.members.filter((m): m is SelectedMember => m !== null),
+    flags,
+    settings,
+    plan: r.plan,
+    spMin: resolveSpMin(r, settings),
+    capped: {
+      vocal: r.perType.vocal.capped,
+      dance: r.perType.dance.capped,
+      visual: r.perType.visual.capped,
+    },
+    statCap: r.statCap,
+    getLevel: r.getLevel,
+  });
   /**
-   * 今の編成（選択サポカ）が現在の条件設定を満たしているか。
+   * 今の編成（選択サポカ）が現在の条件設定（固定・BAN・レンタルNG・プラン・ステージ用の除外・
+   * SP率持ち・タイプ割合・最低/最高ステ）を満たしているか。
    * 満たしているのに探索結果が今の評価値を下回る場合は、結果を反映せず現状維持する
    * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
    */
-  const currentMeetsConditions = (): boolean => {
-    const members = r.members.filter((m): m is SelectedMember => m !== null);
-    if (members.length < 6) return false;
-    if (members.filter((m) => m.rental).length > 1) return false;
-    for (const m of members) {
-      const db = CARD_BY_ID.get(m.id);
-      if (!db) return false;
-      if (!planAllows(db.plan, r.plan)) return false;
-      if (flags.pinned.has(m.id)) continue; // 固定は条件を貫通
-      if (flags.banned.has(m.id)) return false;
-      if (
-        settings.noStageItems &&
-        (db.stageItem || db.preEventType === "スキル")
-      )
-        return false;
-    }
-    {
-      const resolved = resolveSpMin(r, settings);
-      for (const t of TYPE_KEYS) {
-        const need = resolved[t] ?? 0;
-        // 全SPレッスン率（トレーナー等）は全タイプの1枚として数える
-        if (
-          need > 0 &&
-          members.filter((m) => m.spTypes.includes(t)).length < need
-        )
-          return false;
-      }
-    }
-    if (settings.typeRatio.enabled) {
-      const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      for (const m of members) if (!m.assist) counts[m.type]++;
-      const ratioSum = TYPE_KEYS.reduce(
-        (sum, t) => sum + settings.typeRatio[t],
-        0,
-      );
-      for (const t of TYPE_KEYS) {
-        const want = settings.typeRatio[t];
-        // 合計6以上=枚数固定、6未満=最低枚数
-        if (ratioSum >= 6 ? counts[t] !== want : counts[t] < want) return false;
-      }
-    }
-    // 最低ステ・最高ステ: 今の最終ステが条件から外れていれば「条件を満たしていない」
-    // （条件外の今の編成が評価値だけ高くても、条件を満たす探索結果で置き換える）
-    for (const t of TYPE_KEYS) {
-      const stat = r.perType[t].capped;
-      const min = settings.minStats[t];
-      if (min > 0 && stat < min) return false;
-      const max = settings.maxStats[t];
-      if (max > 0 && max < r.statCap && stat > max) return false;
-    }
-    return true;
-  };
+  const currentMeetsConditions = (): boolean => meetsConditions(conditionInput());
 
   /**
    * 探索の診断ログ。セーブデータ形式の状態（設定・踏み方・メモリー・発動回数・編成・所持）と
@@ -311,6 +274,7 @@ export default function CalcPage() {
       current: {
         rating: before,
         meetsConditions: beforeOk,
+        issues: formationIssues(conditionInput()),
         slots: r.selected.slots,
       },
       result: {
@@ -329,85 +293,6 @@ export default function CalcPage() {
       },
     });
 
-  /** サポカID列のタイプ枚数（アシストはどのタイプにも数えない） */
-  const typeCountsOfIds = (ids: string[]): Record<TypeKey, number> => {
-    const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-    const map: Record<string, TypeKey> = {
-      Vocal: "vocal",
-      Dance: "dance",
-      Visual: "visual",
-    };
-    for (const id of ids) {
-      const t = map[CARD_BY_ID.get(id)?.cardType ?? ""];
-      if (t) counts[t]++;
-    }
-    return counts;
-  };
-
-  /** タイプ割合条件の達成（合計6=固定、6未満=最低枚数） */
-  const ratioStatus = (ids: string[]): ConditionStatus => {
-    const counts = typeCountsOfIds(ids);
-    const ratio = settings.typeRatio;
-    const sum = TYPE_KEYS.reduce((s, t) => s + ratio[t], 0);
-    const ok = TYPE_KEYS.every((t) =>
-      sum >= 6 ? counts[t] === ratio[t] : counts[t] >= ratio[t],
-    );
-    return {
-      label: "タイプ割合",
-      ok,
-      detail: `Vo${counts.vocal} Da${counts.dance} Vi${counts.visual}`,
-    };
-  };
-
-  /** 今の編成・ステでの条件の達成状況（結果列のチップ用。条件を設定していない項目は出さない） */
-  const currentConditions = (): ConditionStatus[] => {
-    const out: ConditionStatus[] = [];
-    const members = r.members.filter((m): m is SelectedMember => m !== null);
-    if (members.length < 6) return out;
-    if (settings.spTop.first > 0 || settings.spTop.second > 0) {
-      const resolved = resolveSpMin(r, settings);
-      let short = 0;
-      for (const t of TYPE_KEYS) {
-        short += Math.max(
-          0,
-          (resolved[t] ?? 0) - members.filter((m) => m.spTypes.includes(t)).length,
-        );
-      }
-      out.push({
-        label: "SP率持ち",
-        ok: short === 0,
-        detail: short > 0 ? `あと${short}枚` : undefined,
-      });
-    }
-    if (settings.typeRatio.enabled) out.push(ratioStatus(members.map((m) => m.id)));
-    if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {
-      const bad = TYPE_KEYS.filter(
-        (t) => settings.minStats[t] > 0 && r.perType[t].capped < settings.minStats[t],
-      );
-      out.push({
-        label: "最低ステ",
-        ok: bad.length === 0,
-        detail: bad.length ? bad.map((t) => TYPE_JA[t]).join("・") + "未達" : undefined,
-      });
-    }
-    if (
-      TYPE_KEYS.some((t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap)
-    ) {
-      const bad = TYPE_KEYS.filter(
-        (t) =>
-          settings.maxStats[t] > 0 &&
-          settings.maxStats[t] < r.statCap &&
-          r.perType[t].capped > settings.maxStats[t],
-      );
-      out.push({
-        label: "最高ステ",
-        ok: bad.length === 0,
-        detail: bad.length ? bad.map((t) => TYPE_JA[t]).join("・") + "超過" : undefined,
-      });
-    }
-    return out;
-  };
-
   /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
    * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
@@ -420,8 +305,10 @@ export default function CalcPage() {
     setLastRun(null);
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
-    // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない
-    const before = canShowRating && !settings.examAssist ? r.rating : null;
+    // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない。
+    // 取得回数の制限ON中も、結果は制限を反映した評価値（今の評価値より低くて当然）なので効かせない
+    const before =
+      canShowRating && !settings.examAssist && !settings.eventBudget.enabled ? r.rating : null;
     const beforeOk = before !== null && currentMeetsConditions();
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
@@ -535,7 +422,7 @@ export default function CalcPage() {
     if (!setPlanMatches(r.selectedSet?.plan, plan)) r.ability.clearSelected();
   };
 
-  const conditionChips = currentConditions();
+  const conditionChips = conditionChipsOf(conditionInput());
   // 所持状況ページをまだ開いていない（全サポカ完凸で計算中）。「全完凸のまま進む」を選んだ後は出さない
   const ownershipUnset = !readOwnershipVisited();
   const ownershipNote = ownershipUnset && !readOwnershipAck();
@@ -607,9 +494,10 @@ export default function CalcPage() {
         </div>
       </div>
 
-      {/* ===== 入力（デスクトップでは左） ===== */}
-      <div className="flex min-w-0 flex-col gap-4 lg:order-1">
+      {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
+      <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
         {/* まず、育成の前提を設定（シナリオ・Pアイドル・プロデュース・メモリー・本戦点数）。4つそろうと探索できる */}
+        <div className="order-1 min-w-0">
         <PremiseCard
           r={r}
           onOpenScenario={() => setScenarioPickerOpen(true)}
@@ -617,13 +505,14 @@ export default function CalcPage() {
           onOpenMemory={() => setMemoryOpen(true)}
           onOpenCounts={() => setCountsOpen(true)}
         />
+        </div>
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
-        {actionPanel}
+        <div className="order-2">{actionPanel}</div>
 
         {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
         {pendingOps && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
+          <div className="order-3 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
             <p className="font-semibold text-amber-700">
               予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
             </p>
@@ -670,6 +559,7 @@ export default function CalcPage() {
         )}
 
         {/* サポカ編成と踏み方（一度に見える） */}
+        <div className="order-5 min-w-0">
         <FormationPlanCard
           r={r}
           flags={flags}
@@ -684,17 +574,18 @@ export default function CalcPage() {
           {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用） */}
           <EventCountEditor r={r} />
         </FormationPlanCard>
+        </div>
       </div>
 
-      {/* ===== 結果（デスクトップでは右・スクロールに追従。1画面に収まる高さにしてある） ===== */}
+      {/* ===== 結果（デスクトップでは右列・スクロールに追従。スマホでは評価値が編成の上、ステータスが一番下） ===== */}
       <div
         id="calc-results"
-        className="flex scroll-mt-16 flex-col gap-3 lg:order-2 lg:sticky lg:top-14 lg:self-start"
+        className="contents lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:sticky lg:top-14 lg:self-start"
       >
         {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示）。
             数字は key を変えて再マウントし、変わった瞬間に少し大きくなる（手で変えると効くのが分かる） */}
         <div
-          className={`rounded-xl border-2 bg-white p-3 ${
+          className={`order-4 rounded-xl border-2 bg-white p-3 ${
             !canShowRating
               ? "border-slate-300"
               : previewRating !== null
@@ -786,7 +677,9 @@ export default function CalcPage() {
         </div>
 
         {/* 育成後のステータス（内訳バーつき） */}
-        <StatsCard r={r} minStats={settings.minStats} maxStats={settings.maxStats} />
+        <div className="order-6">
+          <StatsCard r={r} minStats={settings.minStats} maxStats={settings.maxStats} />
+        </div>
       </div>
 
       {/* カードの最終ステータス詳細（イベント補正込み） */}

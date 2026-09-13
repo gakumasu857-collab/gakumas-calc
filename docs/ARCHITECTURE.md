@@ -162,6 +162,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`、発動回数の引き方 `buildCountResolver`、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
 | `sheetContext.ts` | H.I.F. の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
 | `scenarioGains.ts` | N.I.A.・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
+| `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
 | `formation.ts` | **編成の組み方。** カードを点数化 `scoreCard`、6 枚の合計評価 `evaluateTeam`（イベント相互作用と上限込み）、合算パラボ `summedParaboByType`、山登りで最良 6 枚を探す `findBestFormation`、条件（SP枚数・最低ステ・最高ステ・割合・固定/BAN・試験補助）の重み |
 | `autoOptimize.ts` | **理想編成の探索（踏み方×編成を同時に）。** 入口は `runFullOptimize`、本体は `OptimizeEngine` クラス。踏み方だけの最適化 `optimizeSteppingForSlots` も |
 | `optimize/stepping.ts` | 「踏み方」の表し方と近傍（1 箇所だけ変えた候補）の列挙、選抜スコアの整数比プリセット |
@@ -373,7 +374,10 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 8. **仕上げの後処理**: 取得回数の制限があれば価値の高いカードから割り当て（`allocateEvents`。結果は「提案」として表示され、
    利用者が「反映する」を押すまでサポカ設定は変えない）→ 授業を流行タイプの閾値ルール（第1流行 2100 以上 → 第2流行 1400 以上 → 第3流行 1100 以上の順。2026-09-13 に第2流行を追加）に寄せる
    （`applyClassPreference`）→ 計算ページと同じ式で最終評価値（`fullRating`）。
-9. 結果が今の評価値を下回り、かつ今の編成が条件を満たしているときは変更しません（`CalcPage.tsx` の `currentMeetsConditions`）。
+9. 結果が今の評価値を下回り、かつ今の編成が条件を満たしているときは変更しません（`src/lib/formationConditions.ts` の `currentMeetsConditions`）。
+   固定カードが入っていない・BAN・レンタルNG・プラン外・ステージ用の除外・SP率持ち不足・タイプ割合違い・最低/最高ステ外は「満たしていない」扱いで、
+   結果が低くても置き換えます（2026-09-13 に固定・レンタルNG を追加。以前は固定を入れた結果が「下回ったので変更なし」に吸われていた）。
+   取得回数の制限 ON と試験補助 ON のときは、結果の評価値が今の評価値と同じ土俵でないのでガード自体を効かせません。
 
 探索中の比較は「Σ最終ステ ＋ スター性のステ換算（★1 = 評価値 7.5 = ステ 3.75）＋ NIA 札換算」で行い、最終評価値は勝者だけ計算します。
 「寄せ方の比較」（`axisReport`）は軸ごとの最良候補の評価値と、条件未達（SP率持ち不足・最低ステ未達・最高ステ超過）を画面に出します。

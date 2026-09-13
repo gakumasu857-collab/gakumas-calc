@@ -55,7 +55,7 @@ function RunButtons({
       >
         <Sparkles size={15} className="shrink-0" />
         <span className="min-w-0 truncate">
-          {busy ? "計算中…" : "理想の編成と踏み方を求める"}
+          {busy ? "計算中…" : "評価値が最も高くなる編成と踏み方を求める"}
         </span>
       </button>
       <div className="relative flex">
@@ -162,7 +162,7 @@ export default function ActionPanel({
           {ownershipUnset ? (
             <span>
               サポカが全部完凸の想定で探索できます。
-              <span className="font-normal text-slate-600">
+              <span className="font-normal text-slate-900">
                 自分の所持状況に合わせたいときは{" "}
                 <Link to="/support" className="font-bold text-blue-700 underline">
                   ここから入力

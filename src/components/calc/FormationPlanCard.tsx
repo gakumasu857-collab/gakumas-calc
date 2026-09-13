@@ -114,9 +114,6 @@ export default function FormationPlanCard({
           />
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">
-        サポカ・踏み方・前イベなどを手で変えると、評価値と育成後のステータスがその場で変わります。
-      </p>
 
       {/* 踏み方（クリックで編集） */}
       <button

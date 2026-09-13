@@ -15,8 +15,8 @@ export default function OwnershipConfirmModal({
   onClose: () => void;
 }) {
   return (
-    <Modal title="所持しているサポカが未入力です" onClose={onClose} widthClass="max-w-md">
-      <p className="text-sm text-slate-600">
+    <Modal title="所持状況が未入力です" onClose={onClose} widthClass="max-w-md">
+      <p className="text-sm text-slate-900">
         今は「全サポカを完凸で持っている」想定で計算します。どちらにしますか？
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -33,12 +33,9 @@ export default function OwnershipConfirmModal({
           className="flex flex-col items-center rounded-xl border border-slate-300 bg-white px-3 py-3 text-slate-800 transition hover:border-blue-400 hover:bg-blue-50/40"
         >
           <span className="text-base font-bold">自分の所持状況に合わせる</span>
-          <span className="text-[11px] text-slate-500">持っているサポカと凸数を入力</span>
+          <span className="text-[11px] text-slate-500">所持状況入力ページに移行</span>
         </Link>
       </div>
-      <p className={`mt-3 ${NOTE}`}>
-        この確認は最初の1回だけ。所持状況は上のタブ「所持状況」からいつでも入力できます。
-      </p>
     </Modal>
   );
 }

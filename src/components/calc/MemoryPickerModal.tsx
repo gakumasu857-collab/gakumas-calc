@@ -15,7 +15,7 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 const TEMPLATE_FILL = ["tpl-role60", "tpl-role60", "tpl-role60", "tpl-role60"];
 
 const TILE =
-  "block cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-left transition hover:border-blue-400 hover:bg-blue-50/40";
+  "block cursor-pointer rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400 hover:bg-blue-100";
 const BADGE = "mb-1 inline-block rounded bg-blue-600 px-1.5 py-0.5 text-[11px] font-bold text-white";
 
 /**
@@ -46,8 +46,7 @@ export default function MemoryPickerModal({
   return (
     <Modal title="メモリーを4枚選ぶ" onClose={onClose} widthClass="max-w-4xl">
       <p className="text-sm text-slate-700">
-        育成の開始時に持ち込むメモリー4枚です。
-        <b>固定ステータスとパラメータボーナス%</b>が評価値に大きく効きます。
+        育成の開始時に持ち込むメモリー4枚の設定です。
       </p>
 
       {showPaths && (
@@ -58,7 +57,7 @@ export default function MemoryPickerModal({
               持っているメモリーを登録して使う
             </span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              メモリーページで登録します（まだ登録がありません）
+              自分のメモリーを入力できます（メモリーページで登録）
             </span>
           </Link>
           <div
@@ -75,10 +74,10 @@ export default function MemoryPickerModal({
           >
             <span className={BADGE}>B</span>
             <span className="block text-sm font-bold text-slate-800">
-              まだ決まっていない → メインパラボ60点 ×4枚を入れる
+              汎用のメモリーを入れる
             </span>
             <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-              パラボ+2.8%が上位2タイプ、残りの1タイプは固定+20 の想定
+              メインのタイプがパラボの60点のテンプレメモリー
               <Hint text={GLOSSARY.mainParabo} />
             </span>
           </div>

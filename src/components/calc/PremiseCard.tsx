@@ -54,8 +54,7 @@ export default function PremiseCard({
     <section className="overflow-hidden rounded-xl border-2 border-blue-600 bg-white shadow-sm">
       {/* 見出し帯 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-600 px-4 py-2.5 text-white">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-blue-700">
-          1
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-blue-700">
         </span>
         <h2 className="flex items-center gap-1 text-base font-bold">
           まず、育成の前提を設定

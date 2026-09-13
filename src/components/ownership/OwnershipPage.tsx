@@ -11,7 +11,7 @@ import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import { useOwnedSaves } from "@/lib/useOwnedSaves";
 
-/** 所持状況入力ページ（サポカ／Pアイドルを切り替え） */
+/** 所持状況入力ページ（サポカ／Pアイドルをプルダウンで切り替え） */
 export default function OwnershipPage() {
   const [tab, setTab] = useState<"support" | "pidol">("support");
   // 所持ストアはこのページで1つだけ持って子へ配る
@@ -29,28 +29,18 @@ export default function OwnershipPage() {
     markOwnershipVisited();
   }, []);
 
-  const tabBtn = (key: "support" | "pidol", label: string) => (
-    <button
-      type="button"
-      onClick={() => setTab(key)}
-      className={`rounded-lg px-4 py-1.5 text-sm font-bold transition ${
-        tab === key
-          ? "bg-blue-600 text-white shadow-sm"
-          : "text-slate-600 hover:bg-white hover:text-slate-900"
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div className="flex flex-col gap-4">
       {/* 見出し行: 左＝サポカ／Pアイドルの切り替え、右＝保存先スロットとキャプチャ入力 */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-          {tabBtn("support", "サポートカード")}
-          {tabBtn("pidol", "Pアイドル")}
-        </div>
+        <select
+          value={tab}
+          onChange={(e) => setTab(e.target.value as "support" | "pidol")}
+          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700"
+        >
+          <option value="support">サポートカード</option>
+          <option value="pidol">Pアイドル</option>
+        </select>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
             type="button"
