@@ -203,6 +203,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。未選択で自分のメモリーが無いときだけ、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
+所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
 左端の縦タブ（発動回数／レッスン）は廃止し、`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
 
 ページの割り当ては `src/App.tsx` の `PAGES` 配列と `Routes` にあります。
@@ -593,7 +594,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:calcSettings:v1` | 計算ページの今の設定（アイドル、Pアイドル、探索の条件、本戦点数、ユーザー名など。`CalcSettings`） | `src/lib/useCalcSettings.ts` |
 | `gakumas:ownership:visited:v1` | 所持状況ページを開いたことがある印（"1"。無ければ計算ページで「所持状況が未入力」扱い） | `src/lib/ownershipAck.ts` |
 | `gakumas:setup:ownershipAck:v1` | 初回の探索前の確認で「このまま求める（全完凸）」を選んだ印（"1"） | `src/lib/ownershipAck.ts` |
-| `gakumas:ownedSaves:active:v1` | 所持状況の保存先スロットのID。サポカ凸・Pアイドルの変更は随時ここへ保存される（無ければ保存しない） | `src/lib/useOwnedSaves.ts` |
+| `gakumas:ownedSaves:active:v1` | 「使う所持状況」のID。無い・消えたIDは既定 `builtin-all4`（全サポカ完凸。読み込み専用）。既定のまま凸などを変えると今の内容から「自分の所持状況」が自動で作られて使用中になり（`ensureEditableSlot`）、以後の変更は随時そこへ保存される | `src/lib/useOwnedSaves.ts` |
 | `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calc:everRun:v1` | 探索を一度でも押した印（"1"。無ければ、前提がそろったときボタンの上に動く矢印を出す） | `src/components/calc/CalcPage.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
@@ -611,7 +612,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:calcEventCounts:v1` | 計算ページ専用の同じ設定（サポカ設定と混ざらないよう別キー） | 同上 |
 | `gakumas:ownedLevels:v1` | サポカの所持凸（`card:<名前>` → -1 未所持／0〜4 凸。初回は全カード 4） | `src/lib/useOwnedLevels.ts` |
 | `gakumas:pIdols:v1` | P アイドルの所持（`名前カード名` → 特訓・開花。初回は全員 6／4） | `src/lib/useOwnedPIdols.ts` |
-| `gakumas:ownedSaves:v1` | 所持状況の名前つき保存（保存時のカード枚数つき） | `src/lib/useOwnedSaves.ts` |
+| `gakumas:ownedSaves:v1` | 名前つきの所持状況の一覧（保存時のカード枚数つき。セーブデータ用は `saveId` 付き）。所持状況ページのプルダウンで切り替え、「管理・CSV」で新規・名前・複製・削除 | `src/lib/useOwnedSaves.ts` |
 | `gakumas:selectedSupports:v1` | 計算ページの選択サポカ 6 枠（ID とレンタルかどうか） | `src/lib/useSelectedSupports.ts` |
 | `gakumas:cardFlags:v1` | BAN／固定／レンタルNG | `src/lib/useCardFlags.ts` |
 | `gakumas:cardScoreSort:v1` | サポカ点数表の並べ替え状態 | `src/components/card-scores/CardScoreTable.tsx` |

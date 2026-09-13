@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { useSaveNotifier } from "./storeSync";
-import { autoSaveToActiveSlot } from "./useOwnedSaves";
+import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
 /**
  * サポカの所持レベルを localStorage に保存する簡易ストア。
@@ -54,7 +54,7 @@ export function useOwnedLevels() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(levels));
-      // 保存先スロットがあれば、そこへも随時保存（所持状況ページの「上書き保存」を不要にする）
+      // 使っている所持状況（既定以外）へも随時保存（「上書き保存」は要らない）
       autoSaveToActiveSlot({ levels });
       notifySave();
     } catch {
@@ -67,12 +67,15 @@ export function useOwnedLevels() {
     [levels],
   );
 
+  // 変更系は、既定（全サポカ完凸）を使っているなら先に「自分の所持状況」を作って保存先にする
   const setLevel = useCallback((id: string, level: number) => {
+    ensureEditableSlot();
     setLevels((prev) => ({ ...prev, [id]: level }));
   }, []);
 
   /** 複数カードをまとめて同じレベルに設定（「表示中を全部レベル4」用） */
   const setManyLevels = useCallback((ids: string[], level: number) => {
+    ensureEditableSlot();
     setLevels((prev) => {
       const next = { ...prev };
       for (const id of ids) next[id] = level;
@@ -82,6 +85,7 @@ export function useOwnedLevels() {
 
   /** カードごとに異なるレベルを一括反映（CSVインポート用）。負数は未所持(-1)として保存 */
   const applyLevels = useCallback((entries: Record<string, number>) => {
+    ensureEditableSlot();
     setLevels((prev) => {
       const next = { ...prev };
       for (const [id, level] of Object.entries(entries)) {

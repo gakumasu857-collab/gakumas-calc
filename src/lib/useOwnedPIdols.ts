@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { useSaveNotifier } from "./storeSync";
-import { autoSaveToActiveSlot } from "./useOwnedSaves";
+import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
 /**
  * Pアイドルの所持状況（特訓段階・才能開花）を localStorage に保存するストア。
@@ -31,7 +31,7 @@ export function useOwnedPIdols() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-      // 保存先スロットがあれば、そこへも随時保存
+      // 使っている所持状況（既定以外）へも随時保存
       autoSaveToActiveSlot({ pIdols: map });
       notifySave();
     } catch {
@@ -45,8 +45,10 @@ export function useOwnedPIdols() {
     [map],
   );
 
+  // 変更系は、既定（全サポカ完凸）を使っているなら先に「自分の所持状況」を作って保存先にする
   const setOwnership = useCallback(
     (key: string, patch: Partial<PIdolOwnership>) => {
+      ensureEditableSlot();
       setMap((prev) => {
         const current = prev[key] ?? { kunren: 0, kaika: 0 };
         return { ...prev, [key]: { ...current, ...patch } };
@@ -56,6 +58,7 @@ export function useOwnedPIdols() {
   );
 
   const setUnowned = useCallback((key: string) => {
+    ensureEditableSlot();
     setMap((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -66,6 +69,7 @@ export function useOwnedPIdols() {
   /** 複数カードへ一括設定（未所持のカードは所持化してから適用） */
   const setManyOwnership = useCallback(
     (keys: string[], patch: Partial<PIdolOwnership>) => {
+      ensureEditableSlot();
       setMap((prev) => {
         const next = { ...prev };
         for (const key of keys) {
@@ -80,6 +84,7 @@ export function useOwnedPIdols() {
 
   /** 複数カードを一括で未所持に */
   const setManyUnowned = useCallback((keys: string[]) => {
+    ensureEditableSlot();
     setMap((prev) => {
       const next = { ...prev };
       for (const key of keys) delete next[key];
@@ -90,6 +95,7 @@ export function useOwnedPIdols() {
   /** カードごとに異なる値を一括反映（CSVインポート用）。kunren<0 は未所持=エントリ削除 */
   const applyOwnership = useCallback(
     (entries: { key: string; kunren: number; kaika: number }[]) => {
+      ensureEditableSlot();
       setMap((prev) => {
         const next = { ...prev };
         for (const e of entries) {

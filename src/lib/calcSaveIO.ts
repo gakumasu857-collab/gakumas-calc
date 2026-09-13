@@ -12,7 +12,7 @@ import type { AbilityName } from "@/data/constants";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import type { CalcSave, CalcSaveSnapshot } from "./useCalcSettings";
 import type { useCalcResult } from "./useCalcResult";
-import { writeActiveSlotId, type useOwnedSaves } from "./useOwnedSaves";
+import { adoptSaveSnapshot, type useOwnedSaves } from "./useOwnedSaves";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 type OwnedSaves = ReturnType<typeof useOwnedSaves>;
@@ -115,12 +115,14 @@ export function applySave(
   save: CalcSave,
 ): { full: boolean } {
   r.calc.loadSave(save);
-  // セーブの所持状況に置き換えるので、所持状況の保存先スロットは外す（別スロットへ上書きしないように）
-  writeActiveSlotId(null);
   const snap = save.snapshot;
+  const ownedLabel = `${SAVE_SET_PREFIX}${save.name}`;
   if (!snap) {
-    // 旧セーブ: 所持状況だけ分かれば戻す
-    if (save.ownedLevels) r.ownedLevels.replaceAll(save.ownedLevels);
+    // 旧セーブ: 所持状況だけ分かれば戻す（このセーブ用の所持状況を使用中にしてから）
+    if (save.ownedLevels) {
+      adoptSaveSnapshot(save.id, ownedLabel, save.ownedLevels);
+      r.ownedLevels.replaceAll(save.ownedLevels);
+    }
     return { full: false };
   }
 
@@ -149,6 +151,8 @@ export function applySave(
 
   r.selected.setAll(snap.slots);
   r.events.replaceAll(snap.eventCounts);
+  // 所持状況はこのセーブ用のデータを使用中にしてから読み込む（読み込み直後の自動保存がそこへ向く）
+  adoptSaveSnapshot(save.id, ownedLabel, snap.ownedLevels, snap.pIdols);
   r.ownedLevels.replaceAll(snap.ownedLevels, snap.ownedCardCount);
   r.pIdols.replaceAll(snap.pIdols);
   return { full: true };
