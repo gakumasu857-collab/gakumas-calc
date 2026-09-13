@@ -148,7 +148,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算、初のレッスン・授業・試験換算 |
-| `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式 |
+| `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise` |
 | `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
@@ -200,7 +200,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
-`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。未選択で自分のメモリーが無いときだけ、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
+`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。自分のメモリーが無いときは、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す。どちらかを押したら以後は出さない（`gakumas:calc:memoryPathsDone:v1`。メモリーを全部外しても戻らない））、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
@@ -598,8 +598,9 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:ownedSaves:active:v1` | 「使う所持状況」のID。無い・消えたIDは既定 `builtin-all4`（全サポカ完凸。読み込み専用）。既定のまま凸などを変えると今の内容から「自分の所持状況」が自動で作られて使用中になり（`ensureEditableSlot`）、以後の変更は随時そこへ保存される | `src/lib/useOwnedSaves.ts` |
 | `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calc:everRun:v1` | 探索を一度でも押した印（"1"。無ければ、前提がそろったときボタンの上に動く矢印を出す） | `src/components/calc/CalcPage.tsx` |
+| `gakumas:calc:memoryPathsDone:v1` | メモリー選択の枠A／Bをどちらか押した印（"1"。以後は枠を出さない。メモリーを全部外しても戻らない） | `src/components/calc/MemoryPickerModal.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
-| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない） | `src/lib/useSchedule.ts` |
+| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:hatsuSchedule:v1` | 初の踏み方（レッスン、授業、中間／最終の順位とスコア） | `src/lib/useHatsuSchedule.ts` |
 | `gakumas:scenario:v1` | 選択中のシナリオ（`hif` / `niaMaster` / `hatsuLegend` の文字列） | `src/lib/useScenario.ts` |

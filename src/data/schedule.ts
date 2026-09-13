@@ -154,3 +154,26 @@ export function distributeExam<T extends string>(
   result[high] = exam.base - result[low] - result[mid];
   return result;
 }
+
+/**
+ * 選抜の上昇ステ（パラボ抜き）にパラメータボーナス%を乗せた値＝ゲームのログに出る上昇幅。
+ * パラボ分は sheetScore の paraboConvert と同じく「イベントごとに切り捨て」。
+ * @param pctPercent 合算したパラボ%（例 52.5）
+ */
+export function examRiseWithParabo(base: number, pctPercent: number): number {
+  return base + Math.floor(base * (Math.max(0, pctPercent) / 100));
+}
+
+/**
+ * ゲームのログの上昇幅（パラボ込み）から、パラボを含まない元のステを逆算する。
+ * f(g) = g + floor(g × %) は単調増加なので、f(g) <= rise を満たす最大の g を返す
+ * （%が実際と違って rise をぴったり作れないときは、超えない側に寄せる）。
+ */
+export function examBaseFromRise(rise: number, pctPercent: number): number {
+  if (rise <= 0) return 0;
+  const rate = Math.max(0, pctPercent) / 100;
+  let g = Math.floor(rise / (1 + rate));
+  while (examRiseWithParabo(g + 1, pctPercent) <= rise) g++;
+  while (g > 0 && examRiseWithParabo(g, pctPercent) > rise) g--;
+  return g;
+}

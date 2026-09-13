@@ -64,16 +64,6 @@ export default function PremiseCard({
             className="[&>button]:text-blue-200 [&>button:hover]:text-white"
           />
         </h2>
-        <span className="text-xs text-blue-100">
-          4つ選ぶと、すぐ下のボタンで理想の編成と踏み方が求められます
-        </span>
-        <span
-          className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold ${
-            all ? "bg-white text-blue-700" : "bg-blue-800/60 text-white"
-          }`}
-        >
-          {all ? "✓ そろいました" : `あと${4 - doneCount}つ`}
-        </span>
       </div>
 
       <div className="p-4">

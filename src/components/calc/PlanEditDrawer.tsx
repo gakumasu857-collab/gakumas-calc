@@ -15,6 +15,8 @@ import {
   CLASSES,
   distributeExam,
   EXAMS,
+  examBaseFromRise,
+  examRiseWithParabo,
   examStar,
   LESSON_KIND_LABELS,
   LESSONS,
@@ -268,8 +270,8 @@ function HifEditor({ r }: { r: CalcResult }) {
       {/* 選抜（タイプ別スコア、または上昇ステを直接入力。選抜ごとに切り替え） */}
       <Section title="選抜">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
-          スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて直接入力
-          （パラメータボーナス%を含めない値）。ステ入力の選抜は自動探索で動かしません。
+          スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて、
+          ゲームのログに出る上昇幅（パラボ込み）をそのまま入力。今の編成のパラボ%で元のステに逆算します。ステ入力の選抜は自動探索で動かしません。
         </p>
         <div className="flex flex-col divide-y divide-slate-200">
           {EXAMS.map((exam, i) => {
@@ -314,36 +316,77 @@ function HifEditor({ r }: { r: CalcResult }) {
                 </span>
                 {stats ? (
                   <>
-                    {TYPE_KEYS.map((type) => (
-                      <label
-                        key={type}
-                        className="flex items-center gap-1 text-xs text-slate-500"
-                      >
-                        <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                          {TYPE_LABELS[type]}
-                        </span>
-                        <NumberField
-                          value={stats[type]}
-                          onChange={(v) => schedule.setExamStat(i, type, v)}
-                          max={999}
-                          sliderMax={exam.base}
-                          className="w-20"
-                        />
-                      </label>
-                    ))}
-                    <span className="ml-auto text-xs tabular-nums text-slate-500">
-                      合計{" "}
-                      <b className="text-slate-800">
-                        {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
-                      </b>
-                      <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
-                    </span>
-                    <span className="w-full text-[11px] tabular-nums text-slate-500">
-                      上昇ステを直接使います（パラメータボーナス%は別途上乗せ）。
-                      <span className="ml-2 text-violet-600">★{examStar(i, total)}</span>
-                      <span className="ml-1 text-slate-400">
-                        はスコア入力の値（合計 {total.toLocaleString()}）から計算
+                    {/* スコアはスター性の計算にだけ使う。ログの「1位スコア」をそのまま */}
+                    <label className="flex items-center gap-1 text-xs text-slate-500">
+                      スコア
+                      <NumberField
+                        value={total}
+                        onChange={(v) => schedule.setExamTotalScore(i, v)}
+                        sliderMax={EXAM_SLIDER_MAX[i] ?? 500000}
+                        className="w-24"
+                      />
+                      <span className="text-violet-600">★{examStar(i, total)}</span>
+                    </label>
+                    {/* 上の段: ゲームのログに出る上昇幅（パラボ込み）。入れると今の編成のパラボ%で元のステに逆算して保存 */}
+                    <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
+                        ログの上昇幅（パラボ込み）
                       </span>
+                      {TYPE_KEYS.map((type) => {
+                        const pct = r.paraboDetail[type].totalPct;
+                        return (
+                          <label
+                            key={type}
+                            className="flex items-center gap-1 text-xs text-slate-500"
+                          >
+                            <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                              {TYPE_LABELS[type]}
+                            </span>
+                            <RiseField
+                              value={examRiseWithParabo(stats[type], pct)}
+                              onChange={(rise) =>
+                                schedule.setExamStat(i, type, examBaseFromRise(rise, pct))
+                              }
+                            />
+                            <span className="text-[10px] tabular-nums text-slate-400">
+                              +{pct}%
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </span>
+                    {/* 下の段: パラボを除いた元のステ（計算に使う値）。直接打ち込んでもよい */}
+                    <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
+                        元のステ（パラボ抜き）
+                      </span>
+                      {TYPE_KEYS.map((type) => (
+                        <label
+                          key={type}
+                          className="flex items-center gap-1 text-xs text-slate-500"
+                        >
+                          <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                            {TYPE_LABELS[type]}
+                          </span>
+                          <NumberField
+                            value={stats[type]}
+                            onChange={(v) => schedule.setExamStat(i, type, v)}
+                            max={999}
+                            sliderMax={exam.base}
+                            className="w-20"
+                          />
+                        </label>
+                      ))}
+                      <span className="text-xs tabular-nums text-slate-500">
+                        合計{" "}
+                        <b className="text-slate-800">
+                          {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
+                        </b>
+                        <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
+                      </span>
+                    </span>
+                    <span className="w-full text-[11px] leading-relaxed text-slate-400">
+                      上の段にログの値を入れると、今の編成のパラボ%で下の段（計算に使う値）を逆算します。編成を変えると上の段の表示も変わります。
                     </span>
                   </>
                 ) : (
@@ -1205,5 +1248,35 @@ function MiniToggle({
     >
       {on ? onLabel : offLabel}
     </button>
+  );
+}
+
+/**
+ * ゲームのログに出る上昇幅（パラボ込み）の入力欄。
+ * 1桁打つたびに逆算→表示し直すと入力が崩れる（今の%で作れない値に丸まる）ので、
+ * 打っている途中の文字はそのまま保ち、フォーカスが外れたら「今の%で作れる値」に表示を揃える。
+ */
+function RiseField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (rise: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      min={0}
+      value={text ?? value}
+      onFocus={() => setText(String(value))}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(Math.max(0, Math.round(Number(e.target.value) || 0)));
+      }}
+      onBlur={() => setText(null)}
+      title="ゲームのログの上昇幅をそのまま（パラボ込み）"
+      className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-blue-500"
+    />
   );
 }

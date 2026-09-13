@@ -19,10 +19,21 @@ const TILE =
   "block cursor-pointer rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400 hover:bg-blue-100";
 const BADGE = "mb-1 inline-block rounded bg-blue-600 px-1.5 py-0.5 text-[11px] font-bold text-white";
 
+/** A／Bのどちらかを押した印（"1"）。付いたら枠は二度と出さない */
+const PATHS_DONE_KEY = "gakumas:calc:memoryPathsDone:v1";
+const readPathsDone = () => {
+  try {
+    return localStorage.getItem(PATHS_DONE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
 /**
  * 計算ページ内でメモリー4枚を選ぶモーダル。
- * まだ何も選んでおらず自分のメモリーも無いときだけ、道を2つ（A: メモリーページで登録する／
- * B: 目安のテンプレを4枚入れる）押せる枠で見せる。どちらかを押したら枠は消える。
+ * 自分のメモリーがまだ無いときは、道を2つ（A: メモリーページで登録する／B: 目安のテンプレを4枚入れる）
+ * 押せる枠で見せる。どちらかを押したら枠は消え、以後は出さない（PATHS_DONE_KEY。
+ * メモリーを全部外しても戻らない。ユーザー指示）。
  * 長い説明は ⓘ に寄せる。作成・セット保存はメモリーページ。
  */
 export default function MemoryPickerModal({
@@ -43,8 +54,20 @@ export default function MemoryPickerModal({
   const noOwn = store.allMemories.every((m) => m.isTemplate);
   /** スロットのどの枠を編集中か（アビリティ単位の変更） */
   const [editIndex, setEditIndex] = useState<number | null>(null);
-  const showPaths = store.selected.length === 0 && noOwn;
-  const fillTemplate = () => store.setSelection(TEMPLATE_FILL);
+  const [pathsDone, setPathsDone] = useState(readPathsDone);
+  const markPathsDone = () => {
+    setPathsDone(true);
+    try {
+      localStorage.setItem(PATHS_DONE_KEY, "1");
+    } catch {
+      /* 保存できなくても表示は消す */
+    }
+  };
+  const showPaths = noOwn && !pathsDone;
+  const fillTemplate = () => {
+    store.setSelection(TEMPLATE_FILL);
+    markPathsDone();
+  };
 
   return (
     <Modal title="メモリーを4枚選ぶ" onClose={onClose} widthClass="max-w-4xl">
@@ -54,7 +77,7 @@ export default function MemoryPickerModal({
 
       {showPaths && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Link to="/memory" className={TILE}>
+          <Link to="/memory" className={TILE} onClick={markPathsDone}>
             <span className={BADGE}>A</span>
             <span className="block text-sm font-bold text-slate-800">
               持っているメモリーを登録して使う

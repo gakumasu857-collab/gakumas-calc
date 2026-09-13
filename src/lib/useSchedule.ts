@@ -436,18 +436,46 @@ export function useSchedule() {
     }));
   }, []);
 
-  /** ステ直接入力の値を変える（パラメータボーナス%は含まない） */
+  /** ステ直接入力の値を変える（パラメータボーナス%は含まない。上限999） */
   const setExamStat = useCallback(
     (examIndex: number, type: TypeKey, value: number) => {
       setState((prev) => ({
         ...prev,
         examStats: prev.examStats.map((s, i) =>
-          i === examIndex && s ? { ...s, [type]: Math.max(0, Math.round(value)) } : s,
+          i === examIndex && s ? { ...s, [type]: Math.min(999, Math.max(0, Math.round(value))) } : s,
         ),
       }));
     },
     [],
   );
+
+  /**
+   * ステ入力の選抜で、スコア（スター性の計算にだけ使う）を変える。
+   * タイプ別スコアは今の比率を保って割り直す（比率の元が無ければ、上昇ステが一番大きいタイプに全部）。
+   */
+  const setExamTotalScore = useCallback((examIndex: number, total: number) => {
+    setState((prev) => ({
+      ...prev,
+      examScores: prev.examScores.map((s, i) => {
+        if (i !== examIndex) return s;
+        const t = Math.max(0, Math.round(total));
+        const cur = TYPE_KEYS.reduce((sum, k) => sum + s[k], 0);
+        const next = { ...EMPTY_EXAM };
+        if (cur <= 0) {
+          const st = prev.examStats[examIndex];
+          const top = st ? TYPE_KEYS.reduce((a, b) => (st[b] > st[a] ? b : a)) : "vocal";
+          next[top] = t;
+          return next;
+        }
+        let used = 0;
+        TYPE_KEYS.forEach((k, idx) => {
+          next[k] = idx === TYPE_KEYS.length - 1 ? t - used : Math.floor((s[k] * t) / cur);
+          used += next[k];
+        });
+        return next;
+      }),
+    }));
+  }, []);
 
   /**
    * タイプ間の入れ替え（アイドル切替時の審査基準合わせ用）。
@@ -517,6 +545,7 @@ export function useSchedule() {
     setExamScores,
     setExamMode,
     setExamStat,
+    setExamTotalScore,
     remapTypes,
     loaded: true,
   };

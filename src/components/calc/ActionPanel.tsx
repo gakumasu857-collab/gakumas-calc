@@ -170,7 +170,7 @@ export default function ActionPanel({
               </span>
             </span>
           ) : (
-            <span>前提がそろいました。押すと理想のサポカ編成と踏み方が出ます</span>
+            <span>あなたの手持ちに合ったサポカ編成と踏み方を求めます</span>
           )}
         </p>
       )}
