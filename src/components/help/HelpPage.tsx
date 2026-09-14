@@ -21,6 +21,7 @@ const SECTIONS = [
   { id: "pages", label: "ページの構成" },
   { id: "steps", label: "使い方" },
   { id: "produce", label: "プロデュースと発動回数" },
+  { id: "tips", label: "操作のヒント" },
   { id: "terms", label: "用語" },
   { id: "faq", label: "よくある質問" },
   { id: "storage", label: "データの保存と注意" },
@@ -106,13 +107,14 @@ function MockRow({
   label,
   value,
   unset,
-  extra,
+  aside,
 }: {
   no: number;
   label: string;
   value: string;
   unset?: boolean;
-  extra?: React.ReactNode;
+  /** 欄の右に添えるボタンなど */
+  aside?: React.ReactNode;
 }) {
   return (
     <div className="mb-2">
@@ -126,15 +128,17 @@ function MockRow({
         </span>
         <span className="text-xs font-bold text-slate-700">{label}</span>
       </div>
-      <div
-        className={`flex items-center justify-between rounded-md border px-2 py-1 text-sm ${
-          unset ? "border-amber-400 bg-amber-50 font-bold text-amber-700" : "border-slate-300 bg-white"
-        }`}
-      >
-        <span>{value}</span>
-        <ChevronDown size={14} className="text-slate-400" />
+      <div className="flex items-center gap-1.5">
+        <div
+          className={`flex min-w-0 flex-1 items-center justify-between rounded-md border px-2 py-1 text-sm ${
+            unset ? "border-amber-400 bg-amber-50 font-bold text-amber-700" : "border-slate-300 bg-white"
+          }`}
+        >
+          <span className="truncate">{value}</span>
+          <ChevronDown size={14} className="shrink-0 text-slate-400" />
+        </div>
+        {aside}
       </div>
-      {extra}
     </div>
   );
 }
@@ -223,7 +227,7 @@ export default function HelpPage() {
           no={1}
           tone="blue"
           title="設定欄を埋める"
-          body="育成シナリオ・アイドル（特訓・才能開花）・プロデュース・メモリー・所持状況。黄色の欄が未選択です。"
+          body="育成シナリオ・アイドル（右に特訓・才能開花）・プロデュース・メモリー・所持状況。黄色の欄が未選択です。"
         />
         <FlowBox
           no={2}
@@ -248,7 +252,7 @@ export default function HelpPage() {
         ページの構成
       </h2>
       <p className={`mb-3 ${P}`}>
-        メインは計算ページです。ほかのページは「探索の設定」と「表」の2種類に分かれます（上のナビも同じ並びです）。
+        メインは計算ページです。ほかのページは「探索に使う設定」と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜所持状況・発動回数・サポカ設定｜サポカ点数表・サポカDB｜ヘルプ）に並んでいます。
       </p>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
@@ -317,38 +321,21 @@ export default function HelpPage() {
                 no={2}
                 label="アイドル・Pアイドル"
                 value="花海咲季 / Fighting My Way"
-                extra={
-                  <div className="mt-1">
-                    <MockBtn>
-                      <Settings size={11} />
-                      特訓 6 ／ 才能開花 4
-                    </MockBtn>
-                  </div>
+                aside={
+                  <MockBtn>
+                    <Settings size={11} />
+                    特訓6・開花4
+                  </MockBtn>
                 }
               />
               <MockRow no={3} label="プロデュース" value="センス 花ロボ(黄)" />
               <MockRow no={4} label="メモリー" value="選んでください" unset />
-            </div>
-            <div className="mb-0.5 flex items-center gap-1.5">
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-black text-amber-950">
-                5
-              </span>
-              <span className="text-xs font-bold text-slate-700">所持状況</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400 bg-amber-50 px-2 py-1.5">
-              <span className="flex-1 text-sm">
-                <b>全サポカ完凸</b>（既定）
-              </span>
-              <MockBtn tone="primary">
-                自分の所持状況を入力
-                <ArrowRight size={11} />
-              </MockBtn>
-              <MockBtn>完凸のままでOK</MockBtn>
+              <MockRow no={5} label="所持状況" value="全サポカ完凸（既定）" unset />
             </div>
           </Mock>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
             <li>
-              <b>アイドル・Pアイドル</b>: 選ぶと、その下のボタンで<b>特訓・才能開花</b>を変えられます。
+              <b>アイドル・Pアイドル</b>: 選ぶと、欄の右のボタンで<b>特訓・才能開花</b>を変えられます。
             </li>
             <li>
               <b>プロデュース</b>: Pアイドルのプランで使えるものだけが出ます（
@@ -362,8 +349,8 @@ export default function HelpPage() {
               <b>「汎用メモリーを入れる」</b>。
             </li>
             <li>
-              <b>所持状況</b>: 既定は全サポカ完凸。手持ちに合わせるなら<b>「自分の所持状況を入力」</b>、
-              このままでよければ<b>「完凸のままでOK」</b>。探索はここに登録したサポカから編成します。
+              <b>所持状況</b>: 既定は全サポカ完凸。プルダウンで保存してある所持状況に切り替えられ、一番下の
+              <b>「自分の所持状況を入力・編集」</b>で所持状況ページへ。探索はここに登録したサポカから編成します。
             </li>
           </ul>
         </div>
@@ -566,6 +553,37 @@ export default function HelpPage() {
         発動回数ページで変えた回数は探索の条件になるほか、計算ページの「発動回数」ボタンでまだ変えていないアビリティにもそのまま使われます。
         「発動回数」ボタンで変えた回数は、そちらが優先されます（調整中の印が付きます）。
       </p>
+
+      {/* ---------------------------------------------------------------- 操作のヒント */}
+      <h2 id="tips" className={H2}>
+        操作のヒント
+      </h2>
+      <ul className={`${CARD} list-disc space-y-1.5 pl-9`}>
+        <li className={P}>
+          <b>数値入力欄は右クリックでスライダー</b>が開きます（大きい数字向け）。スライダーはドラッグしたまま上下に離すと微調整（×1/10・×1/100）、ホイールで±1（Shift=±10、Ctrl=±100）。
+        </li>
+        <li className={P}>
+          <b>サポカ枠クリック</b>＝カード選択。選択画面で<b>凸・固定・BAN・レンタルNG</b>も変えられます（行の右のボタン）。
+        </li>
+        <li className={P}>
+          <b>アイドル・Pアイドルの欄の右のボタン</b>＝特訓・才能開花。評価値の横のアイドル画像の歯車からも開けます。
+        </li>
+        <li className={P}>
+          <b>踏み方のチップ</b>は、大きい四角がメイン、右下の小さい印がサブ、薄い点線の枠がSPなし（通常レッスン）です。授業（営業）は順番どおり、選抜はタイプ別スコアの配分バーです。チップをクリックすると編集できます。
+        </li>
+        <li className={P}>
+          プロデュースの<b>【プラン】</b>（【センス】など）は、探索の条件「試験補助を強める」でアイテム評価をどのスタイル向けに見るかの判定に使われます。
+        </li>
+        <li className={P}>
+          右上の<b>「セーブデータ」</b>から、今の育成の状態をまるごと（シナリオ・アイドル・踏み方・メモリー4枚・サポカ編成・前イベ/後イベ設定・発動回数・所持状況）保存でき、読み込めば<b>評価値まで同じ状態に戻ります</b>。評価値の下の<b>「画像に出力」</b>で、今の計算を1枚の画像にできます。
+        </li>
+        <li className={P}>
+          <b>「パラボ変換表」</b>（「サポカ編成と踏み方」の開始時のステータスの右）で、パラメータボーナス%が今の踏み方で何点ぶんのステになるかを確認できます。
+        </li>
+        <li className={P}>
+          用語の横の <b>ⓘ</b> を押すと、その項目の説明が出ます。計算式は計算ページ右上の<b>「計算式・数値表」</b>にあります。
+        </li>
+      </ul>
 
       {/* ---------------------------------------------------------------- 用語 */}
       <h2 id="terms" className={H2}>

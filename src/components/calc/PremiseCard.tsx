@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { ArrowRight, ChevronDown, Info, Pencil } from "lucide-react";
+import { ChevronDown, Info, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
 import { Field } from "@/components/calc/CalcCard";
+import OwnershipField from "@/components/calc/OwnershipField";
 import SetPickerField from "@/components/calc/SetPickerField";
 import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
-import { BTN_PRIMARY, BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
+import { BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
-import { readOwnershipAck, readOwnershipVisited, writeOwnershipAck } from "@/lib/ownershipAck";
+import { readOwnershipAck, readOwnershipVisited } from "@/lib/ownershipAck";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS } from "@/lib/useCalcSettings";
 import { BUILTIN_ID, useOwnedSaves } from "@/lib/useOwnedSaves";
@@ -23,15 +24,16 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
   hatsuLegend: "bg-amber-500",
 };
 
-/** 欄のラベル（番号の横）。細かい文字を増やさないため、説明は ⓘ かヘルプに寄せる */
+/** 欄のラベル（番号の横）。欄の値も同じ text-sm にそろえる */
 const LABEL = "text-sm font-bold text-slate-800";
 
 /**
  * 「設定欄」（育成の前提）カード。
  * 青い見出し帯＋番号つきの5つの欄（シナリオ・アイドル・プロデュース・メモリー・所持状況）
  * ＋シナリオ別の本戦の点数。未設定の欄は黄色、設定済みは番号が青。
- * - アイドルの欄の下に特訓・才能開花（1つのボタン。押すとモーダル）
- * - 所持状況は5つ目の欄。既定の全完凸のままなら「自分の所持状況を入力」か「完凸のままでOK」
+ * - アイドルの欄の右に特訓・才能開花のボタン（押すとモーダル）
+ * - 所持状況はほかと同じ形の欄（プルダウンで既定＝全完凸／保存してある所持状況を切り替え、
+ *   一番下から所持状況ページへ）。一度も決めていなければ黄色
  * 1〜4がそろうと、すぐ下の探索ボタンが押せる（所持状況は無くても探索できる）。
  */
 export default function PremiseCard({
@@ -51,6 +53,10 @@ export default function PremiseCard({
   const { settings } = r.calc;
   const memoryCount = r.memoryStore.count;
   const own = r.ownership;
+  const owned = useOwnedSaves();
+  // 所持状況を一度でも決めたか（既定のままでよいと選んだ／自分の所持状況を使っている／所持状況ページを開いた）
+  const [ack, setAck] = useState(() => readOwnershipAck() || readOwnershipVisited());
+  const ownershipDecided = ack || owned.activeId !== BUILTIN_ID;
   const done = {
     scenario: r.scenarioStore.chosen,
     idol: !!(settings.pIdol && r.pMaster),
@@ -88,17 +94,17 @@ export default function PremiseCard({
             label="アイドル・Pアイドル"
             done={done.idol}
             onClick={onOpenIdol}
-            below={
+            aside={
               done.idol ? (
-                // 特訓・才能開花はここから（評価値の横のPアイドル画像の歯車と同じ設定）
+                // 特訓・才能開花は欄の右のボタンから（評価値の横のPアイドル画像の歯車と同じ設定）
                 <button
                   type="button"
                   onClick={onOpenIdolTraining}
                   title="特訓・才能開花を変更"
-                  className={`${BTN_SECONDARY_LG} mt-1.5 ${own ? "" : "text-red-600"}`}
+                  className={`${BTN_SECONDARY_LG} h-10 ${own ? "" : "text-red-600"}`}
                 >
                   <Pencil size={12} />
-                  {own ? `特訓 ${own.kunren} ／ 才能開花 ${own.kaika}` : "未所持（特訓・才能開花を設定）"}
+                  {own ? `特訓${own.kunren}・開花${own.kaika}` : "未所持"}
                 </button>
               ) : null
             }
@@ -119,7 +125,7 @@ export default function PremiseCard({
               <Unset />
             ) : (
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                <span className="text-sm text-slate-500">{memoryCount}枚</span>
+                <span>{memoryCount}枚</span>
                 {TYPE_KEYS.map((t) => (
                   <span
                     key={t}
@@ -131,80 +137,16 @@ export default function PremiseCard({
               </span>
             )}
           </PremiseField>
-
           {/* 5. 所持状況（探索はここに登録したサポカから編成する。既定は全サポカ完凸） */}
-          <div className="min-w-0 sm:col-span-2">
-            <OwnershipRow />
-          </div>
+          <PremiseField no={5} label="所持状況" hint={GLOSSARY.ownership} done={ownershipDecided}>
+            <OwnershipField r={r} decided={ownershipDecided} onDecided={() => setAck(true)} />
+          </PremiseField>
         </div>
 
         {/* 本戦・試験の点数（シナリオ別） */}
         <ScenarioScoreCard r={r} />
       </div>
     </section>
-  );
-}
-
-/**
- * 所持状況の欄。使っている所持状況（既定＝全サポカ完凸／自分の所持状況）を見せる。
- * 既定のままで一度も決めていなければ黄色にして、「自分の所持状況を入力」と「完凸のままでOK」を並べる
- * （押すと以後は通常表示）。
- */
-function OwnershipRow() {
-  const owned = useOwnedSaves();
-  const [ack, setAck] = useState(() => readOwnershipAck() || readOwnershipVisited());
-  const builtin = owned.activeId === BUILTIN_ID;
-  const activeName = owned.saves.find((s) => s.id === owned.activeId)?.name;
-  const done = ack || !builtin;
-  return (
-    <>
-      <div className="mb-1 flex items-center gap-1.5">
-        <NoBadge no={5} done={done} />
-        <span className={LABEL}>所持状況</span>
-        <Hint text={GLOSSARY.ownership} />
-      </div>
-      <div
-        className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-base text-slate-900 ${
-          done ? "border-slate-300 bg-white" : "border-amber-400 bg-amber-50"
-        }`}
-      >
-        <span className="min-w-0 flex-1">
-          {builtin ? (
-            <>
-              <b>全サポカ完凸</b>
-              <span className="text-slate-500">（既定）</span>
-            </>
-          ) : (
-            <>
-              「<b>{activeName ?? "自分の所持状況"}</b>」
-            </>
-          )}
-        </span>
-        {done ? (
-          <Link to="/support" className={BTN_SECONDARY_LG}>
-            {builtin ? "自分の所持状況を入力" : "所持状況を変える"}
-            <ArrowRight size={14} />
-          </Link>
-        ) : (
-          <>
-            <Link to="/support" className={BTN_PRIMARY}>
-              自分の所持状況を入力
-              <ArrowRight size={14} />
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                writeOwnershipAck();
-                setAck(true);
-              }}
-              className={BTN_SECONDARY_LG}
-            >
-              完凸のままでOK
-            </button>
-          </>
-        )}
-      </div>
-    </>
   );
 }
 
@@ -229,7 +171,7 @@ function PremiseField({
   hintLink,
   done,
   onClick,
-  below,
+  aside,
   children,
 }: {
   no: number;
@@ -239,8 +181,8 @@ function PremiseField({
   hintLink?: string;
   done: boolean;
   onClick?: () => void;
-  /** 欄の下に添えるもの（特訓・才能開花など） */
-  below?: React.ReactNode;
+  /** 欄の右に添えるもの（特訓・才能開花のボタンなど。狭ければ下に回る） */
+  aside?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -259,23 +201,25 @@ function PremiseField({
           </Link>
         )}
       </div>
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          className={`flex h-11 w-full items-center gap-2 rounded-lg border px-3 text-left text-base text-slate-900 transition ${
-            done
-              ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
-              : "border-amber-400 bg-amber-50 hover:bg-amber-100"
-          }`}
-        >
-          {children}
-          <ChevronDown size={15} className="shrink-0 text-slate-400" />
-        </button>
-      ) : (
-        children
-      )}
-      {below}
+      <div className="flex flex-wrap items-center gap-2">
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            className={`flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border px-3 text-left text-sm text-slate-900 transition ${
+              done
+                ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
+                : "border-amber-400 bg-amber-50 hover:bg-amber-100"
+            }`}
+          >
+            {children}
+            <ChevronDown size={15} className="shrink-0 text-slate-400" />
+          </button>
+        ) : (
+          <div className="min-w-0 flex-1">{children}</div>
+        )}
+        {aside}
+      </div>
     </div>
   );
 }

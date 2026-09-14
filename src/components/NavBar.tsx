@@ -3,26 +3,20 @@ import { Link, useLocation } from "react-router-dom";
 
 /**
  * プロデュース計算機のナビ（メインは /calc）。
- * 計算ページ以外は「探索の設定」（所持状況・発動回数・サポカ設定＝探索に使う条件）と
- * 「表」（サポカ点数表・サポカDB＝見るだけ）の2つに分けて、小さな見出しで区切る。
+ * 計算ページ以外は「探索に使う設定」（所持状況・発動回数・サポカ設定）と「見るだけの表」
+ * （サポカ点数表・サポカDB）の順に並べ、間を細い線で区切る（見出しの文字は置かない。分け方の説明はヘルプ）。
  * ブランド名クリックでホームへ戻る。右端はヘルプ。
  */
-const GROUPS: { label: string; tabs: { href: string; label: string }[] }[] = [
-  {
-    label: "探索の設定",
-    tabs: [
-      { href: "/support", label: "所持状況" },
-      { href: "/ability-counts", label: "発動回数" },
-      { href: "/card-settings", label: "サポカ設定" },
-    ],
-  },
-  {
-    label: "表",
-    tabs: [
-      { href: "/card-scores", label: "サポカ点数表" },
-      { href: "/database", label: "サポカDB" },
-    ],
-  },
+const GROUPS: { href: string; label: string }[][] = [
+  [
+    { href: "/support", label: "所持状況" },
+    { href: "/ability-counts", label: "発動回数" },
+    { href: "/card-settings", label: "サポカ設定" },
+  ],
+  [
+    { href: "/card-scores", label: "サポカ点数表" },
+    { href: "/database", label: "サポカDB" },
+  ],
 ];
 
 const TAB_CLASS = (active: boolean) =>
@@ -51,13 +45,11 @@ export default function NavBar() {
           <Link to="/calc" className={`${TAB_CLASS(pathname === "/calc")} font-bold`}>
             計算
           </Link>
-          {GROUPS.map((group) => (
-            <span key={group.label} className="flex shrink-0 items-center gap-1">
-              {/* グループの見出し（縦線＋小さな文字） */}
-              <span className="ml-1.5 flex items-center border-l border-slate-300 pl-2 text-[10px] font-bold tracking-wide text-slate-400">
-                {group.label}
-              </span>
-              {group.tabs.map((tab) => (
+          {GROUPS.map((group, gi) => (
+            <span key={gi} className="flex shrink-0 items-center gap-1">
+              {/* グループの区切り（細い線だけ） */}
+              <span className="mx-1 h-5 w-px bg-slate-300" />
+              {group.map((tab) => (
                 <Link key={tab.href} to={tab.href} className={TAB_CLASS(pathname === tab.href)}>
                   {tab.label}
                 </Link>

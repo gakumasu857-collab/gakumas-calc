@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Camera, Check, Settings2 } from "lucide-react";
+import { ArrowRight, Camera, Check, Settings2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import SupportCardOwnership from "@/components/ownership/SupportCardOwnership";
 import PIdolOwnership from "@/components/ownership/PIdolOwnership";
@@ -112,6 +112,19 @@ export default function OwnershipPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 計算ページから来た人の帰り道（入力が終わったらここから戻る。使用中の所持状況で計算される） */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
+        <p className="min-w-0 flex-1 text-sm text-slate-700">
+          持っているサポカの凸を入れると、その所持状況で探索します。変更は自動で保存されるので、入力が終わったらそのまま戻ってください。
+        </p>
+        <Link
+          to="/calc"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500"
+        >
+          計算ページへ戻る
+          <ArrowRight size={15} />
+        </Link>
+      </div>
       {/* 見出し行: 使う所持状況・管理、サポカ／Pアイドルの切替、キャプチャ入力 */}
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
