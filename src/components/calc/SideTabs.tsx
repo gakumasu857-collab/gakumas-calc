@@ -1,7 +1,7 @@
 import { CalendarCheck, ListOrdered } from "lucide-react";
 
 /**
- * 画面の左端に生えるタブ（上半分＝発動回数、下半分＝レッスン等の踏み方）。
+ * 画面の左端に生えるタブ（上半分＝発動回数、下半分＝レッスン等の踏み方）。色は青以外（濃いグレーと緑。青が多くて騒がしいとの指摘）。
  * 押すとそれぞれのモーダルが開く。位置が目に入りにくいので、初めて探索を押したあとは
  * 吹き出しで案内し、タブを押すか「わかった」を押すまで光らせる（見たことは記憶する）。
  */
@@ -32,7 +32,7 @@ export default function SideTabs({
         }}
         title={countsTitle}
         style={{ writingMode: "vertical-rl" }}
-        className={`${base} bottom-[calc(50%+4px)] top-16 bg-blue-600 hover:bg-blue-500${glow}`}
+        className={`${base} bottom-[calc(50%+4px)] top-16 bg-slate-700 hover:bg-slate-600${glow}`}
       >
         <ListOrdered size={14} />
         発動回数
@@ -45,7 +45,7 @@ export default function SideTabs({
         }}
         title="レッスン・授業（営業）・選抜（オーディション／試験）の踏み方を編集"
         style={{ writingMode: "vertical-rl" }}
-        className={`${base} bottom-4 top-[calc(50%+4px)] bg-sky-600 hover:bg-sky-500${glow}`}
+        className={`${base} bottom-4 top-[calc(50%+4px)] bg-emerald-700 hover:bg-emerald-600${glow}`}
       >
         <CalendarCheck size={14} />
         レッスン等の踏み方

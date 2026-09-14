@@ -119,6 +119,12 @@ export function examStar(examIndex: number, score: number): number {
   return Math.max(0, Math.min(EXAMS[examIndex].starCap * STAR_SCALE, raw));
 }
 
+/** スター性が上限に達する合計スコア（これ以上入れても増えない。入力の上限に使う） */
+export function examStarCapScore(examIndex: number): number {
+  const pieces = EXAM_STAR_PIECES[examIndex];
+  return pieces ? pieces[pieces.length - 1].upTo : Infinity;
+}
+
 /**
  * 本戦ラウンド。スター性は固定値、スコア評価値は区分線形（シートの実式）。
  * brackets: [スコア上限, 差し引き基準, 係数, 加算ベース] を昇順で評価。

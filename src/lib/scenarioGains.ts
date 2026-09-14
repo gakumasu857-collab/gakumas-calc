@@ -169,7 +169,7 @@ export function computeNiaGains(
     (sum, v, i) => sum + Math.min(v, NIA_AUDITION_VOTE_MAX[i] ?? v),
     0,
   );
-  const finaleVotes = niaFinaleVotes(niaFinaleTotalScore(state));
+  const finaleVotes = niaFinaleVotes(niaFinaleTotalScore(state), state.finalKind ?? "finale");
   return {
     gains,
     pPoints,

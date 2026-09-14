@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
+import { TYPE_SHORT } from "@/components/ui";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   CLASSES,
@@ -18,6 +19,7 @@ import {
   examBaseFromRise,
   examRiseWithParabo,
   examStar,
+  examStarCapScore,
   LESSON_KIND_LABELS,
   LESSONS,
 } from "@/data/schedule";
@@ -31,6 +33,8 @@ import {
   NIA_FINAL_KIND_LABELS,
   NIA_FINAL_KINDS,
   niaAuditionCap,
+  niaFinalStatCapScore,
+  niaFinalVotesCapScore,
   type ScenarioKey,
   NIA_AUDITIONS,
   NIA_LESSONS,
@@ -74,8 +78,6 @@ const TYPE_STYLE: Record<TypeKey, { on: string; off: string; head: string; chip:
   },
 };
 
-/** 選抜ごとのスライダー上限（1次3万・2次30万・3次50万） */
-const EXAM_SLIDER_MAX = [30000, 300000, 500000] as const;
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
@@ -335,10 +337,12 @@ function HifEditor({ r }: { r: CalcResult }) {
                       <NumberField
                         value={total}
                         onChange={(v) => schedule.setExamTotalScore(i, v)}
-                        sliderMax={EXAM_SLIDER_MAX[i] ?? 500000}
+                        max={examStarCapScore(i)}
+                        sliderMax={examStarCapScore(i)}
                         className="w-24"
                       />
                       <span className="text-violet-600">★{examStar(i, total)}</span>
+                      {total >= examStarCapScore(i) && <CapBadge label="★上限" />}
                     </label>
                     {/* 上の段: ゲームのログに出る上昇幅（パラボ込み）。入れると今の編成のパラボ%で元のステに逆算して保存 */}
                     <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -415,7 +419,8 @@ function HifEditor({ r }: { r: CalcResult }) {
                         <NumberField
                           value={scores[type]}
                           onChange={(v) => schedule.setExamScore(i, type, v)}
-                          sliderMax={EXAM_SLIDER_MAX[i] ?? 500000}
+                          max={examStarCapScore(i)}
+                          sliderMax={examStarCapScore(i)}
                           className="w-24"
                         />
                       </label>
@@ -435,9 +440,10 @@ function HifEditor({ r }: { r: CalcResult }) {
                         </button>
                       ))}
                     </span>
-                    <span className="ml-auto text-xs tabular-nums text-slate-500">
+                    <span className="ml-auto flex items-center gap-1 text-xs tabular-nums text-slate-500">
                       総スコア{" "}
                       <b className="text-slate-800">{total.toLocaleString()}</b>
+                      {total >= examStarCapScore(i) && <CapBadge label="★上限" />}
                     </span>
                     {/* この配分での上昇量とスター性 */}
                     {total > 0 && (
@@ -650,10 +656,12 @@ function NiaEditor({ r }: { r: CalcResult }) {
                   <NumberField
                     value={finalTotal}
                     onChange={(v) => nia.setFinalTotalScore(v)}
-                    sliderMax={1500000}
+                    max={niaFinalVotesCapScore(nia.finalKind)}
+                    sliderMax={niaFinalVotesCapScore(nia.finalKind)}
                     className="w-24"
                   />
                   <span className="text-slate-400">（投票数の計算にだけ使う）</span>
+                  {finalTotal >= niaFinalVotesCapScore(nia.finalKind) && <CapBadge label="投票上限" />}
                 </label>
                 <AuditionStatRows
                   r={r}
@@ -676,9 +684,14 @@ function NiaEditor({ r }: { r: CalcResult }) {
                     <NumberField
                       value={nia.finalScores[type]}
                       onChange={(v) => nia.setFinalScore(type, v)}
-                      sliderMax={500000}
+                      max={niaFinalVotesCapScore(nia.finalKind)}
+                      sliderMax={niaFinalVotesCapScore(nia.finalKind)}
                       className="w-24"
                     />
+                    {nia.finalScores[type] >=
+                      niaFinalStatCapScore(tag, r.typeRanks[type], nia.finalKind) && (
+                      <CapBadge label="ステ上限" />
+                    )}
                   </label>
                 ))}
                 <span className="w-full text-[11px] text-slate-500">
@@ -698,8 +711,14 @@ function NiaEditor({ r }: { r: CalcResult }) {
               </>
             )}
             <span className="w-full text-[11px] text-slate-500">
-              投票 +{niaFinaleVotes(finalTotal).toLocaleString()}（合計スコア{" "}
+              投票 +{niaFinaleVotes(finalTotal, nia.finalKind).toLocaleString()}（合計スコア{" "}
               {finalTotal.toLocaleString()} から）
+              {finalTotal >= niaFinalVotesCapScore(nia.finalKind) && (
+                <>
+                  {" "}
+                  <CapBadge label="投票上限" />
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -1345,6 +1364,15 @@ function MiniToggle({
   );
 }
 
+/** 入力がそれ以上増えても結果が変わらないときの印（ステ上限・★上限・投票上限） */
+function CapBadge({ label }: { label: string }) {
+  return (
+    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+      {label}
+    </span>
+  );
+}
+
 /**
  * N.I.A.のオーディションの素点入力（2段）。
  * 上の段はゲームのログに出る上昇幅（獲得ボーナス＋パラボ込み）。入れると今の編成のパラボ%と
@@ -1366,15 +1394,18 @@ function AuditionStatRows({
 }) {
   return (
     <>
-      <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
-          ログの上昇幅（パラボ込み）
+      <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span
+          className="w-44 shrink-0 text-[11px] font-bold text-slate-600"
+          title={`ゲームのログの上昇幅をそのまま。獲得ボーナス+${challengePct}%と今の編成のパラボ%（右の数字）で素点に逆算します`}
+        >
+          ログの上昇幅（獲得+{challengePct}%・パラボ込み）
         </span>
         {TYPE_KEYS.map((type) => {
           const pct = r.paraboDetail[type].totalPct;
           return (
             <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
-              <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_LABELS[type]}</span>
+              <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_SHORT[type]}</span>
               <RiseField
                 value={niaAuditionRise(stats[type], challengePct, pct)}
                 onChange={(rise) =>
@@ -1384,20 +1415,20 @@ function AuditionStatRows({
                   )
                 }
               />
-              <span className="text-[10px] tabular-nums text-slate-400">
-                獲得+{challengePct}%・パラボ+{pct}%
+              <span className="text-[10px] tabular-nums text-slate-400" title="今の編成のパラボ%">
+                +{pct}%
               </span>
             </label>
           );
         })}
       </span>
-      <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
+      <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className="w-44 shrink-0 text-[11px] font-bold text-slate-600">
           素点（ボーナス・パラボ抜き）
         </span>
         {TYPE_KEYS.map((type) => (
           <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
-            <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_LABELS[type]}</span>
+            <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_SHORT[type]}</span>
             <NumberField
               value={stats[type]}
               onChange={(v) => onChange(type, v)}

@@ -216,18 +216,36 @@ export function niaFinaleStat(
 }
 
 /**
- * 最終オーディションのスコア→ファン投票数。上限は 49,002（オーナー提供）。
- * 旧式は 1,200,582 で 32,668 に頭打ちだったが、実測の上限に合わせて上の直線を延長している
- * （途中の実測が無いので暫定。約 516 万点で上限）。
+ * 最終オーディションの合計スコア→ファン投票数（オーナー提供 2026-09）。種類ごとに式が違い、
+ * 式で出た値を 1.5 倍したものが実際の投票数（上限: FINALE 32,668×1.5＝49,002、QUARTET 25,334×1.5＝38,001）。
  */
-const NIA_FINALE_VOTES: readonly Piece[] = [
-  { threshold: 5159146, multiplier: 0, constant: 49002 },
-  { threshold: 640882, multiplier: 0.004126232489, constant: 27714.07 },
-  { threshold: 260417, multiplier: 0.01821637749, constant: 18683.95 },
-  { threshold: 0, multiplier: 0.07592333987, constant: 3656.17 },
-];
-export function niaFinaleVotes(score: number): number {
-  return evalPieces(NIA_FINALE_VOTES, score);
+const NIA_FINAL_VOTES: Record<NiaFinalKind, readonly Piece[]> = {
+  finale: [
+    { threshold: 1200582, multiplier: 0, constant: 32668 },
+    { threshold: 640882, multiplier: 0.004126232489, constant: 27714.07 },
+    { threshold: 260417, multiplier: 0.01821637749, constant: 18683.95 },
+    { threshold: 0, multiplier: 0.07592333987, constant: 3656.17 },
+  ],
+  quartet: [
+    { threshold: 239970, multiplier: 0, constant: 25334 },
+    { threshold: 180000, multiplier: 0.02800776858, constant: 18612.6 },
+    { threshold: 119982, multiplier: 0.08399651702, constant: 8534.93 },
+    { threshold: 0, multiplier: 0.1289162297, constant: 3145.5 },
+  ],
+};
+/** 式の値に掛ける倍率（実際の投票数＝式の値×1.5） */
+export const NIA_FINAL_VOTES_SCALE = 1.5;
+export function niaFinaleVotes(score: number, kind: NiaFinalKind = "finale"): number {
+  return Math.floor(evalPieces(NIA_FINAL_VOTES[kind], score) * NIA_FINAL_VOTES_SCALE);
+}
+/** 投票数が上限に達する合計スコア（これ以上入れても増えない） */
+export function niaFinalVotesCapScore(kind: NiaFinalKind = "finale"): number {
+  return NIA_FINAL_VOTES[kind][0].threshold;
+}
+/** 最終オーディションでステ素点が上限に達するタイプ別スコア（流行順位・種類で変わる） */
+export function niaFinalStatCapScore(tag: NiaTag, rank: number, kind: NiaFinalKind = "finale"): number {
+  const pieces = NIA_FINAL_STAT[kind][tag][rank];
+  return pieces ? pieces[0].threshold : Infinity;
 }
 
 /** 札（スキルカード）2枚獲得ごとのファン投票数（奇数の最後の1枚は無効） */
@@ -349,6 +367,12 @@ const HATSU_FINAL_BRACKETS: readonly (readonly [number, number, number])[] = [
   [2000000, 0.001, 6700],
   [Infinity, 0, 8700],
 ];
+
+/** 試験スコアの評価値換算が上限に達するスコア（中間 20 万・最終 200 万。これ以上入れても増えない） */
+export function hatsuExamCapScore(examIndex: 0 | 1): number {
+  const brackets = examIndex === 0 ? HATSU_MID_BRACKETS : HATSU_FINAL_BRACKETS;
+  return brackets[brackets.length - 2][0];
+}
 
 /** 試験スコア→評価値（examIndex: 0=中間, 1=最終。切り捨て） */
 export function hatsuExamValue(examIndex: 0 | 1, score: number): number {

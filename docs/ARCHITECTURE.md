@@ -149,7 +149,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
 | `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
 | `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
-| `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票上限 49,002）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
+| `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
 | `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
@@ -343,7 +343,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 
 - **H.I.F.**: `Σ最終ステ × 2 ＋ 切り捨て(合計スター性 × 7.5) ＋ 本戦R1換算 ＋ 本戦R2換算 − 2000`
   - 合計スター性 = ワッペン 15 × 発動回数（最大 20。回数 = セットの「スキル獲得」＋編成サポカのスキル獲得上乗せ）
-    ＋ レッスン★（`schedule.ts` の `LESSONS` の値。SP か非SP かで異なり、小数は切り捨て）＋ 選抜★（`schedule.ts` の `examStar`: 合計スコアを区間ごとの傾きで足した累計を切り上げ、1.5 倍して切り捨て。表はオーナー提供 2026-09）＋ 本戦固定（180＋225）
+    ＋ レッスン★（`schedule.ts` の `LESSONS` の値。SP か非SP かで異なり、小数は切り捨て）＋ 選抜★（`schedule.ts` の `examStar`: 合計スコアを区間ごとの傾きで足した累計を切り上げ、1.5 倍して切り捨て。表はオーナー提供 2026-09。スコア入力は上限に達する `examStarCapScore` で止める）＋ 本戦固定（180＋225）
   - 本戦R1/R2 の換算は `src/data/schedule.ts` の `FINAL_ROUNDS`（点数は条件設定の既定で上限 140 万／240 万）
 - **N.I.A.**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
 - **初（レジェンド）**: `切り捨て(Σ最終ステ × 2.1) ＋ 最終順位分（1700/900/500/0）＋ 中間スコア換算 ＋ 最終スコア換算`

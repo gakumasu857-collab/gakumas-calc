@@ -3,6 +3,7 @@ import { ChevronDown, Info, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import {
+  hatsuExamCapScore,
   NIA_FINAL_KIND_LABELS,
   NIA_FINAL_KINDS,
   SCENARIO_LABELS,
@@ -356,7 +357,8 @@ function ScenarioScoreCard({
             <NumberField
               value={r.hatsuSchedule.midScore}
               onChange={(v) => r.hatsuSchedule.update({ midScore: v })}
-              sliderMax={250000}
+              max={hatsuExamCapScore(0)}
+              sliderMax={hatsuExamCapScore(0)}
               className="w-32"
             />
             <span className="text-xs text-slate-500">
@@ -369,7 +371,8 @@ function ScenarioScoreCard({
             <NumberField
               value={r.hatsuSchedule.finalScore}
               onChange={(v) => r.hatsuSchedule.update({ finalScore: v })}
-              sliderMax={2000000}
+              max={hatsuExamCapScore(1)}
+              sliderMax={hatsuExamCapScore(1)}
               className="w-32"
             />
             <span className="text-xs text-slate-500">

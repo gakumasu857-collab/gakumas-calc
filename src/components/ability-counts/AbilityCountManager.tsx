@@ -113,6 +113,10 @@ export default function AbilityCountManager() {
 
   return (
     <div>
+      {/* ここで決める回数の注意（前イベ・後イベの発動分は計算ページで編成に合わせて自動で上乗せされる） */}
+      <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">
+        ⚠ ここの回数には、サポカの前イベ・後イベによる発動分は含めないでください（前イベ・後イベは計算ページで編成に合わせて自動で上乗せされます）。
+      </p>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p>
           {!selectedSet && (
