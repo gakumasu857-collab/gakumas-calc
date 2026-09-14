@@ -1,7 +1,7 @@
 import { CalendarCheck, ListOrdered } from "lucide-react";
 
 /**
- * 画面の左端に生えるタブ（上半分＝発動回数、下半分＝レッスン等の踏み方）。色は白地に濃いグレーの文字（青が多くて騒がしい・黒と緑は違和感との指摘）。
+ * 画面の左端に生えるタブ（上半分＝発動回数、下半分＝レッスン等の踏み方）。色は以前の水色を薄くしたもの（濃い青は騒がしい・黒と緑・白は違和感との指摘）。
  * 押すとそれぞれのモーダルが開く。位置が目に入りにくいので、初めて探索を押したあとは
  * 吹き出しで案内し、タブを押すか「わかった」を押すまで光らせる（見たことは記憶する）。
  */
@@ -20,7 +20,7 @@ export default function SideTabs({
   onDismissHighlight: () => void;
 }) {
   const base =
-    "fixed left-0 z-30 flex w-8 items-center justify-center gap-1.5 rounded-r-xl border border-l-0 border-slate-300 bg-white text-xs font-bold text-slate-700 shadow-md transition hover:bg-slate-100";
+    "fixed left-0 z-30 flex w-8 items-center justify-center gap-1.5 rounded-r-xl border border-l-0 border-sky-300 bg-sky-200 text-xs font-bold text-sky-900 shadow-md transition hover:bg-sky-300";
   const glow = highlight ? " ring-4 ring-amber-300 animate-pulse" : "";
   return (
     <>
@@ -34,7 +34,7 @@ export default function SideTabs({
         style={{ writingMode: "vertical-rl" }}
         className={`${base} bottom-[calc(50%+4px)] top-16${glow}`}
       >
-        <ListOrdered size={14} className="text-slate-500" />
+        <ListOrdered size={14} className="text-sky-700" />
         発動回数
       </button>
       <button
@@ -47,7 +47,7 @@ export default function SideTabs({
         style={{ writingMode: "vertical-rl" }}
         className={`${base} bottom-4 top-[calc(50%+4px)]${glow}`}
       >
-        <CalendarCheck size={14} className="text-slate-500" />
+        <CalendarCheck size={14} className="text-sky-700" />
         レッスン等の踏み方
       </button>
       {highlight && (
