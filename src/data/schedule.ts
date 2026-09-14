@@ -200,7 +200,7 @@ export function distributeExam<T extends string>(
 
 /**
  * 選抜の上昇ステ（パラボ抜き）にパラメータボーナス%を乗せた値＝ゲームのログに出る上昇幅。
- * パラボ分は sheetScore の paraboConvert と同じく「イベントごとに切り捨て」。
+ * パラボ分はログの1回分の表示に合わせて「その回の上昇×%を切り捨て」（計算機全体のパラボ変換は合計に掛けて切り捨て）。
  * @param pctPercent 合算したパラボ%（例 52.5）
  */
 export function examRiseWithParabo(base: number, pctPercent: number): number {

@@ -100,14 +100,17 @@ export default function FormationPlanCard({
       {/* 開始時のステータスとSPレッスン率（1つの枠に2行。数字は大きめ） */}
       <div className="mt-2 divide-y divide-slate-200 rounded-lg bg-slate-50 text-sm text-slate-600">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-          <span className="w-36 font-bold text-slate-700">開始時のステータス</span>
-          {TYPE_KEYS.map((type) => (
-            <span key={type} className="tabular-nums">
-              <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-              <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
-              <span className="text-slate-500"> +{r.perType[type].startPct}%</span>
-            </span>
-          ))}
+          <span className="w-full font-bold text-slate-700 sm:w-36">開始時のステータス</span>
+          {/* スマホでは3列のグリッド（Visual が2行目に落ちない）、PCでは横並び */}
+          <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:gap-x-4">
+            {TYPE_KEYS.map((type) => (
+              <span key={type} className="whitespace-nowrap tabular-nums">
+                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+                <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
+                <span className="text-slate-500"> +{r.perType[type].startPct}%</span>
+              </span>
+            ))}
+          </div>
           <span className="text-xs text-slate-500">
             審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
           </span>
@@ -122,18 +125,20 @@ export default function FormationPlanCard({
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-          <span className="flex w-36 items-center gap-1 font-bold text-slate-700">
+          <span className="flex w-full items-center gap-1 font-bold text-slate-700 sm:w-36">
             SPレッスン率上昇
             <Hint text={GLOSSARY.spRate} />
           </span>
-          {TYPE_KEYS.map((type) => (
-            <span key={type} className="tabular-nums">
-              <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-              <b className="text-base text-slate-900">
-                +{(r.spLesson.shown[type] * 100).toFixed(1)}%
-              </b>
-            </span>
-          ))}
+          <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:gap-x-4">
+            {TYPE_KEYS.map((type) => (
+              <span key={type} className="whitespace-nowrap tabular-nums">
+                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+                <b className="text-base text-slate-900">
+                  +{(r.spLesson.shown[type] * 100).toFixed(1)}%
+                </b>
+              </span>
+            ))}
+          </div>
           <label className="flex items-center gap-1 text-xs text-slate-500">
             表記外推定SP率
             <input

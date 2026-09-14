@@ -396,7 +396,7 @@ function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
       <span className="font-bold text-slate-700">H.I.F.ボーナス</span>
       <span>
         {max
-          ? "全部最大（固定+100・パラボ+10%・SP率+5%・本戦上限3200）"
+          ? "全部最大"
           : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
       </span>
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>

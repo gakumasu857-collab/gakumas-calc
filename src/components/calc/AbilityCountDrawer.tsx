@@ -67,6 +67,7 @@ export default function AbilityCountDrawer({
             isAdjusted={r.ability.isRunAdjusted}
             adjustedCount={r.ability.runAdjustCount(set)}
             onResetAdjust={() => r.ability.resetRunAdjust(set.id)}
+            onCommitAdjust={() => r.ability.commitRunAdjust(set)}
             formationKeys={formationKeys}
             eventExtras={eventExtras}
             onDelete={() => r.ability.deleteSet(set.id)}

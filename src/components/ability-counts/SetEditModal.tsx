@@ -19,7 +19,7 @@ type Props = {
    * run: 計算ページ（この育成だけの回数。デフォルトは変えない）
    */
   mode?: "default" | "run";
-  /** run のとき: デフォルトの回数（調整中の表示用） */
+  /** run のとき: デフォルトの回数（黄色い枠のツールチップ用） */
   defaultCount?: (set: AbilityCountSet, key: AbilityName) => number;
   /** run のとき: この育成だけの調整が入っているか */
   isAdjusted?: (set: AbilityCountSet, key: AbilityName) => boolean;
@@ -27,6 +27,8 @@ type Props = {
   adjustedCount?: number;
   /** run のとき: 調整をすべて消してデフォルトに戻す */
   onResetAdjust?: () => void;
+  /** run のとき: 調整した回数をこのセットのデフォルトにする（上書き保存） */
+  onCommitAdjust?: () => void;
   /** 開いたときに選択しておく分類 */
   initialCategory?: CategoryKey;
   /** ユーザー追加セットなら削除可能 */
@@ -55,6 +57,7 @@ export default function SetEditModal({
   isAdjusted,
   adjustedCount = 0,
   onResetAdjust,
+  onCommitAdjust,
   initialCategory,
   deletable,
   getCount,
@@ -92,7 +95,7 @@ export default function SetEditModal({
     <Modal
       title={
         mode === "run"
-          ? `${set.name} の発動回数（この育成での回数）`
+          ? `${set.name} の発動回数`
           : `${set.name} の発動回数（デフォルト）`
       }
       onClose={onClose}
@@ -103,24 +106,30 @@ export default function SetEditModal({
       {mode === "run" ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
           <span>
-            <b>この育成（今の編成）での回数</b>です。ここで変えても、発動回数ページのデフォルトは変わりません。
+            <b>今の評価値に適応されている回数</b>です。ここでの変更を次回以降の探索に適用する場合は「上書き保存」
           </span>
-          {adjustedCount > 0 && (
-            <span className="flex items-center gap-2">
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">
-                調整中 {adjustedCount}件
-              </span>
-              {onResetAdjust && (
-                <button
-                  type="button"
-                  onClick={onResetAdjust}
-                  className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
-                >
-                  すべてデフォルトに戻す
-                </button>
-              )}
-            </span>
-          )}
+          <span className="flex items-center gap-2">
+            {onCommitAdjust && (
+              <button
+                type="button"
+                disabled={adjustedCount === 0}
+                onClick={onCommitAdjust}
+                title="ここで変えた回数（黄色い枠）をこのプロデュースのデフォルトにします（前イベ・後イベの上乗せ分は含めません）"
+                className="rounded-md bg-blue-600 px-2.5 py-1 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                上書き保存{adjustedCount > 0 ? `（${adjustedCount}件）` : ""}
+              </button>
+            )}
+            {adjustedCount > 0 && onResetAdjust && (
+              <button
+                type="button"
+                onClick={onResetAdjust}
+                className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                すべてデフォルトに戻す
+              </button>
+            )}
+          </span>
         </div>
       ) : (
         <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">

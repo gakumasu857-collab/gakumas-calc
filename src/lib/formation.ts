@@ -177,8 +177,8 @@ function scoreCard(
   for (const key in contrib.post) {
     eventContrib[key] = (eventContrib[key] ?? 0) + contrib.post[key];
   }
-  // SPレッスン率アップが効くタイプ。「SPレッスン率」は枠のタイプ（＝通常はカードのタイプ）、
-  // トレーナー・あさり等の「全SPレッスン率」は3タイプすべてに数える（SP最低枚数条件用）。
+  // SPレッスン率アップが効くタイプ。「タイプSPレッスン率」は枠のタイプ（＝通常はカードのタイプ）、
+  // トレーナー・あさり等の「全タイプSPレッスン率」は3タイプすべてに数える（SP最低枚数条件用）。
   const spTypeSet = new Set<TypeKey>();
   card.abilities.forEach((slot, i) => {
     if (!slot) return;
@@ -188,7 +188,8 @@ function scoreCard(
     } else if (
       label === "all_sp_lesson_rate_14" ||
       label === "all_sp_lesson_rate_28" ||
-      label.startsWith("全SPレッスン率")
+      label.startsWith("全SPレッスン率") ||
+      label.startsWith("全タイプSPレッスン率")
     ) {
       for (const t of TYPE_LIST) spTypeSet.add(t);
     }

@@ -12,9 +12,16 @@ const ROLE_TYPE_SHORT: Record<SheetRole, string> = {
   main2: "Da",
   sub: "Vi",
 };
-/** 回数キーの内部表記をタイプ表記へ（例: メイン1レッスン → Voレッスン） */
+/**
+ * 回数キーの内部表記を起動タグの表記へ（例: メイン1SPレッスン → VocalSPレッスン）。
+ * 「（N回まで）」は上限の管理用なので表示しない。
+ */
 const displayCountKey = (key: string) =>
-  key.replace(/^メイン1/, "Vo").replace(/^メイン2/, "Da").replace(/^サブ/, "Vi");
+  key
+    .replace(/^メイン1/, "Vocal")
+    .replace(/^メイン2/, "Dance")
+    .replace(/^サブ/, "Visual")
+    .replace(/\s*[（(]\d+回まで[)）]\s*$/, "");
 
 /** 数値表示（小数は1桁まで） */
 const fmt = (n: number) =>
@@ -80,7 +87,7 @@ export default function ScoreDetailModal({
                     key={item.slot}
                     className={muted ? "text-slate-400" : "text-slate-700"}
                   >
-                    <td className={`${td} text-center`}>
+                    <td className={`${td} whitespace-nowrap text-center`}>
                       {item.slot === 0 ? "ステイベ" : item.slot}
                     </td>
                     <td className={td}>{item.ability}</td>
@@ -110,7 +117,7 @@ export default function ScoreDetailModal({
                       )}
                       {item.kind === "parabo" && (
                         <span className="text-slate-500">
-                          レッスン・試験の獲得×%をそれぞれ切り捨てて合算
+                          レッスン・試験の獲得ステに適用（切り捨て）
                         </span>
                       )}
                       {item.kind === "excluded" && "—"}
@@ -128,7 +135,7 @@ export default function ScoreDetailModal({
               })}
               {bd.itemBonus && (
                 <tr className="text-slate-700">
-                  <td className={`${td} text-center`}>—</td>
+                  <td className={`${td} whitespace-nowrap text-center`}>前イベ</td>
                   <td className={td}>アイテム補正（パラメ系Pアイテム）</td>
                   <td className={`${td} text-right`}>
                     {fmt(bd.itemBonus.perActivation)}
@@ -136,7 +143,7 @@ export default function ScoreDetailModal({
                   <td className={td}>
                     × {bd.itemBonus.activations}回
                     <span className="ml-1 text-slate-400">
-                      （{bd.itemBonus.refKey}・切り捨て）
+                      （{displayCountKey(bd.itemBonus.refKey)}）
                     </span>
                   </td>
                   <td
@@ -161,15 +168,8 @@ export default function ScoreDetailModal({
             </tbody>
           </table>
           <p className="text-[11px] text-slate-400">
-            ※ 効果量は凸数と枠位置に応じた段階の値。回数はレッスンページ・発動回数セット・固定回数・イベント回数設定（点数表）から。発動参照（trigger_tag）が未入力のアビリティは—表示。
-            {withEvents ? (
-              <>
-                <b className="text-emerald-600">＋イベントn回</b>
-                は編成6枚の前イベ・後イベ（スキル獲得・ランダム強化・チェンジ等）による上乗せ分です。「〜回まで」のアビリティは上限を超える分を切り捨てています。
-              </>
-            ) : (
-              "編成に入れると、他のカードの前イベ・後イベによる回数上乗せ（イベント相互作用）がさらに加わります（「〜回まで」は上限まで）。"
-            )}
+            ※ <b className="text-emerald-600">＋イベントn回</b>
+            は同時に編成されてるサポカの前イベ・後イベ（スキル獲得・ドリンク獲得・ランダム強化等）による上乗せ分です。「〜回まで」のアビリティは上限を超える分を切り捨てています。
           </p>
         </div>
       ) : (

@@ -140,31 +140,33 @@ export default function PlanEditDrawer({
                 数値表・計算式
               </button>
             )}
-            <span className="text-xs text-slate-400">
-              レッスンページと共有（どちらで編集してもOK）。値は素の獲得量で、パラメータボーナス%は計算側で反映します。
-            </span>
           </div>
           {optMsg && (
             <p className="mb-2 text-xs font-semibold text-blue-600">{optMsg}</p>
           )}
           {/* モーダルを開いたままでも最終ステ・評価値を追えるライブサマリー */}
           <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm tabular-nums">
-            <span className="text-xs font-bold text-slate-500">
+            <span className="w-full text-xs font-bold text-slate-500 sm:w-auto">
               最終ステータス
             </span>
-            {TYPE_KEYS.map((t) => (
-              <span key={t}>
-                <span className={`text-xs font-bold ${TYPE_STYLE[t].head}`}>
-                  {TYPE_LABELS[t]}
-                </span>{" "}
-                <b className="text-slate-800">
-                  {Math.round(r.perType[t].current).toLocaleString()}
-                </b>{" "}
-                <span className="text-[11px] text-slate-400">
-                  (パラボ{r.perType[t].startPct}%)
+            {/* スマホでは3列のグリッド（Visual が2行目に落ちない）、PCでは横並び */}
+            <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:flex-wrap sm:gap-x-4">
+              {TYPE_KEYS.map((t) => (
+                <span key={t} className="flex flex-col leading-tight sm:block sm:leading-normal">
+                  <span className="whitespace-nowrap">
+                    <span className={`text-xs font-bold ${TYPE_STYLE[t].head}`}>
+                      {TYPE_LABELS[t]}
+                    </span>{" "}
+                    <b className="text-slate-800">
+                      {Math.round(r.perType[t].current).toLocaleString()}
+                    </b>
+                  </span>
+                  <span className="text-[11px] text-slate-400 sm:ml-1">
+                    (パラボ{r.perType[t].startPct}%)
+                  </span>
                 </span>
-              </span>
-            ))}
+              ))}
+            </div>
             <span className="text-xs text-slate-500">
               合計{" "}
               <b className="text-sm text-slate-800">
@@ -349,8 +351,8 @@ function HifEditor({ r }: { r: CalcResult }) {
                 </div>
                 {stats ? (
                   <>
-                    {/* 上の段: ゲームのログに出る上昇幅（パラボ込み）。入れると今の編成のパラボ%で元のステに逆算して保存 */}
-                    <TypeFieldGrid label="ログの上昇幅（パラボ込み）">
+                    {/* 上の段: パラボ込みのステ（ゲームのログの値）。入れると今の編成のパラボ%でパラボ抜きのステに逆算して保存 */}
+                    <TypeFieldGrid label="パラボ込みのステ">
                       {TYPE_KEYS.map((type) => {
                         const pct = r.paraboDetail[type].totalPct;
                         return (
@@ -369,9 +371,9 @@ function HifEditor({ r }: { r: CalcResult }) {
                         );
                       })}
                     </TypeFieldGrid>
-                    {/* 下の段: パラボを除いた元のステ（計算に使う値）。直接打ち込んでもよい */}
+                    {/* 下の段: パラボ抜きのステ（計算に使う値）。直接打ち込んでもよい */}
                     <TypeFieldGrid
-                      label="元のステ（パラボ抜き）"
+                      label="パラボ抜きのステ"
                       after={
                         <span className="text-xs tabular-nums text-slate-500">
                           合計{" "}
@@ -567,10 +569,10 @@ function NiaEditor({ r }: { r: CalcResult }) {
         />
       </div>
 
-      {/* オーディション（1次・2次は素点、最終はスコアか素点。素点はログの上昇幅からも逆算） */}
+      {/* オーディション（1次・2次は素点、最終はスコアか素点。素点はパラボ込みのステ（ログの値）からも逆算） */}
       <Section title="オーディション（1次・2次はステを入力 / 最終はスコアかステ）">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
-          「ログの上昇幅（パラボ込み）」にゲームのログの値をそのまま入れると、今の編成のパラボ%と
+          「パラボ込みの上昇ステ」にゲームのログの値をそのまま入れると、今の編成のパラボ%と
           チャレンジPアイテムの獲得ボーナス（設定欄で調整。今は合計+{challengePct}%）で元の素点に逆算します。
           素点を直接打ち込んでもOK。最終は「スコア」（流行順位別の式で換算）と「ステ」を切り替えられます。
         </p>
@@ -1186,7 +1188,7 @@ function BulkRow({
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
       {groups.map((g) => (
-        <span key={g.label} className="flex items-center gap-1">
+        <span key={g.label} className="flex w-full items-center gap-1 sm:w-auto">
           {g.label}:
           {TYPE_KEYS.map((type) => (
             <button
@@ -1394,9 +1396,9 @@ function CapBadge({ label }: { label: string }) {
 
 /**
  * N.I.A.のオーディションの素点入力（2段）。
- * 上の段はゲームのログに出る上昇幅（獲得ボーナス＋パラボ込み）。入れると今の編成のパラボ%と
+ * 上の段はパラボ込みのステ（ゲームのログの値。獲得ボーナス＋パラボ込み）。入れると今の編成のパラボ%と
  * チャレンジPアイテムの獲得ボーナス%で素点に逆算して保存する。
- * 下の段は素点そのもの（計算に使う値。上限＝流行順位別の上限）。
+ * 下の段はパラボ抜きのステ＝素点そのもの（計算に使う値。上限＝流行順位別の上限）。
  */
 function AuditionStatRows({
   r,
@@ -1418,7 +1420,7 @@ function AuditionStatRows({
           <span
             title={`ゲームのログの上昇幅をそのまま。獲得ボーナス+${challengePct}%と今の編成のパラボ%（右の数字）で素点に逆算します`}
           >
-            ログの上昇幅（獲得+{challengePct}%・パラボ込み）
+            パラボ込みのステ（獲得+{challengePct}%込み）
           </span>
         }
       >
@@ -1443,7 +1445,7 @@ function AuditionStatRows({
           );
         })}
       </TypeFieldGrid>
-      <TypeFieldGrid label="素点（ボーナス・パラボ抜き）">
+      <TypeFieldGrid label="パラボ抜きのステ（素点）">
         {TYPE_KEYS.map((type) => (
           <TypeCell key={type} type={type} short>
             <NumberField
@@ -1461,7 +1463,7 @@ function AuditionStatRows({
 }
 
 /**
- * ゲームのログに出る上昇幅（パラボ込み）の入力欄。
+ * パラボ込みのステ（ゲームのログに出る上昇幅）の入力欄。
  * 1桁打つたびに逆算→表示し直すと入力が崩れる（今の%で作れない値に丸まる）ので、
  * 打っている途中の文字はそのまま保ち、フォーカスが外れたら「今の%で作れる値」に表示を揃える。
  */

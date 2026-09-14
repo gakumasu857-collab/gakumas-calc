@@ -143,7 +143,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generated/pIdols.json` | Pアイドル一覧（`masters`）、成長数値（`growth`）、審査基準（`idolRanks`） |
 | `generated/cardSprite.json` / `generated/preEventImages.json` | 画像関連のカタログ（2-2 参照） |
 | `supportCardsDb.ts` | **supMaster の読み替え役。** 日本語の列名を内部名に写す `HEADER_ALIASES`、1 行をカードの形に組み立てる `convert()`、後イベの語彙 `LATER_EVENT_MAP`、ステイベの種類 `STAT_EVENT_TYPES_ARRAY`、前イベの数値列 `NUMERIC_ACTION_MAP`、スキル分類列 `SKILL_FLAG_MAP` がここ。結果が `SUPPORT_CARD_DB` |
-| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
+| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名。2026-09 にレッスン系は「タイプレッスン／タイプSPレッスン／タイプ通常レッスン」、SP率は「タイプSPレッスン率／全タイプSPレッスン率」に改名。旧名は `ABILITY_LABEL_ALIASES` で受ける）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
 | `abilityCounts.ts` | 発動回数ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
@@ -161,7 +161,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 | ファイル | 何をするか |
 |---|---|
-| `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`、発動回数の引き方 `buildCountResolver`、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
+| `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`、発動回数の引き方 `buildCountResolver`、前イベの起動タグ `resolveTriggerCount`（「VocalSPレッスン」＝そのタイプ、「タイプSPレッスン」＝そのカードのタイプ、「SPレッスン」＝全タイプの合算）、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
 | `sheetContext.ts` | H.I.F. の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
 | `scenarioGains.ts` | N.I.A.・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
 | `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
@@ -173,7 +173,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `optimizeReady.ts` | 探索ボタンを押せる条件（シナリオ・アイドル・Pアイドル・発動回数セット・メモリーが選ばれているか） |
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
 | `useSchedule.ts` | H.I.F. の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
-| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存。N.I.A.の最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はログの上昇幅（獲得ボーナス＋パラボ込み）から `niaAuditionBaseFromRise` で逆算できる |
+| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存。N.I.A.の最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はパラボ込みのステ（獲得ボーナス込み・ログの値）から `niaAuditionBaseFromRise` で逆算できる |
 | `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
@@ -215,7 +215,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
-| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「ログの上昇幅（パラボ込み）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え。計算ページでは左端のタブ（`calc/SideTabs.tsx`: 上＝発動回数・下＝レッスン等の踏み方。初めて探索したあとは吹き出しで案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`）か踏み方チップから中央のモーダルで開く。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
+| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え。計算ページでは左端のタブ（`calc/SideTabs.tsx`: 上＝発動回数・下＝レッスン等の踏み方。初めて探索したあとは吹き出しで案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`）か踏み方チップから中央のモーダルで開く。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
 | `calc/AbilityCountDrawer.tsx` | 計算ページから開く発動回数エディタ |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |
@@ -244,7 +244,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 ```
 カードの点数 = 枠1・2・4・5・6 の（効果量 × 発動回数）の合計        ※枠3 は点数に入れない
-             ＋ パラボ枠は「レッスン・試験の獲得量 × %」を 1 回ごとに切り捨てて合計
+             ＋ パラボ枠は「レッスン・試験の獲得量の合計 × %」を切り捨て（2026-09 変更）
              ＋ ステイベ（パラメータイベント）の値 × 発動したか（0 か 1）
              ＋ 前イベ＝パラメータ（R サポカ）の値 × 前イベ発動回数
 アイテム補正 = 切り捨て（パラメータ上昇値 × 前イベ発動回数）      ※パラメ系 P アイテムを持つカードだけ
@@ -274,8 +274,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `trigger_tag` が空のアビリティは「回数なし＝点数に入らない」扱いです（初期値とパラメータイベントだけ例外で名前で引く）。
 
 **(c) パラメータボーナス（パラボ）** — `paraboConvert`
-- % をそのまま足すのではなく、レッスン 8 回・選抜 3 回それぞれの獲得量に % を掛けて **1 回ごとに切り捨て** てから合計します。
-  同じ % でも踏み方で価値が変わるのはこのためです（パラボ変換表モーダルで確認できます）。
+- レッスン・選抜（オーディション）の獲得量の合計に % を掛けて **切り捨て** ます（2026-09 にオーナー指示で変更。以前は 1 回ごとに切り捨てて合計）。
+  同じ % でも踏み方で価値が変わるのは、母数（獲得量）が踏み方で決まるためです（パラボ変換表モーダルで確認できます）。
 - 6 枚の編成を評価するときは、カードごとに変換せず **メモリー＋Pアイドル＋HIFボーナス 10%＋サポカ全部の % を合算してから 1 回だけ変換** します
   （`formation.ts` の `summedParaboByType`）。個別に変換すると切り捨てが増えて実際より低く出るためです。
 

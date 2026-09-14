@@ -57,6 +57,10 @@ export function typeLessonCounts(
     counts[`${label}SPレッスン`] = sp;
     counts[`${label}通常レッスン`] = total - sp;
   }
+  // タイプを問わない回数（起動タグが「SPレッスン」など「タイプ」無しのもの＝全タイプの合算）
+  for (const word of ["レッスン", "SPレッスン", "通常レッスン"]) {
+    counts[word] = TYPE_KEYS.reduce((sum, t) => sum + (counts[`${typeCountLabel(t)}${word}`] ?? 0), 0);
+  }
   return counts;
 }
 

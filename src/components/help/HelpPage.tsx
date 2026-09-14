@@ -240,32 +240,29 @@ export default function HelpPage() {
       <h2 id="flow" className={H2}>
         全体の流れ
       </h2>
-      <p className={`mb-3 ${P}`}>
-        計算ページは「設定欄を上から埋める → 青いボタンで探索 → 手で調整」の順に上から並んでいます。
-      </p>
       <Flow>
         <FlowBox
           no={1}
           tone="blue"
           title="設定欄を埋める"
-          body="育成シナリオ・アイドル（右に特訓・才能開花）・プロデュース・メモリー・所持状況。黄色の欄が未選択です。"
+          body="育成シナリオ・Pアイドル・プロデュース・メモリー・所持状況を設定。黄色の欄が未選択です。"
         />
         <FlowBox
           no={2}
           tone="blue"
-          title="青いボタンで探索"
-          body="サポカ6枚とレッスンの踏み方を自動で探し、評価値が高い組み合わせを「サポカ編成と踏み方」に入れます。"
+          title="ボタンを押して探索"
+          body="サポカ6枚とレッスンの踏み方等を自動で探索し、評価値が高い組み合わせを入れます。"
         />
         <FlowBox
           no={3}
           tone="emerald"
-          title="手で調整する"
-          body="レッスン等の踏み方・発動回数・サポカ枠のクリック・前イベ後イベ。変えるとその場で評価値が動きます。"
+          title="自分で微調整する"
+          body="レッスン等の踏み方・発動回数・サポカの前イベ後イベ。変更がすぐに評価値に適用されます。"
         />
       </Flow>
       <p className={`mt-3 ${P}`}>
-        結果は右（スマホでは編成の上）の<b>評価値</b>と<b>育成後のステータス</b>に出ます。
-        気に入った状態は右上の<b>「セーブデータ」</b>で保存、<b>「画像に出力」</b>で1枚の画像にできます。
+        結果は画面右側（スマホでは編成の上）に出ます。
+        気に入った編成は右上の<b>「セーブデータ」</b>から保存、<b>「画像に出力」</b>で1枚の画像で見ることができます。
       </p>
 
       {/* ---------------------------------------------------------------- ページの構成 */}
@@ -279,7 +276,7 @@ export default function HelpPage() {
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
           <p className="text-sm font-bold text-slate-900">計算</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            設定・探索・調整・評価値。ふだん使うのはここだけです。
+            設定・探索・調整・評価値。主に使う場所。
           </p>
         </div>
         <div className={CARD}>
@@ -289,19 +286,19 @@ export default function HelpPage() {
               <Link to="/support" className="font-semibold text-blue-700 underline">
                 所持状況
               </Link>
-              : 持っているサポカと凸。探索はここから編成します
+              : 持っているサポカの凸を入力できます。自動探索はここを参照します。
             </li>
             <li>
               <Link to="/ability-counts" className="font-semibold text-blue-700 underline">
                 発動回数
               </Link>
-              : プロデュースごとの発動回数のデフォルト（探索の条件）
+              : サポカのアビリティ発動回数を設定できます。計算ページ設定欄のプロデュースで選択可能。
             </li>
             <li>
               <Link to="/card-settings" className="font-semibold text-blue-700 underline">
                 サポカ設定
               </Link>
-              : 前イベ・後イベの既定、固定・BAN・レンタルNG（上級者向け）
+              : 前イベ・後イベの既定、固定・BAN・レンタルNGなどの設定（→よくある質問）
             </li>
           </ul>
         </div>
@@ -312,13 +309,13 @@ export default function HelpPage() {
               <Link to="/card-scores" className="font-semibold text-blue-700 underline">
                 点数表
               </Link>
-              : 全カードの点数を一覧で
+              : 全サポカの点数が一覧で見れます。
             </li>
             <li>
               <Link to="/database" className="font-semibold text-blue-700 underline">
                 データベース
               </Link>
-              : アビリティ・イベントの一覧
+              : サポカとPアイドルのデータが見れます。
             </li>
           </ul>
         </div>
@@ -332,8 +329,8 @@ export default function HelpPage() {
         <div>
           <h3 className={H3}>1. 設定欄を上から埋める</h3>
           <p className={`mt-1 ${P}`}>
-            青い帯の「設定欄」の欄を上から順に押して選びます。黄色い欄が未選択です。
-            1〜4がそろうと、すぐ下の青いボタンが押せるようになります。
+            「設定欄」を埋めます。黄色い欄が未選択です。
+            1〜4がそろうと、下の青いボタンが押せるようになります。
           </p>
           <Mock title="設定欄">
             <div className="grid gap-x-3 sm:grid-cols-2">
@@ -356,18 +353,17 @@ export default function HelpPage() {
           </Mock>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
             <li>
-              <b>アイドル・Pアイドル</b>: 選ぶと、欄の右のボタンで<b>特訓・才能開花</b>を変えられます。
+              <b>アイドル・Pアイドル</b>: 育成するPアイドルを選択。特訓・才能開花を変えられます。
             </li>
             <li>
-              <b>プロデュース</b>: Pアイドルのプランで使えるものだけが出ます（
+              <b>プロデュース</b>: サポカのアビリティ発動回数を設定します。（
               <a href="#produce" className="font-semibold text-blue-700 underline">
-                くわしくは下
+                詳しくはここ
               </a>
-              ）。
+              、または、よくある質問）
             </li>
             <li>
-              <b>メモリー</b>: 枠をクリックしてその場で作れます（保存は任意）。実物が決まっていなければ
-              <b>「汎用メモリーを入れる」</b>。
+              <b>メモリー</b>: 枠をクリックして入力できます。作ったメモリーを保存することもできます。 <b>「汎用メモリーを入れる」</b>。
             </li>
             <li>
               <b>所持状況</b>: 既定は全サポカ完凸。プルダウンで保存してある所持状況に切り替えられ、一番下の
@@ -567,12 +563,12 @@ export default function HelpPage() {
         <FlowBox
           tone="emerald"
           title="計算ページの「発動回数」ボタン"
-          body="編成が決まったあとの「この育成での回数」を調整。ここで変えてもデフォルトは変わりません。"
+          body="編成が決まったあとの「この育成での回数」を調整。「上書き保存」を押すとデフォルトにもなります。"
         />
       </Flow>
       <p className={`mt-3 ${P}`}>
         発動回数ページで変えた回数は探索の条件になるほか、計算ページの「発動回数」ボタンでまだ変えていないアビリティにもそのまま使われます。
-        「発動回数」ボタンで変えた回数は、そちらが優先されます（調整中の印が付きます）。
+        「発動回数」で変えた回数は、そちらが優先されます（変えたものは黄色い枠になり、「上書き保存」でデフォルトにできます）。
       </p>
 
       {/* ---------------------------------------------------------------- 操作のヒント */}

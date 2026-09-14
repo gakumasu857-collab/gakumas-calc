@@ -9,9 +9,9 @@ type Props = {
   count: number;
   /** 編成サポカの前イベ・後イベによる上乗せ回数（表示のみ・緑） */
   extraCount?: number;
-  /** この育成だけの調整が入っている（計算ページ） */
+  /** この育成だけの調整が入っている（計算ページ。黄色い枠で光らせる） */
   adjusted?: boolean;
-  /** 調整中に添えるデフォルトの回数 */
+  /** 調整しているときにツールチップで出すデフォルトの回数 */
   defaultCount?: number;
   onChange: (value: number) => void;
 };
@@ -29,19 +29,22 @@ export default function AbilityCounter({
   const max = abilityMax(abilityKey, scenario);
 
   return (
-    <div className={`rounded-lg border bg-white p-2 ${adjusted ? "border-amber-300" : "border-slate-200"}`}>
+    <div
+      className={`rounded-lg border bg-white p-2 transition ${
+        adjusted
+          ? "border-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.45)]"
+          : "border-slate-200"
+      }`}
+      title={
+        adjusted && defaultCount !== undefined
+          ? `デフォルトは${defaultCount}回（「上書き保存」でこの値をデフォルトにできます）`
+          : undefined
+      }
+    >
       <div className="flex items-center gap-1">
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
           {ABILITY_NAMES[abilityKey]}
         </span>
-        {adjusted && (
-          <span
-            className="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-bold text-amber-800"
-            title={defaultCount !== undefined ? `デフォルトは${defaultCount}回` : "この育成だけの調整"}
-          >
-            調整中{defaultCount !== undefined ? `（元${defaultCount}）` : ""}
-          </span>
-        )}
       </div>
       <div className="mt-1.5 flex items-center justify-center gap-1">
         {[-10, -1].map((step) => (

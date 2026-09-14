@@ -44,7 +44,7 @@ export function niaChallengeApply(base: number, totalPct: number): number {
 
 /**
  * ゲームのログに出るオーディションの上昇幅（獲得ボーナス＋パラボ込み）。
- * パラボ分は sheetScore の paraboConvert と同じく獲得ごとに切り捨て。
+ * パラボ分はログの1回分の表示に合わせて「その回の上昇×%を切り捨て」（計算機全体のパラボ変換は合計に掛けて切り捨て）。
  */
 export function niaAuditionRise(base: number, challengePct: number, paraboPct: number): number {
   const e = niaChallengeApply(base, challengePct);

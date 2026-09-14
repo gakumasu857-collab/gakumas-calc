@@ -60,7 +60,7 @@ function perfOf(rarity: string, abiName: string): PerfEntry | undefined {
  */
 const SHEET_LABEL_OVERRIDES: Record<string, string> = {
   なし: "何もなし",
-  SPレッスン率アップ: "SPレッスン率",
+  SPレッスン率アップ: "タイプSPレッスン率",
 };
 
 /**
@@ -116,20 +116,22 @@ export function buildCountResolver(
 }
 
 /**
- * パラボ%→固定値変換（パラボ参照用!E:I の式の移植）。
- * 各レッスン・各試験の獲得値に%を掛けて「イベントごとにfloor」して合算する。
- * @param lessonGains そのロールのレッスン8回分の獲得値
- * @param examGains そのロールの選抜試験3回分の獲得値
+ * パラボ%→固定値変換。
+ * レッスン・試験の獲得ステの合計に%を掛けて切り捨てる（2026-09 にオーナー指示で変更。
+ * 以前は獲得ごとに切り捨てて合算していた）。
+ * @param lessonGains そのロールのレッスン分の獲得値
+ * @param examGains そのロールの試験（選抜・オーディション）分の獲得値
  */
 export function paraboConvert(
   pct: number,
   lessonGains: number[],
   examGains: number[],
 ): number {
-  let total = 0;
-  for (const g of lessonGains) total += Math.floor(g * pct);
-  for (const g of examGains) total += Math.floor(g * pct);
-  return total;
+  let sum = 0;
+  for (const g of lessonGains) sum += g;
+  for (const g of examGains) sum += g;
+  // 浮動小数の誤差（0.29×100=28.999…）で1点欠けないよう、ごくわずかに足してから切り捨てる
+  return Math.floor(sum * pct + 1e-9);
 }
 
 /** ティア表示用（tier index 0..4 → Ⅰ..Ⅴ） */
@@ -180,23 +182,30 @@ const TRIGGER_ATTR_LABEL: Record<string, string> = {
   Visual: SHEET_ROLE_LABELS.sub,
 };
 const TRIGGER_LESSON_RE = /^(Vocal|Dance|Visual)(SPレッスン|通常レッスン|レッスン)$/;
+/** 「タイプSPレッスン」等＝そのカードのタイプのレッスン */
+const TYPE_LESSON_RE = /^タイプ(SPレッスン|通常レッスン|レッスン)$/;
 const GENERIC_LESSON_KEYS = new Set(["レッスン", "SPレッスン", "通常レッスン"]);
 
 /**
  * 前イベトリガーの参照回数を解決する。
  * - 「VocalSPレッスン」等の属性指定 → その属性（固定対応ロール）の踏み回数
- * - 「SPレッスン」等の属性なし → 全属性の合算（属性関係なしトリガー）
+ * - 「タイプSPレッスン」等 → そのカードのタイプ（枠のロール）の踏み回数
+ * - 「SPレッスン」等の属性なし → 全属性の合算（タイプを問わないトリガー）
  * - それ以外（相談・スキル強化・初期値等）→ そのままのキーで参照
  */
 export function resolveTriggerCount(
   refKey: string,
   ctx: SheetScoreContext,
+  role?: SheetRole,
 ): number {
   const m = refKey.match(TRIGGER_LESSON_RE);
   if (m) return ctx.counts(TRIGGER_ATTR_LABEL[m[1]] + m[2]);
-  if (GENERIC_LESSON_KEYS.has(refKey)) {
+  const t = refKey.match(TYPE_LESSON_RE);
+  if (t && role) return ctx.counts(SHEET_ROLE_LABELS[role] + t[1]);
+  if (t || GENERIC_LESSON_KEYS.has(refKey)) {
+    const word = t ? t[1] : refKey;
     return Object.values(TRIGGER_ATTR_LABEL).reduce(
-      (sum, label) => sum + ctx.counts(label + refKey),
+      (sum, label) => sum + ctx.counts(label + word),
       0,
     );
   }
@@ -210,13 +219,13 @@ export function resolveTriggerCount(
  */
 export function preEventAutoActivations(
   card: SupportCardData,
-  _role: SheetRole,
+  role: SheetRole,
   ctx: SheetScoreContext,
 ): number {
   const max = preEventMax(card);
   if (max <= 0) return 0;
   const refKey = card.extras["前イベ発動参照回数"] ?? "初期値";
-  return Math.min(max, resolveTriggerCount(refKey, ctx));
+  return Math.min(max, resolveTriggerCount(refKey, ctx, role));
 }
 
 /**
@@ -1127,7 +1136,7 @@ const SP_ABI_TYPE: Record<string, keyof CardSpRate> = {
 
 /**
  * カード1枚のSPレッスン率上昇を属性別に集計する（凸→ティア反映後・割合で返す）。
- * 「SPレッスン率」は枠の abi_type の属性へ、「全SPレッスン率(◯%)」は3属性すべてに効く。
+ * 「タイプSPレッスン率」は枠の abi_type の属性へ、「全タイプSPレッスン率(◯%)」は3属性すべてに効く（旧表記も受ける）。
  */
 export function cardSpRate(card: SupportCardData, tsuki: number): CardSpRate {
   const out: CardSpRate = { vocal: 0, dance: 0, visual: 0 };
@@ -1137,8 +1146,8 @@ export function cardSpRate(card: SupportCardData, tsuki: number): CardSpRate {
     if (!slot) return;
     const abiName = "key" in slot ? SHEET_LABEL_BY_KEY[slot.key] : slot.raw;
     if (!abiName) return;
-    const isAll = abiName.startsWith("全SPレッスン率");
-    const ownType = abiName === "SPレッスン率"
+    const isAll = abiName.startsWith("全タイプSPレッスン率") || abiName.startsWith("全SPレッスン率");
+    const ownType = abiName === "タイプSPレッスン率" || abiName === "SPレッスン率"
       ? SP_ABI_TYPE[card.abilityTypes[slotIndex]]
       : undefined;
     if (!isAll && !ownType) return;

@@ -175,6 +175,35 @@ export function useAbilityCounts() {
     });
   }, []);
 
+  /**
+   * この育成での調整をそのセットのデフォルトにする（計算ページの「上書き保存」）。
+   * 前イベ・後イベの上乗せ分は元から含まない（調整は素の回数だけを持つ）。保存後は調整を消す（黄色い枠が消える）。
+   */
+  const commitRunAdjust = useCallback(
+    (set: AbilityCountSet) => {
+      const forSet = adjust[set.id];
+      if (!forSet) return;
+      setOverrides((prev) => {
+        const next = { ...(prev[set.id] ?? {}) };
+        for (const [key, value] of Object.entries(forSet)) {
+          const k = key as AbilityName;
+          if (typeof value !== "number") continue;
+          if (value === defaultFor(set, k)) delete next[k];
+          else next[k] = value;
+        }
+        const result = { ...prev, [set.id]: next };
+        if (Object.keys(next).length === 0) delete result[set.id];
+        return result;
+      });
+      setAdjust((prev) => {
+        const next = { ...prev };
+        delete next[set.id];
+        return next;
+      });
+    },
+    [adjust],
+  );
+
   /** セット選択を解除する（シナリオ変更時など） */
   const clearSelected = useCallback(() => {
     setSelectedSetId(null);
@@ -392,6 +421,7 @@ export function useAbilityCounts() {
     isRunAdjusted,
     runAdjustCount,
     resetRunAdjust,
+    commitRunAdjust,
     resetSets,
     resetEverything,
     clearSelected,

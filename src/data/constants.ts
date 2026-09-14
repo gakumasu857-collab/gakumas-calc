@@ -54,9 +54,9 @@ export type CardType = keyof typeof CARD_TYPE_NAMES;
 // 注: 元のconstでは charge/aggressive のラベルが EFFECT_NAMES と逆だったため、
 //     charge=温存 / aggressive=強気 に統一した。
 export const ABILITY_NAMES = {
-  lesson: "レッスン",
-  sp_lesson: "SPレッスン",
-  normal_lesson: "通常レッスン",
+  lesson: "タイプレッスン",
+  sp_lesson: "タイプSPレッスン",
+  normal_lesson: "タイプ通常レッスン",
   skill_ac: "スキル獲得",
   A_skill_ac: "Aスキル獲得",
   M_skill_ac: "Mスキル獲得",
@@ -116,8 +116,8 @@ export const ABILITY_NAMES = {
   // 完全化のための登録で点数は不変）。回復・率・Pポイント系は発動回数0に解決＝非スコア。
   // ラベルは半角括弧（照合はnormalizeLabelで全角/半角・空白を吸収）。
   lesson_support_rate: "レッスンサポート率",
-  all_sp_lesson_rate_14: "全SPレッスン率",
-  all_sp_lesson_rate_28: "全SPレッスン率(28%)",
+  all_sp_lesson_rate_14: "全タイプSPレッスン率",
+  all_sp_lesson_rate_28: "全タイプSPレッスン率(28%)",
   meeting_drink_discount: "相談ドリンク割引",
   p_point_event: "Pポイントイベント",
   recovery_type_sp_lesson: "タイプSPレッスン時回復",
@@ -144,8 +144,15 @@ export type AbilityName = keyof typeof ABILITY_NAMES;
  *   書き換える（docs/ARCHITECTURE.md 4-1 C-2）。ここは「同じものを別の場所で別表記にしている」用。
  */
 const ABILITY_LABEL_ALIASES: Record<string, AbilityName> = {
-  // カードのアビリティ名は「SPレッスン率」（ABILITY_NAMES は表示用に「アップ」付き）
+  // カードのアビリティ名は「タイプSPレッスン率」（ABILITY_NAMES は表示用に「アップ」付き）。旧表記も受ける
+  タイプSPレッスン率: "up_SP_lesson_rate",
   SPレッスン率: "up_SP_lesson_rate",
+  // 2026-09 の改名前の表記（古いセーブや古いスプシ）
+  レッスン: "lesson",
+  SPレッスン: "sp_lesson",
+  通常レッスン: "normal_lesson",
+  全SPレッスン率: "all_sp_lesson_rate_14",
+  "全SPレッスン率(28%)": "all_sp_lesson_rate_28",
   何もなし: "nothing",
   // 発動回数タブの行名がこの表記のまま（カード側は「ドリンク獲得」「ドリンク交換」）
   Pドリンク獲得: "drink_get",

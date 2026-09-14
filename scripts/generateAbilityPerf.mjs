@@ -8,8 +8,9 @@
  * - 旧 abilityPerf.json は一切読まない。スプシ＋このスクリプト内の明示ルールだけで決定的に生成する。
  * - tiers      = abilityValues.level1..5（新＝リベース済み）。
  * - perfキー   = 正規化名（全角括弧→半角・空白除去）。sheetScore.perfOf も同じ正規化で引く。
- * - main1/main2/sub（回数キー）はスプシの trigger_tag 列から導出:
- *     ・レッスン系（trigger_tag ∈ LESSON_TAGS）→ ロール別 `メイン1/2/サブ{tag}`
+ * - main1/main2/sub（回数キー）はスプシの起動タグ列（アビリティ起動タグ／旧 trigger_tag）から導出:
+ *     ・タイプ別レッスン系（タイプレッスン・タイプSPレッスン・タイプ通常レッスン）→ ロール別 `メイン1/2/サブ{レッスン語}`
+ *     ・タイプを問わないレッスン系（レッスン・SPレッスン・通常レッスン）→ その語そのもの（アプリ側で全タイプ合算）
  *     ・trigger_tag あり → trigger_tag そのもの。ただしアビリティ名に「（N回まで）」が
  *       付くときは回数キーにも付加する（参照は基準回数・上限は名前のN。
  *       例: 活動支給・差し入れ（2回まで）+ tag 活動支給・差し入れ → 活動支給・差し入れ（2回まで））
@@ -31,8 +32,8 @@ const cardsPath = resolve(root, "src/data/generated/supportCards.json");
 const norm = (s) => (s ?? "").replace(/（/g, "(").replace(/）/g, ")").replace(/\s+/g, "");
 const numOrNull = (v) => (typeof v === "number" ? v : v === "" || v == null ? null : Number(v));
 
-/** ロール別回数キーになるレッスン系タグ（スケジュールから回数を引く） */
-const LESSON_TAGS = new Set(["レッスン", "SPレッスン", "通常レッスン"]);
+/** レッスン系の語（スケジュールから回数を引く）。「タイプ」付きはそのカードのタイプ、無しは全タイプ合算 */
+const LESSON_WORDS = new Set(["レッスン", "SPレッスン", "通常レッスン"]);
 
 /**
  * trigger_tag が空でも採点するアビリティ（アプリ側 FIXED_ABILITY_COUNTS が固定回数で解決）。
@@ -47,8 +48,9 @@ const CAP_SUFFIX_RE = /[（(]\d+回まで[)）]\s*$/;
 
 /** 1アビリティ行 → 回数キー3種（main1/main2/sub）。null は「回数キー無し＝非スコア」 */
 function countKeys(name, tag) {
-  if (LESSON_TAGS.has(tag)) {
-    return { main1: `メイン1${tag}`, main2: `メイン2${tag}`, sub: `サブ${tag}` };
+  const typeWord = tag.startsWith("タイプ") ? tag.slice("タイプ".length) : null;
+  if (typeWord && LESSON_WORDS.has(typeWord)) {
+    return { main1: `メイン1${typeWord}`, main2: `メイン2${typeWord}`, sub: `サブ${typeWord}` };
   }
   let key;
   if (!tag) {
@@ -70,13 +72,14 @@ const [abilityValues, abilityEvolutions] = await Promise.all([
 const perf = {};
 let dup = 0;
 for (const row of abilityValues) {
-  const name = (row.name ?? "").trim();
-  const rarity = (row.rarity ?? "").trim();
+  // 見出しは日本語（アビリティ名／レアリティ／アビリティ起動タグ）。旧見出し（name／rarity／trigger_tag）も受ける
+  const name = String(row["アビリティ名"] ?? row.name ?? "").trim();
+  const rarity = String(row["レアリティ"] ?? row.rarity ?? "").trim();
   if (!name || !rarity) continue;
   const key = norm(`${rarity}${name}`);
   if (key in perf) dup++;
   const tiers = [1, 2, 3, 4, 5].map((i) => numOrNull(row[`level${i}`]));
-  const tag = (row.trigger_tag ?? "").trim();
+  const tag = String(row["アビリティ起動タグ"] ?? row.trigger_tag ?? "").trim();
   perf[key] = { tiers, ...countKeys(name, tag) };
 }
 

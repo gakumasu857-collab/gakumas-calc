@@ -15,20 +15,24 @@ export default function PIdolTrainingModal({
 }) {
   const key = r.pMaster?.key;
   const own = r.ownership;
+  // サポカの凸ボタンと同じ見た目（押した数字だけ点灯）
   const btn = (on: boolean) =>
-    `h-9 min-w-9 rounded-md px-2 text-sm font-bold transition ${
-      on ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+    `h-8 w-8 rounded-md text-sm font-bold transition ${
+      on ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
     }`;
   if (!key) return null;
   return (
     <Modal title={`特訓・才能開花: ${r.pMaster?.cardName ?? ""}`} onClose={onClose} widthClass="max-w-md">
-      <p className={`mb-3 ${NOTE}`}>
-        特訓はアイテムで上げる段階、才能開花は同じPアイドルを重ねた回数です。どちらもPアイドルのステータスに効きます。
-        「未」にすると未所持（未設定）になります。
-      </p>
       <p className="mb-1 text-xs font-bold text-slate-700">特訓</p>
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" onClick={() => r.pIdols.setUnowned(key)} className={btn(!own)}>
+        <button
+          type="button"
+          onClick={() => r.pIdols.setUnowned(key)}
+          title="未所持にする"
+          className={`h-8 rounded-md px-2 text-xs font-semibold transition ${
+            !own ? "bg-slate-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+          }`}
+        >
           未
         </button>
         {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -36,7 +40,7 @@ export default function PIdolTrainingModal({
             key={n}
             type="button"
             onClick={() => r.pIdols.setOwnership(key, { kunren: n })}
-            className={btn(!!own && own.kunren >= n)}
+            className={btn(!!own && own.kunren === n)}
           >
             {n}
           </button>
@@ -49,7 +53,7 @@ export default function PIdolTrainingModal({
             key={n}
             type="button"
             onClick={() => r.pIdols.setOwnership(key, { kaika: n })}
-            className={btn(!!own && own.kaika >= n)}
+            className={btn(!!own && own.kaika === n)}
           >
             {n}
           </button>

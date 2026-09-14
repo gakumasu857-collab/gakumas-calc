@@ -175,7 +175,7 @@ function PIdolItem({
   const btn = (active: boolean) =>
     `h-6 w-6 rounded text-[11px] font-bold transition ${
       active
-        ? "bg-blue-600 text-white shadow-sm"
+        ? "bg-blue-500 text-white"
         : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
     }`;
 
@@ -227,7 +227,7 @@ function PIdolItem({
               key={n}
               type="button"
               onClick={() => onChange({ kunren: n })}
-              className={btn(owned && ownership.kunren >= n)}
+              className={btn(owned && ownership.kunren === n)}
             >
               {n}
             </button>
@@ -245,7 +245,7 @@ function PIdolItem({
               key={n}
               type="button"
               onClick={() => onChange({ kaika: n })}
-              className={btn(owned && ownership.kaika >= n)}
+              className={btn(owned && ownership.kaika === n)}
             >
               {n}
             </button>
