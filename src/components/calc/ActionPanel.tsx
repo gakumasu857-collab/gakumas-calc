@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ArrowDown, ChevronDown, ClipboardCopy, Settings, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
 
 /** 直近の探索の状況（1行で出す。結果そのものは編成・踏み方・評価値に出る） */
@@ -113,7 +112,6 @@ export default function ActionPanel({
   ready,
   missingInputs,
   notReadyTitle,
-  ownershipUnset,
   showArrow,
   status,
   onRun,
@@ -122,8 +120,6 @@ export default function ActionPanel({
   onConditions,
 }: RunHandlers & {
   missingInputs: string[];
-  /** 所持状況ページをまだ開いていない（全サポカ完凸で計算中） */
-  ownershipUnset: boolean;
   /** 前提がそろっていて、まだ一度も探索を押していない */
   showArrow: boolean;
   status: RunStatus | null;
@@ -159,19 +155,7 @@ export default function ActionPanel({
       {showArrow && (
         <p className="mb-2 flex items-start gap-1.5 text-sm font-bold text-blue-700">
           <ArrowDown size={18} className="mt-0.5 shrink-0 animate-bounce" />
-          {ownershipUnset ? (
-            <span>
-              サポカが全部完凸の想定で探索できます。
-              <span className="font-normal text-slate-900">
-                自分の所持状況に合わせたいときは{" "}
-                <Link to="/support" className="font-bold text-blue-700 underline">
-                  ここから入力
-                </Link>
-              </span>
-            </span>
-          ) : (
-            <span>あなたの手持ちに合ったサポカ編成と踏み方を求めます</span>
-          )}
+          <span>あなたの手持ちに合ったサポカ編成と踏み方を求めます</span>
         </p>
       )}
       <div className="flex items-stretch gap-2">
@@ -198,14 +182,6 @@ export default function ActionPanel({
       {!ready && (
         <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
           「育成の前提」で {missingInputs.join("・")} を選ぶと押せます
-        </p>
-      )}
-      {ownershipUnset && !showArrow && (
-        <p className="mt-1.5 text-[11px] text-amber-700">
-          所持状況が未入力です（全サポカ完凸で計算）
-          <Link to="/support" className="ml-1 font-bold underline">
-            入力する
-          </Link>
         </p>
       )}
 

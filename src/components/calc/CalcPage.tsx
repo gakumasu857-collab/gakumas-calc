@@ -8,9 +8,8 @@ import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
-import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
-import OwnershipStepCard from "@/components/calc/OwnershipStepCard";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
+import PIdolTrainingModal from "@/components/calc/PIdolTrainingModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import PremiseCard from "@/components/calc/PremiseCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
@@ -51,11 +50,6 @@ import {
   type ConditionInput,
 } from "@/lib/formationConditions";
 import { GLOSSARY } from "@/lib/glossary";
-import {
-  readOwnershipAck,
-  readOwnershipVisited,
-  writeOwnershipAck,
-} from "@/lib/ownershipAck";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
   missingCalcInputs,
@@ -128,8 +122,8 @@ export default function CalcPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
-  /** 初回の探索前の所持状況の確認モーダル */
-  const [ownConfirmOpen, setOwnConfirmOpen] = useState(false);
+  /** 特訓・才能開花のモーダル（「まずここを設定」のアイドル欄から） */
+  const [trainingOpen, setTrainingOpen] = useState(false);
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
@@ -424,9 +418,6 @@ export default function CalcPage() {
   };
 
   const conditionChips = conditionChipsOf(conditionInput());
-  // 所持状況ページをまだ開いていない（全サポカ完凸で計算中）。「全完凸のまま進む」を選んだ後は出さない
-  const ownershipUnset = !readOwnershipVisited();
-  const ownershipNote = ownershipUnset && !readOwnershipAck();
   /** 前イベ・後イベ・ステイベを手で変えている編成カードの数（全体像カードのバッジ） */
   const eventOverrideCount = r.members.filter((m) => {
     if (!m) return false;
@@ -434,14 +425,8 @@ export default function CalcPage() {
     return !!ov && Object.values(ov).some((v) => v !== undefined && v !== null);
   }).length;
 
-  /** 主役ボタン: 所持状況ページを開いたことがなければ初回だけ確認してから探索する */
-  const requestAutoOptimize = () => {
-    if (ownershipUnset && !readOwnershipAck()) {
-      setOwnConfirmOpen(true);
-      return;
-    }
-    runAutoOptimize();
-  };
+  /** 主役ボタン（所持状況は「まずここを設定」の欄で見せているので、確認は挟まない） */
+  const requestAutoOptimize = () => runAutoOptimize();
 
   const anyBusy = optBusy || idealBusy || planOpt.busy;
   const runPlanOnly = () => {
@@ -459,7 +444,6 @@ export default function CalcPage() {
       ready={optimizeReady}
       missingInputs={missingInputs}
       notReadyTitle={notReadyTitle}
-      ownershipUnset={ownershipNote}
       showArrow={optimizeReady && !everRun}
       status={lastRun}
       onRun={requestAutoOptimize}
@@ -490,27 +474,22 @@ export default function CalcPage() {
             className="flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
           >
             <HelpCircle size={14} />
-            使い方・計算式ヘルプ
+            計算式・数値表
           </button>
         </div>
       </div>
 
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-        {/* まずここを設定＝育成の前提（シナリオ・Pアイドル・プロデュース・メモリー・本戦点数）。4つそろうと探索できる */}
+        {/* まずここを設定＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。4つそろうと探索できる */}
         <div className="order-1 min-w-0">
         <PremiseCard
           r={r}
           onOpenScenario={() => setScenarioPickerOpen(true)}
           onOpenIdol={() => setIdolPickerOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}
-          onOpenCounts={() => setCountsOpen(true)}
+          onOpenIdolTraining={() => setTrainingOpen(true)}
         />
-        </div>
-
-        {/* つぎに所持状況: 完凸のままでOK／自分の所持状況を入力（決まったら1行に畳む） */}
-        <div className="order-1 min-w-0">
-          <OwnershipStepCard />
         </div>
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
@@ -746,16 +725,9 @@ export default function CalcPage() {
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
       )}
 
-      {/* 初回の探索前: 所持状況ページを開いたことがなければ確認 */}
-      {ownConfirmOpen && (
-        <OwnershipConfirmModal
-          onProceed={() => {
-            writeOwnershipAck();
-            setOwnConfirmOpen(false);
-            runAutoOptimize();
-          }}
-          onClose={() => setOwnConfirmOpen(false)}
-        />
+      {/* 特訓・才能開花（「まずここを設定」のアイドル欄から） */}
+      {trainingOpen && r.pMaster && (
+        <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}
 
       {/* パラボ%→固定値の変換表 */}

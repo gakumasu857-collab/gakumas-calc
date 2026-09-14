@@ -1,5 +1,5 @@
 /**
- * 計算ページのヘルプモーダル（操作のヒント・数値と計算式のまとめ・数値表）。
+ * 計算ページの「計算式・数値表」モーダル（操作のヒント・数値と計算式のまとめ・数値表）。
  * 使い方の流れ・用語・よくある質問はヘルプページ（/help）に移した。
  */
 import { BookOpen } from "lucide-react";
@@ -19,7 +19,7 @@ export default function CalcHelpModal({
   scenario?: ScenarioKey;
 }) {
   return (
-    <Modal title="使い方・計算式ヘルプ" onClose={onClose} widthClass="max-w-3xl">
+    <Modal title="計算式・数値表" onClose={onClose} widthClass="max-w-3xl">
       {/* 使い方の流れ・用語・よくある質問はヘルプページ（図・画面つき） */}
       <Link
         to="/help"
