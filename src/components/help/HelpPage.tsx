@@ -1,17 +1,25 @@
 import { useEffect } from "react";
-import { ArrowDown, ArrowRight } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRight,
+  CalendarCheck,
+  ChevronDown,
+  ListOrdered,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 /**
- * ヘルプページ（/help）。使い方の流れ・ページの構成・画面つきの手順・プロデュースと発動回数の関係・
- * 用語・よくある質問・データの保存の注意。
+ * ヘルプページ（/help）。使い方の流れ・ページの構成・手順（画面の要点を簡単な図で）・
+ * プロデュースと発動回数の関係・用語・よくある質問・データの保存の注意。
  * 「#produce」などのハッシュ付きで開くと、その見出しまでスクロールする（計算ページの ⓘ から飛ぶ）。
- * 画面写真は public/help/*.webp（開発時に vite.config.ts の /__shot で撮ったもの）。
+ * 画面写真は使わない（小さくて見づらいため）。要点だけを大きめの文字で描いた模式図にする。
  */
 const SECTIONS = [
   { id: "flow", label: "全体の流れ" },
   { id: "pages", label: "ページの構成" },
-  { id: "steps", label: "使い方（画面つき）" },
+  { id: "steps", label: "使い方" },
   { id: "produce", label: "プロデュースと発動回数" },
   { id: "terms", label: "用語" },
   { id: "faq", label: "よくある質問" },
@@ -19,10 +27,12 @@ const SECTIONS = [
 ];
 
 const H2 = "mb-3 mt-10 scroll-mt-20 text-lg font-bold text-slate-900 first:mt-0";
+const H3 = "text-base font-bold text-slate-900";
 const P = "text-sm leading-relaxed text-slate-700";
 const CARD = "rounded-xl border border-slate-200 bg-white p-4";
 
-/** 流れ図の1コマ */
+/* ---------------------------------------------------------------- 流れ図 */
+
 function FlowBox({
   no,
   title,
@@ -71,144 +81,84 @@ function Flow({ children }: { children: React.ReactNode[] }) {
   );
 }
 
-/** 画面写真＋「ここを押す」の印（印の位置は写真に対する%） */
-export type Callout = { x: number; y: number; label: string };
-function Shot({
-  src,
-  alt,
-  callouts = [],
-  caption,
-}: {
-  src: string;
-  alt: string;
-  callouts?: Callout[];
-  caption?: React.ReactNode;
-}) {
+/* ---------------------------------------------------------------- 画面の模式図（押せない） */
+
+/** 模式図の外枠 */
+function Mock({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <figure className="my-3">
-      <div className="relative inline-block max-w-full overflow-hidden rounded-xl border border-slate-300 shadow-sm">
-        <img src={src} alt={alt} className="block max-w-full" loading="lazy" />
-        {callouts.map((c, i) => (
-          <span
-            key={i}
-            style={{ left: `${c.x}%`, top: `${c.y}%` }}
-            className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1"
-          >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 text-xs font-black text-white shadow">
-              {i + 1}
-            </span>
-          </span>
-        ))}
-      </div>
-      {callouts.length > 0 && (
-        <ol className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-700">
-          {callouts.map((c, i) => (
-            <li key={i} className="flex items-center gap-1">
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white">
-                {i + 1}
-              </span>
-              {c.label}
-            </li>
-          ))}
-        </ol>
+    <div
+      aria-hidden
+      className="my-3 max-w-xl select-none rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800 shadow-sm"
+    >
+      {title && (
+        <div className="mb-2 -mx-3 -mt-3 rounded-t-xl bg-blue-600 px-3 py-1.5 text-sm font-bold text-white">
+          {title}
+        </div>
       )}
-      {caption && <figcaption className="mt-1 text-xs text-slate-500">{caption}</figcaption>}
-    </figure>
+      {children}
+    </div>
   );
 }
 
-/** 画面写真の一覧（撮り直したらここを更新。印の位置は撮影時に測った%） */
-export const SHOTS: Record<string, { src: string; alt: string; callouts: Callout[] }> = {
-  nav: {
-    src: "/help/nav.webp",
-    alt: "上のナビ: 計算／探索の設定（所持状況・発動回数・サポカ設定）／表（サポカ点数表・サポカDB）／ヘルプ",
-    callouts: [
-      { x: 15.5, y: 49.3, label: "計算（メイン）" },
-      { x: 32.4, y: 49.3, label: "探索の設定（所持状況・発動回数・サポカ設定）" },
-      { x: 48.7, y: 49.3, label: "表（サポカ点数表・サポカDB）" },
-      { x: 95.8, y: 49.3, label: "ヘルプ" },
-    ],
-  },
-  premise: {
-    src: "/help/premise.webp",
-    alt: "「まずここを設定」のカード。育成シナリオ・アイドル（特訓・才能開花）・プロデュース・メモリー・所持状況の5つの欄",
-    callouts: [
-      { x: 25.6, y: 22.6, label: "育成シナリオ" },
-      { x: 74.4, y: 22.6, label: "アイドル（Pアイドル）" },
-      { x: 73.5, y: 31.3, label: "特訓・才能開花を変更" },
-      { x: 25.6, y: 46.4, label: "プロデュース" },
-      { x: 12.9, y: 39.2, label: "ⓘ プロデュースの説明（このページの「プロデュースと発動回数」へ）" },
-      { x: 74.4, y: 46.4, label: "メモリー" },
-      { x: 70.8, y: 64.1, label: "所持状況: 完凸のままでOK（全サポカ完凸の想定で探索）" },
-      { x: 87.4, y: 64.1, label: "自分の所持状況を入力（所持状況ページへ）" },
-    ],
-  },
-  action: {
-    src: "/help/action.webp",
-    alt: "探索のボタンの行。青いボタン・▾・探索の条件",
-    callouts: [
-      { x: 41.6, y: 24.2, label: "探索のボタン（前提がそろうと押せる）" },
-      { x: 84, y: 24.2, label: "▾ 編成だけ／踏み方だけ" },
-      { x: 92.8, y: 24.2, label: "探索の条件（SP率持ち・タイプ割合・最低/最高ステなど）" },
-    ],
-  },
-  formation: {
-    src: "/help/formation.webp",
-    alt: "「サポカ編成と踏み方」のカード。サポカ6枚・踏み方のチップ・開始時のステータス",
-    callouts: [
-      { x: 69.9, y: 6.8, label: "レッスン等の踏み方" },
-      { x: 84.2, y: 6.8, label: "発動回数（この育成での回数）" },
-      { x: 9.6, y: 19.8, label: "サポカ枠（クリックで入れ替え・凸・固定・BAN）" },
-      { x: 50, y: 49.6, label: "踏み方のチップ（クリックでも編集できる）" },
-      { x: 90.6, y: 73.2, label: "パラボ変換表" },
-      { x: 50, y: 92.8, label: "前イベ・後イベ・ステイベの発動を調整" },
-    ],
-  },
-  plan: {
-    src: "/help/plan.webp",
-    alt: "「レッスン等の踏み方」で開く画面。レッスン8回・授業・選抜の入力",
-    callouts: [
-      { x: 12.2, y: 11.8, label: "レッスンごとにメイン／サブ／SPを選ぶ" },
-      { x: 48.7, y: 11.8, label: "授業のタイプ" },
-      { x: 15.8, y: 68.9, label: "選抜はスコアか、ログの上昇幅（ステ）で入力" },
-    ],
-  },
-  counts: {
-    src: "/help/counts.webp",
-    alt: "「発動回数」で開く画面。この育成での回数を分類ごとに±で変える",
-    callouts: [
-      { x: 50, y: 13.8, label: "この育成での回数（発動回数ページのデフォルトは変わらない）" },
-      { x: 12.5, y: 25.9, label: "分類を選ぶ" },
-      { x: 61, y: 24.5, label: "サポカのイベント分（緑）を反映" },
-      { x: 48.3, y: 34.5, label: "±で回数を変える（変えたものは「調整中」の印）" },
-    ],
-  },
-  memory: {
-    src: "/help/memory.webp",
-    alt: "メモリーを4枚選ぶ画面。4つの枠・編集枠・保存したメモリーの一覧",
-    callouts: [
-      { x: 6.7, y: 9.2, label: "枠（クリックで編集する枠を選ぶ・×で外す）" },
-      { x: 89.2, y: 4.5, label: "4枚そろえばセットとして保存" },
-      { x: 89.2, y: 14.2, label: "保存したセットから入れる" },
-      { x: 5.8, y: 40.1, label: "値のボタンを押すと、その場で枠に入る（保存は任意）" },
-      { x: 43.3, y: 30.9, label: "保存したメモリー（クリックで枠に入れる・✎で編集）" },
-    ],
-  },
-};
-
-function ShotIf({ id, caption }: { id: string; caption?: React.ReactNode }) {
-  const s = SHOTS[id];
-  if (!s) return null;
-  return <Shot src={s.src} alt={s.alt} callouts={s.callouts} caption={caption} />;
+/** 設定欄の1行（番号・ラベル・値） */
+function MockRow({
+  no,
+  label,
+  value,
+  unset,
+  extra,
+}: {
+  no: number;
+  label: string;
+  value: string;
+  unset?: boolean;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-2">
+      <div className="mb-0.5 flex items-center gap-1.5">
+        <span
+          className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-black ${
+            unset ? "bg-amber-400 text-amber-950" : "bg-blue-600 text-white"
+          }`}
+        >
+          {no}
+        </span>
+        <span className="text-xs font-bold text-slate-700">{label}</span>
+      </div>
+      <div
+        className={`flex items-center justify-between rounded-md border px-2 py-1 text-sm ${
+          unset ? "border-amber-400 bg-amber-50 font-bold text-amber-700" : "border-slate-300 bg-white"
+        }`}
+      >
+        <span>{value}</span>
+        <ChevronDown size={14} className="text-slate-400" />
+      </div>
+      {extra}
+    </div>
+  );
 }
 
-/** よくある質問の1項目 */
-function QA({ id, q, children }: { id?: string; q: string; children: React.ReactNode }) {
+/** ボタンの模式 */
+function MockBtn({
+  tone = "secondary",
+  children,
+}: {
+  tone?: "primary" | "secondary" | "action" | "indigo";
+  children: React.ReactNode;
+}) {
+  const TONE = {
+    primary: "bg-blue-600 text-white",
+    secondary: "border border-slate-300 bg-white text-slate-700",
+    action: "border border-blue-300 bg-blue-50 text-blue-800",
+    indigo: "bg-indigo-600 text-white",
+  }[tone];
   return (
-    <div id={id} className={`${CARD} scroll-mt-20`}>
-      <p className="text-sm font-bold text-slate-900">Q. {q}</p>
-      <div className={`mt-1 ${P}`}>{children}</div>
-    </div>
+    <span
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-bold ${TONE}`}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -222,12 +172,21 @@ function Term({ name, children }: { name: string; children: React.ReactNode }) {
   );
 }
 
+/** よくある質問の1項目 */
+function QA({ id, q, children }: { id?: string; q: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className={`${CARD} scroll-mt-20`}>
+      <p className="text-sm font-bold text-slate-900">Q. {q}</p>
+      <div className={`mt-1 ${P}`}>{children}</div>
+    </div>
+  );
+}
+
 export default function HelpPage() {
   const { hash } = useLocation();
-  // ハッシュ付きで来たら、その見出しへ（App の ScrollToTop が先頭に戻したあとで動かす）
+  // ハッシュ付きで来たら、その見出しへ（親 App の ScrollToTop が先頭へ戻したあとに動かす）
   useEffect(() => {
     if (!hash) return;
-    // 親（App）の ScrollToTop が先頭へ戻したあとに動かす。画像の読み込みで位置がずれるので2回合わせる
     const jump = () => document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
     const t1 = setTimeout(jump, 120);
     const t2 = setTimeout(jump, 700);
@@ -257,29 +216,23 @@ export default function HelpPage() {
         全体の流れ
       </h2>
       <p className={`mb-3 ${P}`}>
-        計算ページは「まずここを設定（所持状況まで）→ 青いボタンで探索 → 手で調整」の順に上から並んでいます。
+        計算ページは「設定欄を上から埋める → 青いボタンで探索 → 手で調整」の順に上から並んでいます。
       </p>
       <Flow>
         <FlowBox
           no={1}
           tone="blue"
-          title="まずここを設定"
-          body="育成シナリオ・アイドル（特訓・才能開花）・プロデュース・メモリー・所持状況の5つ。黄色の欄が未選択です。"
+          title="設定欄を埋める"
+          body="育成シナリオ・アイドル（特訓・才能開花）・プロデュース・メモリー・所持状況。黄色の欄が未選択です。"
         />
         <FlowBox
           no={2}
-          tone="amber"
-          title="所持状況を決める"
-          body="5つ目の欄。既定は全サポカ完凸。それでよければ「完凸のままでOK」、手持ちに合わせるなら「自分の所持状況を入力」。"
-        />
-        <FlowBox
-          no={3}
           tone="blue"
           title="青いボタンで探索"
           body="サポカ6枚とレッスンの踏み方を自動で探し、評価値が高い組み合わせを「サポカ編成と踏み方」に入れます。"
         />
         <FlowBox
-          no={4}
+          no={3}
           tone="emerald"
           title="手で調整する"
           body="レッスン等の踏み方・発動回数・サポカ枠のクリック・前イベ後イベ。変えるとその場で評価値が動きます。"
@@ -301,7 +254,7 @@ export default function HelpPage() {
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
           <p className="text-sm font-bold text-slate-900">計算</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            前提の入力・探索・調整・評価値。ふだん使うのはここだけです。
+            設定・探索・調整・評価値。ふだん使うのはここだけです。
           </p>
         </div>
         <div className={CARD}>
@@ -345,57 +298,245 @@ export default function HelpPage() {
           </ul>
         </div>
       </div>
-      <ShotIf id="nav" caption="上のナビ。左から順に、計算 → 探索の設定 → 表。右端がヘルプ" />
 
-      {/* ---------------------------------------------------------------- 使い方（画面つき） */}
+      {/* ---------------------------------------------------------------- 使い方 */}
       <h2 id="steps" className={H2}>
-        使い方（画面つき）
+        使い方
       </h2>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <div>
-          <h3 className="text-base font-bold text-slate-900">1. まずここを設定</h3>
+          <h3 className={H3}>1. 設定欄を上から埋める</h3>
           <p className={`mt-1 ${P}`}>
-            青い帯のカードの欄を上から埋めます。黄色い欄が未選択です。
-            アイドルを選ぶと、その下で特訓・才能開花を変えられます。プロデュースはPアイドルのプランで使えるものだけが出ます。
-            メモリーは枠をクリックしてその場で作れます（保存は任意）。
+            青い帯の「設定欄」の欄を上から順に押して選びます。黄色い欄が未選択です。
+            1〜4がそろうと、すぐ下の青いボタンが押せるようになります。
           </p>
-          <ShotIf id="premise" caption="4つそろうと、すぐ下の青いボタンが押せるようになります" />
+          <Mock title="設定欄">
+            <div className="grid gap-x-3 sm:grid-cols-2">
+              <MockRow no={1} label="育成シナリオ" value="H.I.F.（マスター）" />
+              <MockRow
+                no={2}
+                label="アイドル・Pアイドル"
+                value="花海咲季 / Fighting My Way"
+                extra={
+                  <div className="mt-1">
+                    <MockBtn>
+                      <Settings size={11} />
+                      特訓 6 ／ 才能開花 4
+                    </MockBtn>
+                  </div>
+                }
+              />
+              <MockRow no={3} label="プロデュース" value="センス 花ロボ(黄)" />
+              <MockRow no={4} label="メモリー" value="選んでください" unset />
+            </div>
+            <div className="mb-0.5 flex items-center gap-1.5">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-black text-amber-950">
+                5
+              </span>
+              <span className="text-xs font-bold text-slate-700">所持状況</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-400 bg-amber-50 px-2 py-1.5">
+              <span className="flex-1 text-sm">
+                <b>全サポカ完凸</b>（既定）
+              </span>
+              <MockBtn tone="primary">
+                自分の所持状況を入力
+                <ArrowRight size={11} />
+              </MockBtn>
+              <MockBtn>完凸のままでOK</MockBtn>
+            </div>
+          </Mock>
+          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+            <li>
+              <b>アイドル・Pアイドル</b>: 選ぶと、その下のボタンで<b>特訓・才能開花</b>を変えられます。
+            </li>
+            <li>
+              <b>プロデュース</b>: Pアイドルのプランで使えるものだけが出ます（
+              <a href="#produce" className="font-semibold text-blue-700 underline">
+                くわしくは下
+              </a>
+              ）。
+            </li>
+            <li>
+              <b>メモリー</b>: 枠をクリックしてその場で作れます（保存は任意）。実物が決まっていなければ
+              <b>「汎用メモリーを入れる」</b>。
+            </li>
+            <li>
+              <b>所持状況</b>: 既定は全サポカ完凸。手持ちに合わせるなら<b>「自分の所持状況を入力」</b>、
+              このままでよければ<b>「完凸のままでOK」</b>。探索はここに登録したサポカから編成します。
+            </li>
+          </ul>
         </div>
+
         <div>
-          <h3 className="text-base font-bold text-slate-900">2. 所持状況を決める</h3>
+          <h3 className={H3}>2. 青いボタンで探索</h3>
           <p className={`mt-1 ${P}`}>
-            5つ目の欄が所持状況です。全サポカ完凸のままでよければ<b>「完凸のままでOK」</b>を押すだけ。
-            手持ちに合わせたいときは<b>「自分の所持状況を入力」</b>で所持状況ページへ（あとからいつでも変えられます）。
-            探索はここに登録したサポカから編成します。
+            設定欄がそろうと押せます。サポカ6枚とレッスンの踏み方を自動で探して「サポカ編成と踏み方」に入れ、評価値が動きます。
           </p>
+          <Mock>
+            <div className="flex flex-wrap items-center gap-2">
+              <MockBtn tone="primary">
+                <Sparkles size={12} />
+                評価値が最も高くなる編成と踏み方を求める
+              </MockBtn>
+              <MockBtn tone="primary">▾</MockBtn>
+              <MockBtn>
+                <Settings size={11} />
+                探索の条件
+              </MockBtn>
+            </div>
+          </Mock>
+          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+            <li>
+              <b>▾</b> から「編成だけ」「踏み方だけ」も選べます。
+            </li>
+            <li>
+              <b>探索の条件</b>で、SP率持ちの枚数・タイプ割合・最低/最高ステなどを指定できます。
+            </li>
+            <li>探索は近似なので、納得できないときは何回か押すか、BAN・固定で調整してください。</li>
+          </ul>
         </div>
+
         <div>
-          <h3 className="text-base font-bold text-slate-900">3. 青いボタンで探索</h3>
+          <h3 className={H3}>3. 結果を見る</h3>
           <p className={`mt-1 ${P}`}>
-            前提がそろうと押せます。右の ▾ から「編成だけ」「踏み方だけ」も選べ、「探索の条件」でSP率持ちの枚数・タイプ割合・最低/最高ステなどを指定できます。
-            結果は「サポカ編成と踏み方」に入り、評価値が動きます。
+            <b>評価値</b>（右上。スマホでは編成の上）と<b>育成後のステータス</b>が結果です。「サポカ編成と踏み方」には、サポカ6枚・レッスンの踏み方・授業・選抜の配分が入ります。
           </p>
-          <ShotIf id="action" />
+          <Mock>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-center">
+                <div className="text-[10px] font-semibold text-slate-500">評価値</div>
+                <div className="text-2xl font-bold text-blue-600">35,318</div>
+              </div>
+              <div className="flex-1 text-xs text-slate-600">
+                手で変えるたびに、この数字がその場で動きます。気に入ったら右上の「セーブデータ」で保存。
+              </div>
+            </div>
+          </Mock>
         </div>
+
         <div>
-          <h3 className="text-base font-bold text-slate-900">4. 手で調整する</h3>
+          <h3 className={H3}>4. 手で調整する</h3>
           <p className={`mt-1 ${P}`}>
-            「サポカ編成と踏み方」の<b>「レッスン等の踏み方」</b>でレッスン・授業・選抜を、<b>「発動回数」</b>でこの育成でのアビリティ発動回数を変えられます。
-            サポカ枠をクリックすると入れ替え（凸・固定・BANも）。黄色い「前イベ・後イベ・ステイベの発動を調整」でイベントの発動も変えられます。
-            どれも変えるとその場で評価値と育成後のステータスが動きます。
+            「サポカ編成と踏み方」のカードで、実際の育成に寄せていきます。どれも変えるとその場で評価値と育成後のステータスが動きます。
           </p>
-          <ShotIf id="formation" />
-          <ShotIf id="plan" caption="「レッスン等の踏み方」で開く画面" />
-          <ShotIf id="counts" caption="「発動回数」で開く画面（この育成での回数。発動回数ページのデフォルトは変わりません）" />
+          <Mock title="サポカ編成と踏み方">
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <MockBtn tone="action">
+                <CalendarCheck size={11} />
+                レッスン等の踏み方
+              </MockBtn>
+              <MockBtn tone="action">
+                <ListOrdered size={11} />
+                発動回数
+              </MockBtn>
+              <MockBtn>全て外す</MockBtn>
+            </div>
+            <div className="mb-2 grid grid-cols-6 gap-1">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex aspect-[4/3] items-center justify-center rounded-md border border-slate-300 bg-white text-[10px] text-slate-400"
+                >
+                  サポカ
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <span className="w-12 font-bold text-slate-500">レッスン</span>
+              {["Da", "Da", "Vi", "Da", "Vi", "Da", "Da", "Vi"].map((t, i) => (
+                <span
+                  key={i}
+                  className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold text-white ${
+                    t === "Da" ? "bg-blue-500" : "bg-yellow-400 text-yellow-950"
+                  }`}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </Mock>
+          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+            <li>
+              <b>レッスン等の踏み方</b>: レッスン8回のメイン／サブ／SP、授業のタイプ、選抜のスコア（またはログの上昇幅）を入れる画面。
+            </li>
+            <li>
+              <b>発動回数</b>: この育成でのアビリティ発動回数。ここで変えても発動回数ページのデフォルトは変わりません（
+              <a href="#produce" className="font-semibold text-blue-700 underline">
+                くわしくは下
+              </a>
+              ）。
+            </li>
+            <li>
+              <b>サポカ枠をクリック</b>: 入れ替え。凸・固定・BAN・レンタルNGも選択画面で。
+            </li>
+            <li>
+              <b>踏み方のチップをクリック</b>: 「レッスン等の踏み方」と同じ画面が開きます。
+            </li>
+            <li>
+              <b>前イベ・後イベ・ステイベの発動を調整</b>（黄色い帯）: サポカごとのイベントの発動を変えられます。
+            </li>
+          </ul>
         </div>
+
         <div>
-          <h3 className="text-base font-bold text-slate-900">5. メモリーを作る</h3>
+          <h3 className={H3}>5. メモリーを作る</h3>
           <p className={`mt-1 ${P}`}>
-            メモリー欄を開くと4つの枠が出ます。枠をクリック → 下の値のボタンを押すと、その場で中身が入ります（保存しなくても計算に使えます）。
-            保存すると「保存したメモリー」の一覧から何度でも入れられ、4枚そろえば「セット」としても保存できます。
-            テンプレ「メインパラボ◯点」は、実物が決まっていないときの目安です。
+            設定欄のメモリーを押すと、4つの枠が出ます。枠をクリック → 下の値のボタンを押すと、その場で中身が入ります（保存しなくても計算に使えます）。
           </p>
-          <ShotIf id="memory" />
+          <Mock title="メモリーを4枚選ぶ">
+            <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 p-2">
+              <MockBtn tone="indigo">
+                <Sparkles size={11} />
+                汎用メモリーを入れる
+              </MockBtn>
+              <span className="text-xs text-slate-600">メインパラボ60点×4が入る（実物が決まっていないとき）</span>
+            </div>
+            <div className="mb-2 grid w-64 grid-cols-4 gap-1.5">
+              {["Vo+2.8%", "Da+2.1%", "編集中", "＋"].map((t, i) => (
+                <div
+                  key={i}
+                  className={`flex h-14 items-center justify-center rounded-md border text-[10px] font-semibold ${
+                    i === 2
+                      ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-300"
+                      : i === 3
+                        ? "border-dashed border-slate-300 bg-white text-blue-600"
+                        : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  {t}
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg border-2 border-blue-300 bg-white p-2">
+              <div className="mb-1 text-xs font-bold">枠3 のメモリー</div>
+              <div className="flex flex-wrap gap-1">
+                {["+1.4%", "+2.1%", "+2.8%", "+3.5%", "+10", "+15", "+20", "+25"].map((v) => (
+                  <span
+                    key={v}
+                    className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600"
+                  >
+                    {v}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-1.5 flex gap-1.5">
+                <MockBtn tone="primary">メモリーとして保存</MockBtn>
+                <MockBtn>この枠を空にする</MockBtn>
+              </div>
+            </div>
+          </Mock>
+          <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-700">
+            <li>
+              <b>汎用メモリーを入れる</b>: 「メインパラボ60点」のテンプレを4枠すべてに入れます。メインパラボは、パラボ+2.8%を踏み方で母数が大きい上位2タイプに、残り1タイプに固定+20を付けるもので、踏み方を変えると付け先も自動で変わります。
+            </li>
+            <li>
+              <b>保存は任意</b>: 「メモリーとして保存」すると一覧から何度でも入れられ、4枚そろえば「セット」としても保存できます。
+            </li>
+            <li>
+              <b>保存したメモリー</b>: 一覧のカードをクリックで枠に入れる、✎で中身を直接編集、−で外す。
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -432,7 +573,7 @@ export default function HelpPage() {
       </h2>
       <dl className={CARD}>
         <Term name="評価値">
-          プロデュース評価の目安。ステータス合計×係数＋スター性などで決まります（式は計算ページの「使い方・計算式ヘルプ」）。
+          プロデュース評価の目安。ステータス合計×係数＋スター性などで決まります（式は計算ページの「計算式・数値表」）。
         </Term>
         <Term name="プロデュース">
           サポカのアビリティが何回発動する想定かの条件（発動回数セット）。「センス花ロボ（黄）」などはゲーム内の育成スタイルの通称です。
@@ -467,7 +608,7 @@ export default function HelpPage() {
           <br />
           サポカ等の所持状況を入力することで、あなたの手持ちでもっとも評価値が高くなるような編成を自動で求める機能もあります。
         </QA>
-        <QA id="faq-produce" q="まずここを設定、の 「プロデュース」って何？">
+        <QA id="faq-produce" q="設定欄の「プロデュース」って何？">
           編成の自動探索において、サポカのアビリティが何回発動するかの条件設定です。差し入れやお出かけの回数や、ドリンク獲得、スキル強化や削除の回数などが設定されています。自分で設定することも可能です（→
           <Link to="/ability-counts" className="font-semibold text-blue-700 underline">
             発動回数ページ
@@ -541,7 +682,7 @@ export default function HelpPage() {
       </div>
 
       <p className="mt-8 text-xs text-slate-500">
-        計算式や数値表は、計算ページ右上の「使い方・計算式ヘルプ」にあります。
+        計算式や数値表は、計算ページ右上の「計算式・数値表」にあります。
       </p>
     </div>
   );

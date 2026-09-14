@@ -195,12 +195,12 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/PremiseCard.tsx`（「まずここを設定」（育成の前提）: 青い見出し帯＋番号つきの5欄（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はヘルプの「プロデュースと発動回数」へ）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
+`calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベル text-sm・値 text-base。細かい説明文は置かない）（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はヘルプの「プロデュースと発動回数」へ）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
-`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「まずここを設定」のメモリー欄から開く。中身は `memory-manager/MemoryWorkbench.tsx`。「汎用のメモリーを入れる」（メインパラボ60点×4）を常に置く。A/B の枠は廃止）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/PIdolTrainingModal.tsx`（特訓・才能開花のモーダル。「まずここを設定」のアイドル欄の下から）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・画面写真つきの手順（`public/help/*.webp`＋「ここを押す」の印。写真は開発時に `vite.config.ts` の `/__shot` と `window.__shot`（main.tsx、dev のみ）で撮る）・プロデュースと発動回数・用語・よくある質問・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
+`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「設定欄」のメモリー欄から開く。中身は `memory-manager/MemoryWorkbench.tsx`。「汎用メモリーを入れる」（メインパラボ60点×4）を目立つ枠で上に置き、メインパラボの説明を添える。A/B の枠は廃止）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/PIdolTrainingModal.tsx`（特訓・才能開花のモーダル。「設定欄」のアイドル欄の下から）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・使い方（画面の要点を押せない模式図 `Mock` で描く。画面写真は小さくて見づらいので使わない）・プロデュースと発動回数・用語・よくある質問（オーナー提供の文）・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。

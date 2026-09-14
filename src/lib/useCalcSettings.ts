@@ -77,7 +77,7 @@ export type CalcSettings = {
 };
 
 export const DEFAULT_SETTINGS: CalcSettings = {
-  // アイドル・Pアイドルは未選択で始める（計算ページの「育成の前提」で選んでもらう）
+  // アイドル・Pアイドルは未選択で始める（計算ページの「設定欄」で選んでもらう）
   idol: "",
   pIdol: "",
   spTop: { first: 0, second: 0 },

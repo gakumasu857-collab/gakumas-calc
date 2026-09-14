@@ -122,7 +122,7 @@ export default function CalcPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
-  /** 特訓・才能開花のモーダル（「まずここを設定」のアイドル欄から） */
+  /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
@@ -425,7 +425,7 @@ export default function CalcPage() {
     return !!ov && Object.values(ov).some((v) => v !== undefined && v !== null);
   }).length;
 
-  /** 主役ボタン（所持状況は「まずここを設定」の欄で見せているので、確認は挟まない） */
+  /** 主役ボタン（所持状況は「設定欄」の欄で見せているので、確認は挟まない） */
   const requestAutoOptimize = () => runAutoOptimize();
 
   const anyBusy = optBusy || idealBusy || planOpt.busy;
@@ -481,7 +481,7 @@ export default function CalcPage() {
 
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-        {/* まずここを設定＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。4つそろうと探索できる */}
+        {/* 設定欄＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。1〜4がそろうと探索できる */}
         <div className="order-1 min-w-0">
         <PremiseCard
           r={r}
@@ -725,7 +725,7 @@ export default function CalcPage() {
         <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
       )}
 
-      {/* 特訓・才能開花（「まずここを設定」のアイドル欄から） */}
+      {/* 特訓・才能開花（「設定欄」のアイドル欄から） */}
       {trainingOpen && r.pMaster && (
         <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}

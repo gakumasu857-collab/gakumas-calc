@@ -9,7 +9,7 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
- * 計算ページの「発動回数」ボタン（まずここを設定／サポカ編成と踏み方）から開く発動回数エディタ。
+ * 計算ページの「発動回数」ボタン（サポカ編成と踏み方）から開く発動回数エディタ。
  * 発動回数ページと同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
  * 発動回数ページのデフォルトは変えない（useAbilityCounts の adjust レイヤー）。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。
@@ -81,7 +81,7 @@ export default function AbilityCountDrawer({
         ) : (
           <Modal title="発動回数" onClose={() => onClose()}>
             <p className="text-sm text-slate-600">
-              参照セットが未選択です。「育成の前提」のプロデュースで選ぶか、
+              プロデュースが未選択です。「設定欄」のプロデュースで選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">
                 発動回数ページ
               </Link>

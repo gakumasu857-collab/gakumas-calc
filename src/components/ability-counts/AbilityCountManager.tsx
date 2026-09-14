@@ -133,7 +133,7 @@ export default function AbilityCountManager() {
         <p>
           {!selectedSet && (
             <b className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-700">
-              計算ページで使うプロデュースが未選択です。セット名の上のチェックで選べます（計算ページの「まずここを設定」でも選べます）。
+              計算ページで使うプロデュースが未選択です。セット名の上のチェックで選べます（計算ページの「設定欄」でも選べます）。
             </b>
           )}
         </p>

@@ -93,7 +93,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
         ref={anchorRef}
         type="button"
         onClick={() => (pos ? close() : open())}
-        className={`flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-left text-sm text-slate-900 transition ${
+        className={`flex h-11 w-full items-center gap-2 rounded-lg border px-3 text-left text-base text-slate-900 transition ${
           current
             ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
             : "border-amber-400 bg-amber-50 hover:bg-amber-100"

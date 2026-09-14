@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, ChevronDown, Info, Settings } from "lucide-react";
+import { ArrowRight, ChevronDown, Info, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
@@ -7,7 +7,7 @@ import { Field } from "@/components/calc/CalcCard";
 import SetPickerField from "@/components/calc/SetPickerField";
 import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
-import { BTN_PRIMARY, BTN_SECONDARY, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
+import { BTN_PRIMARY, BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import { readOwnershipAck, readOwnershipVisited, writeOwnershipAck } from "@/lib/ownershipAck";
 import type { useCalcResult } from "@/lib/useCalcResult";
@@ -23,13 +23,16 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
   hatsuLegend: "bg-amber-500",
 };
 
+/** 欄のラベル（番号の横）。細かい文字を増やさないため、説明は ⓘ かヘルプに寄せる */
+const LABEL = "text-sm font-bold text-slate-800";
+
 /**
- * 「まずここを設定」（育成の前提）カード。
+ * 「設定欄」（育成の前提）カード。
  * 青い見出し帯＋番号つきの5つの欄（シナリオ・アイドル・プロデュース・メモリー・所持状況）
  * ＋シナリオ別の本戦の点数。未設定の欄は黄色、設定済みは番号が青。
- * - アイドルの欄の下に特訓・才能開花（変更ボタンでモーダル）
- * - 所持状況は5つ目の欄。既定の全完凸なら「完凸のままでOK」を1回押すだけ、手持ちに合わせるなら所持状況ページへ
- * 4つそろうと、すぐ下の探索ボタンが押せる（所持状況は無くても探索できる）。
+ * - アイドルの欄の下に特訓・才能開花（1つのボタン。押すとモーダル）
+ * - 所持状況は5つ目の欄。既定の全完凸のままなら「自分の所持状況を入力」か「完凸のままでOK」
+ * 1〜4がそろうと、すぐ下の探索ボタンが押せる（所持状況は無くても探索できる）。
  */
 export default function PremiseCard({
   r,
@@ -59,10 +62,8 @@ export default function PremiseCard({
     <section className="overflow-hidden rounded-xl border-2 border-blue-600 bg-white shadow-sm">
       {/* 見出し帯 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-600 px-4 py-2.5 text-white">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-blue-700">
-        </span>
         <h2 className="flex items-center gap-1 text-base font-bold">
-          まずここを設定
+          設定欄
           <Hint
             text={GLOSSARY.premise}
             className="[&>button]:text-blue-200 [&>button:hover]:text-white"
@@ -90,22 +91,15 @@ export default function PremiseCard({
             below={
               done.idol ? (
                 // 特訓・才能開花はここから（評価値の横のPアイドル画像の歯車と同じ設定）
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-                  <span className={own ? "text-slate-600" : "font-semibold text-red-600"}>
-                    {own ? (
-                      <>
-                        特訓 <b className="text-slate-800">{own.kunren}</b> ／ 才能開花{" "}
-                        <b className="text-slate-800">{own.kaika}</b>
-                      </>
-                    ) : (
-                      "未所持（特訓・才能開花が未設定）"
-                    )}
-                  </span>
-                  <button type="button" onClick={onOpenIdolTraining} className={BTN_SECONDARY}>
-                    <Settings size={12} />
-                    特訓・才能開花を変更
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={onOpenIdolTraining}
+                  title="特訓・才能開花を変更"
+                  className={`${BTN_SECONDARY_LG} mt-1.5 ${own ? "" : "text-red-600"}`}
+                >
+                  <Pencil size={12} />
+                  {own ? `特訓 ${own.kunren} ／ 才能開花 ${own.kaika}` : "未所持（特訓・才能開花を設定）"}
+                </button>
               ) : null
             }
           >
@@ -119,22 +113,17 @@ export default function PremiseCard({
           </PremiseField>
           <PremiseField no={3} label="プロデュース" hintLink="/help#produce" done={done.set}>
             <SetPickerField r={r} />
-            {!r.selectedSet && (
-              <p className="mt-1 text-[11px] leading-snug text-slate-500">
-                サポカのアビリティが何回発動するかのテンプレです（Pアイドルのプランで使えるものだけ出ます）。
-              </p>
-            )}
           </PremiseField>
           <PremiseField no={4} label="メモリー" hint={GLOSSARY.memory} done={done.memory} onClick={onOpenMemory}>
             {memoryCount === 0 ? (
               <Unset />
             ) : (
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                <span className="text-xs text-slate-500">{memoryCount}枚</span>
+                <span className="text-sm text-slate-500">{memoryCount}枚</span>
                 {TYPE_KEYS.map((t) => (
                   <span
                     key={t}
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${TYPE_CHIP[t]}`}
+                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${TYPE_CHIP[t]}`}
                   >
                     {TYPE_SHORT[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
                   </span>
@@ -158,7 +147,8 @@ export default function PremiseCard({
 
 /**
  * 所持状況の欄。使っている所持状況（既定＝全サポカ完凸／自分の所持状況）を見せる。
- * 既定のままで一度も決めていなければ黄色にして「完凸のままでOK」を出す（押すと以後は通常表示）。
+ * 既定のままで一度も決めていなければ黄色にして、「自分の所持状況を入力」と「完凸のままでOK」を並べる
+ * （押すと以後は通常表示）。
  */
 function OwnershipRow() {
   const owned = useOwnedSaves();
@@ -170,11 +160,11 @@ function OwnershipRow() {
     <>
       <div className="mb-1 flex items-center gap-1.5">
         <NoBadge no={5} done={done} />
-        <span className="text-xs font-bold text-slate-700">所持状況</span>
+        <span className={LABEL}>所持状況</span>
         <Hint text={GLOSSARY.ownership} />
       </div>
       <div
-        className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm text-slate-900 ${
+        className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-base text-slate-900 ${
           done ? "border-slate-300 bg-white" : "border-amber-400 bg-amber-50"
         }`}
       >
@@ -182,36 +172,38 @@ function OwnershipRow() {
           {builtin ? (
             <>
               <b>全サポカ完凸</b>
-              <span className="text-slate-500">（既定）</span>で計算
+              <span className="text-slate-500">（既定）</span>
             </>
           ) : (
             <>
-              「<b>{activeName ?? "自分の所持状況"}</b>」で計算
+              「<b>{activeName ?? "自分の所持状況"}</b>」
             </>
           )}
         </span>
-        {!done && (
-          <button
-            type="button"
-            onClick={() => {
-              writeOwnershipAck();
-              setAck(true);
-            }}
-            className={BTN_PRIMARY}
-          >
-            完凸のままでOK
-          </button>
+        {done ? (
+          <Link to="/support" className={BTN_SECONDARY_LG}>
+            {builtin ? "自分の所持状況を入力" : "所持状況を変える"}
+            <ArrowRight size={14} />
+          </Link>
+        ) : (
+          <>
+            <Link to="/support" className={BTN_PRIMARY}>
+              自分の所持状況を入力
+              <ArrowRight size={14} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                writeOwnershipAck();
+                setAck(true);
+              }}
+              className={BTN_SECONDARY_LG}
+            >
+              完凸のままでOK
+            </button>
+          </>
         )}
-        <Link to="/support" className={BTN_SECONDARY}>
-          {builtin ? "自分の所持状況を入力" : "所持状況を変える"}
-          <ArrowRight size={12} />
-        </Link>
       </div>
-      {!done && (
-        <p className="mt-1 text-[11px] leading-snug text-amber-700">
-          持っているサポカと凸を入れると、手持ちに合った編成になります。全部完凸の想定でよければ「完凸のままでOK」。
-        </p>
-      )}
     </>
   );
 }
@@ -255,7 +247,7 @@ function PremiseField({
     <div className="min-w-0">
       <div className="mb-1 flex items-center gap-1.5">
         <NoBadge no={no} done={done} />
-        <span className="text-xs font-bold text-slate-700">{label}</span>
+        <span className={LABEL}>{label}</span>
         {hint && <Hint text={hint} />}
         {hintLink && (
           <Link
@@ -271,7 +263,7 @@ function PremiseField({
         <button
           type="button"
           onClick={onClick}
-          className={`flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-left text-sm text-slate-900 transition ${
+          className={`flex h-11 w-full items-center gap-2 rounded-lg border px-3 text-left text-base text-slate-900 transition ${
             done
               ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/40"
               : "border-amber-400 bg-amber-50 hover:bg-amber-100"
@@ -308,9 +300,9 @@ function SettingSub({
 }) {
   return (
     <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2">
-      <p className="mb-1.5 text-xs font-bold text-slate-700">
+      <p className="mb-1.5 text-sm font-bold text-slate-800">
         {title}
-        {hint && <span className="ml-1.5 text-[11px] font-normal text-slate-400">{hint}</span>}
+        {hint && <span className="ml-1.5 text-xs font-normal text-slate-400">{hint}</span>}
       </p>
       {children}
     </div>

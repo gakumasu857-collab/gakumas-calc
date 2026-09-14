@@ -3,7 +3,7 @@ import { NOTE } from "@/components/ui";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
 /**
- * Pアイドルの特訓・才能開花を設定するモーダル（「まずここを設定」のアイドル欄の下から開く）。
+ * Pアイドルの特訓・才能開花を設定するモーダル（「設定欄」のアイドル欄の下から開く）。
  * 評価値の横のPアイドル画像の歯車と同じ設定。値はPアイドルごとにブラウザに保存される。
  */
 export default function PIdolTrainingModal({
