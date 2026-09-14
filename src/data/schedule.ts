@@ -71,58 +71,54 @@ export const EXAMS = [
 const STAR_SCALE = 1.5;
 
 /**
- * 選抜試験のスター性の式（2026-09 オーナー提供の表）。
- * 合計スコアを区間ごとに「スコア×傾き」で足し合わせ（累計）、切り上げてから 1.5 倍して切り捨てる
- * （親愛度37の値。親愛度27なら 1.5 倍しない）。区間の上限を超えた分は増えない。
- *   選抜1: 〜3,000: 0.0066666 ／ 〜7,000: 0.003 ／ 〜15,000: 0.001 （累計 40 → 上限 60）
- *   選抜2: 〜30,000: 0.00183333 ／ 〜70,000: 0.000825 ／ 〜150,000: 0.000275 （累計 110 → 上限 165）
- *   選抜3: 〜100,000: 0.00055 ／ 〜200,000: 0.00033 ／ 〜400,000: 0.00011 （累計 110 → 上限 165）
+ * 選抜試験のスター性（親愛度37の値。オーナー提供の表 2026-09）。
+ * スコアの区間ごとに、両端のスター性を直線でつなぐ（傾きは両端から求める）。小数は切り捨て。
+ *   選抜1: 0〜2,850: 0→28 ／ 2,851〜6,666: 30→46 ／ 6,667〜14,000: 48→58 ／ 14,001〜: 60
+ *   選抜2: 0〜29,454: 0→81 ／ 29,455〜68,788: 82→130 ／ 68,789〜146,364: 132→163 ／ 146,365〜: 165
+ *   選抜3: 0〜98,181: 0→81 ／ 98,182〜196,969: 82→130 ／ 196,970〜390,909: 132→163 ／ 390,910〜: 165
+ * （親愛度27なら 0→19／20→31／32→39／40 など。計算機は親愛度37で固定）
  */
-export const EXAM_STAR_PIECES: readonly (readonly { upTo: number; slope: number }[])[] = [
+export type ExamStarSegment = { from: number; to: number; star: readonly [number, number] };
+export const EXAM_STAR_SEGMENTS: readonly (readonly ExamStarSegment[])[] = [
   [
-    { upTo: 3000, slope: 0.0066666 },
-    { upTo: 7000, slope: 0.003 },
-    { upTo: 15000, slope: 0.001 },
+    { from: 0, to: 2850, star: [0, 28] },
+    { from: 2851, to: 6666, star: [30, 46] },
+    { from: 6667, to: 14000, star: [48, 58] },
+    { from: 14001, to: Infinity, star: [60, 60] },
   ],
   [
-    { upTo: 30000, slope: 0.00183333 },
-    { upTo: 70000, slope: 0.000825 },
-    { upTo: 150000, slope: 0.000275 },
+    { from: 0, to: 29454, star: [0, 81] },
+    { from: 29455, to: 68788, star: [82, 130] },
+    { from: 68789, to: 146364, star: [132, 163] },
+    { from: 146365, to: Infinity, star: [165, 165] },
   ],
   [
-    { upTo: 100000, slope: 0.00055 },
-    { upTo: 200000, slope: 0.00033 },
-    { upTo: 400000, slope: 0.00011 },
+    { from: 0, to: 98181, star: [0, 81] },
+    { from: 98182, to: 196969, star: [82, 130] },
+    { from: 196970, to: 390909, star: [132, 163] },
+    { from: 390910, to: Infinity, star: [165, 165] },
   ],
 ];
 
-/** 区間ごとの累計（切り上げ前の値。0.00183333×30000 のような表の値をそのまま足す） */
-export function examStarRaw(examIndex: number, score: number): number {
-  const pieces = EXAM_STAR_PIECES[examIndex];
-  if (!pieces || score <= 0) return 0;
-  let sum = 0;
-  let prev = 0;
-  for (const p of pieces) {
-    const seg = Math.min(score, p.upTo) - prev;
-    if (seg <= 0) break;
-    sum += seg * p.slope;
-    prev = p.upTo;
-  }
-  return sum;
-}
-
 export function examStar(examIndex: number, score: number): number {
-  if (score <= 0) return 0;
-  // 浮動小数の誤差で 87.000000001 のように切り上がらないよう、ごくわずかに引いてから切り上げる
-  const rounded = Math.ceil(examStarRaw(examIndex, score) - 1e-9);
-  const raw = Math.floor(rounded * STAR_SCALE);
-  return Math.max(0, Math.min(EXAMS[examIndex].starCap * STAR_SCALE, raw));
+  const segs = EXAM_STAR_SEGMENTS[examIndex];
+  if (!segs || score <= 0) return 0;
+  const s = Math.floor(score);
+  for (const seg of segs) {
+    if (s > seg.to) continue;
+    if (seg.to === Infinity) return seg.star[0];
+    const [y0, y1] = seg.star;
+    const y = y0 + ((s - seg.from) * (y1 - y0)) / (seg.to - seg.from);
+    // 浮動小数の誤差で 27.999999 → 27 にならないよう、ごくわずかに足してから切り捨てる
+    return Math.max(0, Math.floor(y + 1e-9));
+  }
+  return segs[segs.length - 1].star[0];
 }
 
 /** スター性が上限に達する合計スコア（これ以上入れても増えない。入力の上限に使う） */
 export function examStarCapScore(examIndex: number): number {
-  const pieces = EXAM_STAR_PIECES[examIndex];
-  return pieces ? pieces[pieces.length - 1].upTo : Infinity;
+  const segs = EXAM_STAR_SEGMENTS[examIndex];
+  return segs ? segs[segs.length - 1].from : Infinity;
 }
 
 /**

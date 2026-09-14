@@ -6,7 +6,7 @@
  * - N.I.A.: 自主レッスン（単タイプ＋SP）・営業（営業先/成功度）・オーディション
  * - 初: レジェンドレッスン（単タイプ＋SP＋パーフェクト）・授業・試験
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Info, Sparkles } from "lucide-react";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
@@ -293,13 +293,11 @@ function HifEditor({ r }: { r: CalcResult }) {
             const scores = schedule.examScores[i];
             const stats = schedule.examStats[i];
             const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
+            /** スター性が上限に達するスコア（入力もここで止める） */
+            const capScore = examStarCapScore(i);
             /** 極振り: 現在の総スコアを1タイプに全部 */
             const allIn = (type: TypeKey) => {
-              const next: Record<TypeKey, number> = {
-                vocal: 0,
-                dance: 0,
-                visual: 0,
-              };
+              const next: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
               next[type] = total;
               schedule.setExamScores(i, next);
             };
@@ -317,155 +315,136 @@ function HifEditor({ r }: { r: CalcResult }) {
               </button>
             );
             return (
-              <div
-                key={exam.name}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2"
-              >
-                <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
-                  {exam.name}
-                </span>
-                {/* 入力の切り替え（スコア／ステ） */}
-                <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
-                  {modeBtn("score", "スコア")}
-                  {modeBtn("stat", "ステ")}
-                </span>
-                {stats ? (
-                  <>
-                    {/* スコアはスター性の計算にだけ使う。ログの「1位スコア」をそのまま */}
+              <div key={exam.name} className="flex flex-col gap-1.5 py-2">
+                {/* 見出し行: 名前・入力の切り替え（スコア／ステ）・スコアとスター性 */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
+                    {exam.name}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+                    {modeBtn("score", "スコア")}
+                    {modeBtn("stat", "ステ")}
+                  </span>
+                  {stats ? (
+                    /* スコアはスター性の計算にだけ使う。ログの「1位スコア」をそのまま */
                     <label className="flex items-center gap-1 text-xs text-slate-500">
                       スコア
                       <NumberField
                         value={total}
                         onChange={(v) => schedule.setExamTotalScore(i, v)}
-                        max={examStarCapScore(i)}
-                        sliderMax={examStarCapScore(i)}
+                        max={capScore}
+                        sliderMax={capScore}
                         className="w-24"
                       />
                       <span className="text-violet-600">★{examStar(i, total)}</span>
-                      {total >= examStarCapScore(i) && <CapBadge label="★上限" />}
+                      {total >= capScore && <CapBadge label="★上限" />}
                     </label>
+                  ) : (
+                    <span className="ml-auto flex items-center gap-1 text-xs tabular-nums text-slate-500">
+                      総スコア <b className="text-slate-800">{total.toLocaleString()}</b>
+                      <span className="text-violet-600">★{examStar(i, total)}</span>
+                      {total >= capScore && <CapBadge label="★上限" />}
+                    </span>
+                  )}
+                </div>
+                {stats ? (
+                  <>
                     {/* 上の段: ゲームのログに出る上昇幅（パラボ込み）。入れると今の編成のパラボ%で元のステに逆算して保存 */}
-                    <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
-                        ログの上昇幅（パラボ込み）
-                      </span>
+                    <TypeFieldGrid label="ログの上昇幅（パラボ込み）">
                       {TYPE_KEYS.map((type) => {
                         const pct = r.paraboDetail[type].totalPct;
                         return (
-                          <label
-                            key={type}
-                            className="flex items-center gap-1 text-xs text-slate-500"
-                          >
-                            <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                              {TYPE_LABELS[type]}
-                            </span>
+                          <TypeCell key={type} type={type}>
                             <RiseField
                               value={examRiseWithParabo(stats[type], pct)}
                               onChange={(rise) =>
                                 schedule.setExamStat(i, type, examBaseFromRise(rise, pct))
                               }
+                              className="w-full sm:w-20"
                             />
-                            <span className="text-[10px] tabular-nums text-slate-400">
+                            <span className="shrink-0 text-[10px] tabular-nums text-slate-400">
                               +{pct}%
                             </span>
-                          </label>
+                          </TypeCell>
                         );
                       })}
-                    </span>
+                    </TypeFieldGrid>
                     {/* 下の段: パラボを除いた元のステ（計算に使う値）。直接打ち込んでもよい */}
-                    <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
-                        元のステ（パラボ抜き）
-                      </span>
+                    <TypeFieldGrid
+                      label="元のステ（パラボ抜き）"
+                      after={
+                        <span className="text-xs tabular-nums text-slate-500">
+                          合計{" "}
+                          <b className="text-slate-800">
+                            {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
+                          </b>
+                          <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
+                        </span>
+                      }
+                    >
                       {TYPE_KEYS.map((type) => (
-                        <label
-                          key={type}
-                          className="flex items-center gap-1 text-xs text-slate-500"
-                        >
-                          <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                            {TYPE_LABELS[type]}
-                          </span>
+                        <TypeCell key={type} type={type}>
                           <NumberField
                             value={stats[type]}
                             onChange={(v) => schedule.setExamStat(i, type, v)}
                             max={999}
                             sliderMax={exam.base}
-                            className="w-20"
+                            className="w-full sm:w-20"
                           />
-                        </label>
+                        </TypeCell>
                       ))}
-                      <span className="text-xs tabular-nums text-slate-500">
-                        合計{" "}
-                        <b className="text-slate-800">
-                          {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
-                        </b>
-                        <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
-                      </span>
-                    </span>
-                    <span className="w-full text-[11px] leading-relaxed text-slate-400">
+                    </TypeFieldGrid>
+                    <span className="text-[11px] leading-relaxed text-slate-400">
                       上の段にログの値を入れると、今の編成のパラボ%で下の段（計算に使う値）を逆算します。編成を変えると上の段の表示も変わります。
                     </span>
                   </>
                 ) : (
                   <>
-                    {TYPE_KEYS.map((type) => (
-                      <label
-                        key={type}
-                        className="flex items-center gap-1 text-xs text-slate-500"
-                      >
-                        <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                          {TYPE_LABELS[type]}
+                    <TypeFieldGrid
+                      after={
+                        <span className="flex items-center gap-1 text-xs text-slate-500">
+                          極振り:
+                          {TYPE_KEYS.map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              disabled={total === 0}
+                              onClick={() => allIn(type)}
+                              title={`総スコアを全部${TYPE_LABELS[type]}に`}
+                              className={`rounded-md px-1.5 py-1 text-xs font-bold transition disabled:opacity-40 ${TYPE_STYLE[type].chip} hover:brightness-95`}
+                            >
+                              {TYPE_LABELS[type].slice(0, 2)}
+                            </button>
+                          ))}
                         </span>
-                        <NumberField
-                          value={scores[type]}
-                          onChange={(v) => schedule.setExamScore(i, type, v)}
-                          max={examStarCapScore(i)}
-                          sliderMax={examStarCapScore(i)}
-                          className="w-24"
-                        />
-                      </label>
-                    ))}
-                    <span className="flex items-center gap-1 text-xs text-slate-500">
-                      極振り:
+                      }
+                    >
                       {TYPE_KEYS.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          disabled={total === 0}
-                          onClick={() => allIn(type)}
-                          title={`総スコアを全部${TYPE_LABELS[type]}に`}
-                          className={`rounded-md px-1.5 py-1 text-xs font-bold transition disabled:opacity-40 ${TYPE_STYLE[type].chip} hover:brightness-95`}
-                        >
-                          {TYPE_LABELS[type].slice(0, 2)}
-                        </button>
+                        <TypeCell key={type} type={type}>
+                          <NumberField
+                            value={scores[type]}
+                            onChange={(v) => schedule.setExamScore(i, type, v)}
+                            max={capScore}
+                            sliderMax={capScore}
+                            className="w-full sm:w-24"
+                          />
+                        </TypeCell>
                       ))}
-                    </span>
-                    <span className="ml-auto flex items-center gap-1 text-xs tabular-nums text-slate-500">
-                      総スコア{" "}
-                      <b className="text-slate-800">{total.toLocaleString()}</b>
-                      {total >= examStarCapScore(i) && <CapBadge label="★上限" />}
-                    </span>
-                    {/* この配分での上昇量とスター性 */}
+                    </TypeFieldGrid>
+                    {/* この配分での上昇量 */}
                     {total > 0 && (
-                      <span className="w-full text-[11px] tabular-nums text-slate-500">
+                      <span className="text-[11px] tabular-nums text-slate-500">
                         →{" "}
                         {(() => {
                           const dist = distributeExam(i, scores, TYPE_KEYS);
                           return TYPE_KEYS.map((t) => (
                             <span key={t} className="mr-2">
-                              <b className={TYPE_STYLE[t].head}>
-                                {TYPE_LABELS[t]}
-                              </b>{" "}
-                              +{Math.round(dist[t])}
+                              <b className={TYPE_STYLE[t].head}>{TYPE_LABELS[t]}</b> +
+                              {Math.round(dist[t])}
                             </span>
                           ));
                         })()}
-                        <span className="text-violet-600">
-                          ★{examStar(i, total)}
-                        </span>
-                        <span className="ml-2 text-slate-400">
-                          ※パラメータボーナス%は別途上乗せ
-                        </span>
+                        <span className="text-slate-400">※パラメータボーナス%は別途上乗せ</span>
                       </span>
                     )}
                   </>
@@ -661,7 +640,6 @@ function NiaEditor({ r }: { r: CalcResult }) {
                     className="w-24"
                   />
                   <span className="text-slate-400">（投票数の計算にだけ使う）</span>
-                  {finalTotal >= niaFinalVotesCapScore(nia.finalKind) && <CapBadge label="投票上限" />}
                 </label>
                 <AuditionStatRows
                   r={r}
@@ -673,27 +651,23 @@ function NiaEditor({ r }: { r: CalcResult }) {
               </>
             ) : (
               <>
-                {TYPE_KEYS.map((type) => (
-                  <label
-                    key={type}
-                    className="flex items-center gap-1 text-xs text-slate-500"
-                  >
-                    <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                      {TYPE_LABELS[type]}
-                    </span>
-                    <NumberField
-                      value={nia.finalScores[type]}
-                      onChange={(v) => nia.setFinalScore(type, v)}
-                      max={niaFinalVotesCapScore(nia.finalKind)}
-                      sliderMax={niaFinalVotesCapScore(nia.finalKind)}
-                      className="w-24"
-                    />
-                    {nia.finalScores[type] >=
-                      niaFinalStatCapScore(tag, r.typeRanks[type], nia.finalKind) && (
-                      <CapBadge label="ステ上限" />
-                    )}
-                  </label>
-                ))}
+                <TypeFieldGrid>
+                  {TYPE_KEYS.map((type) => (
+                    <TypeCell key={type} type={type}>
+                      <NumberField
+                        value={nia.finalScores[type]}
+                        onChange={(v) => nia.setFinalScore(type, v)}
+                        max={niaFinalVotesCapScore(nia.finalKind)}
+                        sliderMax={niaFinalVotesCapScore(nia.finalKind)}
+                        className="w-full sm:w-24"
+                      />
+                      {nia.finalScores[type] >=
+                        niaFinalStatCapScore(tag, r.typeRanks[type], nia.finalKind) && (
+                        <CapBadge label="ステ上限" />
+                      )}
+                    </TypeCell>
+                  ))}
+                </TypeFieldGrid>
                 <span className="w-full text-[11px] text-slate-500">
                   スコアから導出した素点:{" "}
                   {TYPE_KEYS.map((type) => (
@@ -1012,11 +986,10 @@ function HifNumbers() {
           中位=（繰り越し+配分×スコア比）（切り捨て）+固定÷3、上位=基準値−下位−中位。
         </p>
         <p className="mt-1">
-          スター性 = 切り捨て(切り上げ(Σ 区間ごとのスコア×傾き) × 1.5)。傾きは
-          選抜1: 〜3,000 は 0.0066666／〜7,000 は 0.003／〜15,000 は 0.001（上限60）、
-          選抜2: 〜30,000 は 0.00183333／〜70,000 は 0.000825／〜150,000 は 0.000275（上限165）、
-          選抜3: 〜100,000 は 0.00055／〜200,000 は 0.00033／〜400,000 は 0.00011（上限165）。
-          区間の上限を超えた分は増えない。
+          スター性はスコアの区間ごとに直線（両端の値をつなぐ。小数は切り捨て）:
+          選抜1 0〜2,850: 0→28／2,851〜6,666: 30→46／6,667〜14,000: 48→58／14,001〜: 60、
+          選抜2 0〜29,454: 0→81／29,455〜68,788: 82→130／68,789〜146,364: 132→163／146,365〜: 165、
+          選抜3 0〜98,181: 0→81／98,182〜196,969: 82→130／196,970〜390,909: 132→163／390,910〜: 165。
         </p>
         <p className="mt-1 text-slate-400">
           ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
@@ -1364,6 +1337,52 @@ function MiniToggle({
   );
 }
 
+/**
+ * タイプ別の入力3つの並び。スマホでは3列のグリッド（タイプ名を上に）、PC（sm以上）では横1列。
+ * label は行の見出し（スマホでは上に1行、PCでは左に固定幅）。after は右に添えるもの（合計・極振りなど）。
+ */
+function TypeFieldGrid({
+  label,
+  after,
+  children,
+}: {
+  label?: ReactNode;
+  after?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+      {label && (
+        <span className="w-full text-[11px] font-bold text-slate-600 sm:w-44 sm:shrink-0">{label}</span>
+      )}
+      <div className="grid w-full grid-cols-3 gap-x-2 gap-y-1 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-x-3">
+        {children}
+      </div>
+      {after}
+    </div>
+  );
+}
+
+/** TypeFieldGrid の1マス（タイプ名＋入力）。short でタイプ名を Vo/Da/Vi に */
+function TypeCell({
+  type,
+  short,
+  children,
+}: {
+  type: TypeKey;
+  short?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-0.5 text-xs text-slate-500 sm:flex-row sm:items-center sm:gap-1">
+      <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+        {short ? TYPE_SHORT[type] : TYPE_LABELS[type]}
+      </span>
+      <span className="flex min-w-0 items-center gap-1">{children}</span>
+    </label>
+  );
+}
+
 /** 入力がそれ以上増えても結果が変わらないときの印（ステ上限・★上限・投票上限） */
 function CapBadge({ label }: { label: string }) {
   return (
@@ -1394,18 +1413,19 @@ function AuditionStatRows({
 }) {
   return (
     <>
-      <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5">
-        <span
-          className="w-44 shrink-0 text-[11px] font-bold text-slate-600"
-          title={`ゲームのログの上昇幅をそのまま。獲得ボーナス+${challengePct}%と今の編成のパラボ%（右の数字）で素点に逆算します`}
-        >
-          ログの上昇幅（獲得+{challengePct}%・パラボ込み）
-        </span>
+      <TypeFieldGrid
+        label={
+          <span
+            title={`ゲームのログの上昇幅をそのまま。獲得ボーナス+${challengePct}%と今の編成のパラボ%（右の数字）で素点に逆算します`}
+          >
+            ログの上昇幅（獲得+{challengePct}%・パラボ込み）
+          </span>
+        }
+      >
         {TYPE_KEYS.map((type) => {
           const pct = r.paraboDetail[type].totalPct;
           return (
-            <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
-              <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_SHORT[type]}</span>
+            <TypeCell key={type} type={type} short>
               <RiseField
                 value={niaAuditionRise(stats[type], challengePct, pct)}
                 onChange={(rise) =>
@@ -1414,31 +1434,28 @@ function AuditionStatRows({
                     Math.min(capOf(type), niaAuditionBaseFromRise(rise, challengePct, pct)),
                   )
                 }
+                className="w-full sm:w-20"
               />
-              <span className="text-[10px] tabular-nums text-slate-400" title="今の編成のパラボ%">
+              <span className="shrink-0 text-[10px] tabular-nums text-slate-400" title="今の編成のパラボ%">
                 +{pct}%
               </span>
-            </label>
+            </TypeCell>
           );
         })}
-      </span>
-      <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1.5">
-        <span className="w-44 shrink-0 text-[11px] font-bold text-slate-600">
-          素点（ボーナス・パラボ抜き）
-        </span>
+      </TypeFieldGrid>
+      <TypeFieldGrid label="素点（ボーナス・パラボ抜き）">
         {TYPE_KEYS.map((type) => (
-          <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
-            <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_SHORT[type]}</span>
+          <TypeCell key={type} type={type} short>
             <NumberField
               value={stats[type]}
               onChange={(v) => onChange(type, v)}
               max={capOf(type)}
-              className="w-16"
+              className="w-full sm:w-16"
             />
-            <span className="text-slate-400">/{capOf(type)}</span>
-          </label>
+            <span className="shrink-0 text-slate-400">/{capOf(type)}</span>
+          </TypeCell>
         ))}
-      </span>
+      </TypeFieldGrid>
     </>
   );
 }
@@ -1451,9 +1468,11 @@ function AuditionStatRows({
 function RiseField({
   value,
   onChange,
+  className = "w-20",
 }: {
   value: number;
   onChange: (rise: number) => void;
+  className?: string;
 }) {
   const [text, setText] = useState<string | null>(null);
   return (
@@ -1468,7 +1487,7 @@ function RiseField({
       }}
       onBlur={() => setText(null)}
       title="ゲームのログの上昇幅をそのまま（パラボ込み）"
-      className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-blue-500"
+      className={`${className} rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-blue-500`}
     />
   );
 }
