@@ -71,17 +71,51 @@ export const EXAMS = [
 const STAR_SCALE = 1.5;
 
 /**
- * 選抜試験の獲得スター性（コミュニティの近似式・暫定版を1.5倍スケール）。
- * Y=スター性, X=合計スコア。上限は EXAMS.starCap × 1.5。
+ * 選抜試験のスター性の式（2026-09 オーナー提供の表）。
+ * 合計スコアを区間ごとに「スコア×傾き」で足し合わせ（累計）、切り上げてから 1.5 倍して切り捨てる
+ * （親愛度37の値。親愛度27なら 1.5 倍しない）。区間の上限を超えた分は増えない。
+ *   選抜1: 〜3,000: 0.0066666 ／ 〜7,000: 0.003 ／ 〜15,000: 0.001 （累計 40 → 上限 60）
+ *   選抜2: 〜30,000: 0.00183333 ／ 〜70,000: 0.000825 ／ 〜150,000: 0.000275 （累計 110 → 上限 165）
+ *   選抜3: 〜100,000: 0.00055 ／ 〜200,000: 0.00033 ／ 〜400,000: 0.00011 （累計 110 → 上限 165）
  */
+export const EXAM_STAR_PIECES: readonly (readonly { upTo: number; slope: number }[])[] = [
+  [
+    { upTo: 3000, slope: 0.0066666 },
+    { upTo: 7000, slope: 0.003 },
+    { upTo: 15000, slope: 0.001 },
+  ],
+  [
+    { upTo: 30000, slope: 0.00183333 },
+    { upTo: 70000, slope: 0.000825 },
+    { upTo: 150000, slope: 0.000275 },
+  ],
+  [
+    { upTo: 100000, slope: 0.00055 },
+    { upTo: 200000, slope: 0.00033 },
+    { upTo: 400000, slope: 0.00011 },
+  ],
+];
+
+/** 区間ごとの累計（切り上げ前の値。0.00183333×30000 のような表の値をそのまま足す） */
+export function examStarRaw(examIndex: number, score: number): number {
+  const pieces = EXAM_STAR_PIECES[examIndex];
+  if (!pieces || score <= 0) return 0;
+  let sum = 0;
+  let prev = 0;
+  for (const p of pieces) {
+    const seg = Math.min(score, p.upTo) - prev;
+    if (seg <= 0) break;
+    sum += seg * p.slope;
+    prev = p.upTo;
+  }
+  return sum;
+}
+
 export function examStar(examIndex: number, score: number): number {
   if (score <= 0) return 0;
-  const formulas: ((x: number) => number)[] = [
-    (x) => 26 + 0.001 * x,
-    (x) => (x <= 72500 ? 40 + x / 1500 : 70 + 0.000275 * x),
-    (x) => (x <= 180000 ? 13 + x / 2500 : 65 + x / 9000),
-  ];
-  const raw = Math.floor(formulas[examIndex](score) * STAR_SCALE);
+  // 浮動小数の誤差で 87.000000001 のように切り上がらないよう、ごくわずかに引いてから切り上げる
+  const rounded = Math.ceil(examStarRaw(examIndex, score) - 1e-9);
+  const raw = Math.floor(rounded * STAR_SCALE);
   return Math.max(0, Math.min(EXAMS[examIndex].starCap * STAR_SCALE, raw));
 }
 

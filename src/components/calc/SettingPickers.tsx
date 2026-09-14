@@ -2,6 +2,7 @@ import { useState } from "react";
 import Modal from "@/components/Modal";
 import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
+import StatOrderPicker from "@/components/calc/StatOrderPicker";
 import { GLOSSARY } from "@/lib/glossary";
 import { imageUrl } from "@/lib/config";
 import { P_IDOL_MASTERS } from "@/lib/pIdol";
@@ -18,16 +19,8 @@ import {
   type TypeKey,
 } from "@/lib/useCalcSettings";
 
-/** ステの高さの順の選択肢（null＝指定なし。Vo/Da/Vi の並び替え6通り） */
-const STAT_ORDERS: (TypeKey[] | null)[] = [
-  null,
-  ["vocal", "dance", "visual"],
-  ["vocal", "visual", "dance"],
-  ["dance", "vocal", "visual"],
-  ["dance", "visual", "vocal"],
-  ["visual", "vocal", "dance"],
-  ["visual", "dance", "vocal"],
-];
+/** ステの高さの順を決めたときの初期値（Vo＞Da＞Vi） */
+const DEFAULT_STAT_ORDER: TypeKey[] = ["vocal", "dance", "visual"];
 
 /** −／＋ボタン（SP率持ちの枚数） */
 const STEP_BTN =
@@ -228,34 +221,32 @@ export function TheorySettingsModal({
               </p>
             </section>
 
-            {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ） */}
+            {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ。3本の柱で決める） */}
             <section className="border-t border-slate-100 pt-3">
-              <p className="flex items-center gap-1 font-semibold">
-                ステの高さの順
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={!!settings.statOrder}
+                  onChange={(e) =>
+                    onUpdate({
+                      statOrder: e.target.checked ? [...(settings.statOrder ?? DEFAULT_STAT_ORDER)] : null,
+                    })
+                  }
+                  className="accent-blue-600"
+                />
+                ステの高さの順を決める
                 <Hint text={GLOSSARY.statOrder} />
-              </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {STAT_ORDERS.map((order) => {
-                  const key = order ? order.join(">") : "none";
-                  const on = (settings.statOrder ? settings.statOrder.join(">") : "none") === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => onUpdate({ statOrder: order ? [...order] : null })}
-                      className={`rounded-lg border px-2.5 py-1 text-sm font-bold transition ${
-                        on
-                          ? "border-blue-600 bg-blue-600 text-white"
-                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {order ? order.map((t) => TYPE_LABELS[t].slice(0, 2)).join("＞") : "指定なし"}
-                    </button>
-                  );
-                })}
+              </label>
+              <div className="mt-2">
+                <StatOrderPicker
+                  order={settings.statOrder ?? DEFAULT_STAT_ORDER}
+                  disabled={!settings.statOrder}
+                  onChange={(order) => onUpdate({ statOrder: order })}
+                />
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                例: Da＞Vi＞Vo なら、育成後のステータスが Dance＞Visual＞Vocal の順に高くなる編成・踏み方を選びます。
+                一番高い柱を押すと2番目のタイプが一番高くなり、ほかの柱を押すとそのタイプが一番高くなります。
+                育成後のステータスがこの順になる編成・踏み方を選びます。
               </p>
             </section>
 

@@ -8,11 +8,13 @@ import {
   HATSU_CLASSES,
   HATSU_EXAMS,
   HATSU_LESSONS,
-  NIA_AUDITION_CAPS,
+  NIA_AUDITION_VOTE_MAX,
   NIA_LESSONS,
   NIA_SALES,
+  niaAuditionCap,
   niaFinaleStat,
   niaFinaleVotes,
+  type NiaFinalKind,
   type NiaTag,
   hatsuLessonGains,
 } from "@/data/scenarios";
@@ -30,7 +32,7 @@ type Gains = Record<TypeKey, number>;
 const zeroGains = (): Gains => ({ vocal: 0, dance: 0, visual: 0 });
 
 /**
- * オーディション素点を上限（NIA_AUDITION_CAPS[tag][回][流行順位-1]）でクランプする。
+ * オーディション素点を上限（niaAuditionCap: 回・流行順位・最終の種類で決まる）でクランプする。
  * 流行順位＝そのタイプの審査基準ランク。UIでも上限入力だが、初回デフォルト等の
  * 上限超過値も正しく評価するためここでも丸める。
  */
@@ -39,12 +41,11 @@ function clampAudition(
   auditionIndex: number,
   tag: NiaTag,
   ranks: TypeRanks,
+  kind: NiaFinalKind = "finale",
 ): Record<TypeKey, number> {
-  const caps = NIA_AUDITION_CAPS[tag]?.[auditionIndex];
   const out = zeroGains();
   for (const type of TYPE_KEYS) {
-    const cap = caps?.[ranks[type] - 1] ?? Infinity;
-    out[type] = Math.min(audition[type], cap);
+    out[type] = Math.min(audition[type], niaAuditionCap(tag, auditionIndex, ranks[type], kind));
   }
   return out;
 }
@@ -61,6 +62,8 @@ export type NiaStateLike = {
   finalScores: Record<TypeKey, number>;
   /** 最終オーディションの素点を直接入力するとき（null／省略＝スコアから導出） */
   finalStats?: Record<TypeKey, number> | null;
+  /** 最終オーディションの種類（省略＝FINALE） */
+  finalKind?: NiaFinalKind;
 };
 
 /**
@@ -69,13 +72,13 @@ export type NiaStateLike = {
  * （スコアによって上がるステータスが決まる。式はバランス=flat/特化=skewで別）。
  */
 export function niaFinaleStats(
-  state: Pick<NiaStateLike, "finalScores">,
+  state: Pick<NiaStateLike, "finalScores" | "finalKind">,
   ranks: TypeRanks,
   tag: NiaTag,
 ): Record<TypeKey, number> {
   const out = zeroGains();
   for (const type of TYPE_KEYS) {
-    out[type] = niaFinaleStat(tag, ranks[type], state.finalScores[type]);
+    out[type] = niaFinaleStat(tag, ranks[type], state.finalScores[type], state.finalKind ?? "finale");
   }
   return out;
 }
@@ -85,11 +88,11 @@ export function niaFinaleStats(
  * ステ入力（finalStats）があればそれを上限でクランプ、無ければスコアから導出。
  */
 export function niaFinaleBaseStats(
-  state: Pick<NiaStateLike, "finalScores" | "finalStats">,
+  state: Pick<NiaStateLike, "finalScores" | "finalStats" | "finalKind">,
   ranks: TypeRanks,
   tag: NiaTag,
 ): Record<TypeKey, number> {
-  if (state.finalStats) return clampAudition(state.finalStats, 2, tag, ranks);
+  if (state.finalStats) return clampAudition(state.finalStats, 2, tag, ranks, state.finalKind ?? "finale");
   return niaFinaleStats(state, ranks, tag);
 }
 
@@ -161,7 +164,11 @@ export function computeNiaGains(
   for (const type of TYPE_KEYS) {
     gains[type] = lessons[type] + classes[type] + exams[type];
   }
-  const auditionVotes = state.auditionVotes.reduce((sum, v) => sum + v, 0);
+  // 1次・2次の投票数は上限（12,000／17,998）で頭打ち
+  const auditionVotes = state.auditionVotes.reduce(
+    (sum, v, i) => sum + Math.min(v, NIA_AUDITION_VOTE_MAX[i] ?? v),
+    0,
+  );
   const finaleVotes = niaFinaleVotes(niaFinaleTotalScore(state));
   return {
     gains,

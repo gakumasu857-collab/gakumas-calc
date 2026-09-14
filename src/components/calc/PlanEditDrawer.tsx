@@ -26,6 +26,11 @@ import {
   HATSU_EXAMS,
   HATSU_LESSONS,
   NIA_AUDITION_CAPS,
+  NIA_AUDITION_VOTE_MAX,
+  NIA_FINAL_CAPS,
+  NIA_FINAL_KIND_LABELS,
+  NIA_FINAL_KINDS,
+  niaAuditionCap,
   type ScenarioKey,
   NIA_AUDITIONS,
   NIA_LESSONS,
@@ -478,14 +483,14 @@ function NiaEditor({ r }: { r: CalcResult }) {
   const nia = r.niaSchedule;
   const tag: NiaTag = r.ranks?.tag === "特化" ? "skew" : "flat";
   const capOf = (auditionIndex: number, type: TypeKey) =>
-    NIA_AUDITION_CAPS[tag][auditionIndex][r.typeRanks[type] - 1];
+    niaAuditionCap(tag, auditionIndex, r.typeRanks[type], nia.finalKind);
   const challengePct = niaChallengeTotal(normalizeNiaChallenge(r.calc.settings.niaChallenge));
   /** 1次・2次・最終の素点（上限クランプ済み。最終はステ入力かスコアからの導出） */
   const zero: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const base = [0, 1, 2].map((i) => r.niaAuditionBase[i] ?? zero);
   /** 最終のスコアから導出した素点（「ステ」に切り替えたときの初期値） */
   const finalDerived = Object.fromEntries(
-    TYPE_KEYS.map((t) => [t, niaFinaleStat(tag, r.typeRanks[t], nia.finalScores[t])]),
+    TYPE_KEYS.map((t) => [t, niaFinaleStat(tag, r.typeRanks[t], nia.finalScores[t], nia.finalKind)]),
   ) as Record<TypeKey, number>;
   const finalTotal = TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
   const modeBtn = (mode: "score" | "stat", label: string) => (
@@ -598,9 +603,11 @@ function NiaEditor({ r }: { r: CalcResult }) {
                 <NumberField
                   value={nia.auditionVotes[i]}
                   onChange={(v) => nia.setAuditionVotes(i, v)}
-                  sliderMax={20000}
+                  max={NIA_AUDITION_VOTE_MAX[i]}
+                  sliderMax={NIA_AUDITION_VOTE_MAX[i]}
                   className="w-20"
                 />
+                <span className="text-slate-400">/{NIA_AUDITION_VOTE_MAX[i].toLocaleString()}</span>
               </label>
               <AuditionStatRows
                 r={r}
@@ -617,6 +624,23 @@ function NiaEditor({ r }: { r: CalcResult }) {
             <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
               {modeBtn("score", "スコア")}
               {modeBtn("stat", "ステ")}
+            </span>
+            {/* 最終オーディションの種類（FINALE／QUARTET。スコア→ステの式と上限が変わる） */}
+            <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+              {NIA_FINAL_KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => nia.setFinalKind(k)}
+                  className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition ${
+                    nia.finalKind === k
+                      ? "bg-violet-600 text-white"
+                      : "text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {NIA_FINAL_KIND_LABELS[k]}
+                </button>
+              ))}
             </span>
             {nia.finalStats ? (
               <>
@@ -969,10 +993,11 @@ function HifNumbers() {
           中位=（繰り越し+配分×スコア比）（切り捨て）+固定÷3、上位=基準値−下位−中位。
         </p>
         <p className="mt-1">
-          スター性の近似式（X=合計スコア、いずれも最後に1.5倍）: 選抜1:
-          (26+0.001X)×1.5（上限60）／ 選抜2: (40+X/1500)×1.5（72,500超は
-          (70+0.000275X)×1.5、上限165）／ 選抜3: (13+X/2500)×1.5（180,000超は
-          (65+X/9000)×1.5、上限165）
+          スター性 = 切り捨て(切り上げ(Σ 区間ごとのスコア×傾き) × 1.5)。傾きは
+          選抜1: 〜3,000 は 0.0066666／〜7,000 は 0.003／〜15,000 は 0.001（上限60）、
+          選抜2: 〜30,000 は 0.00183333／〜70,000 は 0.000825／〜150,000 は 0.000275（上限165）、
+          選抜3: 〜100,000 は 0.00055／〜200,000 は 0.00033／〜400,000 は 0.00011（上限165）。
+          区間の上限を超えた分は増えない。
         </p>
         <p className="mt-1 text-slate-400">
           ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
@@ -1042,17 +1067,24 @@ function NiaNumbers() {
           </tr>
         </thead>
         <tbody>
-          {(["flat", "skew"] as const).flatMap((tag) =>
-            NIA_AUDITION_CAPS[tag].map((caps, i) => (
+          {(["flat", "skew"] as const).flatMap((tag) => [
+            ...NIA_AUDITION_CAPS[tag].map((caps, i) => (
               <tr key={tag + i}>
                 <td className={NUM_TD}>{i === 0 ? (tag === "flat" ? "バランス" : "特化") : ""}</td>
-                <td className={NUM_TDC}>{["1次", "2次", "最終"][i]}</td>
+                <td className={NUM_TDC}>{["1次", "2次", "最終 FINALE"][i]}</td>
                 {caps.map((c, j) => (
                   <td key={j} className={NUM_TDC}>{c}</td>
                 ))}
               </tr>
             )),
-          )}
+            <tr key={tag + "quartet"}>
+              <td className={NUM_TD}></td>
+              <td className={NUM_TDC}>最終 QUARTET</td>
+              {NIA_FINAL_CAPS.quartet[tag].map((c, j) => (
+                <td key={j} className={NUM_TDC}>{c}</td>
+              ))}
+            </tr>,
+          ])}
         </tbody>
       </table>
       <div className="mb-2 text-xs leading-relaxed text-slate-600">

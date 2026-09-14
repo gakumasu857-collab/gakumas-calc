@@ -2,7 +2,12 @@ import { useState } from "react";
 import { ChevronDown, Info, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
-import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
+import {
+  NIA_FINAL_KIND_LABELS,
+  NIA_FINAL_KINDS,
+  SCENARIO_LABELS,
+  type ScenarioKey,
+} from "@/data/scenarios";
 import { Field } from "@/components/calc/CalcCard";
 import OwnershipField from "@/components/calc/OwnershipField";
 import SetPickerField from "@/components/calc/SetPickerField";
@@ -338,6 +343,7 @@ function ScenarioScoreCard({
           ＋サポカ分 {r.scenarioValues.supportFuda ?? 0}
           枚（編成のスキル獲得から自動）。2枚ごとに3,000票、余りの1枚は無効。
         </p>
+        <NiaFinalKindRow r={r} />
         <NiaChallengeRow r={r} onOpen={onOpenNiaChallenge} />
       </SettingSub>
     );
@@ -393,6 +399,31 @@ function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
         調整
       </button>
+    </div>
+  );
+}
+
+/** 最終オーディションの種類（FINALE／QUARTET。スコア→ステの式と上限が変わる） */
+function NiaFinalKindRow({ r }: { r: CalcResult }) {
+  const nia = r.niaSchedule;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+      <span className="font-bold text-slate-700">最終オーディション</span>
+      <span className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+        {NIA_FINAL_KINDS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => nia.setFinalKind(k)}
+            className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+              nia.finalKind === k ? "bg-violet-600 text-white" : "text-slate-500 hover:bg-slate-200"
+            }`}
+          >
+            {NIA_FINAL_KIND_LABELS[k]}
+          </button>
+        ))}
+      </span>
+      <span className="text-slate-400">（スコアからステへの換算と上限が変わる）</span>
     </div>
   );
 }

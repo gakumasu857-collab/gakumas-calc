@@ -40,6 +40,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
       auditionVotes: r.niaSchedule.auditionVotes,
       finalScores: r.niaSchedule.finalScores,
       finalStats: r.niaSchedule.finalStats,
+      finalKind: r.niaSchedule.finalKind,
     },
     hatsu: {
       lessons: r.hatsuSchedule.lessons,

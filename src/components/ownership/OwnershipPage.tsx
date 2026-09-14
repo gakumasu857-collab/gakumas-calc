@@ -112,11 +112,8 @@ export default function OwnershipPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 計算ページから来た人の帰り道（入力が終わったらここから戻る。使用中の所持状況で計算される） */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5">
-        <p className="min-w-0 flex-1 text-sm text-slate-700">
-          持っているサポカの凸を入れると、その所持状況で探索します。変更は自動で保存されるので、入力が終わったらそのまま戻ってください。
-        </p>
+      {/* 計算ページから来た人の帰り道（説明文は置かず、ボタンだけ） */}
+      <div className="flex flex-wrap items-center gap-3">
         <Link
           to="/calc"
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500"

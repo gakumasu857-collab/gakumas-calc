@@ -89,8 +89,13 @@ export const NIA_AUDITION_CAPS: Record<NiaTag, readonly (readonly number[])[]> =
 /** 1次・2次オーディション（素点とファン投票数を手入力）。最終はスコアから導出 */
 export const NIA_AUDITIONS = [{ name: "1次" }, { name: "2次" }] as const;
 
-/** 1次・2次オーディションのファン投票数の上限目安（初期値に使用） */
-export const NIA_AUDITION_VOTE_MAX = [12000, 17000] as const;
+/** 1次・2次オーディションのファン投票数の上限（初期値にも使用。最終は niaFinaleVotes の上限 49,002） */
+export const NIA_AUDITION_VOTE_MAX = [12000, 17998] as const;
+
+/** 最終オーディションの種類。ステ換算の式と上限が変わる（投票数の式は共通） */
+export type NiaFinalKind = "finale" | "quartet";
+export const NIA_FINAL_KINDS: NiaFinalKind[] = ["finale", "quartet"];
+export const NIA_FINAL_KIND_LABELS: Record<NiaFinalKind, string> = { finale: "FINALE", quartet: "QUARTET" };
 
 /** 最終オーディションのスコア初期値（ステ素点・投票数とも上限に到達する値） */
 export const NIA_FINAL_SCORE_DEFAULT = 500000;
@@ -106,53 +111,117 @@ const evalPieces = (pieces: readonly Piece[], score: number): number => {
   return 0;
 };
 
-/** 最終オーディション: スコア→流行順位別のステ素点（マスター・FINALE想定） */
-const NIA_FINALE_STAT: Record<NiaTag, Record<number, readonly Piece[]>> = {
-  flat: {
-    1: [
-      { threshold: 134210, multiplier: 0, constant: 172 },
-      { threshold: 66600, multiplier: 0.000756, constant: 70 },
-      { threshold: 0, multiplier: 0.0018, constant: 0.5 },
-    ],
-    2: [
-      { threshold: 63750, multiplier: 0, constant: 142 },
-      { threshold: 31350, multiplier: 0.001276, constant: 61 },
-      { threshold: 0, multiplier: 0.00325, constant: 0 },
-    ],
-    3: [
-      { threshold: 36500, multiplier: 0, constant: 116 },
-      { threshold: 17600, multiplier: 0.00182, constant: 50 },
-      { threshold: 0, multiplier: 0.00465, constant: 0 },
-    ],
+/** 最終オーディション: スコア→流行順位別のステ素点（マスター。FINALE と QUARTET で式が別） */
+const NIA_FINAL_STAT: Record<NiaFinalKind, Record<NiaTag, Record<number, readonly Piece[]>>> = {
+  finale: {
+    flat: {
+      1: [
+        { threshold: 134210, multiplier: 0, constant: 172 },
+        { threshold: 66600, multiplier: 0.000756, constant: 70 },
+        { threshold: 0, multiplier: 0.0018, constant: 0.5 },
+      ],
+      2: [
+        { threshold: 63750, multiplier: 0, constant: 142 },
+        { threshold: 31350, multiplier: 0.001276, constant: 61 },
+        { threshold: 0, multiplier: 0.00325, constant: 0 },
+      ],
+      3: [
+        { threshold: 36500, multiplier: 0, constant: 116 },
+        { threshold: 17600, multiplier: 0.00182, constant: 50 },
+        { threshold: 0, multiplier: 0.00465, constant: 0 },
+      ],
+    },
+    skew: {
+      1: [
+        { threshold: 136070, multiplier: 0, constant: 215 },
+        { threshold: 65350, multiplier: 0.000915, constant: 90.5 },
+        { threshold: 0, multiplier: 0.0023, constant: 0 },
+      ],
+      2: [
+        { threshold: 63250, multiplier: 0, constant: 129 },
+        { threshold: 30900, multiplier: 0.00117, constant: 55 },
+        { threshold: 0, multiplier: 0.00295, constant: 0 },
+      ],
+      3: [
+        { threshold: 36100, multiplier: 0, constant: 86 },
+        { threshold: 17800, multiplier: 0.00136, constant: 37 },
+        { threshold: 0, multiplier: 0.003465, constant: 0 },
+      ],
+    },
   },
-  skew: {
-    1: [
-      { threshold: 136070, multiplier: 0, constant: 215 },
-      { threshold: 65350, multiplier: 0.000915, constant: 90.5 },
-      { threshold: 0, multiplier: 0.0023, constant: 0 },
-    ],
-    2: [
-      { threshold: 63250, multiplier: 0, constant: 129 },
-      { threshold: 30900, multiplier: 0.00117, constant: 55 },
-      { threshold: 0, multiplier: 0.00295, constant: 0 },
-    ],
-    3: [
-      { threshold: 36100, multiplier: 0, constant: 86 },
-      { threshold: 17800, multiplier: 0.00136, constant: 37 },
-      { threshold: 0, multiplier: 0.003465, constant: 0 },
-    ],
+  quartet: {
+    flat: {
+      1: [
+        { threshold: 70300, multiplier: 0, constant: 145 },
+        { threshold: 34210, multiplier: 0.001194, constant: 61.08 },
+        { threshold: 0, multiplier: 0.002965, constant: 0.5 },
+      ],
+      2: [
+        { threshold: 32870, multiplier: 0, constant: 120 },
+        { threshold: 16050, multiplier: 0.00213, constant: 50 },
+        { threshold: 0, multiplier: 0.00512, constant: 2 },
+      ],
+      3: [
+        { threshold: 18670, multiplier: 0, constant: 98 },
+        { threshold: 9120, multiplier: 0.00308, constant: 40.5 },
+        { threshold: 0, multiplier: 0.00741, constant: 1 },
+      ],
+    },
+    skew: {
+      1: [
+        { threshold: 70750, multiplier: 0, constant: 182 },
+        { threshold: 34133, multiplier: 0.00148, constant: 77.3 },
+        { threshold: 0, multiplier: 0.00373, constant: 0.5 },
+      ],
+      2: [
+        { threshold: 32900, multiplier: 0, constant: 109 },
+        { threshold: 15970, multiplier: 0.0019, constant: 46.5 },
+        { threshold: 0, multiplier: 0.00475, constant: 1 },
+      ],
+      3: [
+        { threshold: 19570, multiplier: 0, constant: 73 },
+        { threshold: 9000, multiplier: 0.0023, constant: 30 },
+        { threshold: 0, multiplier: 0.0056, constant: 0 },
+      ],
+    },
   },
 };
 
-/** 最終オーディションのスコア→流行順位（1〜3）のステ素点 */
-export function niaFinaleStat(tag: NiaTag, rank: number, score: number): number {
-  const pieces = NIA_FINALE_STAT[tag][rank];
+/** 最終オーディションのタイプ別ステ上限（[流行順位-1]。式の上限値と同じ） */
+export const NIA_FINAL_CAPS: Record<NiaFinalKind, Record<NiaTag, readonly number[]>> = {
+  finale: { flat: [172, 142, 116], skew: [215, 129, 86] },
+  quartet: { flat: [145, 120, 98], skew: [182, 109, 73] },
+};
+
+/** オーディション（0=1次, 1=2次, 2=最終）のタイプ別ステ上限。最終は種類で変わる */
+export function niaAuditionCap(
+  tag: NiaTag,
+  index: number,
+  rank: number,
+  kind: NiaFinalKind = "finale",
+): number {
+  const caps = index === 2 ? NIA_FINAL_CAPS[kind][tag] : NIA_AUDITION_CAPS[tag]?.[index];
+  return caps?.[rank - 1] ?? Infinity;
+}
+
+/** 最終オーディションのスコア→流行順位（1〜3）のステ素点（種類＝FINALE／QUARTET） */
+export function niaFinaleStat(
+  tag: NiaTag,
+  rank: number,
+  score: number,
+  kind: NiaFinalKind = "finale",
+): number {
+  const pieces = NIA_FINAL_STAT[kind][tag][rank];
   return pieces ? evalPieces(pieces, score) : 0;
 }
 
-/** 最終オーディションのスコア→ファン投票数 */
+/**
+ * 最終オーディションのスコア→ファン投票数。上限は 49,002（オーナー提供）。
+ * 旧式は 1,200,582 で 32,668 に頭打ちだったが、実測の上限に合わせて上の直線を延長している
+ * （途中の実測が無いので暫定。約 516 万点で上限）。
+ */
 const NIA_FINALE_VOTES: readonly Piece[] = [
-  { threshold: 1200582, multiplier: 0, constant: 32668 },
+  { threshold: 5159146, multiplier: 0, constant: 49002 },
   { threshold: 640882, multiplier: 0.004126232489, constant: 27714.07 },
   { threshold: 260417, multiplier: 0.01821637749, constant: 18683.95 },
   { threshold: 0, multiplier: 0.07592333987, constant: 3656.17 },

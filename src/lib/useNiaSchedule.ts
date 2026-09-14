@@ -5,6 +5,7 @@ import {
   NIA_FINAL_SCORE_DEFAULT,
   NIA_LESSONS,
   NIA_SALES,
+  type NiaFinalKind,
 } from "@/data/scenarios";
 import { useSaveNotifier } from "./storeSync";
 import { roleToTypeFromCalcStorage } from "./useSchedule";
@@ -20,6 +21,7 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  *   （タイプごとに審査基準ランクの式でステ素点を導出。投票数は合計スコアから導出）
  * - finalStats: 最終オーディションの素点を直接入力するとき（null＝スコアから導出）。
  *   スコアは投票数の導出にだけ使う
+ * - finalKind: 最終オーディションの種類（FINALE／QUARTET。ステ換算の式と上限が変わる）
  * ※ 札（スキルカード獲得枚数）は発動回数セットの「スキル獲得」から取るためここには持たない
  * すべてタイプ直接紐づけ（ロール概念なし）。アイドル切替時は remapTypes で入れ替える。
  */
@@ -36,6 +38,7 @@ export type NiaState = {
   auditionVotes: number[];
   finalScores: Record<TypeKey, number>;
   finalStats: Record<TypeKey, number> | null;
+  finalKind: NiaFinalKind;
 };
 
 const DEFAULT_STATE: NiaState = {
@@ -51,6 +54,7 @@ const DEFAULT_STATE: NiaState = {
     visual: NIA_FINAL_SCORE_DEFAULT,
   },
   finalStats: null,
+  finalKind: "finale",
 };
 
 const isTypeKey = (v: unknown): v is TypeKey =>
@@ -123,6 +127,7 @@ export function loadNiaState(): NiaState {
           visual: orDefault(finalRaw.visual, NIA_FINAL_SCORE_DEFAULT),
         },
         finalStats: parseFinalStats(stored.finalStats),
+        finalKind: stored.finalKind === "quartet" ? "quartet" : "finale",
       };
     }
   } catch {
@@ -202,9 +207,14 @@ export function useNiaSchedule() {
     setState((prev) => ({
       ...prev,
       auditionVotes: prev.auditionVotes.map((v, i) =>
-        i === index ? Math.max(0, value) : v,
+        i === index ? Math.min(NIA_AUDITION_VOTE_MAX[index] ?? Infinity, Math.max(0, value)) : v,
       ),
     }));
+  }, []);
+
+  /** 最終オーディションの種類（FINALE／QUARTET） */
+  const setFinalKind = useCallback((finalKind: NiaFinalKind) => {
+    setState((prev) => ({ ...prev, finalKind }));
   }, []);
 
   const setFinalScore = useCallback((type: TypeKey, value: number) => {
@@ -316,6 +326,7 @@ export function useNiaSchedule() {
       ),
       finalScores: { ...DEFAULT_STATE.finalScores, ...snapshot.finalScores },
       finalStats: parseFinalStats(snapshot.finalStats),
+      finalKind: snapshot.finalKind === "quartet" ? "quartet" : "finale",
     });
   }, []);
 
@@ -331,6 +342,7 @@ export function useNiaSchedule() {
     setFinalScore,
     setFinalMode,
     setFinalStat,
+    setFinalKind,
     setFinalTotalScore,
     setPlan,
     remapTypes,

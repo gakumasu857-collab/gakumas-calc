@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   CalendarDays,
   Pencil,
@@ -114,21 +113,6 @@ export default function AbilityCountManager() {
 
   return (
     <div>
-      {/* このページの位置づけ: プロデュースごとのデフォルトの回数。編成後の実際の回数は計算ページで */}
-      <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-slate-700">
-        <b className="text-sm text-slate-900">
-          ここで決めるのは、プロデュース（発動回数セット）ごとの「デフォルトの回数」です。
-        </b>
-        <br />
-        サポカ編成を決めたあとの実際の回数（前イベ・後イベの上乗せや、この育成だけの調整）は、
-        <Link to="/calc" className="font-bold text-blue-700 underline">
-          計算ページ
-        </Link>
-        の「発動回数」ボタンで行います（そこで変えてもここのデフォルトは変わりません）。
-        <span className="ml-1 font-bold text-red-500">
-          ここにはサポカの前イベ・後イベによる発動分は含めないでください。
-        </span>
-      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p>
           {!selectedSet && (

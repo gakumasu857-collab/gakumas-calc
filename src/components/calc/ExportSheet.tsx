@@ -20,6 +20,7 @@ import {
   HATSU_EXAMS,
   HATSU_LESSONS,
   NIA_AUDITIONS,
+  NIA_FINAL_KIND_LABELS,
   NIA_LESSONS,
   NIA_SALES,
   SCENARIO_LABELS,
@@ -723,7 +724,7 @@ function NiaPlan({ r }: { r: CalcResult }) {
               fmt(nia.auditionVotes[i] ?? 0),
             ]),
             [
-              nia.finalStats ? "最終（ステ入力）" : "最終",
+              `最終 ${NIA_FINAL_KIND_LABELS[nia.finalKind]}${nia.finalStats ? "（ステ入力）" : ""}`,
               ...TYPE_KEYS.map((t) => fmt(r.niaAuditionBase[2]?.[t] ?? 0)),
               fmt(r.scenarioValues.votesFinale ?? 0),
             ],
