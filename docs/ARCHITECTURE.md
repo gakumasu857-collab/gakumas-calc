@@ -148,8 +148,9 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
 | `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇 Lv0〜5＝固定+20L・パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
+| `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算、初のレッスン・授業・試験換算 |
-| `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise` |
+| `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
 | `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
@@ -172,7 +173,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `optimizeReady.ts` | 探索ボタンを押せる条件（シナリオ・アイドル・Pアイドル・発動回数セット・メモリーが選ばれているか） |
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
 | `useSchedule.ts` | H.I.F. の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
-| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存 |
+| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存。N.I.A.の最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）。オーディションの素点はログの上昇幅（獲得ボーナス＋パラボ込み）から `niaAuditionBaseFromRise` で逆算できる |
 | `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
@@ -196,7 +197,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はヘルプの「プロデュースと発動回数」へ）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
+`calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はヘルプの「プロデュースと発動回数」へ）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.F.は H.I.F.ボーナスの「調整」→ `calc/HifBonusModal.tsx`、N.I.A.はチャレンジPアイテムの獲得ボーナスの「調整」→ `calc/NiaChallengeModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
@@ -214,7 +215,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
-| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」 |
+| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「ログの上昇幅（パラボ込み）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え |
 | `calc/AbilityCountDrawer.tsx` | 計算ページから開く発動回数エディタ |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |
@@ -603,7 +604,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:calc:memoryPathsDone:v1` | 廃止（メモリー選択のA/Bの枠をやめた。残っていても使わない） | — |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
 | `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
-| `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア） | `src/lib/useNiaSchedule.ts` |
+| `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア、最終の素点入力 finalStats） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:hatsuSchedule:v1` | 初の踏み方（レッスン、授業、中間／最終の順位とスコア） | `src/lib/useHatsuSchedule.ts` |
 | `gakumas:scenario:v1` | 選択中のシナリオ（`hif` / `niaMaster` / `hatsuLegend` の文字列） | `src/lib/useScenario.ts` |
 | `gakumas:memories:v1` | 保存したメモリー（テンプレは含まない） | `src/lib/useMemoryStore.ts` |

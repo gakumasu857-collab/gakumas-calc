@@ -163,6 +163,8 @@ export type AutoOptimizeInput = {
     examStats?: (ExamScores | null)[];
   };
   nia: NiaStateLike;
+  /** N.I.A.: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる。省略＝0） */
+  niaChallengePct?: number;
   hatsu: HatsuStateLike & { midScore: number; finalScore: number };
   /** メモリースロット4枚（パラボ追従は踏み方ごとにここから展開する） */
   memories: (Memory | undefined)[];
@@ -690,7 +692,7 @@ export class OptimizeEngine {
     }
     // NIAの固定部分（踏み方・編成で変わらない投票と、札のステ換算）
     if (input.scenario === "niaMaster") {
-      this.votesBase = computeNiaGains(input.nia, input.tag, input.ranks).votes
+      this.votesBase = computeNiaGains(input.nia, input.tag, input.ranks, input.niaChallengePct ?? 0).votes
         .base;
       this.fudaBase = input.manual("スキル獲得") ?? 0;
       this.extraScore = (cards) => {
@@ -1510,7 +1512,7 @@ export class OptimizeEngine {
         lessons: s.lessons,
         sales: s.sales,
       };
-      const g = computeNiaGains(state, input.tag, input.ranks);
+      const g = computeNiaGains(state, input.tag, input.ranks, input.niaChallengePct ?? 0);
       bd = g.breakdown;
       ctx = buildNiaScoreContext(
         state,
@@ -1518,6 +1520,7 @@ export class OptimizeEngine {
         input.eventCounts,
         input.tag,
         input.ranks,
+        input.niaChallengePct ?? 0,
       );
     } else {
       const state: HatsuStateLike = {

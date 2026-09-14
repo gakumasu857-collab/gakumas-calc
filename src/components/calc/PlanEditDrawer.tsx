@@ -36,6 +36,12 @@ import {
   hatsuLessonGains,
   hatsuLessonScoreCap,
 } from "@/data/scenarios";
+import {
+  niaAuditionBaseFromRise,
+  niaAuditionRise,
+  niaChallengeTotal,
+  normalizeNiaChallenge,
+} from "@/data/niaChallenge";
 import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { useOptimizePlan } from "@/lib/useOptimizePlan";
@@ -473,6 +479,28 @@ function NiaEditor({ r }: { r: CalcResult }) {
   const tag: NiaTag = r.ranks?.tag === "特化" ? "skew" : "flat";
   const capOf = (auditionIndex: number, type: TypeKey) =>
     NIA_AUDITION_CAPS[tag][auditionIndex][r.typeRanks[type] - 1];
+  const challengePct = niaChallengeTotal(normalizeNiaChallenge(r.calc.settings.niaChallenge));
+  /** 1次・2次・最終の素点（上限クランプ済み。最終はステ入力かスコアからの導出） */
+  const zero: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+  const base = [0, 1, 2].map((i) => r.niaAuditionBase[i] ?? zero);
+  /** 最終のスコアから導出した素点（「ステ」に切り替えたときの初期値） */
+  const finalDerived = Object.fromEntries(
+    TYPE_KEYS.map((t) => [t, niaFinaleStat(tag, r.typeRanks[t], nia.finalScores[t])]),
+  ) as Record<TypeKey, number>;
+  const finalTotal = TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
+  const modeBtn = (mode: "score" | "stat", label: string) => (
+    <button
+      type="button"
+      onClick={() => nia.setFinalMode(mode, finalDerived)}
+      className={`rounded-md px-2 py-0.5 text-[11px] font-bold transition ${
+        (nia.finalStats ? "stat" : "score") === mode
+          ? "bg-blue-600 text-white"
+          : "text-slate-500 hover:bg-slate-200"
+      }`}
+    >
+      {label}
+    </button>
+  );
   return (
     <div className="flex flex-col gap-4">
       <BulkRow
@@ -549,38 +577,23 @@ function NiaEditor({ r }: { r: CalcResult }) {
         />
       </div>
 
-      {/* オーディション（1次・2次の素点＋投票、最終のタイプ別スコア） */}
-      <Section title="オーディション（1次・2次は上がるステを入力 / 最終はスコアを入力）">
+      {/* オーディション（1次・2次は素点、最終はスコアか素点。素点はログの上昇幅からも逆算） */}
+      <Section title="オーディション（1次・2次はステを入力 / 最終はスコアかステ）">
+        <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
+          「ログの上昇幅（パラボ込み）」にゲームのログの値をそのまま入れると、今の編成のパラボ%と
+          チャレンジPアイテムの獲得ボーナス（設定欄で調整。今は合計+{challengePct}%）で元の素点に逆算します。
+          素点を直接打ち込んでもOK。最終は「スコア」（流行順位別の式で換算）と「ステ」を切り替えられます。
+        </p>
         <div className="flex flex-col divide-y divide-slate-200">
           {NIA_AUDITIONS.map((audition, i) => (
             <div
               key={audition.name}
               className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2"
             >
-              <span className="w-24 shrink-0 text-sm font-medium text-slate-800">
+              <span className="w-12 shrink-0 text-sm font-medium text-slate-800">
                 {audition.name}
-                <span className="ml-1 text-[10px] font-normal text-slate-400">
-                  ステ上昇
-                </span>
               </span>
-              {TYPE_KEYS.map((type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-1 text-xs text-slate-500"
-                >
-                  <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                    {TYPE_LABELS[type]}
-                  </span>
-                  <NumberField
-                    value={Math.min(nia.auditions[i][type], capOf(i, type))}
-                    onChange={(v) => nia.setAudition(i, type, v)}
-                    max={capOf(i, type)}
-                    className="w-16"
-                  />
-                  <span className="text-slate-400">/{capOf(i, type)}</span>
-                </label>
-              ))}
-              <label className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
+              <label className="flex items-center gap-1.5 text-xs text-slate-500">
                 投票
                 <NumberField
                   value={nia.auditionVotes[i]}
@@ -589,50 +602,81 @@ function NiaEditor({ r }: { r: CalcResult }) {
                   className="w-20"
                 />
               </label>
+              <AuditionStatRows
+                r={r}
+                challengePct={challengePct}
+                stats={base[i]}
+                capOf={(type) => capOf(i, type)}
+                onChange={(type, v) => nia.setAudition(i, type, v)}
+              />
             </div>
           ))}
-          <div className="flex flex-col gap-1 py-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <span className="w-24 shrink-0 text-sm font-medium text-slate-800">
-                最終
-                <span className="ml-1 text-[10px] font-normal text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+            <span className="w-12 shrink-0 text-sm font-medium text-slate-800">最終</span>
+            {/* 入力の切り替え（スコア／ステ） */}
+            <span className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+              {modeBtn("score", "スコア")}
+              {modeBtn("stat", "ステ")}
+            </span>
+            {nia.finalStats ? (
+              <>
+                {/* スコアは投票数の導出にだけ使う。ログの合計スコアをそのまま */}
+                <label className="flex items-center gap-1 text-xs text-slate-500">
                   スコア
-                </span>
-              </span>
-              {TYPE_KEYS.map((type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-1 text-xs text-slate-500"
-                >
-                  <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                    {TYPE_LABELS[type]}
-                  </span>
                   <NumberField
-                    value={nia.finalScores[type]}
-                    onChange={(v) => nia.setFinalScore(type, v)}
-                    sliderMax={500000}
+                    value={finalTotal}
+                    onChange={(v) => nia.setFinalTotalScore(v)}
+                    sliderMax={1500000}
                     className="w-24"
                   />
+                  <span className="text-slate-400">（投票数の計算にだけ使う）</span>
                 </label>
-              ))}
-            </div>
-            <div className="text-[11px] text-slate-500">
-              スコアから導出:{" "}
-              {TYPE_KEYS.map((type) => (
-                <span key={type} className="mr-2">
-                  <span className={`font-bold ${TYPE_STYLE[type].head}`}>
-                    {TYPE_LABELS[type]}
+                <AuditionStatRows
+                  r={r}
+                  challengePct={challengePct}
+                  stats={base[2]}
+                  capOf={(type) => capOf(2, type)}
+                  onChange={(type, v) => nia.setFinalStat(type, v)}
+                />
+              </>
+            ) : (
+              <>
+                {TYPE_KEYS.map((type) => (
+                  <label
+                    key={type}
+                    className="flex items-center gap-1 text-xs text-slate-500"
+                  >
+                    <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                      {TYPE_LABELS[type]}
+                    </span>
+                    <NumberField
+                      value={nia.finalScores[type]}
+                      onChange={(v) => nia.setFinalScore(type, v)}
+                      sliderMax={500000}
+                      className="w-24"
+                    />
+                  </label>
+                ))}
+                <span className="w-full text-[11px] text-slate-500">
+                  スコアから導出した素点:{" "}
+                  {TYPE_KEYS.map((type) => (
+                    <span key={type} className="mr-2">
+                      <span className={`font-bold ${TYPE_STYLE[type].head}`}>
+                        {TYPE_LABELS[type]}
+                      </span>
+                      +{base[2][type]}
+                    </span>
+                  ))}
+                  <span className="text-slate-400">
+                    （獲得ボーナス+{challengePct}%とパラボは別途上乗せ）
                   </span>
-                  +{niaFinaleStat(tag, r.typeRanks[type], nia.finalScores[type])}
                 </span>
-              ))}
-              <span className="text-slate-400">
-                / 投票 +
-                {niaFinaleVotes(
-                  TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0),
-                ).toLocaleString()}
-              </span>
-            </div>
+              </>
+            )}
+            <span className="w-full text-[11px] text-slate-500">
+              投票 +{niaFinaleVotes(finalTotal).toLocaleString()}（合計スコア{" "}
+              {finalTotal.toLocaleString()} から）
+            </span>
           </div>
         </div>
       </Section>
@@ -1018,7 +1062,13 @@ function NiaNumbers() {
           〜10万 ×0.06+1,600 ／ 〜12万 ×0.05+2,600 ／ 〜14万 ×0.04+3,800 ／ それ以上 ×0.03+5,200（切り捨て）
         </p>
         <p className="mt-1">札（スキルカード獲得）2枚ごとに+3,000票（端数の1枚は無効）。</p>
-        <p className="mt-1">最終オーディションはスコアからステ素点（流行順位別の式）と投票数を自動導出。</p>
+        <p className="mt-1">
+          最終オーディションはスコアからステ素点（流行順位別の式）と投票数を自動導出（「ステ」に切り替えて素点を直接入れることもできる）。
+        </p>
+        <p className="mt-1">
+          オーディションの素点にはチャレンジPアイテムの獲得ボーナス（3枠の合計%。設定欄の「チャレンジPアイテム」で調整）が掛かり、その上にパラボが掛かる
+          （素点 → 素点＋切り捨て(素点×獲得ボーナス) → パラボ）。
+        </p>
       </div>
     </>
   );
@@ -1260,6 +1310,73 @@ function MiniToggle({
     >
       {on ? onLabel : offLabel}
     </button>
+  );
+}
+
+/**
+ * N.I.A.のオーディションの素点入力（2段）。
+ * 上の段はゲームのログに出る上昇幅（獲得ボーナス＋パラボ込み）。入れると今の編成のパラボ%と
+ * チャレンジPアイテムの獲得ボーナス%で素点に逆算して保存する。
+ * 下の段は素点そのもの（計算に使う値。上限＝流行順位別の上限）。
+ */
+function AuditionStatRows({
+  r,
+  challengePct,
+  stats,
+  capOf,
+  onChange,
+}: {
+  r: CalcResult;
+  challengePct: number;
+  stats: Record<TypeKey, number>;
+  capOf: (type: TypeKey) => number;
+  onChange: (type: TypeKey, base: number) => void;
+}) {
+  return (
+    <>
+      <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
+          ログの上昇幅（パラボ込み）
+        </span>
+        {TYPE_KEYS.map((type) => {
+          const pct = r.paraboDetail[type].totalPct;
+          return (
+            <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
+              <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_LABELS[type]}</span>
+              <RiseField
+                value={niaAuditionRise(stats[type], challengePct, pct)}
+                onChange={(rise) =>
+                  onChange(
+                    type,
+                    Math.min(capOf(type), niaAuditionBaseFromRise(rise, challengePct, pct)),
+                  )
+                }
+              />
+              <span className="text-[10px] tabular-nums text-slate-400">
+                獲得+{challengePct}%・パラボ+{pct}%
+              </span>
+            </label>
+          );
+        })}
+      </span>
+      <span className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="w-40 shrink-0 text-[11px] font-bold text-slate-600">
+          素点（ボーナス・パラボ抜き）
+        </span>
+        {TYPE_KEYS.map((type) => (
+          <label key={type} className="flex items-center gap-1 text-xs text-slate-500">
+            <span className={`font-bold ${TYPE_STYLE[type].head}`}>{TYPE_LABELS[type]}</span>
+            <NumberField
+              value={stats[type]}
+              onChange={(v) => onChange(type, v)}
+              max={capOf(type)}
+              className="w-16"
+            />
+            <span className="text-slate-400">/{capOf(type)}</span>
+          </label>
+        ))}
+      </span>
+    </>
   );
 }
 

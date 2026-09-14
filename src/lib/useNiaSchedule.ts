@@ -14,10 +14,12 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  * N.I.A.（マスター）のスケジュール入力状態。
  * - lessons: 自主レッスン7回の踏みタイプ（単タイプ・サブなし）とSP有無
  * - sales: 営業7回。上げるタイプ＋営業先（リゾートか）＋大成功か
- * - auditions: 1次・2次オーディションのタイプ別「素点」（手入力）
+ * - auditions: 1次・2次オーディションのタイプ別「素点」（手入力。獲得ボーナス・パラボ抜き）
  * - auditionVotes: 1次・2次のファン投票数（手入力）
  * - finalScores: 最終オーディションのタイプ別スコア
  *   （タイプごとに審査基準ランクの式でステ素点を導出。投票数は合計スコアから導出）
+ * - finalStats: 最終オーディションの素点を直接入力するとき（null＝スコアから導出）。
+ *   スコアは投票数の導出にだけ使う
  * ※ 札（スキルカード獲得枚数）は発動回数セットの「スキル獲得」から取るためここには持たない
  * すべてタイプ直接紐づけ（ロール概念なし）。アイドル切替時は remapTypes で入れ替える。
  */
@@ -33,6 +35,7 @@ export type NiaState = {
   auditions: Record<TypeKey, number>[];
   auditionVotes: number[];
   finalScores: Record<TypeKey, number>;
+  finalStats: Record<TypeKey, number> | null;
 };
 
 const DEFAULT_STATE: NiaState = {
@@ -47,10 +50,23 @@ const DEFAULT_STATE: NiaState = {
     dance: NIA_FINAL_SCORE_DEFAULT,
     visual: NIA_FINAL_SCORE_DEFAULT,
   },
+  finalStats: null,
 };
 
 const isTypeKey = (v: unknown): v is TypeKey =>
   TYPE_KEYS.includes(v as TypeKey);
+
+/** 最終の素点入力（null か、3タイプの数値） */
+function parseFinalStats(raw: unknown): Record<TypeKey, number> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Partial<Record<TypeKey, unknown>>;
+  const out: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+  for (const type of TYPE_KEYS) {
+    const v = rec[type];
+    out[type] = typeof v === "number" && v > 0 ? Math.round(v) : 0;
+  }
+  return out;
+}
 
 /** localStorageから同期読み込み（旧ロール形式の移行込み） */
 export function loadNiaState(): NiaState {
@@ -106,6 +122,7 @@ export function loadNiaState(): NiaState {
           dance: orDefault(finalRaw.dance, NIA_FINAL_SCORE_DEFAULT),
           visual: orDefault(finalRaw.visual, NIA_FINAL_SCORE_DEFAULT),
         },
+        finalStats: parseFinalStats(stored.finalStats),
       };
     }
   } catch {
@@ -174,7 +191,7 @@ export function useNiaSchedule() {
       setState((prev) => ({
         ...prev,
         auditions: prev.auditions.map((a, i) =>
-          i === index ? { ...a, [type]: Math.max(0, value) } : a,
+          i === index ? { ...a, [type]: Math.max(0, Math.round(value)) } : a,
         ),
       }));
     },
@@ -195,6 +212,61 @@ export function useNiaSchedule() {
       ...prev,
       finalScores: { ...prev.finalScores, [type]: Math.max(0, value) },
     }));
+  }, []);
+
+  /**
+   * 最終の入力方法の切り替え。"stat" にするときは初期値（今のスコアから導出した素点）を渡す。
+   * "score" に戻すとスコアからの導出に戻る（スコアは残っている）。
+   */
+  const setFinalMode = useCallback(
+    (mode: "score" | "stat", initial?: Record<TypeKey, number>) => {
+      setState((prev) => ({
+        ...prev,
+        finalStats:
+          mode === "score"
+            ? null
+            : (prev.finalStats ?? initial ?? { vocal: 0, dance: 0, visual: 0 }),
+      }));
+    },
+    [],
+  );
+
+  /** 最終の素点を直接入力（ステ入力のとき） */
+  const setFinalStat = useCallback((type: TypeKey, value: number) => {
+    setState((prev) => ({
+      ...prev,
+      finalStats: {
+        ...(prev.finalStats ?? { vocal: 0, dance: 0, visual: 0 }),
+        [type]: Math.max(0, Math.round(value)),
+      },
+    }));
+  }, []);
+
+  /**
+   * 最終の合計スコアだけを変える（ステ入力のとき、投票数の導出用）。
+   * タイプ別の内訳は今の比率を保つ（内訳が0なら素点が一番大きいタイプに入れる）。
+   */
+  const setFinalTotalScore = useCallback((total: number) => {
+    setState((prev) => {
+      const t = Math.max(0, Math.round(total));
+      const cur = TYPE_KEYS.reduce((sum, k) => sum + prev.finalScores[k], 0);
+      const next: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+      if (cur <= 0) {
+        const st = prev.finalStats;
+        const top = st ? TYPE_KEYS.reduce((a, b) => (st[b] > st[a] ? b : a)) : "vocal";
+        next[top] = t;
+        return { ...prev, finalScores: next };
+      }
+      let used = 0;
+      TYPE_KEYS.forEach((k, idx) => {
+        next[k] =
+          idx === TYPE_KEYS.length - 1
+            ? t - used
+            : Math.floor((prev.finalScores[k] * t) / cur);
+        used += next[k];
+      });
+      return { ...prev, finalScores: next };
+    });
   }, []);
 
   /** 踏み方・営業の一括適用（全自動最適化用） */
@@ -221,12 +293,14 @@ export function useNiaSchedule() {
       sales: prev.sales.map((s) => ({ ...s, type: map[s.type] })),
       auditions: prev.auditions.map(remapRecord),
       finalScores: remapRecord(prev.finalScores),
+      finalStats: prev.finalStats ? remapRecord(prev.finalStats) : null,
     }));
   }, []);
 
   /**
    * 入力状態をまるごと置き換える（セーブデータの読み込み用）。
    * マスタの件数が保存時と違っても壊れないよう、現行の件数に合わせて詰め直す。
+   * 旧セーブ（finalStats 無し）はスコアからの導出。
    */
   const replaceAll = useCallback((snapshot: NiaState) => {
     setState({
@@ -241,6 +315,7 @@ export function useNiaSchedule() {
         (_, i) => snapshot.auditionVotes[i] ?? DEFAULT_STATE.auditionVotes[i],
       ),
       finalScores: { ...DEFAULT_STATE.finalScores, ...snapshot.finalScores },
+      finalStats: parseFinalStats(snapshot.finalStats),
     });
   }, []);
 
@@ -254,6 +329,9 @@ export function useNiaSchedule() {
     setAudition,
     setAuditionVotes,
     setFinalScore,
+    setFinalMode,
+    setFinalStat,
+    setFinalTotalScore,
     setPlan,
     remapTypes,
     replaceAll,

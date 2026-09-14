@@ -44,6 +44,7 @@ import {
   buildNiaScoreContext,
   computeHatsuGains,
   computeNiaGains,
+  niaAuditionBaseStats,
   DEFAULT_RANKS,
   type TypeRanks,
 } from "./scenarioGains";
@@ -66,6 +67,7 @@ import { useHatsuSchedule } from "./useHatsuSchedule";
 import { useMemoryStore } from "./useMemoryStore";
 import { hifBonusValues } from "@/data/hifBonus";
 import { useNiaSchedule } from "./useNiaSchedule";
+import { niaChallengeTotal } from "@/data/niaChallenge";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
 import { useScenario } from "./useScenario";
@@ -159,21 +161,25 @@ export function useCalcResult() {
     let schedGains: Record<TypeKey, number>;
     let hifStar = { lessonStar: 0, examStar: 0 };
     let niaVotesBase = { sales: 0, auditions: 0, finale: 0, base: 0 };
+    // N.I.A.: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる）
+    const niaChallengePct = niaChallengeTotal(settings.niaChallenge);
+    let niaAuditionBase: Record<TypeKey, number>[] = [];
     let ctx;
     // レッスン由来のPポイント合計と、タイプ別「メイン踏み×SP」のPポイント（P率の母数）
     let lessonP = 0;
     const typeSpP: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     if (scenario === "niaMaster") {
-      const nia = computeNiaGains(niaSchedule, niaTag, typeRanks);
+      const nia = computeNiaGains(niaSchedule, niaTag, typeRanks, niaChallengePct);
       bd = nia.breakdown;
       schedGains = nia.gains;
       niaVotesBase = nia.votes;
+      niaAuditionBase = niaAuditionBaseStats(niaSchedule, niaTag, typeRanks);
       lessonP = nia.pPoints;
       NIA_LESSONS.forEach((lesson, i) => {
         const pick = niaSchedule.lessons[i];
         if (pick?.sp && pick.main) typeSpP[pick.main] += lesson.p;
       });
-      ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks);
+      ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks, niaChallengePct);
     } else if (scenario === "hatsuLegend") {
       const hatsu = computeHatsuGains(hatsuSchedule);
       bd = hatsu.breakdown;
@@ -590,6 +596,10 @@ export function useCalcResult() {
       paraboDetail: adj,
       // NIAの理想編成用（他シナリオではundefined）
       niaFudaExtra,
+      /** N.I.A.: オーディション（1次・2次・最終）のタイプ別素点（上限クランプ済み・獲得ボーナス前）。他シナリオでは空 */
+      niaAuditionBase,
+      /** N.I.A.: チャレンジPアイテムの獲得ボーナス合計% */
+      niaChallengePct,
     };
   }, [
     settings,

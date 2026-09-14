@@ -38,6 +38,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
       auditions: r.niaSchedule.auditions,
       auditionVotes: r.niaSchedule.auditionVotes,
       finalScores: r.niaSchedule.finalScores,
+      finalStats: r.niaSchedule.finalStats,
     },
     hatsu: {
       lessons: r.hatsuSchedule.lessons,

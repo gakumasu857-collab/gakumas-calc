@@ -30,6 +30,7 @@ import { sumEventContrib } from "@/lib/formation";
 import { clampExtraCount } from "@/lib/sheetScore";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
+import { normalizeNiaChallenge } from "@/data/niaChallenge";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
@@ -711,12 +712,27 @@ function NiaPlan({ r }: { r: CalcResult }) {
           ])}
         />
         <PlanTable
-          head={["オーディション", "獲得票"]}
-          rows={NIA_AUDITIONS.map((a, i) => [
-            a.name,
-            fmt(nia.auditionVotes[i] ?? 0),
-          ])}
+          head={["オーディション", "Vo素点", "Da素点", "Vi素点", "獲得票"]}
+          rows={[
+            ...NIA_AUDITIONS.map((a, i) => [
+              a.name,
+              ...TYPE_KEYS.map((t) => fmt(r.niaAuditionBase[i]?.[t] ?? 0)),
+              fmt(nia.auditionVotes[i] ?? 0),
+            ]),
+            [
+              nia.finalStats ? "最終（ステ入力）" : "最終",
+              ...TYPE_KEYS.map((t) => fmt(r.niaAuditionBase[2]?.[t] ?? 0)),
+              fmt(r.scenarioValues.votesFinale ?? 0),
+            ],
+          ]}
         />
+      </div>
+      <div style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
+        チャレンジPアイテムの獲得ボーナス:{" "}
+        {normalizeNiaChallenge(r.calc.settings.niaChallenge)
+          .map((v) => (v === 0 ? "無" : `${v}%`))
+          .join("＋")}
+        ＝+{r.niaChallengePct}%（オーディションの素点に掛かる。その上にパラボ）
       </div>
     </div>
   );

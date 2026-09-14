@@ -10,6 +10,7 @@ import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
 import { BTN_SECONDARY, BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { hifBonusValues, isHifBonusMax } from "@/data/hifBonus";
+import { isNiaChallengeMax, niaChallengeTotal, normalizeNiaChallenge } from "@/data/niaChallenge";
 import { GLOSSARY } from "@/lib/glossary";
 import { readOwnershipAck, readOwnershipVisited } from "@/lib/ownershipAck";
 import type { useCalcResult } from "@/lib/useCalcResult";
@@ -44,6 +45,7 @@ export default function PremiseCard({
   onOpenMemory,
   onOpenIdolTraining,
   onOpenHifBonus,
+  onOpenNiaChallenge,
 }: {
   r: CalcResult;
   onOpenScenario: () => void;
@@ -53,6 +55,8 @@ export default function PremiseCard({
   onOpenIdolTraining: () => void;
   /** H.I.F.ボーナスの調整モーダルを開く（H.I.F.のとき） */
   onOpenHifBonus: () => void;
+  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
+  onOpenNiaChallenge: () => void;
 }) {
   const { settings } = r.calc;
   const memoryCount = r.memoryStore.count;
@@ -148,7 +152,11 @@ export default function PremiseCard({
         </div>
 
         {/* 本戦・試験の点数（シナリオ別） */}
-        <ScenarioScoreCard r={r} onOpenHifBonus={onOpenHifBonus} />
+        <ScenarioScoreCard
+          r={r}
+          onOpenHifBonus={onOpenHifBonus}
+          onOpenNiaChallenge={onOpenNiaChallenge}
+        />
       </div>
     </section>
   );
@@ -261,9 +269,12 @@ function SettingSub({
 function ScenarioScoreCard({
   r,
   onOpenHifBonus,
+  onOpenNiaChallenge,
 }: {
   r: CalcResult;
   onOpenHifBonus: () => void;
+  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
+  onOpenNiaChallenge: () => void;
 }) {
   const { calc } = r;
   const { settings } = calc;
@@ -326,6 +337,7 @@ function ScenarioScoreCard({
           ＋サポカ分 {r.scenarioValues.supportFuda ?? 0}
           枚（編成のスキル獲得から自動）。2枚ごとに3,000票、余りの1枚は無効。
         </p>
+        <NiaChallengeRow r={r} onOpen={onOpenNiaChallenge} />
       </SettingSub>
     );
   }
@@ -376,6 +388,25 @@ function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
         {max
           ? "全部最大（固定+100・パラボ+10%・SP率+5%・本戦上限3200）"
           : `Vo Lv${b.levels.vocal}・Da Lv${b.levels.dance}・Vi Lv${b.levels.visual}・SP率 Lv${b.levels.spRate}・本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+      </span>
+      <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
+        調整
+      </button>
+    </div>
+  );
+}
+
+/** チャレンジPアイテムの獲得ボーナス（N.I.A.。既定は各枠の最大）の要約と「調整」 */
+function NiaChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
+  const c = normalizeNiaChallenge(r.calc.settings.niaChallenge);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+      <span className="font-bold text-slate-700">チャレンジPアイテム</span>
+      <span>
+        獲得ボーナス {c.map((v) => (v === 0 ? "無" : `${v}%`)).join("＋")}＝
+        <b className="text-slate-800">+{niaChallengeTotal(c)}%</b>
+        {isNiaChallengeMax(c) ? "（全部最大）" : ""}
+        <span className="text-slate-400">（オーディションのステ上昇に掛かる）</span>
       </span>
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
         調整

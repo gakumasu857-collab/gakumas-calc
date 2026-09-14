@@ -16,6 +16,7 @@ import {
   type NiaTag,
   hatsuLessonGains,
 } from "@/data/scenarios";
+import { niaChallengeApply } from "@/data/niaChallenge";
 import { TYPE_SHEET_ROLE, typeLessonCounts } from "./sheetContext";
 import {
   buildCountResolver,
@@ -58,6 +59,8 @@ export type NiaStateLike = {
   auditions: Record<TypeKey, number>[];
   auditionVotes: number[];
   finalScores: Record<TypeKey, number>;
+  /** 最終オーディションの素点を直接入力するとき（null／省略＝スコアから導出） */
+  finalStats?: Record<TypeKey, number> | null;
 };
 
 /**
@@ -75,6 +78,31 @@ export function niaFinaleStats(
     out[type] = niaFinaleStat(tag, ranks[type], state.finalScores[type]);
   }
   return out;
+}
+
+/**
+ * 最終オーディションのタイプ別素点（計算に使う値）。
+ * ステ入力（finalStats）があればそれを上限でクランプ、無ければスコアから導出。
+ */
+export function niaFinaleBaseStats(
+  state: Pick<NiaStateLike, "finalScores" | "finalStats">,
+  ranks: TypeRanks,
+  tag: NiaTag,
+): Record<TypeKey, number> {
+  if (state.finalStats) return clampAudition(state.finalStats, 2, tag, ranks);
+  return niaFinaleStats(state, ranks, tag);
+}
+
+/** オーディション（1次・2次・最終）のタイプ別素点（上限クランプ済み・獲得ボーナス前）。表示用 */
+export function niaAuditionBaseStats(
+  state: NiaStateLike,
+  tag: NiaTag,
+  ranks: TypeRanks,
+): Record<TypeKey, number>[] {
+  return [
+    ...state.auditions.map((a, i) => clampAudition(a, i, tag, ranks)),
+    niaFinaleBaseStats(state, ranks, tag),
+  ];
 }
 
 /** 最終オーディションの合計スコア（ファン投票数の導出元） */
@@ -95,13 +123,15 @@ export type HatsuStateLike = {
  * N.I.A.の素の獲得量集計。
  * - lessons: 自主レッスン（選んだタイプのみ・パラボ有効）
  * - classes: 営業（授業と同じく選んだ1タイプのみ・パラボ無効）
- * - exams: 1次・2次オーディション素点（手入力）＋最終（スコアから導出）。パラボ有効
+ * - exams: 1次・2次オーディション素点（手入力）＋最終（スコアから導出、またはステ入力）に
+ *   チャレンジPアイテムの獲得ボーナス（challengePct）を乗せた値。パラボ有効
  * - votes: ファン投票数の内訳（営業＋1次・2次手入力＋最終導出。札は呼び出し側で加算）
  */
 export function computeNiaGains(
   state: NiaStateLike,
   tag: NiaTag,
   ranks: TypeRanks,
+  challengePct = 0,
 ) {
   const lessons = zeroGains();
   const classes = zeroGains();
@@ -122,10 +152,10 @@ export function computeNiaGains(
   });
   state.auditions.forEach((audition, i) => {
     const clamped = clampAudition(audition, i, tag, ranks);
-    for (const type of TYPE_KEYS) exams[type] += clamped[type];
+    for (const type of TYPE_KEYS) exams[type] += niaChallengeApply(clamped[type], challengePct);
   });
-  const finale = niaFinaleStats(state, ranks, tag);
-  for (const type of TYPE_KEYS) exams[type] += finale[type];
+  const finale = niaFinaleBaseStats(state, ranks, tag);
+  for (const type of TYPE_KEYS) exams[type] += niaChallengeApply(finale[type], challengePct);
 
   const gains = zeroGains();
   for (const type of TYPE_KEYS) {
@@ -185,7 +215,7 @@ export function computeHatsuGains(state: HatsuStateLike) {
 
 /**
  * N.I.A.用の sheetScore コンテキスト。
- * パラボ母数 = タイプの自主レッスン獲得＋オーディション素点（最終はスコア導出）。
+ * パラボ母数 = タイプの自主レッスン獲得＋オーディション素点（最終はスコア導出またはステ入力。獲得ボーナス込み）。
  */
 export function buildNiaScoreContext(
   state: NiaStateLike,
@@ -193,9 +223,10 @@ export function buildNiaScoreContext(
   eventCounts: SheetScoreContext["eventCounts"] | undefined,
   tag: NiaTag,
   ranks: TypeRanks,
+  challengePct = 0,
 ): SheetScoreContext {
   const lessonCounts = typeLessonCounts(state.lessons);
-  const finale = niaFinaleStats(state, ranks, tag);
+  const finale = niaFinaleBaseStats(state, ranks, tag);
 
   const clampedAuditions = state.auditions.map((a, i) =>
     clampAudition(a, i, tag, ranks),
@@ -207,7 +238,10 @@ export function buildNiaScoreContext(
         const pick = state.lessons[i];
         return pick.main === type ? lesson.value[pick.sp ? 1 : 0] : 0;
       }),
-      exams: [...clampedAuditions.map((a) => a[type]), finale[type]],
+      exams: [
+        ...clampedAuditions.map((a) => niaChallengeApply(a[type], challengePct)),
+        niaChallengeApply(finale[type], challengePct),
+      ],
     };
   }
 

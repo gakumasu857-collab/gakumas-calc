@@ -15,6 +15,7 @@ import { abilityMax, DEFAULT_SETS } from "@/data/abilityCounts";
 import type { AbilityName } from "@/data/constants";
 import { CLASSES, EXAMS, LESSONS } from "@/data/schedule";
 import { hifBonusValues } from "@/data/hifBonus";
+import { niaChallengeTotal, normalizeNiaChallenge } from "@/data/niaChallenge";
 import { SCENARIO_CAPS, type ScenarioKey } from "@/data/scenarios";
 import {
   OptimizeEngine,
@@ -89,6 +90,12 @@ export function buildInput(): AutoOptimizeInput {
   const hifBonus = hifBonusValues(
     loadJson<{ hifBonus?: Parameters<typeof hifBonusValues>[0] }>("gakumas:calcSettings:v1", {})
       .hifBonus,
+  );
+  // チャレンジPアイテムの獲得ボーナス（計算ページの設定。無ければ最大）
+  const niaChallengePct = niaChallengeTotal(
+    normalizeNiaChallenge(
+      loadJson<{ niaChallenge?: unknown }>("gakumas:calcSettings:v1", {}).niaChallenge,
+    ),
   );
   const hif = loadHifState();
 
@@ -190,6 +197,7 @@ export function buildInput(): AutoOptimizeInput {
     plan: pMaster?.plan ?? null,
     statCap: scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario],
     hifBonus,
+    niaChallengePct,
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),
     manual,

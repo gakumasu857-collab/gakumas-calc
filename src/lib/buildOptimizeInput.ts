@@ -3,6 +3,7 @@
  * 計算ページと /debug で同じ入力を使うため共通化している。
  */
 import { hifBonusValues } from "@/data/hifBonus";
+import { niaChallengeTotal } from "@/data/niaChallenge";
 import type { AutoOptimizeInput } from "./autoOptimize";
 import { examStyleTags, type CardFlagSets } from "./formation";
 import { IDOL_RANKS } from "./pIdol";
@@ -57,6 +58,7 @@ export function buildAutoOptimizeInput(
       examStats: r.schedule.examStats,
     },
     nia: r.niaSchedule,
+    niaChallengePct: niaChallengeTotal(r.calc.settings.niaChallenge),
     hatsu: r.hatsuSchedule,
     memories: r.memoryStore.slotMemories.map((m) => m ?? undefined),
     pStats: r.pStats,
