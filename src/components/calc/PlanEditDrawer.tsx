@@ -1,6 +1,5 @@
 /**
- * 計算ページの操作パネル「レッスン等の踏み方」から左の引き出しで開く、レッスン・授業（営業）・選抜エディタ
- * （右側の評価値・ステータスを見ながら変えられる）。
+ * 計算ページの左端タブ「レッスン等の踏み方」（か踏み方チップ）から開く、レッスン・授業（営業）・選抜エディタ。
  * レッスンページと同じストアを共有していて、どちらで編集しても同期する。
  * シナリオごとに内容が変わる:
  * - H.I.F.: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
@@ -103,7 +102,7 @@ export default function PlanEditDrawer({
   return (
     <>
       {open && (
-        <Modal title={title} onClose={onClose} widthClass="max-w-3xl" side="left">
+        <Modal title={title} onClose={onClose} widthClass="max-w-4xl">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               type="button"

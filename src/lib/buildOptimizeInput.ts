@@ -93,6 +93,7 @@ export function buildAutoOptimizeInput(
     noStageItems: settings.noStageItems,
     minStats: settings.minStats,
     maxStats: settings.maxStats,
+    statOrder: settings.statOrder,
     round1: settings.round1,
     round2: settings.round2,
   };

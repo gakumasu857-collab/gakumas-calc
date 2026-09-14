@@ -31,7 +31,7 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
     title: "サポカ設定",
     element: <CardSettingsPage />,
   },
-  { path: "/card-scores", title: "サポカ点数表", element: <CardScoreTable /> },
+  { path: "/card-scores", title: "点数表", element: <CardScoreTable /> },
   { path: "/database", title: "データベース", element: <DatabasePage /> },
   { path: "/help", title: "ヘルプ", element: <HelpPage /> },
   { path: "/debug", title: "デバッグ", element: <DebugPage /> },

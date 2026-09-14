@@ -226,6 +226,7 @@ export function buildInput(): AutoOptimizeInput {
     })(),
     // 上位タイプのSP率持ち条件は候補の踏み方ごとに解決する（アプリと同じ）
     spTop: { first: settings.spTop.first, second: settings.spTop.second },
+    statOrder: settings.statOrder ?? null,
     // 今の編成（アプリは選択サポカ。ベンチは gakumas:selectedSupports:v1 があれば）
     currentSlots: (() => {
       const raw = loadJson<unknown>("gakumas:selectedSupports:v1", null);

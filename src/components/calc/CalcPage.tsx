@@ -12,6 +12,8 @@ import NiaChallengeModal from "@/components/calc/NiaChallengeModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PIdolTrainingModal from "@/components/calc/PIdolTrainingModal";
+import PIdolUnownedModal from "@/components/calc/PIdolUnownedModal";
+import SideTabs from "@/components/calc/SideTabs";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import PremiseCard from "@/components/calc/PremiseCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
@@ -43,8 +45,7 @@ import {
   scoreOwnedCards,
   scoreRentalCandidates,
   sumEventContrib,
-  typeConstraintFromRatio,
-} from "@/lib/formation";
+  typeConstraintFromRatio, planAllows } from "@/lib/formation";
 import {
   conditionChips as conditionChipsOf,
   currentMeetsConditions as meetsConditions,
@@ -76,6 +77,23 @@ const SUPPORT_IMAGE_BY_ID = new Map(
   SUPPORT_CATALOG.map((c) => [c.id, c.image]),
 );
 /** 一度でも探索を押したか（押すまでは、前提がそろったらボタンの上に動く矢印を出す） */
+/** 左端タブの案内（初めて探索したあとの吹き出し）を見た（タブを押した／「わかった」）ことの記憶 */
+const SIDE_SEEN_KEY = "gakumas:calc:sideTabsSeen:v1";
+const readSideSeen = (): boolean => {
+  try {
+    return localStorage.getItem(SIDE_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const writeSideSeen = () => {
+  try {
+    localStorage.setItem(SIDE_SEEN_KEY, "1");
+  } catch {
+    // 保存できなくても動作に支障なし
+  }
+};
+
 const EVER_RUN_KEY = "gakumas:calc:everRun:v1";
 const readEverRun = (): boolean => {
   try {
@@ -130,6 +148,10 @@ export default function CalcPage() {
   const [hifBonusOpen, setHifBonusOpen] = useState(false);
   /** チャレンジPアイテムの獲得ボーナスのモーダル（設定欄のファン投票数の下から。N.I.A.） */
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
+  /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
+  const [pIdolWarn, setPIdolWarn] = useState<(() => void) | null>(null);
+  /** 左端タブの案内（初めて探索したあと、タブを押すか「わかった」まで） */
+  const [sideHint, setSideHint] = useState<boolean>(() => readEverRun() && !readSideSeen());
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
@@ -140,6 +162,13 @@ export default function CalcPage() {
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
+    // 初めての探索のあとに左端タブ（踏み方・発動回数）を案内する
+    if (!readSideSeen()) setSideHint(true);
+  };
+  const dismissSideHint = () => {
+    if (!sideHint) return;
+    setSideHint(false);
+    writeSideSeen();
   };
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
@@ -432,7 +461,16 @@ export default function CalcPage() {
   }).length;
 
   /** 主役ボタン（所持状況は「設定欄」の欄で見せているので、確認は挟まない） */
-  const requestAutoOptimize = () => runAutoOptimize();
+  /** 選んでいるPアイドルが所持状況で未所持なら、探索の前に注意を出す（直すか、そのまま進むか） */
+  const guardPIdol = (run: () => void) => {
+    if (r.pMaster && !r.ownership) setPIdolWarn(() => run);
+    else run();
+  };
+  const requestAutoOptimize = () => guardPIdol(runAutoOptimize);
+  /** プラン外のサポカが入っているか（画像出力は不可にする） */
+  const outOfPlan = r.members.some(
+    (m) => m !== null && !planAllows(SUPPORT_CARD_DB.find((c) => c.id === m.id)?.plan ?? "", r.plan),
+  );
 
   const anyBusy = optBusy || idealBusy || planOpt.busy;
   const runPlanOnly = () => {
@@ -453,14 +491,14 @@ export default function CalcPage() {
       showArrow={optimizeReady && !everRun}
       status={lastRun}
       onRun={requestAutoOptimize}
-      onFormationOnly={applyIdealFormation}
+      onFormationOnly={() => guardPIdol(applyIdealFormation)}
       onPlanOnly={runPlanOnly}
       onConditions={() => setTheoryOpen(true)}
     />
   );
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 pl-9 sm:pl-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:pl-6 2xl:pl-0">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -560,7 +598,6 @@ export default function CalcPage() {
           onOpenSlot={(i) => setPickerSlot(i)}
           onDetail={(m) => setDetail(m)}
           onEditPlan={() => setPlanOpen(true)}
-          onEditCounts={() => setCountsOpen(true)}
           onClearAll={() => selected.clearAll()}
           onOpenParabo={() => setParaboOpen(true)}
         >
@@ -648,20 +685,29 @@ export default function CalcPage() {
                     />
                     <button
                       type="button"
-                      disabled={exportBusy}
+                      disabled={exportBusy || outOfPlan}
                       onClick={() => {
-                        if (exportBusy) return;
+                        if (exportBusy || outOfPlan) return;
                         setExportBusy(true);
                         void exportSheetImage(r, flags.pinned).finally(() =>
                           setExportBusy(false),
                         );
                       }}
-                      title="今の計算（評価値・ステ・サポカ・レッスン・発動回数など）を1枚の画像にして保存します"
-                      className={BTN_SECONDARY}
+                      title={
+                        outOfPlan
+                          ? "プラン外のサポカが入っているので画像に出力できません"
+                          : "今の計算（評価値・ステ・サポカ・レッスン・発動回数など）を1枚の画像にして保存します"
+                      }
+                      className={`${BTN_SECONDARY} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       <ImageDown size={13} />
                       {exportBusy ? "出力中…" : "画像に出力"}
                     </button>
+                    {outOfPlan && (
+                      <span className="w-full text-center text-[11px] font-semibold text-red-600">
+                        プラン外のサポカが入っているので画像に出力できません
+                      </span>
+                    )}
                   </div>
                 </>
               )}
@@ -773,7 +819,7 @@ export default function CalcPage() {
 
       {/* メモリーを計算ページ内で選ぶ */}
       {memoryOpen && (
-        <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} />
+        <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} showTemplate={!everRun} />
       )}
 
       {/* セーブデータ・画像保存 */}
@@ -783,7 +829,36 @@ export default function CalcPage() {
         </Modal>
       )}
 
-      {/* 発動回数・踏み方のエディタ（「サポカ編成と踏み方」から開く） */}
+      {/* 左端のタブ（上＝発動回数・下＝レッスン等の踏み方）。初めて探索したあとは吹き出しで案内 */}
+      <SideTabs
+        onOpenCounts={() => setCountsOpen(true)}
+        onOpenPlan={() => setPlanOpen(true)}
+        countsTitle={
+          r.selectedSet
+            ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
+            : "プロデュースを選ぶと調整できます"
+        }
+        highlight={sideHint}
+        onDismissHighlight={dismissSideHint}
+      />
+      {/* 探索の前の注意: 選んでいるPアイドルが未所持 */}
+      {pIdolWarn && r.pMaster && (
+        <PIdolUnownedModal
+          name={r.pMaster.cardName}
+          onFix={() => {
+            setPIdolWarn(null);
+            setTrainingOpen(true);
+          }}
+          onProceed={() => {
+            const run = pIdolWarn;
+            setPIdolWarn(null);
+            run();
+          }}
+          onClose={() => setPIdolWarn(null)}
+        />
+      )}
+
+      {/* 発動回数・踏み方のエディタ（左端のタブか踏み方チップから開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
     </div>

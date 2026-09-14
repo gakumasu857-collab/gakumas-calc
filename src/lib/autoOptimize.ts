@@ -55,6 +55,7 @@ import {
   typeRatioShortfall,
   RATIO_PENALTY,
   SP_PENALTY,
+  statOrderShortfall,
   spConditionShortfall,
   scoreOwnedCards,
   scoreRentalCandidates,
@@ -220,6 +221,8 @@ export type AutoOptimizeInput = {
    * 「この属性はこれ以上盛らない」の指定（デフォルト3200=制限なし）。
    */
   maxStats?: Record<TypeKey, number>;
+  /** 育成後のステータスをこの順（高い→低い）にする。必須条件（違反した候補は勝たせない） */
+  statOrder?: TypeKey[] | null;
   /** H.I.F.の評価値の固定部分（本戦。ワッペンは札取得回数から自動算出） */
   round1: number;
   round2: number;
@@ -1681,6 +1684,8 @@ export class OptimizeEngine {
       spConditionShortfall(members, ectx.spMin) * SP_PENALTY -
       // サポカ編成のタイプ割合は必須条件（違反した候補はどの段階でも勝たせない）
       typeRatioShortfall(members, this.ratioCons) * RATIO_PENALTY -
+      // ステの高さの順（指定があれば必須条件）
+      statOrderShortfall(stats, this.input.statOrder) * RATIO_PENALTY -
       // 固定カードも必須条件。ビームは最初に投入するが、「今の編成」の候補や
       // 1枚入れ替え・組み直しで外れた候補が勝たないよう目的関数でも弾く
       this.pinnedShortfall(members) * RATIO_PENALTY;

@@ -1,3 +1,4 @@
+import { statOrderShortfall } from "./formation";
 /**
  * 今の編成が「探索の必須条件」を満たしているかの判定と、評価値の下に出す条件チップ。
  *
@@ -99,6 +100,10 @@ export function formationIssues(input: ConditionInput): string[] {
       if (sum >= 6 ? counts[t] !== want : counts[t] < want)
         issues.push(`タイプ割合（${TYPE_JA[t]}が${counts[t]}枚）`);
     }
+  }
+  // ステの高さの順（育成後ステ・上限適用後で判定）
+  if (settings.statOrder && statOrderShortfall(input.capped, settings.statOrder) > 0) {
+    issues.push(`ステの順（${settings.statOrder.map((t) => TYPE_JA[t]).join("＞")}）を満たしていない`);
   }
   for (const t of TYPE_KEYS) {
     const stat = input.capped[t];

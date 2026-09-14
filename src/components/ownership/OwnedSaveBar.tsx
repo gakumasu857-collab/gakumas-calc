@@ -71,7 +71,7 @@ export default function OwnedSaveBar({
   /** 所持ストアへ読み込む（使用中を切り替えた直後に呼ぶ） */
   const loadInto = (save: OwnedSave) => {
     levels.replaceAll(save.levels, save.cardCount);
-    if (save.pIdols) pIdols.replaceAll(save.pIdols);
+    if (save.pIdols) pIdols.replaceAll(save.pIdols, save.pIdolCount);
   };
 
   const doCreate = () => {

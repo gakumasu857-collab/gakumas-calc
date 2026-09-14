@@ -77,10 +77,9 @@ export default function AbilityCountDrawer({
                 : undefined
             }
             onClose={() => onClose()}
-            side="left"
           />
         ) : (
-          <Modal title="発動回数" onClose={() => onClose()} side="left" widthClass="max-w-md">
+          <Modal title="発動回数" onClose={() => onClose()}>
             <p className="text-sm text-slate-600">
               プロデュースが未選択です。「設定欄」のプロデュースで選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">

@@ -70,7 +70,7 @@ export default function OwnershipField({
       // 先に使用中を切り替えてから読み込む（読み込み直後の自動保存が新しい先へ向くように）
       owned.setActiveSlot(id);
       r.ownedLevels.replaceAll(target.levels, target.cardCount);
-      if (target.pIdols) r.pIdols.replaceAll(target.pIdols);
+      if (target.pIdols) r.pIdols.replaceAll(target.pIdols, target.pIdolCount);
     }
   };
 

@@ -118,7 +118,7 @@ function ExamBars({
           share: total > 0 ? (scores[t] ?? 0) / total : 0,
         }));
         return (
-          <div key={i} className="flex items-center gap-2 text-[11px] tabular-nums">
+          <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
             <span className="w-7 shrink-0 font-bold text-slate-500">{i + 1}次</span>
             <div className="flex h-2 w-28 shrink-0 overflow-hidden rounded-full bg-slate-100 sm:w-36">
               {shares.map(
@@ -208,7 +208,7 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
         </Row>
       )}
       {plan.auditions && plan.auditions.length > 0 && (
-        <Row label="オーデ">
+        <Row label="オデ">
           {plan.auditions.map((a, i) => (
             <span
               key={i}

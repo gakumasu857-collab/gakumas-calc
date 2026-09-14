@@ -10,6 +10,7 @@
  */
 import type { AbilityName } from "@/data/constants";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import type { CalcSave, CalcSaveSnapshot } from "./useCalcSettings";
 import type { useCalcResult } from "./useCalcResult";
 import { adoptSaveSnapshot, type useOwnedSaves } from "./useOwnedSaves";
@@ -56,6 +57,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
     eventCounts: { ...r.events.map },
     ownedLevels: { ...r.ownedLevels.levels },
     ownedCardCount: SUPPORT_CARD_DB.length,
+    pIdolCount: P_IDOL_MASTERS.length,
     pIdols: { ...r.pIdols.map },
   };
 }
@@ -92,6 +94,7 @@ export function saveExtrasFor(
     name: label,
     levels: snapshot.ownedLevels,
     pIdols: snapshot.pIdols,
+    pIdolCount: snapshot.pIdolCount,
     saveId,
   });
 
@@ -152,9 +155,9 @@ export function applySave(
   r.selected.setAll(snap.slots);
   r.events.replaceAll(snap.eventCounts);
   // 所持状況はこのセーブ用のデータを使用中にしてから読み込む（読み込み直後の自動保存がそこへ向く）
-  adoptSaveSnapshot(save.id, ownedLabel, snap.ownedLevels, snap.pIdols);
+  adoptSaveSnapshot(save.id, ownedLabel, snap.ownedLevels, snap.pIdols, snap.pIdolCount);
   r.ownedLevels.replaceAll(snap.ownedLevels, snap.ownedCardCount);
-  r.pIdols.replaceAll(snap.pIdols);
+  r.pIdols.replaceAll(snap.pIdols, snap.pIdolCount);
   return { full: true };
 }
 

@@ -44,6 +44,8 @@ export type OwnedSave = {
    * 無い旧データは全て未所持扱い。
    */
   cardCount?: number;
+  /** 保存時のPアイドル数（これ以降に追加されたPアイドルは特訓6・開花4で持っている扱い。旧データには無い） */
+  pIdolCount?: number;
 };
 
 /**
@@ -59,6 +61,7 @@ export const BUILTIN_ALL4: OwnedSave = {
     P_IDOL_MASTERS.map((m) => [m.key, { kunren: 6, kaika: 4 }]),
   ),
   cardCount: SUPPORT_CARD_DB.length,
+  pIdolCount: P_IDOL_MASTERS.length,
 };
 
 export const isBuiltinId = (id: string | null | undefined): boolean =>
@@ -141,6 +144,7 @@ function insert(
     id: `own-${crypto.randomUUID()}`,
     savedAt: today(),
     cardCount: SUPPORT_CARD_DB.length,
+    pIdolCount: P_IDOL_MASTERS.length,
     ...entry,
   };
   store([...list, rec]);
@@ -184,9 +188,12 @@ export function adoptSaveSnapshot(
   name: string,
   levels: Record<string, number>,
   pIdols?: Record<string, PIdolOwnership>,
+  pIdolCount?: number,
 ): void {
   const list = load();
-  const rec = list.find((s) => s.saveId === saveId) ?? insert({ name, levels, pIdols, saveId }, list);
+  const rec =
+    list.find((s) => s.saveId === saveId) ??
+    insert({ name, levels, pIdols, pIdolCount, saveId }, list);
   writeActiveSlotId(rec.id);
   notifyStoreChange();
 }
@@ -217,6 +224,7 @@ export function autoSaveToActiveSlot(patch: {
     JSON.stringify(patch.pIdols) !== JSON.stringify(current.pIdols ?? {})
   ) {
     next.pIdols = patch.pIdols;
+    next.pIdolCount = P_IDOL_MASTERS.length;
     changed = true;
   }
   if (!changed) return;
@@ -264,6 +272,8 @@ export function useOwnedSaves() {
       name: string;
       levels: Record<string, number>;
       pIdols?: Record<string, PIdolOwnership>;
+      /** 保存時のPアイドル数（無ければ「保存時の数が分からない」＝読み込み時に無いPアイドルを全部6・4に） */
+      pIdolCount?: number;
       saveId?: string;
     }): string => {
       const list = load();

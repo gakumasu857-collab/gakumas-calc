@@ -34,7 +34,7 @@ export default function ParaboTableModal({
   const th = "border border-slate-300 bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-700";
   const tdLabel = "border border-slate-200 px-2 py-1.5 text-left text-sm font-semibold text-slate-700";
   const tdValue = (type: TypeKey) =>
-    `border border-slate-200 px-2 py-1.5 text-center text-base font-bold tabular-nums text-slate-900 ${TYPE_BG[type]}`;
+    `border border-slate-200 px-2 py-1.5 text-center text-sm font-bold tabular-nums text-slate-900 ${TYPE_BG[type]}`;
 
   /** タイプの見出し（色チップ） */
   const typeHead = (

@@ -395,7 +395,7 @@ export function useCalcResult() {
 
     // ---- SPレッスン率（サポカ＋Pアイドルの上昇分）とこの踏み方の実現確率 ----
     const spLesson = (() => {
-      const base = (settings.baseSpRate ?? 10) / 100;
+      const base = (settings.baseSpRate[scenario] ?? 10) / 100;
       // 表示はゲーム内に合わせて基礎を除いた上昇分（サポカ＋Pアイドル）。
       // サポカのSPレッスン率は枠の abi_type の属性へ効く
       const bonus: Record<TypeKey, number> = {
@@ -409,10 +409,11 @@ export function useCalcResult() {
         const sp = cardSpRate(db, m.level);
         for (const t of TYPE_KEYS) bonus[t] += sp[t];
       }
-      // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計に 5% が上乗せされた値。
-      // 画面もそれに合わせて出し（shown）、実際の確率は「表示＋表記外推定SP率」とする
+      // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計（H.I.F.はさらにH.I.F.ボーナスのSP率、既定+5%）。
+      // N.I.A.・初にはこの上乗せは無い（SSRのPアイドルなら 10%/10%/10% と表示される）。
+      // 画面もそれに合わせて出し（shown）、実際の確率は「表示＋表記外推定SP率（シナリオ別）」とする
       // （例: 表示 +71%・表記外10% → 81%。Da（サブVi=75%）のSP踏み6回連続 = (0.81×0.75)^6 ≈ 5.0%）
-      const SHOWN_OFFSET = scenario === "hif" ? hifBonus.spRate : 0.05;
+      const SHOWN_OFFSET = scenario === "hif" ? hifBonus.spRate : 0;
       const shown: Record<TypeKey, number> = {
         vocal: bonus.vocal + SHOWN_OFFSET,
         dance: bonus.dance + SHOWN_OFFSET,

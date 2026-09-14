@@ -67,10 +67,12 @@ export type CalcSettings = {
   /** ステージ（試験中）に持ち込むPアイテム・スキルのサポカを編成しない（固定は貫通） */
   noStageItems: boolean;
   /**
-   * 基礎SPレッスン率（%）。SP率 = 基礎 + サポカ + Pアイドル。
-   * 元値はコミュニティ検証で約10%とされる（確定値ではないので変更可）。
+   * 表記外推定SP率（%）。シナリオごと。実際のSP率 = これ + 画面の「SPレッスン率上昇」。
+   * H.I.F.は約10%、N.I.A.と初は約15%（コミュニティ検証。確定値ではないので変更可）。
    */
-  baseSpRate: number;
+  baseSpRate: Record<ScenarioKey, number>;
+  /** 探索で、育成後のステータスをこの順（高い→低い）にする（null＝指定なし） */
+  statOrder: TypeKey[] | null;
   /** H.I.F.ボーナスのレベル（H.I.F.限定。Vo/Da/Viは固定値とパラボが別レベル。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
   hifBonus: HifBonusLevels;
   /** N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（N.I.A.限定。既定は各枠の最大＝15/20/20） */
@@ -93,7 +95,8 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   minStats: { vocal: 0, dance: 0, visual: 0 },
   maxStats: { vocal: 3200, dance: 3200, visual: 3200 },
   noStageItems: false,
-  baseSpRate: 10,
+  baseSpRate: { hif: 10, niaMaster: 15, hatsuLegend: 15 },
+  statOrder: null,
   hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
@@ -129,6 +132,8 @@ export type CalcSaveSnapshot = {
   ownedLevels: Record<string, number>;
   /** 保存時のサポカDB枚数（無いカードを未所持/新カードに振り分ける。旧データには無い） */
   ownedCardCount?: number;
+  /** 保存時のPアイドル数（無いPアイドルを未所持／新カード（特訓6・開花4）に振り分ける。旧データには無い） */
+  pIdolCount?: number;
   pIdols: Record<string, PIdolOwnership>;
 };
 
@@ -170,6 +175,26 @@ function load<T>(key: string, fallback: T): T {
  * 自動保存の読み込みとセーブデータの読み込みの両方で使う
  * （どちらか片方だけ移行すると、古いセーブでアイドル名が英語キーのままになる）。
  */
+/** 表記外推定SP率: 旧形式（数値1つ）は H.I.F. の値として引き継ぎ、N.I.A.・初は既定（15%） */
+function normalizeBaseSpRate(raw: unknown): Record<ScenarioKey, number> {
+  const def = DEFAULT_SETTINGS.baseSpRate;
+  if (typeof raw === "number" && Number.isFinite(raw)) return { ...def, hif: Math.max(0, raw) };
+  const obj = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<ScenarioKey, unknown>>;
+  const out = { ...def };
+  for (const k of Object.keys(def) as ScenarioKey[]) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.max(0, v);
+  }
+  return out;
+}
+
+/** ステの高さの順: 3タイプの並び替え以外は「指定なし」 */
+function normalizeStatOrder(raw: unknown): TypeKey[] | null {
+  if (!Array.isArray(raw) || raw.length !== 3) return null;
+  const ok = raw.every((t) => TYPE_KEYS.includes(t as TypeKey)) && new Set(raw).size === 3;
+  return ok ? (raw as TypeKey[]) : null;
+}
+
 function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
   // 旧形式（IDLE_NAMESの英語キー）は日本語名（空白なし）へ移行
   const idolRaw = stored.idol ?? DEFAULT_SETTINGS.idol;
@@ -194,6 +219,8 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     maxStats: { ...DEFAULT_SETTINGS.maxStats, ...(stored.maxStats ?? {}) },
     hifBonus: normalizeHifBonus(stored.hifBonus),
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
+    baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
+    statOrder: normalizeStatOrder(stored.statOrder),
   };
 }
 

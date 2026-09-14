@@ -1,17 +1,10 @@
 import { useState } from "react";
-import {
-  CalendarCheck,
-  ChevronDown,
-  ChevronUp,
-  ListOrdered,
-  SlidersHorizontal,
-  Table2,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, SlidersHorizontal, Table2 } from "lucide-react";
 import { Card } from "@/components/calc/CalcCard";
 import { currentPlanSummary, formatProb, PlanChips } from "@/components/calc/PlanChips";
 import SupportSlot from "@/components/calc/SupportSlot";
 import Hint from "@/components/Hint";
-import { BTN_ACTION, BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
+import { BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
 import type { CardFlagSets } from "@/lib/formation";
 import type { SelectedMember, useCalcResult } from "@/lib/useCalcResult";
@@ -38,7 +31,6 @@ export default function FormationPlanCard({
   onOpenSlot,
   onDetail,
   onEditPlan,
-  onEditCounts,
   onClearAll,
   onOpenParabo,
   children,
@@ -50,7 +42,6 @@ export default function FormationPlanCard({
   onOpenSlot: (index: number) => void;
   onDetail: (member: SelectedMember) => void;
   onEditPlan: () => void;
-  onEditCounts: () => void;
   onClearAll: () => void;
   /** パラボ変換表を開く（開始時のステータスの行から） */
   onOpenParabo: () => void;
@@ -66,31 +57,12 @@ export default function FormationPlanCard({
     <Card
       title="サポカ編成と踏み方"
       hint={
-        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（「レッスン等の踏み方」かチップのクリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
+        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（画面左端の「レッスン等の踏み方」タブか、チップのクリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
       }
       action={
-        <>
-          <button type="button" onClick={onEditPlan} className={BTN_ACTION}>
-            <CalendarCheck size={14} />
-            レッスン等の踏み方
-          </button>
-          <button
-            type="button"
-            onClick={onEditCounts}
-            className={BTN_ACTION}
-            title={
-              r.selectedSet
-                ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
-                : "プロデュースを選ぶと調整できます"
-            }
-          >
-            <ListOrdered size={14} />
-            発動回数
-          </button>
-          <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
-            全て外す
-          </button>
-        </>
+        <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
+          全て外す
+        </button>
       }
     >
       {rentalCount >= 2 && (
@@ -168,9 +140,14 @@ export default function FormationPlanCard({
               type="number"
               min={0}
               max={100}
-              value={settings.baseSpRate}
+              value={settings.baseSpRate[r.scenario]}
               onChange={(e) =>
-                calc.update({ baseSpRate: Math.max(0, Number(e.target.value) || 0) })
+                calc.update({
+                  baseSpRate: {
+                    ...settings.baseSpRate,
+                    [r.scenario]: Math.max(0, Number(e.target.value) || 0),
+                  },
+                })
               }
               className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs text-slate-700"
             />

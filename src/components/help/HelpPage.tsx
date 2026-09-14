@@ -273,7 +273,7 @@ export default function HelpPage() {
         ページの構成
       </h2>
       <p className={`mb-3 ${P}`}>
-        メインは計算ページです。ほかのページは「探索に使う設定」と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜所持状況・発動回数・サポカ設定｜サポカ点数表・データベース｜ヘルプ）に並んでいます。
+        メインは計算ページです。ほかのページは「探索に使う設定」と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜所持状況・発動回数・サポカ設定｜点数表・データベース｜ヘルプ）に並んでいます。
       </p>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
@@ -310,7 +310,7 @@ export default function HelpPage() {
           <ul className="mt-1 list-disc pl-4 text-xs leading-relaxed text-slate-600">
             <li>
               <Link to="/card-scores" className="font-semibold text-blue-700 underline">
-                サポカ点数表
+                点数表
               </Link>
               : 全カードの点数を一覧で
             </li>
@@ -601,6 +601,9 @@ export default function HelpPage() {
         <Tip icon={<Table2 size={16} />} title="パラボ変換表">
           「サポカ編成と踏み方」の開始時のステータスの右にあります。パラメータボーナス%が今の踏み方で何点ぶんのステになるかを確認できます。
         </Tip>
+        <Tip icon={<ListOrdered size={16} />} title="左端のタブ">
+          画面の左端に「発動回数」「レッスン等の踏み方」のタブがあります。開いて実際の育成に合わせて変えると、評価値がその場で動きます。
+        </Tip>
         <Tip icon={<Info size={16} />} title="ⓘ と計算式">
           用語の横の ⓘ を押すと、その項目の説明が出ます。計算式は計算ページ右上の「計算式・数値表」にあります。
         </Tip>
@@ -633,7 +636,7 @@ export default function HelpPage() {
           レッスン・試験で上がるステに%で上乗せされる分。「パラボ変換表」で、今の踏み方だと何点になるかが見られます。
         </Term>
         <Term name="SPレッスン率">
-          ゲーム内の表示（サポカ＋Pアイドル＋5%）に、表記外推定SP率（既定10%）を足したものを実際の確率として計算します。
+          ゲーム内の表示（サポカ＋Pアイドル。H.I.F.はH.I.F.ボーナスの+5%込み）に、表記外推定SP率（H.I.F.は10%、N.I.A.と初は15%が既定）を足したものを実際の確率として計算します。
         </Term>
       </dl>
 

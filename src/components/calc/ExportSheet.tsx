@@ -282,6 +282,9 @@ function ExportSheet({
             if (settings.spTop.first > 0 || settings.spTop.second > 0) {
               parts.push(`SP率持ち 上位${settings.spTop.first}枚・2位${settings.spTop.second}枚`);
             }
+            if (settings.statOrder) {
+              parts.push(`ステの順 ${settings.statOrder.map((t) => short[t]).join("＞")}`);
+            }
             return parts.length ? (
               <div style={{ color: SUB, fontSize: 11 }}>探索の条件: {parts.join(" ／ ")}</div>
             ) : null;

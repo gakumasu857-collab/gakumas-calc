@@ -271,9 +271,9 @@ export default function CalcHelpModal({
           title="SPレッスン率と踏み方の実現確率"
           formula={
             <>
-              <T c="emerald">画面の「SPレッスン率上昇」（サポカ＋Pアイドル＋5%）</T>
+              <T c="emerald">画面の「SPレッスン率上昇」（サポカ＋Pアイドル。H.I.F.はH.I.F.ボーナスの+5%込み）</T>
               <Op>＋</Op>
-              <T c="emerald">表記外推定SP率（既定10%）</T>
+              <T c="emerald">表記外推定SP率（既定: H.I.F. 10%・N.I.A.と初 15%）</T>
             </>
           }
           notes={[

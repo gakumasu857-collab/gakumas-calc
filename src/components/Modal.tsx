@@ -8,8 +8,12 @@ type Props = {
   /** モーダル幅（デフォルト max-w-2xl。広い画面が必要なら max-w-4xl 等を渡す） */
   widthClass?: string;
   /**
-   * 出し方。center＝画面中央（既定）。
-   * left＝左端から出す引き出し（踏み方・発動回数用。右側の評価値・ステータスを見ながら変えられる）
+   * 見出しのすぐ下に固定で置くもの（決定ボタンなど）。中身がスクロールしても動かない
+   * （中身の中に sticky で置くと、帯の上に隙間ができて下が透けるのでこちらを使う）。
+   */
+  toolbar?: ReactNode;
+  /**
+   * 出し方。center＝画面中央（既定）。left＝左端から出す引き出し。
    */
   side?: "center" | "left";
 };
@@ -20,6 +24,7 @@ export default function Modal({
   onClose,
   children,
   widthClass = "max-w-2xl",
+  toolbar,
   side = "center",
 }: Props) {
   const header = (
@@ -35,6 +40,9 @@ export default function Modal({
       </button>
     </div>
   );
+  const bar = toolbar ? (
+    <div className="border-b border-slate-200 bg-white px-4 py-2.5">{toolbar}</div>
+  ) : null;
 
   if (side === "left") {
     return (
@@ -47,6 +55,7 @@ export default function Modal({
           onClick={(e) => e.stopPropagation()}
         >
           {header}
+          {bar}
           <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
         </div>
       </div>
@@ -63,7 +72,8 @@ export default function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         {header}
-        <div className="overflow-y-auto p-4">{children}</div>
+        {bar}
+        <div className="min-h-0 overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );

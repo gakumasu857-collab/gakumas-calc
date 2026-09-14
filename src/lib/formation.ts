@@ -1176,3 +1176,21 @@ export function findBestFormation(
     spShortfall: spConditionShortfall(members, spMin),
   };
 }
+
+/**
+ * 「ステの高さの順」の違反量（順が崩れている隣り合う2タイプの差＋1の合計。0＝満たしている）。
+ * 上限で頭打ちにしたステで比べるので、2タイプとも上限なら同点＝違反扱い。
+ */
+export function statOrderShortfall(
+  stats: Record<TypeKey, number>,
+  order: TypeKey[] | null | undefined,
+): number {
+  if (!order || order.length !== 3) return 0;
+  let s = 0;
+  for (let i = 0; i + 1 < order.length; i++) {
+    const hi = stats[order[i]];
+    const lo = stats[order[i + 1]];
+    if (hi <= lo) s += lo - hi + 1;
+  }
+  return s;
+}

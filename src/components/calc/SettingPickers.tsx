@@ -18,6 +18,21 @@ import {
   type TypeKey,
 } from "@/lib/useCalcSettings";
 
+/** ステの高さの順の選択肢（null＝指定なし。Vo/Da/Vi の並び替え6通り） */
+const STAT_ORDERS: (TypeKey[] | null)[] = [
+  null,
+  ["vocal", "dance", "visual"],
+  ["vocal", "visual", "dance"],
+  ["dance", "vocal", "visual"],
+  ["dance", "visual", "vocal"],
+  ["visual", "vocal", "dance"],
+  ["visual", "dance", "vocal"],
+];
+
+/** −／＋ボタン（SP率持ちの枚数） */
+const STEP_BTN =
+  "flex h-7 w-7 items-center justify-center text-base font-bold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30";
+
 const TYPE_CHIP: Record<TypeKey, string> = {
   vocal: "bg-red-100 text-red-700",
   dance: "bg-blue-100 text-blue-700",
@@ -174,26 +189,73 @@ export function TheorySettingsModal({
                 ).map(([key, label]) => (
                   <label key={key} className="flex items-center gap-1.5">
                     <span className="text-[11px] text-slate-600">{label}</span>
-                    <select
-                      value={settings.spTop[key]}
-                      onChange={(e) =>
-                        onUpdate({
-                          spTop: { ...settings.spTop, [key]: Number(e.target.value) },
-                        })
-                      }
-                      className="rounded-lg border border-slate-300 bg-white px-1.5 py-1 text-sm"
-                    >
-                      {[0, 1, 2, 3, 4, 5, 6].map((n) => (
-                        <option key={n} value={n}>
-                          {n === 0 ? "条件なし" : `${n}枚以上`}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="inline-flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white">
+                      <button
+                        type="button"
+                        aria-label="1枚減らす"
+                        disabled={settings.spTop[key] <= 0}
+                        onClick={() =>
+                          onUpdate({
+                            spTop: { ...settings.spTop, [key]: Math.max(0, settings.spTop[key] - 1) },
+                          })
+                        }
+                        className={STEP_BTN}
+                      >
+                        −
+                      </button>
+                      <span className="min-w-16 px-1 text-center text-sm font-bold tabular-nums text-slate-800">
+                        {settings.spTop[key] === 0 ? "条件なし" : `${settings.spTop[key]}枚以上`}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="1枚増やす"
+                        disabled={settings.spTop[key] >= 6}
+                        onClick={() =>
+                          onUpdate({
+                            spTop: { ...settings.spTop, [key]: Math.min(6, settings.spTop[key] + 1) },
+                          })
+                        }
+                        className={STEP_BTN}
+                      >
+                        ＋
+                      </button>
+                    </span>
                   </label>
                 ))}
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
                 トレーナーなど「全SPレッスン率」持ちは全タイプの1枚として数えます。
+              </p>
+            </section>
+
+            {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ） */}
+            <section className="border-t border-slate-100 pt-3">
+              <p className="flex items-center gap-1 font-semibold">
+                ステの高さの順
+                <Hint text={GLOSSARY.statOrder} />
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {STAT_ORDERS.map((order) => {
+                  const key = order ? order.join(">") : "none";
+                  const on = (settings.statOrder ? settings.statOrder.join(">") : "none") === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onUpdate({ statOrder: order ? [...order] : null })}
+                      className={`rounded-lg border px-2.5 py-1 text-sm font-bold transition ${
+                        on
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {order ? order.map((t) => TYPE_LABELS[t].slice(0, 2)).join("＞") : "指定なし"}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                例: Da＞Vi＞Vo なら、育成後のステータスが Dance＞Visual＞Vocal の順に高くなる編成・踏み方を選びます。
               </p>
             </section>
 

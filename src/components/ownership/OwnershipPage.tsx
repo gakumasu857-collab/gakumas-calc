@@ -96,7 +96,7 @@ export default function OwnershipPage() {
     // 先に使用中を切り替えてから読み込む（読み込み直後の自動保存が新しい先へ向くように）
     saves.setActiveSlot(id);
     levels.replaceAll(target.levels, target.cardCount);
-    if (target.pIdols) pIdols.replaceAll(target.pIdols);
+    if (target.pIdols) pIdols.replaceAll(target.pIdols, target.pIdolCount);
     notify(
       id === BUILTIN_ID
         ? `「全サポカ完凸」に切り替えました（凸を変えると「${DEFAULT_OWN_NAME}」が自動で作られます）`

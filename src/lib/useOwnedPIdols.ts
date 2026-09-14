@@ -1,36 +1,66 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { useSaveNotifier } from "./storeSync";
 import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
 /**
  * Pアイドルの所持状況（特訓段階・才能開花）を localStorage に保存するストア。
- * マップに存在しないカードは未所持扱い。
+ * マップに存在しないカードは未所持扱い。ただし、保存したあとにマスタへ追加された新しいPアイドル
+ * （保存時のPアイドル数 knownCount 以降）は特訓6・才能開花4で持っている扱いにする
+ * （サポカの「新カードは完凸」と同じ考え方。保存時の数が分からない古いデータは、無いものを全部6・4にする）。
  */
 const STORAGE_KEY = "gakumas:pIdols:v1";
+/** 前回保存したときのPアイドル数（これ以降に追加されたPアイドルを「新カード」とみなす） */
+const COUNT_KEY = "gakumas:pIdols:count:v1";
 
 export type PIdolOwnership = { kunren: number; kaika: number };
 type OwnershipMap = Record<string, PIdolOwnership>;
+
+/** 新しいPアイドルの既定（特訓6・才能開花4） */
+export const NEW_PIDOL_DEFAULT: PIdolOwnership = { kunren: 6, kaika: 4 };
+
+/**
+ * マップに無いPアイドルを埋める。knownCount 以降（＝保存後に追加された新カード）は 6・4、
+ * それより前は未所持のまま。knownCount が無ければ無いものを全部 6・4 にする。
+ */
+export function fillNewPIdols(map: OwnershipMap, knownCount?: number): OwnershipMap {
+  const next: OwnershipMap = { ...map };
+  P_IDOL_MASTERS.forEach((m, i) => {
+    if (m.key in next) return;
+    if (knownCount === undefined || i >= knownCount) next[m.key] = { ...NEW_PIDOL_DEFAULT };
+  });
+  return next;
+}
+
+function readCount(): number | undefined {
+  try {
+    const raw = localStorage.getItem(COUNT_KEY);
+    if (raw === null) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function useOwnedPIdols() {
   // SPAなのでlocalStorageを初期値で同期読み込みする（読み込みちらつき防止）
   const [map, setMap] = useState<OwnershipMap>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as OwnershipMap;
+      if (raw) return fillNewPIdols(JSON.parse(raw) as OwnershipMap, readCount());
     } catch {
       // 破損データは無視
     }
     // 初回アクセス（保存なし）: 全Pアイドルを特訓6・才能開花4で初期化する
-    const seeded: OwnershipMap = {};
-    for (const m of P_IDOL_MASTERS) seeded[m.key] = { kunren: 6, kaika: 4 };
-    return seeded;
+    return fillNewPIdols({});
   });
 
   const notifySave = useSaveNotifier();
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+      localStorage.setItem(COUNT_KEY, String(P_IDOL_MASTERS.length));
       // 使っている所持状況（既定以外）へも随時保存
       autoSaveToActiveSlot({ pIdols: map });
       notifySave();
@@ -112,9 +142,13 @@ export function useOwnedPIdols() {
     [],
   );
 
-  /** 所持状況をまるごと置き換える（セーブデータの読み込み用） */
-  const replaceAll = useCallback((snapshot: OwnershipMap) => {
-    setMap({ ...snapshot });
+  /**
+   * 所持状況をまるごと置き換える（セーブデータ・保存した所持状況の読み込み用）。
+   * knownCount（保存時のPアイドル数）以降に追加されたPアイドルは 6・4 で足す。
+   * 保存時の数が無い古いデータは、無いものを全部 6・4 にする。
+   */
+  const replaceAll = useCallback((snapshot: OwnershipMap, knownCount?: number) => {
+    setMap(fillNewPIdols(snapshot, knownCount));
   }, []);
 
   return {

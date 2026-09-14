@@ -287,10 +287,10 @@
    "growthTag": "月村手毬SSRフェス"
   },
   {
-   "url": "skill/夏風邪の通り道.webp",
+   "url": "skill/夏風の通り道.webp",
    "idol": "月村手毬",
    "cardName": "「ねえ、言っちゃうよ。」",
-   "skillName": "夏風邪の通り道",
+   "skillName": "夏風の通り道",
    "rarity": "SSR",
    "plan": "アノマリー",
    "effect": "強気",
@@ -1384,6 +1384,17 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "秦谷美鈴VEIL",
+   "growthTag": "秦谷美鈴SSR"
+  },
+  {
+   "url": "skill/波間に揺れる光.webp",
+   "idol": "秦谷美鈴",
+   "cardName": "「ねえ、言っちゃうよ。」",
+   "skillName": "波間に揺れる光",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "集中",
+   "key": "秦谷美鈴「ねえ、言っちゃうよ。」",
    "growthTag": "秦谷美鈴SSR"
   },
   {
