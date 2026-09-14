@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { HATSU_CLASSES, HATSU_LESSONS } from "@/data/scenarios";
+import { HATSU_CLASSES, HATSU_LESSONS, hatsuLessonScoreCap } from "@/data/scenarios";
 import { useSaveNotifier } from "./storeSync";
 import { roleToTypeFromCalcStorage } from "./useSchedule";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 
 /**
  * 定期公演『初』（レジェンド）のスケジュール入力状態。
- * - lessons: レジェンドレッスン5回の踏みタイプ・SP有無・パーフェクト達成か
- *   （パーフェクト時はクリア超過分が残り2タイプにも入る）
+ * - lessons: レジェンドレッスン5回の踏みタイプ・SP有無・レッスン中の点数
+ *   （点数がそのまま踏んだタイプの素ステ。クリアラインを超えた分は残り2タイプにも入る。
+ *    score が無い＝上限まで出した＝パーフェクト）
  * - classTypes: 授業4回のタイプ
  * - midRank/finalRank: 中間・最終試験の順位（1始まり。最終の4=4位以下）
  * - midScore/finalScore: 試験スコア（評価値換算に使用）
@@ -19,7 +20,8 @@ export type HatsuLessonPick = {
   /** null = このレッスンを踏まない */
   main: TypeKey | null;
   sp: boolean;
-  perfect: boolean;
+  /** レッスン中に出した点数。undefined＝上限（パーフェクト） */
+  score?: number;
 };
 
 export type HatsuState = {
@@ -35,7 +37,6 @@ const DEFAULT_STATE: HatsuState = {
   lessons: HATSU_LESSONS.map(() => ({
     main: "vocal",
     sp: true,
-    perfect: true,
   })),
   classTypes: HATSU_CLASSES.map(() => "visual"),
   // 初回デフォルトは試験を上限寄りに（順位1位・スコアは高め）
@@ -48,7 +49,7 @@ const DEFAULT_STATE: HatsuState = {
 const isTypeKey = (v: unknown): v is TypeKey =>
   TYPE_KEYS.includes(v as TypeKey);
 
-/** localStorageから同期読み込み（旧ロール形式の移行込み） */
+/** localStorageから同期読み込み（旧ロール形式・旧「パーフェクト／クリア」形式の移行込み） */
 export function loadHatsuState(): HatsuState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -69,14 +70,22 @@ export function loadHatsuState(): HatsuState {
         return fb;
       };
       return {
-        lessons: HATSU_LESSONS.map((_, i) => ({
-          main:
-            lessonsRaw[i]?.main === null
-              ? null
-              : toType(lessonsRaw[i]?.main, "vocal"),
-          sp: (lessonsRaw[i]?.sp as boolean | undefined) ?? true,
-          perfect: (lessonsRaw[i]?.perfect as boolean | undefined) ?? true,
-        })),
+        lessons: HATSU_LESSONS.map((lesson, i) => {
+          const l = lessonsRaw[i] ?? {};
+          const sp = (l.sp as boolean | undefined) ?? true;
+          // 旧形式: perfect=false（クリアだけ）は「クリアラインぴったりの点数」として引き継ぐ
+          const score =
+            typeof l.score === "number"
+              ? Math.max(0, Math.min(l.score, hatsuLessonScoreCap(i, sp)))
+              : l.perfect === false
+                ? lesson.clear[sp ? 1 : 0]
+                : undefined;
+          return {
+            main: l.main === null ? null : toType(l.main, "vocal"),
+            sp,
+            ...(score === undefined ? {} : { score }),
+          };
+        }),
         classTypes: HATSU_CLASSES.map((_, i) => toType(classesRaw[i], "visual")),
         midRank: (stored.midRank as number | undefined) ?? 1,
         finalRank: (stored.finalRank as number | undefined) ?? 1,
@@ -113,18 +122,40 @@ export function useHatsuSchedule() {
   const toggleLessonSp = useCallback((index: number) => {
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l, i) =>
-        i === index ? { ...l, sp: !l.sp } : l,
-      ),
+      lessons: prev.lessons.map((l, i) => {
+        if (i !== index) return l;
+        const sp = !l.sp;
+        // 点数を入れていたら新しい上限に収める
+        const score =
+          l.score === undefined ? undefined : Math.min(l.score, hatsuLessonScoreCap(index, sp));
+        return { ...l, sp, ...(score === undefined ? {} : { score }) };
+      }),
     }));
   }, []);
 
+  /** レッスン中の点数（undefined＝上限＝パーフェクト） */
+  const setLessonScore = useCallback((index: number, score: number | undefined) => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l, i) => {
+        if (i !== index) return l;
+        const { score: _old, ...rest } = l;
+        if (score === undefined) return rest;
+        return { ...rest, score: Math.max(0, Math.min(Math.round(score), hatsuLessonScoreCap(index, l.sp))) };
+      }),
+    }));
+  }, []);
+
+  /** パーフェクト（上限）と「クリアラインぴったり」を切り替える（手早く下げる用） */
   const toggleLessonPerfect = useCallback((index: number) => {
     setState((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((l, i) =>
-        i === index ? { ...l, perfect: !l.perfect } : l,
-      ),
+      lessons: prev.lessons.map((l, i) => {
+        if (i !== index) return l;
+        const { score: _old, ...rest } = l;
+        if (l.score === undefined) return { ...rest, score: HATSU_LESSONS[index].clear[l.sp ? 1 : 0] };
+        return rest;
+      }),
     }));
   }, []);
 
@@ -183,14 +214,22 @@ export function useHatsuSchedule() {
   /**
    * 入力状態をまるごと置き換える（セーブデータの読み込み用）。
    * マスタの件数が保存時と違っても壊れないよう、現行の件数に合わせて詰め直す。
+   * 旧セーブ（perfect 形式）は score に読み替える。
    */
   const replaceAll = useCallback((snapshot: HatsuState) => {
     setState({
       ...DEFAULT_STATE,
       ...snapshot,
-      lessons: HATSU_LESSONS.map(
-        (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
-      ),
+      lessons: HATSU_LESSONS.map((lesson, i) => {
+        const l = (snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i]) as HatsuLessonPick & {
+          perfect?: boolean;
+        };
+        const { perfect, ...rest } = l;
+        if (rest.score === undefined && perfect === false) {
+          return { ...rest, score: lesson.clear[rest.sp ? 1 : 0] };
+        }
+        return rest;
+      }),
       classTypes: HATSU_CLASSES.map(
         (_, i) => snapshot.classTypes[i] ?? DEFAULT_STATE.classTypes[i],
       ),
@@ -201,6 +240,7 @@ export function useHatsuSchedule() {
     ...state,
     setLessonMain,
     toggleLessonSp,
+    setLessonScore,
     toggleLessonPerfect,
     applyAllMain,
     setClassType,

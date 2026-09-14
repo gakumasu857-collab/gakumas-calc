@@ -215,6 +215,31 @@ export const HATSU_LESSONS = [
   p: number;
 }[];
 
+/** 初のレッスンで出せる点数の上限（＝パーフェクト。踏んだタイプの素ステの上限） */
+export function hatsuLessonScoreCap(index: number, sp: boolean): number {
+  return HATSU_LESSONS[index]?.perfectMain[sp ? 1 : 0] ?? 0;
+}
+
+/**
+ * 初のレッスンの素ステ上昇。レッスン中の点数がそのまま踏んだタイプに入り、
+ * クリアラインを超えた分は残り2タイプにも同じだけ入る（どちらもパラボが掛かる）。
+ * score 省略＝上限（パーフェクト）。上限のときは実測の perfectSub を返す。
+ */
+export function hatsuLessonGains(
+  index: number,
+  sp: boolean,
+  score?: number,
+): { main: number; other: number } {
+  const lesson = HATSU_LESSONS[index];
+  if (!lesson) return { main: 0, other: 0 };
+  const k = sp ? 1 : 0;
+  const cap = lesson.perfectMain[k];
+  // 上限（パーフェクト）は実測値の perfectSub をそのまま使う（非SPは「点数−クリア」と1点ずれる週がある）
+  if (score === undefined || score >= cap) return { main: cap, other: lesson.perfectSub[k] };
+  const s = Math.max(0, score);
+  return { main: s, other: Math.max(0, s - lesson.clear[k]) };
+}
+
 /** 授業4回（選んだ1タイプに固定値） */
 export const HATSU_CLASSES = [
   { label: "1週目", gain: 100 },

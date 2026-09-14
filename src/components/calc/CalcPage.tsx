@@ -7,6 +7,7 @@ import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
+import HifBonusModal from "@/components/calc/HifBonusModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PIdolTrainingModal from "@/components/calc/PIdolTrainingModal";
@@ -124,6 +125,8 @@ export default function CalcPage() {
   const [countsOpen, setCountsOpen] = useState(false);
   /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
+  /** H.I.F.ボーナスの調整モーダル（設定欄の本戦ラウンド点数の下から） */
+  const [hifBonusOpen, setHifBonusOpen] = useState(false);
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
@@ -489,6 +492,7 @@ export default function CalcPage() {
           onOpenIdol={() => setIdolPickerOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}
           onOpenIdolTraining={() => setTrainingOpen(true)}
+          onOpenHifBonus={() => setHifBonusOpen(true)}
         />
         </div>
 
@@ -729,6 +733,8 @@ export default function CalcPage() {
       {trainingOpen && r.pMaster && (
         <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}
+      {/* H.I.F.ボーナスのレベル調整 */}
+      {hifBonusOpen && <HifBonusModal r={r} onClose={() => setHifBonusOpen(false)} />}
 
       {/* パラボ%→固定値の変換表 */}
       {paraboOpen && (

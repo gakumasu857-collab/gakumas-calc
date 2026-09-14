@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 /**
  * プロデュース計算機のナビ（メインは /calc）。
  * 計算ページ以外は「探索に使う設定」（所持状況・発動回数・サポカ設定）と「見るだけの表」
- * （サポカ点数表・サポカDB）の順に並べ、間を細い線で区切る（見出しの文字は置かない。分け方の説明はヘルプ）。
+ * （サポカ点数表・データベース）の順に並べ、間を細い線で区切る（見出しの文字は置かない。分け方の説明はヘルプ）。
  * ブランド名クリックでホームへ戻る。右端はヘルプ。
  */
 const GROUPS: { href: string; label: string }[][] = [
@@ -15,7 +15,7 @@ const GROUPS: { href: string; label: string }[][] = [
   ],
   [
     { href: "/card-scores", label: "サポカ点数表" },
-    { href: "/database", label: "サポカDB" },
+    { href: "/database", label: "データベース" },
   ],
 ];
 

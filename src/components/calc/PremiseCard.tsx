@@ -8,7 +8,8 @@ import OwnershipField from "@/components/calc/OwnershipField";
 import SetPickerField from "@/components/calc/SetPickerField";
 import Hint from "@/components/Hint";
 import NumberField from "@/components/NumberField";
-import { BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
+import { BTN_SECONDARY, BTN_SECONDARY_LG, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
+import { hifBonusValues, isHifBonusMax } from "@/data/hifBonus";
 import { GLOSSARY } from "@/lib/glossary";
 import { readOwnershipAck, readOwnershipVisited } from "@/lib/ownershipAck";
 import type { useCalcResult } from "@/lib/useCalcResult";
@@ -42,6 +43,7 @@ export default function PremiseCard({
   onOpenIdol,
   onOpenMemory,
   onOpenIdolTraining,
+  onOpenHifBonus,
 }: {
   r: CalcResult;
   onOpenScenario: () => void;
@@ -49,6 +51,8 @@ export default function PremiseCard({
   onOpenMemory: () => void;
   /** 特訓・才能開花のモーダルを開く（Pアイドルを選んだあと） */
   onOpenIdolTraining: () => void;
+  /** H.I.F.ボーナスの調整モーダルを開く（H.I.F.のとき） */
+  onOpenHifBonus: () => void;
 }) {
   const { settings } = r.calc;
   const memoryCount = r.memoryStore.count;
@@ -144,7 +148,7 @@ export default function PremiseCard({
         </div>
 
         {/* 本戦・試験の点数（シナリオ別） */}
-        <ScenarioScoreCard r={r} />
+        <ScenarioScoreCard r={r} onOpenHifBonus={onOpenHifBonus} />
       </div>
     </section>
   );
@@ -254,7 +258,13 @@ function SettingSub({
 }
 
 /** シナリオ別の本戦・試験スコア入力 */
-function ScenarioScoreCard({ r }: { r: CalcResult }) {
+function ScenarioScoreCard({
+  r,
+  onOpenHifBonus,
+}: {
+  r: CalcResult;
+  onOpenHifBonus: () => void;
+}) {
   const { calc } = r;
   const { settings } = calc;
   if (r.scenario === "hif") {
@@ -283,6 +293,7 @@ function ScenarioScoreCard({ r }: { r: CalcResult }) {
             </Field>
           ))}
         </div>
+        <HifBonusRow r={r} onOpen={onOpenHifBonus} />
       </SettingSub>
     );
   }
@@ -351,6 +362,25 @@ function ScenarioScoreCard({ r }: { r: CalcResult }) {
         </Field>
       </div>
     </SettingSub>
+  );
+}
+
+/** H.I.F.ボーナス（既定は全部最大）の要約と「調整」 */
+function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
+  const b = hifBonusValues(r.calc.settings.hifBonus);
+  const max = isHifBonusMax(r.calc.settings.hifBonus);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+      <span className="font-bold text-slate-700">H.I.F.ボーナス</span>
+      <span>
+        {max
+          ? "全部最大（固定+100・パラボ+10%・SP率+5%・本戦上限3200）"
+          : `Vo Lv${b.levels.vocal}・Da Lv${b.levels.dance}・Vi Lv${b.levels.visual}・SP率 Lv${b.levels.spRate}・本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+      </span>
+      <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
+        調整
+      </button>
+    </div>
   );
 }
 

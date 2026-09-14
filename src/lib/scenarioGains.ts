@@ -14,6 +14,7 @@ import {
   niaFinaleStat,
   niaFinaleVotes,
   type NiaTag,
+  hatsuLessonGains,
 } from "@/data/scenarios";
 import { TYPE_SHEET_ROLE, typeLessonCounts } from "./sheetContext";
 import {
@@ -149,7 +150,7 @@ export function computeNiaGains(
 
 /**
  * 『初』レジェンドの素の獲得量集計。
- * - lessons: クリア分=選んだタイプ、パーフェクト時は残り2タイプにも上昇（パラボ有効）
+ * - lessons: レッスン中の点数がそのまま選んだタイプに、クリアライン超過分は残り2タイプにも（パラボ有効）
  * - classes: 授業（選んだタイプ・パラボ無効扱い）
  * - exams: 試験の順位報酬（全タイプ一律・パラボ非適用と仮定）
  */
@@ -162,16 +163,9 @@ export function computeHatsuGains(state: HatsuStateLike) {
   HATSU_LESSONS.forEach((lesson, i) => {
     const pick = state.lessons[i];
     if (!pick.main) return; // 踏まないレッスン
-    const spIndex = pick.sp ? 1 : 0;
-    if (pick.perfect) {
-      for (const type of TYPE_KEYS) {
-        lessons[type] +=
-          type === pick.main
-            ? lesson.perfectMain[spIndex]
-            : lesson.perfectSub[spIndex];
-      }
-    } else {
-      lessons[pick.main] += lesson.clear[spIndex];
+    const g = hatsuLessonGains(i, pick.sp, pick.score);
+    for (const type of TYPE_KEYS) {
+      lessons[type] += type === pick.main ? g.main : g.other;
     }
     pPoints += lesson.p;
   });
@@ -242,15 +236,11 @@ export function buildHatsuScoreContext(
   const gains = {} as SheetScoreContext["gains"];
   for (const type of TYPE_KEYS) {
     gains[TYPE_SHEET_ROLE[type]] = {
-      lessons: HATSU_LESSONS.map((lesson, i) => {
+      lessons: HATSU_LESSONS.map((_, i) => {
         const pick = state.lessons[i];
-        const spIndex = pick.sp ? 1 : 0;
-        if (pick.perfect) {
-          return pick.main === type
-            ? lesson.perfectMain[spIndex]
-            : lesson.perfectSub[spIndex];
-        }
-        return pick.main === type ? lesson.clear[spIndex] : 0;
+        if (!pick.main) return 0;
+        const g = hatsuLessonGains(i, pick.sp, pick.score);
+        return pick.main === type ? g.main : g.other;
       }),
       exams: [],
     };

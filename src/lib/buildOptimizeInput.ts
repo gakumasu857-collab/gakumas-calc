@@ -2,6 +2,7 @@
  * 全自動最適化（runFullOptimize）への入力を計算ページの状態から組み立てる。
  * 計算ページと /debug で同じ入力を使うため共通化している。
  */
+import { hifBonusValues } from "@/data/hifBonus";
 import type { AutoOptimizeInput } from "./autoOptimize";
 import { examStyleTags, type CardFlagSets } from "./formation";
 import { IDOL_RANKS } from "./pIdol";
@@ -61,6 +62,7 @@ export function buildAutoOptimizeInput(
     pStats: r.pStats,
     plan: r.plan,
     statCap: r.statCap,
+    hifBonus: hifBonusValues(r.calc.settings.hifBonus),
     tag,
     ranks: r.typeRanks,
     manual,

@@ -252,7 +252,7 @@ export default function HelpPage() {
         ページの構成
       </h2>
       <p className={`mb-3 ${P}`}>
-        メインは計算ページです。ほかのページは「探索に使う設定」と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜所持状況・発動回数・サポカ設定｜サポカ点数表・サポカDB｜ヘルプ）に並んでいます。
+        メインは計算ページです。ほかのページは「探索に使う設定」と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜所持状況・発動回数・サポカ設定｜サポカ点数表・データベース｜ヘルプ）に並んでいます。
       </p>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
@@ -295,7 +295,7 @@ export default function HelpPage() {
             </li>
             <li>
               <Link to="/database" className="font-semibold text-blue-700 underline">
-                サポカDB
+                データベース
               </Link>
               : アビリティ・イベントの一覧
             </li>

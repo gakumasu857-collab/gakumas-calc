@@ -14,6 +14,7 @@
 import { abilityMax, DEFAULT_SETS } from "@/data/abilityCounts";
 import type { AbilityName } from "@/data/constants";
 import { CLASSES, EXAMS, LESSONS } from "@/data/schedule";
+import { hifBonusValues } from "@/data/hifBonus";
 import { SCENARIO_CAPS, type ScenarioKey } from "@/data/scenarios";
 import {
   OptimizeEngine,
@@ -84,6 +85,11 @@ export function buildInput(): AutoOptimizeInput {
   };
   const scenario = (localStorage.getItem("gakumas:scenario:v1") ??
     "hif") as ScenarioKey;
+  // H.I.F.ボーナスのレベル（計算ページの設定。無ければ最大）
+  const hifBonus = hifBonusValues(
+    loadJson<{ hifBonus?: Parameters<typeof hifBonusValues>[0] }>("gakumas:calcSettings:v1", {})
+      .hifBonus,
+  );
   const hif = loadHifState();
 
   // メモリー（v2: 4枠の中身。無ければ旧形式のID配列、それも無ければメインパラボ60×4）
@@ -182,7 +188,8 @@ export function buildInput(): AutoOptimizeInput {
     memories,
     pStats,
     plan: pMaster?.plan ?? null,
-    statCap: SCENARIO_CAPS[scenario],
+    statCap: scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario],
+    hifBonus,
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),
     manual,

@@ -64,6 +64,7 @@ import { TYPE_KEYS, useCalcSettings, type TypeKey } from "./useCalcSettings";
 import { CALC_EVENT_COUNTS_KEY, useEventCounts } from "./useEventCounts";
 import { useHatsuSchedule } from "./useHatsuSchedule";
 import { useMemoryStore } from "./useMemoryStore";
+import { hifBonusValues } from "@/data/hifBonus";
 import { useNiaSchedule } from "./useNiaSchedule";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
@@ -143,7 +144,9 @@ export function useCalcResult() {
       : null;
     const ranks = IDOL_RANKS[settings.idol];
     const typeRanks = typeRanksOf(settings.idol);
-    const statCap = SCENARIO_CAPS[scenario];
+    // H.I.F.ボーナス（レベルは設定欄で調整。既定は全部最大）
+    const hifBonus = hifBonusValues(settings.hifBonus);
+    const statCap = scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario];
 
     const manual = manualCountFromSet(
       selectedSet ? (key) => ability.getRunCount(selectedSet, key) : null,
@@ -249,11 +252,11 @@ export function useCalcResult() {
     // パラボは全ソース（メモリー＋Pアイドル＋サポカ）を合算してから1回で変換する
     // （カードごとに個別変換すると切り捨てが多く発生して実際より低く出る）
     // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定
-    const hifFixed = scenario === "hif" ? 100 : 0;
-    const hifPct = scenario === "hif" ? 10 : 0;
+    const hifFixedOf = (t: TypeKey) => (scenario === "hif" ? hifBonus.fixed[t] : 0);
+    const hifPctOf = (t: TypeKey) => (scenario === "hif" ? hifBonus.pct[t] : 0);
     const basePct = {} as Record<TypeKey, number>;
     for (const type of TYPE_KEYS) {
-      basePct[type] = memPct[type] + (pStats?.parabo[type] ?? 0) + hifPct;
+      basePct[type] = memPct[type] + (pStats?.parabo[type] ?? 0) + hifPctOf(type);
     }
     const adj = summedParaboByType(
       activeCards,
@@ -267,8 +270,8 @@ export function useCalcResult() {
     const perType = {} as Record<TypeKey, PerTypeResult>;
     const baseNoConv = {} as Record<TypeKey, number>;
     for (const type of TYPE_KEYS) {
-      const idolFixed = (pStats?.fixed[type] ?? 0) + hifFixed;
-      const idolPct = (pStats?.parabo[type] ?? 0) + hifPct;
+      const idolFixed = (pStats?.fixed[type] ?? 0) + hifFixedOf(type);
+      const idolPct = (pStats?.parabo[type] ?? 0) + hifPctOf(type);
       const picks = activeCards.filter((p) => p.type === type);
       const supportPoints = teamEval.totals[type].raw;
       const supportInitial = picks.reduce((sum, p) => {
@@ -403,7 +406,7 @@ export function useCalcResult() {
       // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計に 5% が上乗せされた値。
       // 画面もそれに合わせて出し（shown）、実際の確率は「表示＋表記外推定SP率」とする
       // （例: 表示 +71%・表記外10% → 81%。Da（サブVi=75%）のSP踏み6回連続 = (0.81×0.75)^6 ≈ 5.0%）
-      const SHOWN_OFFSET = 0.05;
+      const SHOWN_OFFSET = scenario === "hif" ? hifBonus.spRate : 0.05;
       const shown: Record<TypeKey, number> = {
         vocal: bonus.vocal + SHOWN_OFFSET,
         dance: bonus.dance + SHOWN_OFFSET,

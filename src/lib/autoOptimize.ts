@@ -172,6 +172,8 @@ export type AutoOptimizeInput = {
   } | null;
   plan: string | null;
   statCap: number;
+  /** H.I.F.ボーナス（固定・パラボ%。無ければ最大＝+100/+10%） */
+  hifBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
   tag: NiaTag;
   /** タイプ→審査基準ランク（NIAのオーディション式に使用） */
   ranks: TypeRanks;
@@ -1554,17 +1556,19 @@ export class OptimizeEngine {
     const baseNoConv = {} as Record<TypeKey, number>;
     const basePct = {} as Record<TypeKey, number>;
     const baseStats = {} as Record<TypeKey, number>;
-    // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定
-    const hifFixed = input.scenario === "hif" ? 100 : 0;
-    const hifPct = input.scenario === "hif" ? 10 : 0;
+    // H.I.F.ボーナス（既定は全タイプ固定+100・パラボ+10%。設定で下げられる）はHIFシナリオ限定
+    const hifFixedOf = (t: TypeKey) =>
+      input.scenario === "hif" ? (input.hifBonus?.fixed[t] ?? 100) : 0;
+    const hifPctOf = (t: TypeKey) =>
+      input.scenario === "hif" ? (input.hifBonus?.pct[t] ?? 10) : 0;
     for (const type of TYPE_KEYS) {
       basePct[type] =
-        memPct[type] + (input.pStats?.parabo[type] ?? 0) + hifPct;
+        memPct[type] + (input.pStats?.parabo[type] ?? 0) + hifPctOf(type);
       baseNoConv[type] =
         bd.classes[type] +
         memFixed[type] +
         (input.pStats?.fixed[type] ?? 0) +
-        hifFixed +
+        hifFixedOf(type) +
         bd.lessons[type] +
         bd.exams[type];
       const g = ctx.gains[TYPE_SHEET_ROLE[type]];
@@ -2042,7 +2046,7 @@ export class OptimizeEngine {
         lessons: HATSU_LESSONS.map((_, i) => ({
           main: mains[i] ?? null,
           sp: true,
-          perfect: this.input.hatsu.lessons[i]?.perfect ?? true,
+          score: this.input.hatsu.lessons[i]?.score,
         })),
         classTypes: HATSU_CLASSES.map(() => "visual" as TypeKey),
       };

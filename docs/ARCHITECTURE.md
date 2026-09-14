@@ -147,6 +147,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityCounts.ts` | 発動回数ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
+| `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇 Lv0〜5＝固定+20L・パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise` |
 | `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |

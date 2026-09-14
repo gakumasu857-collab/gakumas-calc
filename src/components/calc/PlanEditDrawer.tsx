@@ -33,6 +33,8 @@ import {
   niaFinaleStat,
   niaFinaleVotes,
   type NiaTag,
+  hatsuLessonGains,
+  hatsuLessonScoreCap,
 } from "@/data/scenarios";
 import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
 import type { useCalcResult } from "@/lib/useCalcResult";
@@ -649,18 +651,20 @@ function HatsuEditor({ r }: { r: CalcResult }) {
           { label: "授業一括", onPick: (t) => hatsu.applyAllClasses(t) },
         ]}
       />
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        初のレッスンは、レッスン中に出した点数がそのまま踏んだタイプの素ステになります（上限まで出せばパーフェクト）。
+        クリアライン（数値表の「クリア」）を超えた分は残り2タイプにも同じだけ入ります。どちらもパラボが掛かります。
+      </p>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         <MiniTable
-          head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP", "パフェ"]}
+          head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP", "点数"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
-            const spIndex = pick.sp ? 1 : 0;
-            const mainValue = pick.perfect
-              ? lesson.perfectMain[spIndex]
-              : lesson.clear[spIndex];
-            // パーフェクト時は踏んでいないタイプにも perfectSub が入る
-            const offValue =
-              pick.main && pick.perfect ? lesson.perfectSub[spIndex] : 0;
+            const cap = hatsuLessonScoreCap(i, pick.sp);
+            const g = hatsuLessonGains(i, pick.sp, pick.score);
+            const mainValue = g.main;
+            // クリアラインを超えた分は踏んでいないタイプにも入る
+            const offValue = pick.main ? g.other : 0;
             return [
               lesson.label,
               ...TYPE_KEYS.map((type) => (
@@ -684,14 +688,22 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                 on={pick.sp}
                 onToggle={() => hatsu.toggleLessonSp(i)}
               />,
-              <MiniToggle
-                key="perfect"
-                on={pick.perfect}
-                onLabel="パフェ"
-                offLabel="クリア"
-                onClass="border-violet-400 bg-violet-100 text-violet-700"
-                onToggle={() => hatsu.toggleLessonPerfect(i)}
-              />,
+              <span key="score" className="flex items-center gap-1">
+                <NumberField
+                  value={pick.score ?? cap}
+                  onChange={(v) => hatsu.setLessonScore(i, v >= cap ? undefined : v)}
+                  max={cap}
+                  sliderMax={cap}
+                  className="w-20"
+                />
+                <MiniToggle
+                  on={pick.score === undefined}
+                  onLabel="パフェ"
+                  offLabel={`クリア${lesson.clear[pick.sp ? 1 : 0]}`}
+                  onClass="border-violet-400 bg-violet-100 text-violet-700"
+                  onToggle={() => hatsu.toggleLessonPerfect(i)}
+                />
+              </span>,
             ];
           })}
         />

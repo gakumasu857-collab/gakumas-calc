@@ -730,14 +730,14 @@ function HatsuPlan({ r }: { r: CalcResult }) {
       <h2 style={S.h2}>レッスン・授業・試験</h2>
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <PlanTable
-          head={["レッスン", "タイプ", "SP", "クリア"]}
+          head={["レッスン", "タイプ", "SP", "点数"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
             return [
               lesson.label,
               pick.main ? <TypeValue key="t" type={pick.main} /> : "―",
               spMark(pick.sp),
-              pick.perfect ? "パフェ" : "クリア",
+              pick.score === undefined ? "パフェ" : `${pick.score}点`,
             ];
           })}
         />
