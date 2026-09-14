@@ -712,6 +712,8 @@ export type FindBestOptions = {
    * 評価値そのもの（cap での頭打ち）はシナリオ上限のまま。
    */
   maxTargets?: Record<TypeKey, number>;
+  /** ステの高さの順（高い→低い）。指定があれば必須条件として扱う */
+  statOrder?: TypeKey[] | null;
 };
 
 /**
@@ -1087,7 +1089,9 @@ export function findBestFormation(
       spConditionShortfall(members, spMin) * SP_PENALTY -
       // タイプ割合は必須条件（シードと山登りは構成を守るが、固定カードや
       // アシストの扱いで崩れた候補が勝たないよう目的関数でも弾く）
-      typeRatioShortfall(members, opts) * RATIO_PENALTY
+      typeRatioShortfall(members, opts) * RATIO_PENALTY -
+      // ステの高さの順も必須条件（全自動最適化と同じ扱い）
+      statOrderShortfall(capped, opts?.statOrder) * RATIO_PENALTY
     );
   };
 

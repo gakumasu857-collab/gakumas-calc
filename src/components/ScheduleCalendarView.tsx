@@ -19,7 +19,7 @@ const EVENT_CHIP: Record<CalendarEvent, string> = {
 
 /**
  * シナリオの育成スケジュール表（何日/週に何があるか）。
- * 数値表・発動回数モーダル・プロデュースページから開ける共通ビュー。
+ * 数値表・発動回数モーダル・プロデュース設定ページから開ける共通ビュー。
  */
 export default function ScheduleCalendarView({
   scenario,

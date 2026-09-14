@@ -144,7 +144,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generated/cardSprite.json` / `generated/preEventImages.json` | 画像関連のカタログ（2-2 参照） |
 | `supportCardsDb.ts` | **supMaster の読み替え役。** 日本語の列名を内部名に写す `HEADER_ALIASES`、1 行をカードの形に組み立てる `convert()`、後イベの語彙 `LATER_EVENT_MAP`、ステイベの種類 `STAT_EVENT_TYPES_ARRAY`、前イベの数値列 `NUMERIC_ACTION_MAP`、スキル分類列 `SKILL_FLAG_MAP` がここ。結果が `SUPPORT_CARD_DB` |
 | `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名。2026-09 にレッスン系は「タイプレッスン／タイプSPレッスン／タイプ通常レッスン」、SP率は「タイプSPレッスン率／全タイプSPレッスン率」に改名。旧名は `ABILITY_LABEL_ALIASES` で受ける）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
-| `abilityCounts.ts` | プロデュースページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
+| `abilityCounts.ts` | プロデュース設定ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
 | `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
@@ -206,7 +206,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`。設定欄のプロデュースの ⓘ もこれ（ヘルプへのリンクではない））、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
-左端の縦タブは `calc/SideTabs.tsx`（上＝「プロデュース」（アビリティ発動回数）・下＝「レッスン等の踏み方」。2026-09-15 に画面名を「発動回数」から「プロデュース」に改名。ナビ・ページ見出し・モーダル・セーブの要約・ヘルプも同じ。コード上の名前（ability-counts、useAbilityCounts 等）は据え置き）。`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
+左端の縦タブは `calc/SideTabs.tsx`（上＝「プロデュース」（アビリティ発動回数）・下＝「レッスン等の踏み方」。2026-09-15 に画面名を「発動回数」から「プロデュース」に改名（ページのほうは 2026-09-16 に「プロデュース設定」）。ナビ・ページ見出し・モーダル・セーブの要約・ヘルプも同じ。コード上の名前（ability-counts、useAbilityCounts 等）は据え置き）。計算ページのイベント手動指定（`CALC_EVENT_COUNTS_KEY`）は編成から外れたカードの分を `useEventCounts.pruneTo` で消す（「今の編成での調整」。2026-09-16）。`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
 
 ページの割り当ては `src/App.tsx` の `PAGES` 配列と `Routes` にあります。
 
@@ -224,7 +224,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `ownership/` | `/support` 所持状況入力（サポカ・Pアイドル、CSV、名前つき保存。`OwnedSaveBar.tsx` に既定の「全サポカ完凸」） |
 | `card-import/CardImportPage.tsx` | `/card-import` 画面キャプチャで所持入力（β） |
 | `memory-manager/` | メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身。メモリーページ（/memory）は廃止）。`MemoryWorkbench.tsx`: 上＝`MemorySlot.tsx`（4 枠。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」、編集中の空枠は「編集中・下で中身を作る」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`）、下＝左 `SlotEditor.tsx`（値ボタンでその場で作る。テンプレ（メインパラボ）の枠も今の踏み方で展開した中身から始めてそのまま変えられ、変えた時点で普通のメモリーになる。保存は任意で「メモリーとして保存」「上書き保存」「別のメモリーとして保存」。同じアビリティ・プランのメモリーがあれば注意 `findDuplicate`）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレ。クリックで編集中の枠に入れて次の空枠へ。✎で直接編集 `LibraryEditModal.tsx`）。入力欄は `MemoryFields.tsx` を共用。A の枠（初回）は最初の空枠を編集対象にして編集枠までスクロール（`focusKey`） |
-| `ability-counts/` | `/ability-counts` 画面名は「プロデュース」（ナビ・見出し。2026-09-15 に「発動回数」から改名）。アビリティ発動回数＝プロデュースごとの**デフォルトの回数**（ページ上部に「プロデュース＝アビリティ発動回数」の1行と、前イベ・後イベ分を含めない赤い注意）。セットの表（「計算ページで使用中」列）・編集モーダル `SetEditModal.tsx`（`mode`: default＝ページ／run＝計算ページ。run では「この育成での回数」の帯・「調整中 N件」・すべてデフォルトに戻す）・1 件の入力 `AbilityCounter.tsx`（調整中の印） |
+| `ability-counts/` | `/ability-counts` 画面名は「プロデュース設定」（ナビの「自動編成機能の設定」の中・見出し。2026-09-15 に「発動回数」→「プロデュース」、2026-09-16 に「プロデュース設定」）。アビリティ発動回数＝プロデュースごとの**デフォルトの回数**（ページ上部に「プロデュース＝アビリティ発動回数」の1行と、前イベ・後イベ分を含めない赤い注意）。セットの表（「計算ページで使用中」列）・編集モーダル `SetEditModal.tsx`（`mode`: default＝ページ／run＝計算ページ。run では「この育成での回数」の帯・「調整中 N件」・すべてデフォルトに戻す）・1 件の入力 `AbilityCounter.tsx`（調整中の印） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表 |
 | `database/DatabasePage.tsx` | `/database` データベース（サポカ・Pアイドルの一覧閲覧。スプシの見た目に近い） |
@@ -232,7 +232,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `event-counter/` | `/event-counter` イベントカウンター（別ツール） |
 | `EventControls.tsx` | 前イベ「取得」トグル、強化／削除の A/M 割り振り、任意スキル獲得の分類ピッカー、後イベ M/A/✕ ボタン、ステイベ 〇/✕（計算ページとサポカ設定ページで共用） |
 | `ScoreDetailModal.tsx` | サポカ 1 枚の点数内訳モーダル |
-| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` | 共通部品（ナビ、モーダル、数値入力、スケジュール表） |
+| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル、数値入力、スケジュール表） |
 
 ---
 
@@ -265,7 +265,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 2. レッスン系（レッスン／SPレッスン／通常レッスン）は **踏み方から自動**。カードのタイプと同じタイプを
    メインで踏んだ回数だけ数えます（サブ枠で踏んだ分は数えない）。内部では Vo=メイン1、Da=メイン2、Vi=サブ という
    名前で持っています（表示では Vo/Da/Vi に直しています）。
-3. それ以外（スキル獲得・強化・削除・お出かけなど）は **発動回数セット**（プロデュースページで参照にしたセット）の値。
+3. それ以外（スキル獲得・強化・削除・お出かけなど）は **発動回数セット**（プロデュース設定ページで参照にしたセット）の値。
 4. 「◯◯(N回まで)」という名前で、セットに同名の行が無いときは、◯◯ の回数を N で頭打ちにした値。
 5. どれにも無ければ 0 回。
 
@@ -489,10 +489,10 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
    既存の名前、例 `スキル強化` `お出かけ` `レッスン`。名前に「（N回まで）」があるときも `trigger_tag` は基準名でよい）。
    → これだけで **点数は計算されます**（回数の参照先が既存の名前なら）。
 2. コード `src/data/constants.ts` の `ABILITY_NAMES` に「内部キー: 日本語名」を 1 行足す（表記ゆれを受けたいなら `ABILITY_LABEL_ALIASES` にも）。
-   足さないと、開発モードで「未知のアビリティ名があります」と警告が出て、所持状況ページの絞り込み・プロデュースページ・セーブの発動回数に
+   足さないと、開発モードで「未知のアビリティ名があります」と警告が出て、所持状況ページの絞り込み・プロデュース設定ページ・セーブの発動回数に
    そのアビリティが出ません。
 3. **発動回数を利用者が変えられるアビリティ**（スキル獲得系・強化削除系・スケジュール系・その他）なら、
-   `src/data/abilityCounts.ts` の `ABILITY_CATEGORIES` のどれかの分類に内部キーを足す（プロデュースページの表に行が出る）。
+   `src/data/abilityCounts.ts` の `ABILITY_CATEGORIES` のどれかの分類に内部キーを足す（プロデュース設定ページの表に行が出る）。
    発動回数タブにも行を足す（4-1 F）。
 4. 「◯◯(N回まで)」の派生で、発動回数タブに独立行を作らない場合は `abilityCounts.ts` の `DERIVED_CAPS` に
    `{ key: 新キー, base: 基のキー, cap: N }` を足す（点数計算だけなら `sheetScore.ts` の `buildCountResolver` が自動で N で頭打ちにするので不要）。
@@ -647,7 +647,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
    `gen:perf` の警告「カードが使うが abilityValues に無いアビリティ」を確認。
 2. **回数の参照先が違う**: `abilityValues` の `trigger_tag` が発動回数タブの行名と対応していない。`trigger_tag` が空だと「回数なし＝点数 0」です。
 3. **枠 3 は点数に入らない**（レッスンサポート率など）。仕様です。内訳モーダルでは「対象外」と出ます。
-4. **参照セットが未選択**: プロデュースページでセットにチェックが無いと、手動系の回数はすべて 0 になります（計算ページは評価値を出しません）。
+4. **参照セットが未選択**: プロデュース設定ページでセットにチェックが無いと、手動系の回数はすべて 0 になります（計算ページは評価値を出しません）。
 5. **上限で頭打ち**: 「(N回まで)」の N、またはスケジュール上の回数（お出かけ 5 回など。`abilityCounts.ts` の `abilityMax`）を超えた分は切り捨て。
 6. **名前が違う**: 発動回数タブの行名・カードのアビリティ名がコードの正式名（`ABILITY_NAMES`）と違うと無視されます。
    `update-all.cmd` の最後の `check:labels` が未登録の名前を一覧するので、4-1 C-2 の手順で直す。

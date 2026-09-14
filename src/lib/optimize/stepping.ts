@@ -6,6 +6,7 @@
  * 山登りは全軸の候補を総当たりする（乱数は使わない）。
  * どちらも同じ列挙を使うので、両者が必ず同じ近傍を見ることが保証される。
  */
+import { EXAMS, examStarCapScore } from "../../data/schedule";
 import type { TypeKey } from "../useCalcSettings";
 import { TYPE_KEYS } from "../useCalcSettings";
 import type { HatsuLessonPick } from "../useHatsuSchedule";
@@ -36,8 +37,10 @@ type HatsuStepping = Extract<Stepping, { kind: "hatsu" }>;
  * 各選抜試験でスター性がちょうど上限に達する合計スコア（1次から順）。
  * ステ上昇はスコアの比率だけで決まり、スター性は合計だけで決まるので、
  * この合計を整数比で分配すればスター性は常に最大のまま比率だけ動かせる。
+ * 値は schedule.ts のスター性の表（examStarCapScore: 14,001／146,365／390,910）から取る
+ * （以前はここに古い定数 14000／145455／405000 を持っていて、探索がその値を置いていた）。
  */
-const EXAM_STAR_TOTALS = [14000, 145455, 405000];
+const EXAM_STAR_TOTALS = EXAMS.map((_, i) => examStarCapScore(i));
 
 /**
  * 選抜スコアの分配候補（整数比）。単タイプ全振り・2タイプの各比率・均等まで

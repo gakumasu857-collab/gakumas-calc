@@ -13,7 +13,7 @@
  */
 import { abilityMax, DEFAULT_SETS } from "@/data/abilityCounts";
 import type { AbilityName } from "@/data/constants";
-import { CLASSES, EXAMS, LESSONS } from "@/data/schedule";
+import { CLASSES, EXAMS, examStarCapScore, LESSONS } from "@/data/schedule";
 import { hifBonusValues } from "@/data/hifBonus";
 import { niaChallengeTotal, normalizeNiaChallenge } from "@/data/niaChallenge";
 import { SCENARIO_CAPS, type ScenarioKey } from "@/data/scenarios";
@@ -61,19 +61,19 @@ type HifState = {
 
 function loadHifState(): HifState {
   const stored = loadJson<Partial<HifState>>("gakumas:schedule:v1", {});
-  const each = [5000, 50000, 140000];
   return {
     lessons:
       stored.lessons ??
       LESSONS.map(() => ({ main: "vocal", sub: "dance", sp: true })),
     classTypes: stored.classTypes ?? CLASSES.map(() => "visual" as TypeKey),
+    // 初期値は useSchedule と同じ（★上限のスコアを3タイプに均等、端数は Vo）
     examScores:
       stored.examScores ??
-      EXAMS.map((_, i) => ({
-        vocal: each[i] ?? 0,
-        dance: each[i] ?? 0,
-        visual: each[i] ?? 0,
-      })),
+      EXAMS.map((_, i) => {
+        const cap = examStarCapScore(i);
+        const each = Math.floor(cap / 3);
+        return { vocal: cap - each * 2, dance: each, visual: each };
+      }),
     examStats: stored.examStats ?? EXAMS.map(() => null),
   };
 }

@@ -25,7 +25,7 @@ const USER_SETS_KEY = "gakumas:abilityUserSets:v1";
 const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 /**
  * 計算ページでの「この育成だけ」の回数調整（セットID→アビリティ→回数）。
- * プロデュースページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
+ * プロデュース設定ページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
  */
 const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
 
@@ -34,7 +34,7 @@ type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
 
 /**
  * ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定。
- * saveId 付きは計算ページのセーブデータから作られたもの（プロデュースページでは既定で隠す）。
+ * saveId 付きは計算ページのセーブデータから作られたもの（プロデュース設定ページでは既定で隠す）。
  */
 type UserSet = { id: string; name: string; plan?: string; saveId?: string };
 
@@ -125,7 +125,7 @@ export function useAbilityCounts() {
 
   /**
    * 計算ページで使う「この育成での回数」。この育成だけの調整（adjust）があればそれ、
-   * なければセットのデフォルト（プロデュースページの値）。
+   * なければセットのデフォルト（プロデュース設定ページの値）。
    */
   const getRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName): number => {
@@ -135,7 +135,7 @@ export function useAbilityCounts() {
     [adjust, getCount],
   );
 
-  /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュースページの値は変えない */
+  /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュース設定ページの値は変えない */
   const setRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName, value: number) => {
       const next = clamp(value, abilityMax(key));
@@ -392,7 +392,7 @@ export function useAbilityCounts() {
 
   /** ユーザーがUIで追加したセットか（削除可能か） */
   const isUserSet = (setId: string) => setId.startsWith("uset-");
-  /** 計算ページのセーブデータから作られたセットか（プロデュースページでは既定で隠す） */
+  /** 計算ページのセーブデータから作られたセットか（プロデュース設定ページでは既定で隠す） */
   const saveIdOf = (setId: string): string | undefined =>
     userSets.find((s) => s.id === setId)?.saveId;
 

@@ -134,6 +134,32 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     setMap({ ...snapshot });
   }, []);
 
+  /** カード1枚ぶんの手動指定を全部消す（自動に戻す） */
+  const clear = useCallback((id: string) => {
+    setMap((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  /**
+   * 指定したカード以外の手動指定を消す。
+   * 計算ページでは「今の編成での調整」なので、編成から外れたカードの設定を持ち越さない
+   * （別の編成のときに取得OFFにしたカードを後で入れ直すと、何もしていないのに
+   *   「変更中」になって評価値も変わる、を防ぐ）。空の Set を渡すと全部消える。
+   */
+  const pruneTo = useCallback((ids: ReadonlySet<string>) => {
+    setMap((prev) => {
+      const stale = Object.keys(prev).filter((id) => !ids.has(id));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      for (const id of stale) delete next[id];
+      return next;
+    });
+  }, []);
+
   return {
     get,
     set,
@@ -142,6 +168,8 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     setAcquire,
     setSkillTags,
     replaceAll,
+    clear,
+    pruneTo,
     loaded: true,
     map,
   };

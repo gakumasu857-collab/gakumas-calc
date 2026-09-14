@@ -161,8 +161,13 @@ export default function PlanEditDrawer({
                       {Math.round(r.perType[t].current).toLocaleString()}
                     </b>
                   </span>
-                  <span className="text-[11px] text-slate-400 sm:ml-1">
-                    (パラボ{r.perType[t].startPct}%)
+                  {/* パラボ%は薄い括弧書きだと読めないので、白いチップで見せる */}
+                  <span
+                    title="このタイプに掛かるパラメータボーナスの合計（メモリー・Pアイドル・サポカ）"
+                    className="mt-0.5 inline-flex w-fit items-center gap-1 rounded bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-300 sm:ml-1.5 sm:mt-0"
+                  >
+                    パラボ
+                    <b className={`text-sm ${TYPE_STYLE[t].head}`}>{r.perType[t].startPct}%</b>
                   </span>
                 </span>
               ))}
@@ -202,8 +207,8 @@ function HifEditor({ r }: { r: CalcResult }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <BulkRow
           groups={[
-            { label: "踏むタイプ一括", onPick: (t) => schedule.applyAllMain(t) },
-            { label: "2ndタイプ一括", onPick: (t) => schedule.applyAllSubs(t) },
+            { label: "メイン一括", onPick: (t) => schedule.applyAllMain(t) },
+            { label: "サブ一括", onPick: (t) => schedule.applyAllSubs(t) },
             { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
           ]}
         />
@@ -297,10 +302,10 @@ function HifEditor({ r }: { r: CalcResult }) {
             const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
             /** スター性が上限に達するスコア（入力もここで止める） */
             const capScore = examStarCapScore(i);
-            /** 極振り: 現在の総スコアを1タイプに全部 */
+            /** 極振り: スター性が上限に達するスコアを1タイプに全部（今の合計ではなく上限） */
             const allIn = (type: TypeKey) => {
               const next: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-              next[type] = total;
+              next[type] = capScore;
               schedule.setExamScores(i, next);
             };
             const modeBtn = (mode: "score" | "stat", label: string) => (
@@ -410,9 +415,8 @@ function HifEditor({ r }: { r: CalcResult }) {
                             <button
                               key={type}
                               type="button"
-                              disabled={total === 0}
                               onClick={() => allIn(type)}
-                              title={`総スコアを全部${TYPE_LABELS[type]}に`}
+                              title={`★上限のスコア（${capScore.toLocaleString()}）を全部${TYPE_LABELS[type]}に`}
                               className={`rounded-md px-1.5 py-1 text-xs font-bold transition disabled:opacity-40 ${TYPE_STYLE[type].chip} hover:brightness-95`}
                             >
                               {TYPE_LABELS[type].slice(0, 2)}

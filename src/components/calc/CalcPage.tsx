@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { setPlanMatches } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
@@ -173,6 +173,14 @@ export default function CalcPage() {
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
 
+  // 前イベ・後イベ・ステイベの手動指定は「今の編成での調整」。編成から外れたカードの分は消す
+  // （別の編成で取得OFFにしたカードを探索が入れ直すと、何もしていないのに「1枚変更中」になっていた）
+  const memberKey = r.members.map((m) => (m ? m.id : "")).join("|");
+  useEffect(() => {
+    r.events.pruneTo(new Set(r.members.flatMap((m) => (m ? [m.id] : []))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberKey]);
+
   // 評価値は「サポカ6枚が編成済み」かつ「育成（発動回数セット）を選択済み」のときだけ表示
   const canShowRating =
     r.members.every((m) => m !== null) && !!r.selectedSet;
@@ -219,6 +227,8 @@ export default function CalcPage() {
           extraScore: r.niaFudaExtra,
           examAssist: settings.examAssist,
           examStyleTags: examStyleTags(r.selectedSet?.plan ?? null),
+          // ステの高さの順（指定があれば必須条件）
+          statOrder: settings.statOrder,
           // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
           ...(settings.typeRatio.enabled
             ? typeConstraintFromRatio({
@@ -453,12 +463,13 @@ export default function CalcPage() {
   };
 
   const conditionChips = conditionChipsOf(conditionInput());
-  /** 前イベ・後イベ・ステイベを手で変えている編成カードの数（全体像カードのバッジ） */
-  const eventOverrideCount = r.members.filter((m) => {
-    if (!m) return false;
+  /** 前イベ・後イベ・ステイベを手で変えている編成カード（全体像カードのバッジと、そのツールチップ） */
+  const eventOverrideNames = r.members.flatMap((m) => {
+    if (!m) return [];
     const ov = r.events.get(m.id);
-    return !!ov && Object.values(ov).some((v) => v !== undefined && v !== null);
-  }).length;
+    return ov && Object.values(ov).some((v) => v !== undefined && v !== null) ? [m.name] : [];
+  });
+  const eventOverrideCount = eventOverrideNames.length;
 
   /** 主役ボタン（所持状況は「設定欄」の欄で見せているので、確認は挟まない） */
   /** 選んでいるPアイドルが所持状況で未所持なら、探索の前に注意を出す（直すか、そのまま進むか） */
@@ -595,6 +606,9 @@ export default function CalcPage() {
           r={r}
           flags={flags}
           eventOverrideCount={eventOverrideCount}
+          eventOverrideTitle={
+            eventOverrideCount > 0 ? `手で変えているカード: ${eventOverrideNames.join("・")}` : undefined
+          }
           onOpenSlot={(i) => setPickerSlot(i)}
           onDetail={(m) => setDetail(m)}
           onEditPlan={() => setPlanOpen(true)}
@@ -883,8 +897,25 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
   const th = "px-2 py-1 text-left text-[10px] font-semibold text-slate-400";
   const td = "px-2 py-1.5 align-middle";
 
+  const changed = rows.filter(({ card }) => {
+    const ov = r.events.get(card.id);
+    return !!ov && Object.values(ov).some((v) => v !== undefined && v !== null);
+  }).length;
+
   return (
     <div className="mt-2 overflow-x-auto rounded-lg bg-slate-50 px-1 py-1.5">
+      {changed > 0 && (
+        <div className="mb-1 flex items-center justify-end gap-2 px-1 text-[11px] text-slate-500">
+          手で変えているカード {changed}枚
+          <button
+            type="button"
+            onClick={() => r.events.pruneTo(new Set())}
+            className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            全部自動に戻す
+          </button>
+        </div>
+      )}
       <table className="w-full min-w-max text-xs text-slate-700">
         <thead>
           <tr className="border-b border-slate-200">

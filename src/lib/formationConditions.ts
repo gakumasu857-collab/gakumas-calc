@@ -134,6 +134,21 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
       detail: missing.length ? `${missing.join("・")}が未編成` : undefined,
     });
   }
+  // レンタル（1枚まで。所持状況を変えて未所持になったカードもレンタル扱いになる）
+  const rentals = members.filter((m) => m.rental);
+  if (rentals.length > 0) {
+    const ng = rentals.filter((m) => input.flags.rentalNg?.has(m.id));
+    out.push({
+      label: "レンタル",
+      ok: rentals.length <= 1 && ng.length === 0,
+      detail:
+        rentals.length > 1
+          ? `${rentals.length}枚（1枚まで）`
+          : ng.length > 0
+            ? `${ng.map((m) => m.name).join("・")}はレンタルNG`
+            : rentals[0].name,
+    });
+  }
   if (settings.spTop.first > 0 || settings.spTop.second > 0) {
     let short = 0;
     for (const t of TYPE_KEYS) {
@@ -158,6 +173,19 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
       label: "タイプ割合",
       ok,
       detail: `Vo${counts.vocal} Da${counts.dance} Vi${counts.visual}`,
+    });
+  }
+  // ステの高さの順（指定があるときだけ。NGなら今の順を添える）
+  if (settings.statOrder) {
+    const short = statOrderShortfall(input.capped, settings.statOrder);
+    const now = [...TYPE_KEYS]
+      .sort((a, b) => input.capped[b] - input.capped[a])
+      .map((t) => TYPE_JA[t])
+      .join("＞");
+    out.push({
+      label: `ステの順（${settings.statOrder.map((t) => TYPE_JA[t]).join("＞")}）`,
+      ok: short === 0,
+      detail: short > 0 ? `今は ${now}` : undefined,
     });
   }
   if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {

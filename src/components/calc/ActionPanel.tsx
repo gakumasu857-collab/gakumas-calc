@@ -225,7 +225,7 @@ export default function ActionPanel({
                 type="button"
                 onClick={copyLog}
                 className={`${BTN_GHOST} -ml-2`}
-                title="今の設定・踏み方・メモリー・発動回数・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
+                title="今の設定・踏み方・メモリー・プロデュース（アビリティ発動回数）・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
               >
                 <ClipboardCopy size={12} />
                 診断ログをコピー

@@ -5,6 +5,7 @@ import {
   distributeExam,
   EXAMS,
   examStar,
+  examStarCapScore,
   LESSONS,
 } from "@/data/schedule";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
@@ -57,15 +58,17 @@ const EMPTY_EXAM: ExamScores = { vocal: 0, dance: 0, visual: 0 };
 
 // 初回デフォルトの選抜スコア（スター性が上限に達する高さ・3タイプ均等）。
 // ステ上昇は score が正なら base で一定なので、magnitude はスター性のためだけ。
-const DEFAULT_EXAM_EACH = [5000, 50000, 140000];
+/** 選抜スコアの初期値: スター性が上限に達する合計を3タイプに均等（端数は Vo へ） */
+function defaultExamScores(i: number): ExamScores {
+  const cap = examStarCapScore(i);
+  const each = Math.floor(cap / 3);
+  return { vocal: cap - each * 2, dance: each, visual: each };
+}
 
 const DEFAULT_STATE: ScheduleState = {
   lessons: LESSONS.map(() => ({ main: "vocal", sub: "dance", sp: true })),
   classTypes: CLASSES.map(() => "visual"),
-  examScores: EXAMS.map((_, i) => {
-    const each = DEFAULT_EXAM_EACH[i] ?? 0;
-    return { vocal: each, dance: each, visual: each };
-  }),
+  examScores: EXAMS.map((_, i) => defaultExamScores(i)),
   examStats: EXAMS.map(() => null),
 };
 

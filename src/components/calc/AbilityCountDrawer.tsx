@@ -10,8 +10,8 @@ const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
  * 計算ページ左端の「プロデュース」タブから開く、アビリティ発動回数のエディタ。
- * プロデュースページ（/ability-counts）と同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
- * プロデュースページのデフォルトは変えない（useAbilityCounts の adjust レイヤー。「上書き保存」でデフォルトに書ける）。
+ * プロデュース設定ページ（/ability-counts）と同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
+ * プロデュース設定ページのデフォルトは変えない（useAbilityCounts の adjust レイヤー。「上書き保存」でデフォルトに書ける）。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。
  */
 export default function AbilityCountDrawer({
@@ -84,7 +84,7 @@ export default function AbilityCountDrawer({
             <p className="text-sm text-slate-600">
               プロデュースが未選択です。「設定欄」のプロデュースで選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">
-                プロデュースページ
+                プロデュース設定ページ
               </Link>
               でチェックしてください。
             </p>

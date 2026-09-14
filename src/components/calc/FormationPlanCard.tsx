@@ -28,6 +28,7 @@ export default function FormationPlanCard({
   r,
   flags,
   eventOverrideCount,
+  eventOverrideTitle,
   onOpenSlot,
   onDetail,
   onEditPlan,
@@ -39,6 +40,8 @@ export default function FormationPlanCard({
   flags: CardFlagSets;
   /** 前イベ・後イベ・ステイベを手で変えているカード数（ボタンのバッジ） */
   eventOverrideCount: number;
+  /** バッジのツールチップ（どのカードを変えているか） */
+  eventOverrideTitle?: string;
   onOpenSlot: (index: number) => void;
   onDetail: (member: SelectedMember) => void;
   onEditPlan: () => void;
@@ -187,7 +190,10 @@ export default function FormationPlanCard({
             <SlidersHorizontal size={14} />
             前イベ・後イベ・ステイベの発動を調整（評価値に反映）
             {eventOverrideCount > 0 && (
-              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              <span
+                title={eventOverrideTitle}
+                className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+              >
                 {eventOverrideCount}枚変更中
               </span>
             )}

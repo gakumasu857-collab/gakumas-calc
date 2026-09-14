@@ -132,7 +132,7 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
             >
               {visible.length === 0 ? (
                 <p className="px-2 py-2 text-xs text-slate-500">
-                  このシナリオ{plan ? `・${plan}` : ""}で使えるプロデュースがありません（プロデュースページで作れます）
+                  このシナリオ{plan ? `・${plan}` : ""}で使えるプロデュースがありません（プロデュース設定ページで作れます）
                 </p>
               ) : (
                 <>

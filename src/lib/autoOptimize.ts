@@ -444,7 +444,13 @@ export function runFullOptimize(
   // 今の編成＋今の踏み方も候補に入れる（使えるカードだけで組めているとき）。
   // 探索がこれを下回ることがなくなり、押すたびに悪化しない
   let currentCand: (typeof finalists)[number] | undefined;
-  const cur = input.currentSlots;
+  // 今の編成のレンタル印は、所持状況を変えて未所持になったカードにも付け直す
+  // （評価は未所持＝完凸レンタル扱いなので、「レンタル1枚まで」の判定に効かせる。
+  //   これが無いと未所持カードが「所持」の顔で残り、もう1枚レンタルして2枚になったまま抜けられなかった）
+  const cur = input.currentSlots?.map((x) => ({
+    id: x.id,
+    rental: x.rental || input.getLevel(x.id) < 0,
+  }));
   if (
     cur &&
     cur.length === 6 &&
@@ -1260,6 +1266,18 @@ export class OptimizeEngine {
    * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
    * 全割当（3^授業数）を正確に評価し、合計最優先→閾値優先の辞書式で選ぶ。
    */
+  /** レンタルの違反量（2枚目以降の枚数＋レンタルNGなのにレンタルしている枚数） */
+  private rentalShortfall(members: ScoredCard[]): number {
+    let rentals = 0;
+    let ng = 0;
+    for (const m of members) {
+      if (!m.rental) continue;
+      rentals++;
+      if (this.input.flags.rentalNg?.has(m.id)) ng++;
+    }
+    return Math.max(0, rentals - 1) + ng;
+  }
+
   applyClassPreference(best: {
     stepping: Stepping;
     slots: SelectedSlot[];
@@ -1273,7 +1291,7 @@ export class OptimizeEngine {
     const t1 = TYPE_KEYS.find((t) => ranks[t] === 1) ?? "vocal";
     const t2 = TYPE_KEYS.find((t) => ranks[t] === 2) ?? "dance";
     const t3 = TYPE_KEYS.find((t) => ranks[t] === 3) ?? "visual";
-    type Key = [number, number, number, number, number];
+    type Key = [number, number, number, number, number, number];
     const better = (a: Key, b: Key) => {
       for (let i = 0; i < a.length; i++) {
         if (a[i] !== b[i]) return a[i] > b[i];
@@ -1292,6 +1310,8 @@ export class OptimizeEngine {
           true,
         );
         const key: Key = [
+          // ステの高さの順（指定があれば最優先。閾値ルールで順が崩れないように）
+          -statOrderShortfall(stats, this.input.statOrder),
           Math.round(cappedSum),
           Math.min(stats[t1], 2100),
           Math.min(stats[t2], 1400),
@@ -1688,7 +1708,9 @@ export class OptimizeEngine {
       statOrderShortfall(stats, this.input.statOrder) * RATIO_PENALTY -
       // 固定カードも必須条件。ビームは最初に投入するが、「今の編成」の候補や
       // 1枚入れ替え・組み直しで外れた候補が勝たないよう目的関数でも弾く
-      this.pinnedShortfall(members) * RATIO_PENALTY;
+      this.pinnedShortfall(members) * RATIO_PENALTY -
+      // レンタルは1枚まで・レンタルNGのカードはレンタルしない（必須条件）
+      this.rentalShortfall(members) * RATIO_PENALTY;
     return { obj, cappedSum, members, stats, overflow };
   }
 
