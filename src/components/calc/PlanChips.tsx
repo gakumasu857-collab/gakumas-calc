@@ -1,5 +1,5 @@
 import { EXAMS } from "@/data/schedule";
-import { TYPE_SHORT, TYPE_SOLID } from "@/components/ui";
+import { TYPE_SHORT, TYPE_SOLID, TYPE_TEXT } from "@/components/ui";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -17,8 +17,8 @@ export type PlanSummary = {
   exams?: Record<TypeKey, number>[];
   /** 選抜ごとに、ステ直接入力なら true */
   examManual?: boolean[];
-  /** N.I.A. オーディション（1次・2次）のタイプ別ステ上昇 */
-  auditions?: Record<TypeKey, number>[];
+  /** N.I.A. オーディション（1次・2次・最終）の上がるステ（素点）とファン投票数 */
+  auditions?: { label: string; stats: Record<TypeKey, number>; votes: number }[];
   /** 初 試験（中間・最終）の順位 */
   ranks?: { mid: number; final: number };
 };
@@ -29,7 +29,11 @@ export function currentPlanSummary(r: CalcResult): PlanSummary {
     return {
       lessons: r.niaSchedule.lessons.map((l) => ({ type: l.main, sp: l.sp })),
       sales: r.niaSchedule.sales.map((s) => s.type),
-      auditions: r.niaSchedule.auditions,
+      auditions: r.niaAuditionBase.map((stats, i) => ({
+        label: i === 2 ? "最終" : `${i + 1}次`,
+        stats,
+        votes: i === 2 ? (r.scenarioValues.votesFinale ?? 0) : (r.niaSchedule.auditionVotes[i] ?? 0),
+      })),
     };
   }
   if (r.scenario === "hatsuLegend") {
@@ -208,9 +212,16 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
           {plan.auditions.map((a, i) => (
             <span
               key={i}
+              title="上がるステ（素点。獲得ボーナス・パラボは別途上乗せ）とファン投票数"
               className="rounded-md bg-slate-100 px-2 py-1 text-[11px] tabular-nums text-slate-700"
             >
-              {i + 1}次 Vo{a.vocal} Da{a.dance} Vi{a.visual}
+              <b className="mr-1 text-slate-500">{a.label}</b>
+              {TYPE_KEYS.map((t) => (
+                <span key={t} className="mr-1">
+                  <b className={TYPE_TEXT[t]}>{TYPE_SHORT[t]}</b>+{a.stats[t]}
+                </span>
+              ))}
+              <span className="text-slate-500">{a.votes.toLocaleString()}票</span>
             </span>
           ))}
         </Row>

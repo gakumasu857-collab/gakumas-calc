@@ -1,4 +1,4 @@
-﻿import { X } from "lucide-react";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -7,15 +7,52 @@ type Props = {
   children: ReactNode;
   /** モーダル幅（デフォルト max-w-2xl。広い画面が必要なら max-w-4xl 等を渡す） */
   widthClass?: string;
+  /**
+   * 出し方。center＝画面中央（既定）。
+   * left＝左端から出す引き出し（踏み方・発動回数用。右側の評価値・ステータスを見ながら変えられる）
+   */
+  side?: "center" | "left";
 };
 
-/** 画面中央に出す共通モーダル。背景クリックか×で閉じる。 */
+/** 共通モーダル。背景クリックか×で閉じる。 */
 export default function Modal({
   title,
   onClose,
   children,
   widthClass = "max-w-2xl",
+  side = "center",
 }: Props) {
+  const header = (
+    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <h2 className="text-sm font-bold text-slate-900">{title}</h2>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="閉じる"
+        className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+      >
+        <X size={18} />
+      </button>
+    </div>
+  );
+
+  if (side === "left") {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex justify-start bg-slate-900/15"
+        onClick={onClose}
+      >
+        <div
+          className={`drawer-left flex h-full w-full flex-col bg-white shadow-2xl ${widthClass}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {header}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-500/40 p-4"
@@ -25,17 +62,7 @@ export default function Modal({
         className={`flex max-h-[85vh] w-full flex-col rounded-xl bg-white shadow-xl ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-bold text-slate-900">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        {header}
         <div className="overflow-y-auto p-4">{children}</div>
       </div>
     </div>

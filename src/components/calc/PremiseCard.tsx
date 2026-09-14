@@ -128,16 +128,17 @@ export default function PremiseCard({
           <PremiseField no={3} label="プロデュース" hintLink="/help#produce" done={done.set}>
             <SetPickerField r={r} />
           </PremiseField>
+          {/* 4. メモリー（値は1行に収める。狭ければ「…」で切り、2行に折り返さない） */}
           <PremiseField no={4} label="メモリー" hint={GLOSSARY.memory} done={done.memory} onClick={onOpenMemory}>
             {memoryCount === 0 ? (
               <Unset />
             ) : (
-              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                <span>{memoryCount}枚</span>
+              <span className="min-w-0 flex-1 truncate">
+                <span className="mr-1.5">{memoryCount}枚</span>
                 {TYPE_KEYS.map((t) => (
                   <span
                     key={t}
-                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${TYPE_CHIP[t]}`}
+                    className={`mr-1.5 inline-block rounded px-1.5 py-0.5 align-middle text-xs font-semibold ${TYPE_CHIP[t]}`}
                   >
                     {TYPE_SHORT[t]} {r.perType[t].memFixed} / {r.perType[t].memPct}%
                   </span>
@@ -387,7 +388,7 @@ function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
       <span>
         {max
           ? "全部最大（固定+100・パラボ+10%・SP率+5%・本戦上限3200）"
-          : `Vo Lv${b.levels.vocal}・Da Lv${b.levels.dance}・Vi Lv${b.levels.visual}・SP率 Lv${b.levels.spRate}・本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+          : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
       </span>
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
         調整

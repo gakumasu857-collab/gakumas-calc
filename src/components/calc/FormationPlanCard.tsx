@@ -176,15 +176,15 @@ export default function FormationPlanCard({
             />
             %
           </label>
-          <span className="ml-auto text-xs tabular-nums">
-            実現確率{" "}
+          <span className="ml-auto flex flex-wrap items-center gap-x-1.5 text-sm tabular-nums text-slate-600">
+            <span className="font-bold text-slate-700">実現確率</span>
             {r.scenario === "hif" ? (
               <>
-                選抜 <b className="text-sm text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
-                <b className="text-sm text-blue-700">{formatProb(r.spLesson.probHon)}</b>
+                選抜 <b className="text-lg text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
+                <b className="text-lg text-blue-700">{formatProb(r.spLesson.probHon)}</b>
               </>
             ) : (
-              <b className="text-sm text-blue-700">{formatProb(r.spLesson.prob)}</b>
+              <b className="text-lg text-blue-700">{formatProb(r.spLesson.prob)}</b>
             )}
           </span>
         </div>

@@ -1,12 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   ArrowDown,
   ArrowRight,
   CalendarCheck,
   ChevronDown,
+  Dumbbell,
+  Info,
+  LayoutGrid,
   ListOrdered,
+  Save,
   Settings,
+  SlidersHorizontal,
   Sparkles,
+  Table2,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -167,6 +173,21 @@ function MockBtn({
 }
 
 /** 用語の1項目 */
+/** 操作のヒントのカード（アイコン＋短い見出し＋本文） */
+function Tip({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+      <h3 className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-slate-900">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-600">
+          {icon}
+        </span>
+        {title}
+      </h3>
+      <p className="text-sm leading-relaxed text-slate-600">{children}</p>
+    </div>
+  );
+}
+
 function Term({ name, children }: { name: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 border-b border-slate-100 py-2 last:border-b-0 sm:flex-row sm:gap-3">
@@ -558,32 +579,32 @@ export default function HelpPage() {
       <h2 id="tips" className={H2}>
         操作のヒント
       </h2>
-      <ul className={`${CARD} list-disc space-y-1.5 pl-9`}>
-        <li className={P}>
-          <b>数値入力欄は右クリックでスライダー</b>が開きます（大きい数字向け）。スライダーはドラッグしたまま上下に離すと微調整（×1/10・×1/100）、ホイールで±1（Shift=±10、Ctrl=±100）。
-        </li>
-        <li className={P}>
-          <b>サポカ枠クリック</b>＝カード選択。選択画面で<b>凸・固定・BAN・レンタルNG</b>も変えられます（行の右のボタン）。
-        </li>
-        <li className={P}>
-          <b>アイドル・Pアイドルの欄の右のボタン</b>＝特訓・才能開花。評価値の横のアイドル画像の歯車からも開けます。
-        </li>
-        <li className={P}>
-          <b>踏み方のチップ</b>は、大きい四角がメイン、右下の小さい印がサブ、薄い点線の枠がSPなし（通常レッスン）です。授業（営業）は順番どおり、選抜はタイプ別スコアの配分バーです。チップをクリックすると編集できます。
-        </li>
-        <li className={P}>
-          プロデュースの<b>【プラン】</b>（【センス】など）は、探索の条件「試験補助を強める」でアイテム評価をどのスタイル向けに見るかの判定に使われます。
-        </li>
-        <li className={P}>
-          右上の<b>「セーブデータ」</b>から、今の育成の状態をまるごと（シナリオ・アイドル・踏み方・メモリー4枚・サポカ編成・前イベ/後イベ設定・発動回数・所持状況）保存でき、読み込めば<b>評価値まで同じ状態に戻ります</b>。評価値の下の<b>「画像に出力」</b>で、今の計算を1枚の画像にできます。
-        </li>
-        <li className={P}>
-          <b>「パラボ変換表」</b>（「サポカ編成と踏み方」の開始時のステータスの右）で、パラメータボーナス%が今の踏み方で何点ぶんのステになるかを確認できます。
-        </li>
-        <li className={P}>
-          用語の横の <b>ⓘ</b> を押すと、その項目の説明が出ます。計算式は計算ページ右上の<b>「計算式・数値表」</b>にあります。
-        </li>
-      </ul>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Tip icon={<SlidersHorizontal size={16} />} title="数値の入力">
+          数値の欄は<b>右クリックでスライダー</b>が開きます（大きい数字向け）。ドラッグしたまま上下に離すと微調整（×1/10・×1/100）、ホイールで±1（Shift＝±10、Ctrl＝±100）。
+        </Tip>
+        <Tip icon={<LayoutGrid size={16} />} title="サポカ枠">
+          枠をクリックするとカードを選べます。選択画面の行の右のボタンで<b>凸・固定・BAN・レンタルNG</b>も変えられます。
+        </Tip>
+        <Tip icon={<Dumbbell size={16} />} title="特訓・才能開花">
+          設定欄のアイドル・Pアイドルの欄の右のボタンから。評価値の横のアイドル画像の歯車からも開けます。
+        </Tip>
+        <Tip icon={<CalendarCheck size={16} />} title="踏み方のチップ">
+          大きい四角がメイン、右下の小さい印がサブ、薄い点線の枠がSPなし（通常レッスン）。授業（営業）は順番どおり、選抜はタイプ別スコアの配分バーです。チップをクリックすると編集できます。
+        </Tip>
+        <Tip icon={<Sparkles size={16} />} title="プロデュースの【プラン】">
+          【センス】などのプラン名は、探索の条件「試験補助を強める」で、アイテムをどのスタイル向けに評価するかの判定に使います。
+        </Tip>
+        <Tip icon={<Save size={16} />} title="セーブデータと画像出力">
+          右上の「セーブデータ」で今の育成の状態をまるごと保存。読み込めば<b>評価値まで同じ状態に戻ります</b>。評価値の下の「画像に出力」で1枚の画像にできます。
+        </Tip>
+        <Tip icon={<Table2 size={16} />} title="パラボ変換表">
+          「サポカ編成と踏み方」の開始時のステータスの右にあります。パラメータボーナス%が今の踏み方で何点ぶんのステになるかを確認できます。
+        </Tip>
+        <Tip icon={<Info size={16} />} title="ⓘ と計算式">
+          用語の横の ⓘ を押すと、その項目の説明が出ます。計算式は計算ページ右上の「計算式・数値表」にあります。
+        </Tip>
+      </div>
 
       {/* ---------------------------------------------------------------- 用語 */}
       <h2 id="terms" className={H2}>

@@ -1,17 +1,19 @@
 import type { TypeKey } from "@/lib/useCalcSettings";
 
 /**
- * H.I.F.ボーナス（H.I.F.専用の仕様）。枠ごとにレベルがあり、計算に効くのは次の5つ:
- * - ボーカル／ダンス／ビジュアル上昇（Lv1〜5）: 固定 +20/+40/+60/+80/+100 と パラボ +2/4/6/8/10%
+ * H.I.F.ボーナス（H.I.F.専用の仕様）。枠ごとにレベルがあり、計算に効くのは次の8つ:
+ * - ボーカル／ダンス／ビジュアル上昇の固定値（Lv1〜5）: +20/+40/+60/+80/+100
+ * - ボーカル／ダンス／ビジュアル上昇のパラボ（Lv1〜5）: +2/4/6/8/10%（固定値とは別のレベル）
  * - SPレッスン発生率増加（Lv1〜5）: 全タイプ +1〜+5%（ゲーム内の「SPレッスン率上昇」表示に含まれる分）
  * - 【本戦】パラメータ上限増加（Lv1〜6）: +50/+80/+110/+140/+170/+200（上限 3000 に足す）
  * 計算に効かない枠（試験前の体力回復量・選抜／本戦の初期Pポイント・相談の割引）は持たない。
  * 既定はすべて最大（＝従来の固定 +100・パラボ +10%・SP率 +5%・上限 3200）。
  */
 export type HifBonusLevels = {
-  vocal: number;
-  dance: number;
-  visual: number;
+  /** タイプ別の固定値のレベル（0〜5） */
+  fixed: Record<TypeKey, number>;
+  /** タイプ別のパラボのレベル（0〜5） */
+  pct: Record<TypeKey, number>;
   spRate: number;
   finalCap: number;
 };
@@ -24,43 +26,57 @@ export const HIF_BONUS_CAP = [0, 50, 80, 110, 140, 170, 200] as const;
 /** 本戦のステ上限の素の値（ボーナス無し） */
 export const HIF_BASE_CAP = 3000;
 
-export const HIF_BONUS_MAX: HifBonusLevels = {
-  vocal: 5,
-  dance: 5,
-  visual: 5,
-  spRate: 5,
-  finalCap: 6,
-};
+/** 全部最大（新しいオブジェクトを返す） */
+export function hifBonusMax(): HifBonusLevels {
+  return {
+    fixed: { vocal: 5, dance: 5, visual: 5 },
+    pct: { vocal: 5, dance: 5, visual: 5 },
+    spRate: 5,
+    finalCap: 6,
+  };
+}
+export const HIF_BONUS_MAX: HifBonusLevels = hifBonusMax();
+
+const TYPES: TypeKey[] = ["vocal", "dance", "visual"];
 
 const clampLevel = (v: unknown, max: number, fallback: number): number =>
   typeof v === "number" && Number.isFinite(v)
     ? Math.min(max, Math.max(0, Math.round(v)))
     : fallback;
 
-/** 保存値を整える（欠け・範囲外は最大に寄せる） */
-export function normalizeHifBonus(raw: Partial<HifBonusLevels> | undefined): HifBonusLevels {
+/**
+ * 保存値を整える（欠け・範囲外は最大に寄せる）。
+ * 旧形式（vocal/dance/visual に固定値とパラボ共通のレベル1つ）はそのレベルを両方に使う。
+ */
+export function normalizeHifBonus(raw: unknown): HifBonusLevels {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const fixedRaw = (r.fixed && typeof r.fixed === "object" ? r.fixed : {}) as Record<string, unknown>;
+  const pctRaw = (r.pct && typeof r.pct === "object" ? r.pct : {}) as Record<string, unknown>;
+  const pick = (obj: Record<string, unknown>, t: TypeKey) =>
+    clampLevel(obj[t] ?? r[t], 5, 5);
+  const fixed = { vocal: 0, dance: 0, visual: 0 } as Record<TypeKey, number>;
+  const pct = { vocal: 0, dance: 0, visual: 0 } as Record<TypeKey, number>;
+  for (const t of TYPES) {
+    fixed[t] = pick(fixedRaw, t);
+    pct[t] = pick(pctRaw, t);
+  }
   return {
-    vocal: clampLevel(raw?.vocal, 5, HIF_BONUS_MAX.vocal),
-    dance: clampLevel(raw?.dance, 5, HIF_BONUS_MAX.dance),
-    visual: clampLevel(raw?.visual, 5, HIF_BONUS_MAX.visual),
-    spRate: clampLevel(raw?.spRate, 5, HIF_BONUS_MAX.spRate),
-    finalCap: clampLevel(raw?.finalCap, 6, HIF_BONUS_MAX.finalCap),
+    fixed,
+    pct,
+    spRate: clampLevel(r.spRate, 5, 5),
+    finalCap: clampLevel(r.finalCap, 6, 6),
   };
 }
 
 /** レベルから計算に使う値へ */
-export function hifBonusValues(raw: Partial<HifBonusLevels> | undefined) {
+export function hifBonusValues(raw: unknown) {
   const lv = normalizeHifBonus(raw);
-  const fixed: Record<TypeKey, number> = {
-    vocal: HIF_BONUS_STAT_FIXED[lv.vocal],
-    dance: HIF_BONUS_STAT_FIXED[lv.dance],
-    visual: HIF_BONUS_STAT_FIXED[lv.visual],
-  };
-  const pct: Record<TypeKey, number> = {
-    vocal: HIF_BONUS_STAT_PCT[lv.vocal],
-    dance: HIF_BONUS_STAT_PCT[lv.dance],
-    visual: HIF_BONUS_STAT_PCT[lv.visual],
-  };
+  const fixed = { vocal: 0, dance: 0, visual: 0 } as Record<TypeKey, number>;
+  const pct = { vocal: 0, dance: 0, visual: 0 } as Record<TypeKey, number>;
+  for (const t of TYPES) {
+    fixed[t] = HIF_BONUS_STAT_FIXED[lv.fixed[t]];
+    pct[t] = HIF_BONUS_STAT_PCT[lv.pct[t]];
+  }
   return {
     levels: lv,
     fixed,
@@ -73,9 +89,11 @@ export function hifBonusValues(raw: Partial<HifBonusLevels> | undefined) {
 }
 
 /** すべて最大か */
-export function isHifBonusMax(raw: Partial<HifBonusLevels> | undefined): boolean {
+export function isHifBonusMax(raw: unknown): boolean {
   const lv = normalizeHifBonus(raw);
-  return (Object.keys(HIF_BONUS_MAX) as (keyof HifBonusLevels)[]).every(
-    (k) => lv[k] === HIF_BONUS_MAX[k],
+  return (
+    TYPES.every((t) => lv.fixed[t] === 5 && lv.pct[t] === 5) &&
+    lv.spRate === 5 &&
+    lv.finalCap === 6
   );
 }

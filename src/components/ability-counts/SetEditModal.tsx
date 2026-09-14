@@ -43,6 +43,8 @@ type Props = {
   /** ユーザーセットのプラン変更（テンプレは名前から自動決定なので渡さない） */
   onSetPlan?: (plan: string) => void;
   onClose: () => void;
+  /** 出し方（計算ページからは左の引き出し） */
+  side?: "center" | "left";
 };
 
 /** セット1つの発動回数を編集するモーダル。左=分類、右=選択中分類のアビリティのみ。 */
@@ -63,6 +65,7 @@ export default function SetEditModal({
   onRename,
   onSetPlan,
   onClose,
+  side,
 }: Props) {
   const [category, setCategory] = useState<CategoryKey>(
     initialCategory ?? ABILITY_CATEGORIES[0].key,
@@ -93,7 +96,8 @@ export default function SetEditModal({
           : `${set.name} の発動回数（デフォルト）`
       }
       onClose={onClose}
-      widthClass="max-w-4xl"
+      widthClass={side === "left" ? "max-w-3xl" : "max-w-4xl"}
+      side={side}
     >
       {/* デフォルト（発動回数ページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (

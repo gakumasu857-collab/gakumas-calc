@@ -50,3 +50,9 @@ export const TYPE_SHORT: Record<TypeKey, "Vo" | "Da" | "Vi"> = {
   dance: "Da",
   visual: "Vi",
 };
+/** タイプの文字色（Vo/Da/Vi の略号など） */
+export const TYPE_TEXT: Record<TypeKey, string> = {
+  vocal: "text-red-600",
+  dance: "text-blue-600",
+  visual: "text-yellow-600",
+};

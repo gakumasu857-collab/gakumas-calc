@@ -147,7 +147,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityCounts.ts` | 発動回数ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
-| `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇 Lv0〜5＝固定+20L・パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
+| `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄（本戦ラウンド点数の下）の HifBonusModal |
 | `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
@@ -199,7 +199,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
 `calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はヘルプの「プロデュースと発動回数」へ）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.F.は H.I.F.ボーナスの「調整」→ `calc/HifBonusModal.tsx`、N.I.A.はチャレンジPアイテムの獲得ボーナスの「調整」→ `calc/NiaChallengeModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳と診断ログ。PC・スマホ共通）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
-`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
+`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合、N.I.A.のオーディションは 1次・2次・最終の上がるステ（素点）と投票数。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「設定欄」のメモリー欄から開く。中身は `memory-manager/MemoryWorkbench.tsx`。「汎用メモリーを入れる」（メインパラボ60点×4）を目立つ枠で上に置き、メインパラボの説明を添える。A/B の枠は廃止）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/PIdolTrainingModal.tsx`（特訓・才能開花のモーダル。「設定欄」のアイドル欄の右のボタンから）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・使い方（画面の要点を押せない模式図 `Mock` で描く。画面写真は小さくて見づらいので使わない）・操作のヒント・プロデュースと発動回数・用語・よくある質問（オーナー提供の文）・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
@@ -215,7 +215,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
-| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「ログの上昇幅（パラボ込み）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え |
+| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「ログの上昇幅（パラボ込み）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え。計算ページでは左端から出る引き出し（`Modal` の `side="left"`。発動回数の SetEditModal も同じ）で開き、右の評価値・ステータスを見ながら変えられる |
 | `calc/AbilityCountDrawer.tsx` | 計算ページから開く発動回数エディタ |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |

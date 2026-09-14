@@ -4,7 +4,7 @@ import { IDLE_NAMES, type AbilityName } from "@/data/constants";
 import type { ScenarioKey } from "@/data/scenarios";
 import type { SelectedSlot } from "./formation";
 import type { Memory, SlotMemory } from "./memoryTypes";
-import { HIF_BONUS_MAX, normalizeHifBonus, type HifBonusLevels } from "@/data/hifBonus";
+import { hifBonusMax, normalizeHifBonus, type HifBonusLevels } from "@/data/hifBonus";
 import { NIA_CHALLENGE_MAX, normalizeNiaChallenge, type NiaChallenge } from "@/data/niaChallenge";
 import type { EventCountOverride } from "./sheetScore";
 import type { PIdolOwnership } from "./useOwnedPIdols";
@@ -71,7 +71,7 @@ export type CalcSettings = {
    * 元値はコミュニティ検証で約10%とされる（確定値ではないので変更可）。
    */
   baseSpRate: number;
-  /** H.I.F.ボーナスのレベル（H.I.F.限定。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
+  /** H.I.F.ボーナスのレベル（H.I.F.限定。Vo/Da/Viは固定値とパラボが別レベル。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
   hifBonus: HifBonusLevels;
   /** N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（N.I.A.限定。既定は各枠の最大＝15/20/20） */
   niaChallenge: NiaChallenge;
@@ -94,7 +94,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   maxStats: { vocal: 3200, dance: 3200, visual: 3200 },
   noStageItems: false,
   baseSpRate: 10,
-  hifBonus: { ...HIF_BONUS_MAX },
+  hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,

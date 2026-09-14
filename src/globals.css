@@ -33,3 +33,16 @@ body {
 .animate-rating-pop {
   animation: rating-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
+/* 左から出る引き出し（踏み方・発動回数のモーダル） */
+@keyframes drawer-left-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer-left {
+  animation: drawer-left-in 0.18s ease-out;
+}

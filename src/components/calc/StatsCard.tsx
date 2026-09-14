@@ -264,6 +264,21 @@ export default function StatsCard({
             合計スター性: <b className="text-violet-600">{r.totalStar}</b>
           </p>
         )}
+        {/* N.I.A.: ファン投票数の合計と評価値換算（内訳は設定欄にも） */}
+        {r.scenario === "niaMaster" && (
+          <p className="flex flex-wrap items-center gap-x-1">
+            ファン投票数:{" "}
+            <b className="text-violet-600">{(r.scenarioValues.totalVotes ?? 0).toLocaleString()}</b>
+            <span className="text-xs text-slate-400">
+              （営業 {(r.scenarioValues.votesSales ?? 0).toLocaleString()}・1次2次{" "}
+              {(r.scenarioValues.votesAuditions ?? 0).toLocaleString()}・最終{" "}
+              {(r.scenarioValues.votesFinale ?? 0).toLocaleString()}・札{" "}
+              {(r.scenarioValues.votesFuda ?? 0).toLocaleString()}）
+            </span>
+            → 評価値換算{" "}
+            <b className="text-blue-600">{(r.scenarioValues.fanValue ?? 0).toLocaleString()}</b>
+          </p>
+        )}
         {/* サポカ由来のPポイントだけ（固定P・前イベP・P率換算・タイプSPレッスンP率）。開始時230や差し入れ等は含めない */}
         <p className="flex items-center gap-1">
           Pポイント（サポカ分）:{" "}
