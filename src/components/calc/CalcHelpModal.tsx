@@ -1,10 +1,8 @@
 /**
- * 計算ページのヘルプモーダル。
- * 使い方の流れ（番号つきステップカード）・操作のヒント・数値と計算式のまとめ・
- * 数値表（レッスン/選抜/本戦）を1か所に集約。
- * ステップ内の「ボタン風・タブ風」の要素は実際のUIを模したもので、機能はない。
+ * 計算ページのヘルプモーダル（操作のヒント・数値と計算式のまとめ・数値表）。
+ * 使い方の流れ・用語・よくある質問はヘルプページ（/help）に移した。
  */
-import { CalendarCheck, ListOrdered, MousePointerClick, Sparkles } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import Modal from "@/components/Modal";
 import { NumbersTables } from "@/components/calc/PlanEditDrawer";
@@ -12,57 +10,6 @@ import type { ScenarioKey } from "@/data/scenarios";
 
 const H = "mb-2 mt-6 text-base font-bold text-slate-800 first:mt-0";
 const LI = "text-sm leading-relaxed text-slate-600";
-
-/** 実UIを模した飾りチップ（押せない） */
-function MockChip({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-xs font-bold ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-/** 使い方の1ステップ（番号・タイトル・説明・ビジュアル） */
-function Step({
-  no,
-  title,
-  children,
-  visual,
-}: {
-  no: number;
-  title: string;
-  children: React.ReactNode;
-  visual?: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-base font-black text-white">
-        {no}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-slate-800">{title}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
-          {children}
-        </p>
-        {visual && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">{visual}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** よくある質問の1項目 */
-function QA({ q, children }: { q: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <p className="text-sm font-bold text-slate-800">Q. {q}</p>
-      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{children}</p>
-    </div>
-  );
-}
 
 export default function CalcHelpModal({
   onClose,
@@ -73,131 +20,25 @@ export default function CalcHelpModal({
 }) {
   return (
     <Modal title="使い方・計算式ヘルプ" onClose={onClose} widthClass="max-w-3xl">
-      <h3 className={H}>使い方の流れ</h3>
-      <div className="flex flex-col gap-2">
-        <Step
-          no={1}
-          title="育成の前提を入れる"
-          visual={
-            <>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                育成シナリオ ▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                アイドル・Pアイドル ▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                プロデュース ▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                メモリー ▾
-              </MockChip>
-            </>
-          }
-        >
-          「まずここを設定」（育成の前提）で、育成シナリオ・アイドル（Pアイドル）・プロデュース（アビリティの発動回数）・メモリー・本戦の点数を入れます。
-          黄色の欄が未選択です。4つそろうと、すぐ下の青いボタンが押せるようになります。
-          所持状況（サポカの凸）は上のタブ「所持状況」からいつでも入力できます（未入力なら全サポカ完凸として計算）。
-        </Step>
-        <Step
-          no={2}
-          title="青いボタンで求める"
-          visual={
-            <>
-              <MockChip className="bg-blue-600 text-white">
-                <Sparkles size={13} />
-                理想の編成と踏み方を求める ▾
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                探索の条件
-              </MockChip>
-            </>
-          }
-        >
-          「育成の前提」のすぐ下の青いボタンで、サポカ6枚とレッスンの踏み方を自動で探索し、評価値が高い組み合わせを「サポカ編成と踏み方」に反映します。
-          右の ▾ から「編成だけ」「踏み方だけ」も選べます。「探索の条件」でタイプ割合・最低/最高ステ・SP率持ちの枚数などを指定できます。
-          所持状況が未入力のときは、最初の1回だけ確認が出ます。
-        </Step>
-        <Step
-          no={3}
-          title="「サポカ編成と踏み方」で結果を見る"
-          visual={
-            <>
-              <MockChip className="border border-emerald-200 bg-emerald-50 text-emerald-700">
-                ▲ 入ったサポカ
-              </MockChip>
-              <MockChip className="border border-slate-200 bg-slate-100 text-slate-500">
-                ▼ 外れたサポカ
-              </MockChip>
-              <MockChip className="bg-emerald-50 text-emerald-700">✓ タイプ割合</MockChip>
-            </>
-          }
-        >
-          サポカ6枚・レッスン（メイン｜サブ・SP）・授業・選抜の配分が一度に見えます。評価値の下には条件の達成状況、
-          ボタンの下には前回の探索の内訳（何通り・何秒・前後の評価値）が出ます。納得できないときは「診断ログをコピー」して送ってください。
-        </Step>
-        <Step
-          no={4}
-          title="自分の育成に合わせて調整する"
-          visual={
-            <>
-              <MockChip className="border border-blue-300 bg-blue-50 text-blue-800 shadow-sm">
-                <CalendarCheck size={13} />
-                レッスン等の踏み方
-              </MockChip>
-              <MockChip className="border border-blue-300 bg-blue-50 text-blue-800 shadow-sm">
-                <ListOrdered size={13} />
-                発動回数
-              </MockChip>
-              <MockChip className="border border-slate-300 bg-white text-slate-700">
-                <MousePointerClick size={13} />
-                サポカ枠クリックで入れ替え
-              </MockChip>
-            </>
-          }
-        >
-          ここからが本番です。「サポカ編成と踏み方」の「レッスン等の踏み方」「発動回数」で実際の育成に寄せ、
-          サポカ枠をクリックして入れ替え（凸・固定・BANも選択画面で）たり、黄色い「前イベ・後イベ・ステイベの発動を調整」で
-          イベントの発動を変えたりしながら、評価値と育成後のステータスの変化を見てください。
-        </Step>
-      </div>
+      {/* 使い方の流れ・用語・よくある質問はヘルプページ（図・画面つき） */}
+      <Link
+        to="/help"
+        onClick={onClose}
+        className="flex items-center justify-between gap-3 rounded-xl border-2 border-blue-300 bg-blue-50 px-4 py-3 text-slate-900 transition hover:bg-blue-100"
+      >
+        <span>
+          <span className="block text-sm font-bold">使い方・用語・よくある質問はヘルプページへ</span>
+          <span className="block text-xs text-slate-600">
+            全体の流れ・画面つきの手順・プロデュースと発動回数の関係・データの保存の注意
+          </span>
+        </span>
+        <BookOpen size={20} className="shrink-0 text-blue-600" />
+      </Link>
       <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-800">
         ⚠ <b>自動探索の精度は保証しません。</b>
         時間制限つきの近似探索のため、より良い編成を取りこぼすことがあります。
         ゲーム本体と仕様が異なる部分もあるので、参考値としてお使いください。
       </p>
-
-      <h3 className={H}>よくある質問</h3>
-      <div className="flex flex-col gap-2">
-        <QA q="評価値が出ない">
-          サポカを6枚編成し、プロデュースを選ぶと表示されます。
-        </QA>
-        <QA q="「求める」ボタンが押せない">
-          「育成の前提」の黄色い欄（未選択）を埋めてください。押せない理由はボタンの下にも出ます。
-        </QA>
-        <QA q="所持状況はいつ入れればいい？">
-          いつでも大丈夫です。未入力のうちは全サポカ完凸として計算します（最初の探索前に一度だけ確認が出ます）。
-          所持状況ページで保存先スロットを作っておくと、入力した変更はそこへ自動で保存されます。
-        </QA>
-        <QA q="押しても編成が変わらない／評価値が下がった">
-          今の編成が探索の条件を満たしていて、探索結果がそれを下回ったときは変更しません（結果カードに「今の編成のまま」と出ます）。
-          条件を厳しくした直後は、条件を満たす編成に置き換わるため評価値が下がることがあります。
-        </QA>
-        <QA q="条件（タイプ割合・最低ステなど）どおりにならない">
-          評価値の下の条件チップに ✗ が出ているときは、所持サポカや踏み方ではその条件に届かなかった場合です。
-          SP率持ちの枚数や最低ステを緩めるか、所持状況を確認してください。タイプ割合は必ず守られます（アシストは自由枠）。
-        </QA>
-        <QA q="トレーナーはSP率持ちに数えますか">
-          数えます。「全SPレッスン率」持ちのアシストは全タイプの1枚として扱います。
-        </QA>
-        <QA q="スマホでの見方">
-          上から「育成の前提」→「求める」ボタン→「サポカ編成と踏み方」→評価値・ステータスの順に並びます。
-        </QA>
-        <QA q="入力したデータはどこに保存されますか">
-          すべてお使いのブラウザの中（localStorage）です。サーバーには送られません。
-          別の端末や履歴削除では消えるので、大事な状態は右上の「セーブデータ」で保存し、所持状況はCSVで控えを取ってください。
-        </QA>
-      </div>
 
       <h3 className={H}>操作のヒント</h3>
       <ul className="list-disc space-y-1.5 pl-5">

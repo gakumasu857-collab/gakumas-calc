@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FolderInput, FolderPlus } from "lucide-react";
+import type { ParaboAssign } from "@/lib/memoryTotals";
 import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useMemoryStore } from "@/lib/useMemoryStore";
 import LibraryEditModal from "./LibraryEditModal";
@@ -14,14 +15,32 @@ const SET_BTN =
   "flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 sm:justify-start sm:px-5 sm:py-2.5";
 
 /**
- * メモリーの作業台。メモリーページと計算ページのメモリー選択の両方で使う。
+ * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。
  * 上: スロット4枠（クリックで編集する枠を選ぶ）＋ セットの保存／呼び出し
  * 下: 左＝選んだ枠の編集枠（値を押すとそのまま入る。保存は任意）／右＝保存したメモリーの一覧（クリックで枠に入れる）
  * 操作の単位: アビリティ（編集枠）・メモリー（保存／一覧。✎で直接編集）・メモリーセット（4枚まとめて）。
  */
-export default function MemoryWorkbench({ store }: { store: Store }) {
+export default function MemoryWorkbench({
+  store,
+  paraboAssign,
+  focusKey = 0,
+}: {
+  store: Store;
+  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当 */
+  paraboAssign: ParaboAssign;
+  /** 増えるたびに「最初の空枠（無ければ枠1）」を編集対象にして編集枠までスクロールする（A の枠から） */
+  focusKey?: number;
+}) {
   const firstEmpty = store.slots.findIndex((s) => !s);
   const [active, setActive] = useState<number>(firstEmpty === -1 ? 0 : firstEmpty);
+  useEffect(() => {
+    if (!focusKey) return;
+    const empty = store.slots.findIndex((s) => !s);
+    setActive(empty === -1 ? 0 : empty);
+    document.getElementById("memory-slot-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // focusKey が増えたときだけ動かす
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
   const [setModal, setSetModal] = useState<"save" | "load" | null>(null);
   /** 一覧の✎で直接編集している保存済みメモリー */
   const [editId, setEditId] = useState<string | null>(null);
@@ -65,6 +84,7 @@ export default function MemoryWorkbench({ store }: { store: Store }) {
         <MemorySlot
           memories={store.slotMemories}
           activeIndex={active}
+          paraboAssign={paraboAssign}
           onSelect={setActive}
           onRemove={store.clearSlot}
         />
@@ -103,6 +123,7 @@ export default function MemoryWorkbench({ store }: { store: Store }) {
           value={value}
           status={status}
           sourceName={sourceName}
+          paraboAssign={paraboAssign}
           onChange={(next) => store.setSlot(active, next)}
           onClear={() => store.clearSlot(active)}
           onSaveNew={() => store.saveSlot(active, "new")}

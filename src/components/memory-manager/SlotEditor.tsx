@@ -1,6 +1,7 @@
 import { Save, Trash2 } from "lucide-react";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTE } from "@/components/ui";
-import type { Memory, SlotMemory } from "@/lib/memoryTypes";
+import { resolveParaboMemory, type ParaboAssign } from "@/lib/memoryTotals";
+import { slotToMemory, type Memory, type SlotMemory } from "@/lib/memoryTypes";
 import type { SlotStatus } from "@/lib/useMemoryStore";
 import MemoryFields from "./MemoryFields";
 
@@ -16,6 +17,8 @@ const STATUS_BADGE: Record<SlotStatus, { label: string; cls: string } | null> = 
 /**
  * 選んだ枠のメモリーをその場で作る・変える編集枠。
  * 値のボタンを押すとそのまま枠の中身が変わる（保存は任意。保存しなくても計算に使える）。
+ * テンプレ（メインパラボ）が入っている枠も、今の踏み方で展開した中身から始めてそのまま値を変えられる
+ * （変えた時点で普通のメモリーになる）。
  * 保存元がある枠で中身を変えたら「上書き保存」か「別のメモリーとして保存」。
  * 同じアビリティ・プランのメモリーが保存済みなら、保存の前に注意を出す。
  */
@@ -25,6 +28,7 @@ export default function SlotEditor({
   status,
   sourceName,
   duplicate,
+  paraboAssign,
   onChange,
   onClear,
   onSaveNew,
@@ -38,6 +42,8 @@ export default function SlotEditor({
   sourceName?: string;
   /** 同じアビリティ・プランで保存済みのメモリー（あれば注意を出す） */
   duplicate?: Memory;
+  /** テンプレ（パラボ追従）の中身を今の踏み方で展開するための割当 */
+  paraboAssign: ParaboAssign;
   onChange: (next: SlotMemory) => void;
   onClear: () => void;
   onSaveNew: () => void;
@@ -46,14 +52,18 @@ export default function SlotEditor({
   onUseDuplicate: () => void;
 }) {
   const base: SlotMemory = value ?? { plan: "共通", abilities: [] };
-  const locked = status === "template";
+  const isTemplate = status === "template";
+  // テンプレは今の踏み方で展開した中身を出発点にする（値を変えた時点で普通のメモリーになる）
+  const shown = isTemplate
+    ? resolveParaboMemory(slotToMemory(base, index), paraboAssign).abilities
+    : base.abilities;
   const canSave = base.abilities.length > 0;
   const badge = STATUS_BADGE[status];
   const dupName = duplicate ? (duplicate.skillName ?? duplicate.plan) : "";
   const showDup = !!duplicate && canSave && (status === "unsaved" || status === "modified");
 
   return (
-    <section className="rounded-xl border-2 border-blue-300 bg-white p-4">
+    <section id="memory-slot-editor" className="rounded-xl border-2 border-blue-300 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="text-sm font-bold text-slate-900">枠{index + 1} のメモリー</h2>
         {badge && (
@@ -63,17 +73,27 @@ export default function SlotEditor({
         )}
       </div>
 
-      {locked ? (
-        <p className="rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
-          テンプレ「{base.skillName ?? "メインパラボ"}」が入っています。中身は踏み方から自動で決まるので、ここでは変えられません。
-          別のメモリーにするには、一覧から選ぶか、この枠を空にしてから作ってください。
+      {isTemplate && (
+        <p className="mb-3 rounded-lg bg-indigo-50 p-2.5 text-xs leading-relaxed text-indigo-900">
+          テンプレ「{base.skillName ?? "メインパラボ"}」が入っています（今の踏み方では{" "}
+          {shown.map((a) => `${a.attr}${a.value}`).join(" / ")}
+          ）。値を押すと、そこから変えた普通のメモリーになります。
         </p>
-      ) : (
-        <MemoryFields
-          value={{ plan: base.plan, skillName: base.skillName, abilities: base.abilities }}
-          onChange={(next) => onChange({ ...base, ...next })}
-        />
       )}
+
+      <MemoryFields
+        value={{
+          plan: base.plan,
+          skillName: isTemplate ? undefined : base.skillName,
+          abilities: shown,
+        }}
+        onChange={(next) =>
+          isTemplate
+            ? // テンプレから外れて普通のメモリーに（追従の印と保存元は外す）
+              onChange({ plan: next.plan, skillName: next.skillName, abilities: next.abilities })
+            : onChange({ ...base, ...next })
+        }
+      />
 
       {/* 同じ中身がもう保存されているときの注意 */}
       {showDup && (
@@ -142,7 +162,7 @@ export default function SlotEditor({
           : status === "saved"
             ? "保存済みです。値を変えると「上書き保存」か「別のメモリーとして保存」ができます。"
             : status === "template"
-              ? "テンプレはそのまま計算に使えます。"
+              ? "テンプレはそのまま計算に使えます。値を変えると普通のメモリーになります。"
               : "保存しなくても計算に使えます。保存すると「保存したメモリー」からいつでも入れられます。"}
       </p>
     </section>

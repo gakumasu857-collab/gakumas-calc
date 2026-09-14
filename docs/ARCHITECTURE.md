@@ -200,7 +200,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
-`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。中身はメモリーページと同じ作業台 `memory-manager/MemoryWorkbench.tsx`。自分のメモリーが無いときは、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す。どちらかを押したら以後は出さない（`gakumas:calc:memoryPathsDone:v1`。メモリーを全部外しても戻らない））、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、
+`calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「育成の前提」のメモリー欄から開く。中身はメモリーページと同じ作業台 `memory-manager/MemoryWorkbench.tsx`。自分のメモリーが無いときは、押せる枠A（メモリーページへ）／B（メインパラボ60点×4を入れる）を出す。どちらかを押したら以後は出さない（`gakumas:calc:memoryPathsDone:v1`。メモリーを全部外しても戻らない）。A は最初の空枠を編集対象にする（メモリーページは廃止））、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/OwnershipStepCard.tsx`（「つぎに 所持状況を確認」: 既定の全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力する」。決まったら「所持状況: ○○で計算中」の1行に畳む）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・画面写真つきの手順（`public/help/*.webp`＋「ここを押す」の印。写真は開発時に `vite.config.ts` の `/__shot` と `window.__shot`（main.tsx、dev のみ）で撮る）・プロデュースと発動回数・用語・よくある質問・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
 `Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
@@ -221,7 +221,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calc/ParaboTableModal.tsx` / `calc/CalcHelpModal.tsx` | パラボ変換表、ヘルプ |
 | `ownership/` | `/support` 所持状況入力（サポカ・Pアイドル、CSV、名前つき保存。`OwnedSaveBar.tsx` に既定の「全サポカ完凸」） |
 | `card-import/CardImportPage.tsx` | `/card-import` 画面キャプチャで所持入力（β） |
-| `memory-manager/` | `/memory` メモリー設定。`MemoryWorkbench.tsx` が作業台（計算ページのメモリー選択でも同じもの）: 上＝`MemorySlot.tsx`（4 枠のカード。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`。4 枚そろうと「この4枚をセットとして保存」）、下＝左 `SlotEditor.tsx`（選んだ枠の中身を値ボタンでその場で作る・変える。保存は任意で「メモリーとして保存」、保存元があれば「上書き保存」「別のメモリーとして保存」。テンプレの枠は変えられない）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレの一覧。クリックで編集中の枠に入れて次の空枠へ進む。−で外す・削除モード・フィルター）。操作の単位はアビリティ（編集枠）・メモリー（保存／一覧）・メモリーセット（4 枚まとめて）の 3 段。一覧のカードの ✎ で保存したメモリーを直接編集（`LibraryEditModal.tsx`。上書き保存は枠に入れてある変えていないコピーにも反映）。保存時に同じアビリティ・プランのメモリーがあれば注意（`findDuplicate`。「保存済みを使う」か、名前・プランを変えて別に保存）。入力欄は `MemoryFields.tsx` を共用 |
+| `memory-manager/` | メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身。メモリーページ（/memory）は廃止）。`MemoryWorkbench.tsx`: 上＝`MemorySlot.tsx`（4 枠。クリックで編集する枠を選ぶ（青い枠線）・×で空にする・空枠は「＋ クリックして設定」、編集中の空枠は「編集中・下で中身を作る」）＋ セットの保存／呼び出し（`MemorySetModal.tsx`）、下＝左 `SlotEditor.tsx`（値ボタンでその場で作る。テンプレ（メインパラボ）の枠も今の踏み方で展開した中身から始めてそのまま変えられ、変えた時点で普通のメモリーになる。保存は任意で「メモリーとして保存」「上書き保存」「別のメモリーとして保存」。同じアビリティ・プランのメモリーがあれば注意 `findDuplicate`）／右 `MemoryLibrary.tsx`（保存したメモリー＋テンプレ。クリックで編集中の枠に入れて次の空枠へ。✎で直接編集 `LibraryEditModal.tsx`）。入力欄は `MemoryFields.tsx` を共用。A の枠（初回）は最初の空枠を編集対象にして編集枠までスクロール（`focusKey`） |
 | `ability-counts/` | `/ability-counts` アビリティ発動回数＝プロデュースごとの**デフォルトの回数**（上の説明帯で「編成を決めたあとの実際の回数は計算ページの発動回数ボタンで」と案内）。セットの表（「計算ページで使用中」列）・編集モーダル `SetEditModal.tsx`（`mode`: default＝ページ／run＝計算ページ。run では「この育成での回数」の帯・「調整中 N件」・すべてデフォルトに戻す）・1 件の入力 `AbilityCounter.tsx`（調整中の印） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表 |
@@ -598,6 +598,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:ownedSaves:active:v1` | 「使う所持状況」のID。無い・消えたIDは既定 `builtin-all4`（全サポカ完凸。読み込み専用）。既定のまま凸などを変えると今の内容から「自分の所持状況」が自動で作られて使用中になり（`ensureEditableSlot`）、以後の変更は随時そこへ保存される | `src/lib/useOwnedSaves.ts` |
 | `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calc:everRun:v1` | 探索を一度でも押した印（"1"。無ければ、前提がそろったときボタンの上に動く矢印を出す） | `src/components/calc/CalcPage.tsx` |
+| `gakumas:setup:ownershipAck:v1` | 「完凸のままでOK」（所持状況を入力せず全完凸で探索する）を押した印。計算ページの所持状況のステップと初回の確認モーダルが出なくなる | `src/lib/ownershipAck.ts` |
 | `gakumas:calc:memoryPathsDone:v1` | メモリー選択の枠A／Bをどちらか押した印（"1"。以後は枠を出さない。メモリーを全部外しても戻らない） | `src/components/calc/MemoryPickerModal.tsx` |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
 | `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |

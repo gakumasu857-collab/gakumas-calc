@@ -1,6 +1,5 @@
 import { ATTR_STYLES, SLOT_SIZE, type Memory } from "@/lib/memoryTypes";
-import { calcMemoryTotals, resolveParaboMemory } from "@/lib/memoryTotals";
-import { useCalcResult } from "@/lib/useCalcResult";
+import { calcMemoryTotals, resolveParaboMemory, type ParaboAssign } from "@/lib/memoryTotals";
 import MemoryCard from "./MemoryCard";
 
 type Props = {
@@ -8,6 +7,8 @@ type Props = {
   memories: (Memory | null)[];
   /** いま編集中の枠 */
   activeIndex: number | null;
+  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当 */
+  paraboAssign: ParaboAssign;
   /** 枠をクリック（編集する枠を選ぶ） */
   onSelect: (index: number) => void;
   /** ×で枠を空にする */
@@ -16,13 +17,18 @@ type Props = {
 
 /**
  * メモリースロット（4枠）。枠をクリックすると編集対象になり（青い枠線）、×で空にする。
- * 空の枠は「＋ クリックして設定」のボタン。
+ * 空の枠は「＋ クリックして設定」。編集中の空枠は「編集中・下で中身を作る」。
  */
-export default function MemorySlot({ memories, activeIndex, onSelect, onRemove }: Props) {
+export default function MemorySlot({
+  memories,
+  activeIndex,
+  paraboAssign,
+  onSelect,
+  onRemove,
+}: Props) {
   // パラボ追従メモリーは現在の踏み方から決まる割当（パラボ母数上位2タイプ）で展開して合計する
-  const r = useCalcResult();
   const totals = calcMemoryTotals(
-    memories.map((m) => (m ? resolveParaboMemory(m, r.paraboAssign) : undefined)),
+    memories.map((m) => (m ? resolveParaboMemory(m, paraboAssign) : undefined)),
   );
   const recoveryText = (["Vo", "Da", "Vi"] as const)
     .filter((t) => totals.回復[t] > 0)
@@ -35,7 +41,7 @@ export default function MemorySlot({ memories, activeIndex, onSelect, onRemove }
       <h2 className="mb-2 text-sm font-bold text-slate-900">
         メモリースロット
         <span className="ml-2 text-xs font-normal text-slate-500">
-          {filled}/{SLOT_SIZE}枚（枠をクリックすると中身を作れます・×で外す）
+          {filled}/{SLOT_SIZE}枚（枠をクリックすると下で中身を作れます・×で外す）
         </span>
       </h2>
       {/* 固定幅グリッドにして4枚とも同じ大きさに（幅が中身で変わらないように） */}
@@ -53,14 +59,14 @@ export default function MemorySlot({ memories, activeIndex, onSelect, onRemove }
                   memory={memory}
                   onClick={() => onSelect(i)}
                   onRemoveSlot={() => onRemove(i)}
-                  title={active ? "この枠を編集中" : "クリックで中身を編集"}
+                  title={active ? "この枠を編集中（下で中身を変えられます）" : "クリックで中身を編集"}
                 />
               ) : (
                 // MemoryCardと同じ行構成（ヘッダー行＋アビリティ3行）で高さを合わせる
                 <button
                   type="button"
                   onClick={() => onSelect(i)}
-                  title="クリックしてこの枠のメモリーを作る"
+                  title={active ? "この枠を編集中（下で中身を作る）" : "クリックしてこの枠のメモリーを作る"}
                   className={`flex w-full flex-col gap-1.5 rounded-lg border border-dashed p-1.5 text-left transition ${
                     active
                       ? "border-blue-400 bg-blue-50"
@@ -75,13 +81,26 @@ export default function MemorySlot({ memories, activeIndex, onSelect, onRemove }
                     >
                       {i + 1}
                     </span>
-                    <span className="text-[10px] text-slate-400">未設定</span>
+                    <span className={`text-[10px] ${active ? "font-bold text-blue-700" : "text-slate-400"}`}>
+                      {active ? "編集中" : "未設定"}
+                    </span>
                   </div>
                   <div className="flex flex-col items-center justify-center gap-0.5 py-1">
-                    <span className="text-xl font-bold leading-none text-blue-500">＋</span>
-                    <span className="text-[10px] font-semibold text-blue-600">
-                      クリックして設定
-                    </span>
+                    {active ? (
+                      <>
+                        <span className="text-xl font-bold leading-none text-blue-500">↓</span>
+                        <span className="text-[10px] font-semibold text-blue-700">
+                          下で中身を作る
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold leading-none text-blue-500">＋</span>
+                        <span className="text-[10px] font-semibold text-blue-600">
+                          クリックして設定
+                        </span>
+                      </>
+                    )}
                     <span className="h-3" />
                   </div>
                 </button>

@@ -9,8 +9,8 @@ import CardSettingsPage from "@/components/card-settings/CardSettingsPage";
 import DatabasePage from "@/components/database/DatabasePage";
 import DebugPage from "@/components/debug/DebugPage";
 import EventCounterPage from "@/components/event-counter/EventCounterPage";
+import HelpPage from "@/components/help/HelpPage";
 import HomePage from "@/components/home/HomePage";
-import MemoryManager from "@/components/memory-manager/MemoryManager";
 import OwnershipPage from "@/components/ownership/OwnershipPage";
 
 /** プロデュース計算機のメイン（/calc）以外のページ（共通の余白＋見出しで包む） */
@@ -21,7 +21,6 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
     title: "画面キャプチャで所持入力（β）",
     element: <CardImportPage />,
   },
-  { path: "/memory", title: "メモリー設定", element: <MemoryManager /> },
   {
     path: "/ability-counts",
     title: "発動回数",
@@ -33,7 +32,8 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
     element: <CardSettingsPage />,
   },
   { path: "/card-scores", title: "サポカ点数表", element: <CardScoreTable /> },
-  { path: "/database", title: "データベース", element: <DatabasePage /> },
+  { path: "/database", title: "サポカDB", element: <DatabasePage /> },
+  { path: "/help", title: "ヘルプ", element: <HelpPage /> },
   { path: "/debug", title: "デバッグ", element: <DebugPage /> },
 ];
 

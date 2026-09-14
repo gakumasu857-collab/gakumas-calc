@@ -9,6 +9,7 @@ import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import OwnershipConfirmModal from "@/components/calc/OwnershipConfirmModal";
+import OwnershipStepCard from "@/components/calc/OwnershipStepCard";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import PremiseCard from "@/components/calc/PremiseCard";
@@ -505,6 +506,11 @@ export default function CalcPage() {
           onOpenMemory={() => setMemoryOpen(true)}
           onOpenCounts={() => setCountsOpen(true)}
         />
+        </div>
+
+        {/* つぎに所持状況: 完凸のままでOK／自分の所持状況を入力（決まったら1行に畳む） */}
+        <div className="order-1 min-w-0">
+          <OwnershipStepCard />
         </div>
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}

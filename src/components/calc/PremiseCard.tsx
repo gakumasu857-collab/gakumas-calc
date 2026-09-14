@@ -1,4 +1,4 @@
-import { ChevronDown, ListOrdered } from "lucide-react";
+import { ChevronDown, Info, ListOrdered } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
@@ -87,22 +87,20 @@ export default function PremiseCard({
               <Unset text={settings.idol ? `${settings.idol}（Pアイドルを選ぶ）` : undefined} />
             )}
           </PremiseField>
-          <PremiseField no={3} label="プロデュース" hint={GLOSSARY.pattern} done={done.set}>
+          <PremiseField no={3} label="プロデュース" hintLink="/help#produce" done={done.set}>
             <SetPickerField r={r} />
             {r.selectedSet ? (
               // 選んだら、その下で発動回数を調整できることを示す
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={onOpenCounts} className={BTN_SECONDARY}>
+                <button
+                  type="button"
+                  onClick={onOpenCounts}
+                  title="この育成でのアビリティ発動回数を調整（探索の条件のデフォルトは発動回数ページ）"
+                  className={BTN_SECONDARY}
+                >
                   <ListOrdered size={13} />
                   発動回数
                 </button>
-                <span className="text-[11px] text-slate-500">
-                  デフォルトの回数は
-                  <Link to="/ability-counts" className="font-bold text-blue-700 underline">
-                    発動回数ページ
-                  </Link>
-                  から変えられます
-                </span>
               </div>
             ) : (
               <p className="mt-1 text-[11px] leading-snug text-slate-500">
@@ -142,6 +140,7 @@ function PremiseField({
   no,
   label,
   hint,
+  hintLink,
   done,
   onClick,
   children,
@@ -149,6 +148,8 @@ function PremiseField({
   no: number;
   label: string;
   hint?: string;
+  /** ⓘ をヘルプページへのリンクにする（例 "/help#produce"） */
+  hintLink?: string;
   done: boolean;
   onClick?: () => void;
   children: React.ReactNode;
@@ -165,6 +166,15 @@ function PremiseField({
         </span>
         <span className="text-xs font-bold text-slate-700">{label}</span>
         {hint && <Hint text={hint} />}
+        {hintLink && (
+          <Link
+            to={hintLink}
+            title="説明を見る（ヘルプページ）"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 transition hover:text-blue-600"
+          >
+            <Info size={14} />
+          </Link>
+        )}
       </div>
       {onClick ? (
         <button

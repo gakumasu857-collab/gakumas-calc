@@ -1,5 +1,5 @@
 import Modal from "@/components/Modal";
-import { TIER_LABELS } from "@/lib/sheetScore";
+import { TYPE_SOLID } from "@/components/ui";
 import {
   CARD_PARABO_ROWS,
   formatRange,
@@ -10,16 +10,18 @@ import {
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
-const TYPE_TEXT: Record<TypeKey, string> = {
-  vocal: "text-red-600",
-  dance: "text-blue-600",
-  visual: "text-yellow-600",
+/** タイプ列の淡い背景（Vo=赤・Da=青・Vi=黄） */
+const TYPE_BG: Record<TypeKey, string> = {
+  vocal: "bg-red-50",
+  dance: "bg-blue-50",
+  visual: "bg-yellow-50",
 };
 
 /**
  * パラボ%→固定値の変換表。
  * 今の踏み方（＝%が掛かるレッスン・試験の獲得量）を母数に、
  * メモリー・サポカ・今の編成のパラボが実際どれだけのステになるかを示す。
+ * 数字を主役にして大きく、タイプ列はVo/Da/Viの色で塗り分ける。
  */
 export default function ParaboTableModal({
   r,
@@ -29,31 +31,33 @@ export default function ParaboTableModal({
   onClose: () => void;
 }) {
   const gains = paraboGainsByType(r.ctx);
-  const th =
-    "border border-slate-300 bg-slate-100 px-2 py-1 font-bold text-slate-700";
-  const td = "border border-slate-200 px-2 py-1 text-center tabular-nums";
+  const th = "border border-slate-300 bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-700";
+  const tdLabel = "border border-slate-200 px-2 py-1.5 text-left text-sm font-semibold text-slate-700";
+  const tdValue = (type: TypeKey) =>
+    `border border-slate-200 px-2 py-1.5 text-center text-base font-bold tabular-nums text-slate-900 ${TYPE_BG[type]}`;
 
-  /** pct列＋Vo/Da/Viの変換値セル */
-  const row = (pct: number, label?: string) => (
-    <>
-      <td className={`${td} font-semibold text-slate-700`}>
-        {label ?? `+${pct}%`}
-      </td>
-      {TYPE_KEYS.map((type) => (
-        <td key={type} className={td}>
-          {formatRange(paraboRange(pct, gains[type]))}
-        </td>
-      ))}
-    </>
-  );
-
+  /** タイプの見出し（色チップ） */
   const typeHead = (
     <tr>
       <th className={th}>パラボ</th>
       {TYPE_KEYS.map((type) => (
-        <th key={type} className={`${th} ${TYPE_TEXT[type]}`}>
-          {TYPE_LABELS[type]}
+        <th key={type} className={`${th} ${TYPE_BG[type]}`}>
+          <span className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${TYPE_SOLID[type]}`}>
+            {TYPE_LABELS[type]}
+          </span>
         </th>
+      ))}
+    </tr>
+  );
+
+  /** %の行（ラベル＋Vo/Da/Viの変換値） */
+  const pctRow = (pct: number, key: string) => (
+    <tr key={key}>
+      <td className={tdLabel}>+{pct}%</td>
+      {TYPE_KEYS.map((type) => (
+        <td key={type} className={tdValue(type)}>
+          {formatRange(paraboRange(pct, gains[type]))}
+        </td>
       ))}
     </tr>
   );
@@ -70,25 +74,23 @@ export default function ParaboTableModal({
         レッスンや選抜スコアを変えると母数が変わるので、この表の値も変わります。
       </p>
 
-      <h3 className="mb-1 text-xs font-bold text-slate-700">
-        今の編成のプロデュース開始時のパラボ
-      </h3>
-      <table className="mb-4 w-full border-collapse text-xs">
+      <h3 className="mb-1 text-sm font-bold text-slate-800">今の編成のプロデュース開始時のパラボ</h3>
+      <table className="mb-5 w-full border-collapse">
         <thead>{typeHead}</thead>
         <tbody>
           <tr>
-            <td className={`${td} font-semibold text-slate-700`}>
+            <td className={tdLabel}>
               合計（メモリー＋サポカ＋Pアイドル
               {r.scenario === "hif" ? "＋H.I.F.10%" : ""}）
             </td>
             {TYPE_KEYS.map((type) => (
-              <td key={type} className={td}>
+              <td key={type} className={tdValue(type)}>
                 {/* 合計は全ソースの%を足してから1回だけ変換するので値が1つに決まる。
                     表示ブレを避けるため、計算に使っている変換値そのものを出す */}
-                <b className="text-blue-700">
+                <span className="text-xl text-blue-700">
                   {r.paraboDetail[type].conv.toLocaleString()}
-                </b>
-                <span className="ml-1 text-[10px] text-slate-400">
+                </span>
+                <span className="ml-1 text-xs font-semibold text-slate-500">
                   (+{r.paraboDetail[type].totalPct}%)
                 </span>
               </td>
@@ -97,29 +99,28 @@ export default function ParaboTableModal({
         </tbody>
       </table>
 
-      <h3 className="mb-1 text-xs font-bold text-slate-700">
-        メモリー1枠のパラボ（4段階）
-      </h3>
-      <table className="mb-4 w-full border-collapse text-xs">
+      <h3 className="mb-1 text-sm font-bold text-slate-800">メモリー1枠のパラボ</h3>
+      <table className="mb-5 w-full border-collapse">
         <thead>{typeHead}</thead>
-        <tbody>
-          {MEMORY_PARABO_PCTS.map((pct) => (
-            <tr key={pct}>{row(pct)}</tr>
-          ))}
-        </tbody>
+        <tbody>{MEMORY_PARABO_PCTS.map((pct) => pctRow(pct, `m-${pct}`))}</tbody>
       </table>
 
-      <h3 className="mb-1 text-xs font-bold text-slate-700">
-        サポカのパラボ（レアリティ×強化段階）
-      </h3>
-      <table className="w-full border-collapse text-xs">
+      <h3 className="mb-1 text-sm font-bold text-slate-800">サポカのパラボ（レアリティ別）</h3>
+      <p className="mb-1 text-[11px] text-slate-500">
+        %はアビリティ枠と凸数で決まります（凸ごとの%は点数表の内訳モーダルで確認できます）。
+      </p>
+      <table className="w-full border-collapse">
         <thead>
           <tr>
             <th className={th}>レアリティ</th>
-            <th className={th}>段階</th>
+            <th className={th}>パラボ</th>
             {TYPE_KEYS.map((type) => (
-              <th key={type} className={`${th} ${TYPE_TEXT[type]}`}>
-                {TYPE_LABELS[type]}
+              <th key={type} className={`${th} ${TYPE_BG[type]}`}>
+                <span
+                  className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${TYPE_SOLID[type]}`}
+                >
+                  {TYPE_LABELS[type]}
+                </span>
               </th>
             ))}
           </tr>
@@ -131,19 +132,14 @@ export default function ParaboTableModal({
                 {i === 0 && (
                   <td
                     rowSpan={group.pcts.length}
-                    className={`${td} font-bold text-slate-700`}
+                    className="border border-slate-200 px-2 py-1.5 text-sm font-bold text-slate-700"
                   >
                     {group.rarity}
                   </td>
                 )}
-                <td className={`${td} text-slate-500`}>
-                  {TIER_LABELS[i]}
-                  <span className="ml-1 text-[10px] text-slate-400">
-                    +{pct}%
-                  </span>
-                </td>
+                <td className={tdLabel}>+{pct}%</td>
                 {TYPE_KEYS.map((type) => (
-                  <td key={type} className={td}>
+                  <td key={type} className={tdValue(type)}>
                     {formatRange(paraboRange(pct, gains[type]))}
                   </td>
                 ))}
@@ -153,8 +149,7 @@ export default function ParaboTableModal({
         </tbody>
       </table>
       <p className="mt-2 text-[11px] text-slate-400">
-        ※ 段階（Ⅰ〜Ⅴ）はアビリティ枠と凸数で決まります（凸ごとの段階は点数表の内訳モーダルで確認できます）。
-        1枠ずつの幅はごくまれに1点だけ外れることがあります（小数計算の丸めの都合）。
+        ※ 1枠ずつの幅はごくまれに1点だけ外れることがあります（小数計算の丸めの都合）。
       </p>
     </Modal>
   );

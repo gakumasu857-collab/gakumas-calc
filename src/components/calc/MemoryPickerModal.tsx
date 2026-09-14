@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import Modal from "@/components/Modal";
 import MemoryWorkbench from "@/components/memory-manager/MemoryWorkbench";
 import Hint from "@/components/Hint";
@@ -28,10 +27,10 @@ const readPathsDone = () => {
 
 /**
  * 計算ページ内でメモリー4枚を選ぶモーダル。
- * 自分のメモリーがまだ無いときは、道を2つ（A: メモリーページで登録する／B: 目安のテンプレを4枚入れる）
+ * 自分のメモリーがまだ無いときは、道を2つ（A: 枠をクリックして自分のメモリーを作る／B: 目安のテンプレを4枚入れる）
  * 押せる枠で見せる。どちらかを押したら枠は消え、以後は出さない（PATHS_DONE_KEY。
  * メモリーを全部外しても戻らない。ユーザー指示）。
- * 中身は MemoryWorkbench（メモリーページと同じ作業台: 枠をクリックして作る・保存は任意・セットの保存／呼び出し）。
+ * 中身は MemoryWorkbench（作業台: 枠をクリックして作る・保存は任意・セットの保存／呼び出し）。メモリーページは廃止。
  */
 export default function MemoryPickerModal({
   r,
@@ -53,6 +52,12 @@ export default function MemoryPickerModal({
     }
   };
   const showPaths = noOwn && !pathsDone;
+  /** A を押した回数（作業台に「最初の空枠を編集」を頼む） */
+  const [focusKey, setFocusKey] = useState(0);
+  const startOwn = () => {
+    markPathsDone();
+    setFocusKey((k) => k + 1);
+  };
   const fillTemplate = () => {
     store.fillSlots(TEMPLATE_ID);
     markPathsDone();
@@ -66,15 +71,26 @@ export default function MemoryPickerModal({
 
       {showPaths && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Link to="/memory" className={TILE} onClick={markPathsDone}>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={startOwn}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                startOwn();
+              }
+            }}
+            className={TILE}
+          >
             <span className={BADGE}>A</span>
             <span className="block text-sm font-bold text-slate-800">
               持っているメモリーを登録して使う
             </span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              自分のメモリーを入力できます（メモリーページで登録）
+              自分のメモリーを入力できます（枠をクリックして、下で中身を作る）
             </span>
-          </Link>
+          </div>
           <div
             role="button"
             tabIndex={0}
@@ -100,7 +116,7 @@ export default function MemoryPickerModal({
       )}
 
       <div className="mt-3">
-        <MemoryWorkbench store={store} />
+        <MemoryWorkbench store={store} paraboAssign={r.paraboAssign} focusKey={focusKey} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" onClick={onClose} className={BTN_PRIMARY}>
