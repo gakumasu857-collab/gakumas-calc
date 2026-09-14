@@ -1,7 +1,7 @@
 import { CalendarCheck, ListOrdered } from "lucide-react";
 
 /**
- * 画面の左端に生えるタブ（上半分＝発動回数、下半分＝レッスン等の踏み方）。色は以前の水色（sky-600）を一段薄くした sky-500（濃い青は騒がしい・黒と緑・白・薄すぎる水色は違和感との指摘）。上下とも同じ色。
+ * 画面の左端に生えるタブ（上半分＝プロデュース（アビリティ発動回数）、下半分＝レッスン等の踏み方）。色は以前の水色（sky-600）を一段薄くした sky-500（濃い青は騒がしい・黒と緑・白・薄すぎる水色は違和感との指摘）。上下とも同じ色。
  * 押すとそれぞれのモーダルが開く。位置が目に入りにくいので、初めて探索を押したあとは
  * 吹き出しで案内し、タブを押すか「わかった」を押すまで光らせる（見たことは記憶する）。
  */
@@ -36,7 +36,7 @@ export default function SideTabs({
         className={`${base} top-16 bottom-[calc(50%+4px)] ${glow}`}
       >
         <ListOrdered size={14} />
-        発動回数
+        プロデュース
       </button>
       <button
         type="button"
@@ -55,9 +55,9 @@ export default function SideTabs({
         <div className="fixed left-11 top-1/2 z-30 w-64 -translate-y-1/2 rounded-xl border-2 border-amber-300 bg-white p-3 shadow-xl">
           {/* 左のタブを指す矢印 */}
           <span className="absolute -left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-amber-300 bg-white" />
-          <p className="text-sm font-bold text-slate-900">踏み方と発動回数はここから</p>
+          <p className="text-sm font-bold text-slate-900">踏み方とプロデュースはここから</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            左端のタブで、レッスンの踏み方とアビリティの発動回数を実際の育成に合わせて変えられます。
+            左端のタブで、レッスンの踏み方とプロデュース（アビリティの発動回数）を実際の育成に合わせて変えられます。
             変えると評価値がその場で動きます。
           </p>
           <button

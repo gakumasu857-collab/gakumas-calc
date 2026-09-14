@@ -401,8 +401,9 @@ function ExportSheet({
       {/* ===== アビリティ発動回数 ===== */}
       <div style={S.card}>
         <h2 style={S.h2}>
-          アビリティ発動回数
-          {r.selectedSet ? `（${r.selectedSet.name}）` : ""}
+          プロデュース
+          {r.selectedSet ? `「${r.selectedSet.name}」` : ""}
+          のアビリティ発動回数
         </h2>
         <AbilityCountTable r={r} />
       </div>

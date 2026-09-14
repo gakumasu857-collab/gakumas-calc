@@ -19,7 +19,7 @@ const SMALL_BTN =
 
 /**
  * 計算ページのセーブデータ操作。
- * 保存はその育成の全状態（シナリオ・踏み方・メモリー・所持状況・発動回数・編成・
+ * 保存はその育成の全状態（シナリオ・踏み方・メモリー・所持状況・プロデュース（アビリティ発動回数）・編成・
  * イベント設定）を1件にまとめて持つので、読み込めば評価値まで丸ごと再現できる。
  */
 export default function SaveDataPanel({ r }: { r: CalcResult }) {
@@ -68,7 +68,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
     const { full } = applySave(r, selectedSave);
     notify(
       full
-        ? `「${selectedSave.name}」を読み込みました（シナリオ・踏み方・メモリー・所持状況・発動回数・編成すべて）`
+        ? `「${selectedSave.name}」を読み込みました（シナリオ・踏み方・メモリー・所持状況・プロデュース・編成すべて）`
         : `「${selectedSave.name}」を読み込みました（旧形式のため設定と所持状況のみ）`,
     );
   };
@@ -80,7 +80,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
         <button
           type="button"
           onClick={() => setDialog("new")}
-          title="今の状態（シナリオ・踏み方・メモリー・所持状況・発動回数・編成）に名前をつけて保存します"
+          title="今の状態（シナリオ・踏み方・メモリー・所持状況・プロデュース・編成）に名前をつけて保存します"
           className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-500"
         >
           <Save size={13} />
@@ -142,7 +142,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
             if (
               selectedSave &&
               window.confirm(
-                `「${selectedSave.name}」を削除しますか？（このセーブ用のメモリーセット・発動回数セット・所持状況の控えも消えます）`,
+                `「${selectedSave.name}」を削除しますか？（このセーブ用のメモリーセット・プロデュース・所持状況の控えも消えます）`,
               )
             ) {
               deleteSaveLinked(r, ownedSaves, selectedSave);
@@ -260,10 +260,10 @@ function SaveNameModal({
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
             <b className="text-slate-600">保存されるもの:</b>{" "}
             育成シナリオ／アイドル・Pアイドル／レッスン・授業・試験の踏み方／
-            メモリー4枚／サポカ編成6枚と前イベ・後イベ設定／発動回数／
+            メモリー4枚／サポカ編成6枚と前イベ・後イベ設定／プロデュース（アビリティ発動回数）／
             サポカ・Pアイドルの所持状況／条件設定。
             <br />
-            メモリー・発動回数・所持状況は、それぞれのページからも呼び出せるよう
+            メモリー・プロデュース・所持状況は、それぞれのページからも呼び出せるよう
             <b className="text-slate-600">「セーブデータ用」</b>
             の控えとしても保存します。
             <br />

@@ -162,7 +162,7 @@ export default function CalcPage() {
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
-    // 初めての探索のあとに左端タブ（踏み方・発動回数）を案内する
+    // 初めての探索のあとに左端タブ（踏み方・プロデュース）を案内する
     if (!readSideSeen()) setSideHint(true);
   };
   const dismissSideHint = () => {
@@ -696,7 +696,7 @@ export default function CalcPage() {
                       title={
                         outOfPlan
                           ? "プラン外のサポカが入っているので画像に出力できません"
-                          : "今の計算（評価値・ステ・サポカ・レッスン・発動回数など）を1枚の画像にして保存します"
+                          : "今の計算（評価値・ステ・サポカ・レッスン・アビリティ発動回数など）を1枚の画像にして保存します"
                       }
                       className={`${BTN_SECONDARY} disabled:cursor-not-allowed disabled:opacity-50`}
                     >
@@ -829,7 +829,7 @@ export default function CalcPage() {
         </Modal>
       )}
 
-      {/* 左端のタブ（上＝発動回数・下＝レッスン等の踏み方）。初めて探索したあとは吹き出しで案内 */}
+      {/* 左端のタブ（上＝プロデュース（アビリティ発動回数）・下＝レッスン等の踏み方）。初めて探索したあとは吹き出しで案内 */}
       <SideTabs
         onOpenCounts={() => setCountsOpen(true)}
         onOpenPlan={() => setPlanOpen(true)}
@@ -858,7 +858,7 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 発動回数・踏み方のエディタ（左端のタブか踏み方チップから開く） */}
+      {/* プロデュース（アビリティ発動回数）・踏み方のエディタ（左端のタブか踏み方チップから開く） */}
       <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
       <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
     </div>

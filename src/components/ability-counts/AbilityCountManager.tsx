@@ -57,7 +57,7 @@ type ActiveCell = {
 } | null;
 
 /**
- * 発動回数ページ全体。
+ * プロデュースページ（/ability-counts。画面名は「プロデュース」＝アビリティ発動回数）全体。
  * 表: 縦=アビリティ全件、横=セット（固定幅・あふれたら横スクロール）。
  * ヘッダーは2段（上段=参照チェックボックス、下段=セット名）。
  * チェックしたセットはアビリティ名の右隣の参照列にコピー表示される。
@@ -113,6 +113,10 @@ export default function AbilityCountManager() {
 
   return (
     <div>
+      {/* 「プロデュース」がアビリティ発動回数のことだと分かるように、軽く1行だけ添える */}
+      <p className="mb-2 text-xs leading-relaxed text-slate-600">
+        プロデュース＝サポカのアビリティが<b>何回発動する想定か</b>（アビリティ発動回数）の設定です。ここで決めた回数を探索と評価値の計算に使います。編成を決めたあとの、この育成だけの回数は計算ページ左端の「プロデュース」タブで変えられます。
+      </p>
       {/* ここで決める回数の注意（前イベ・後イベの発動分は計算ページで編成に合わせて自動で上乗せされる） */}
       <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">
         ⚠ ここの回数には、サポカの前イベ・後イベによる発動分は含めないでください（前イベ・後イベは計算ページで編成に合わせて自動で上乗せされます）。
@@ -208,7 +212,7 @@ export default function AbilityCountManager() {
                       <button
                         type="button"
                         onClick={() => setEditingSetId(selectedSet.id)}
-                        title={`${selectedSet.name} を編集（クリックで発動回数モーダル）`}
+                        title={`${selectedSet.name} を編集（クリックで回数の編集モーダル）`}
                         className="group flex min-w-0 flex-1 items-center justify-center gap-0.5 text-center text-xs font-bold text-blue-800 hover:text-blue-600"
                       >
                         <span className="min-w-0 truncate group-hover:underline">
@@ -470,7 +474,7 @@ export default function AbilityCountManager() {
               <span>
                 セーブデータ用のセットも表示（{saveSetCount}件）
                 <span className="block text-xs text-slate-400">
-                  計算ページのセーブデータと一緒に保存された発動回数セットです。
+                  計算ページのセーブデータと一緒に保存されたプロデュースです。
                   普段は邪魔にならないよう隠しています。
                 </span>
               </span>

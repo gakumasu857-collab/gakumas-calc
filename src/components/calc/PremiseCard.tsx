@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Info, Pencil } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ChevronDown, Pencil } from "lucide-react";
 import { FINAL_ROUNDS } from "@/data/schedule";
 import {
   hatsuExamCapScore,
@@ -131,7 +130,7 @@ export default function PremiseCard({
               <Unset text={settings.idol ? `${settings.idol}（Pアイドルを選ぶ）` : undefined} />
             )}
           </PremiseField>
-          <PremiseField no={3} label="プロデュース" hintLink="/help#produce" done={done.set}>
+          <PremiseField no={3} label="プロデュース" hint={GLOSSARY.pattern} done={done.set}>
             <SetPickerField r={r} />
           </PremiseField>
           {/* 4. メモリー（値は1行に収める。狭ければ「…」で切り、2行に折り返さない） */}
@@ -187,7 +186,6 @@ function PremiseField({
   no,
   label,
   hint,
-  hintLink,
   done,
   onClick,
   aside,
@@ -196,8 +194,6 @@ function PremiseField({
   no: number;
   label: string;
   hint?: string;
-  /** ⓘ をヘルプページへのリンクにする（例 "/help#produce"） */
-  hintLink?: string;
   done: boolean;
   onClick?: () => void;
   /** 欄の右に添えるもの（特訓・才能開花のボタンなど。狭ければ下に回る） */
@@ -210,15 +206,6 @@ function PremiseField({
         <NoBadge no={no} done={done} />
         <span className={LABEL}>{label}</span>
         {hint && <Hint text={hint} />}
-        {hintLink && (
-          <Link
-            to={hintLink}
-            title="説明を見る（ヘルプページ）"
-            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 transition hover:text-blue-600"
-          >
-            <Info size={14} />
-          </Link>
-        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {onClick ? (

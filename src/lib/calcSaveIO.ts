@@ -201,7 +201,7 @@ export function saveSummary(save: CalcSave): string {
   const parts = [
     `サポカ${cards}枚`,
     `メモリー${(snap.memorySlots ?? snap.memoryIds ?? []).filter(Boolean).length}枚`,
-    snap.abilitySetName ? `発動回数「${snap.abilitySetName}」` : "発動回数なし",
+    snap.abilitySetName ? `プロデュース「${snap.abilitySetName}」` : "プロデュースなし",
     `所持${Object.keys(snap.ownedLevels).length}枚`,
   ];
   return parts.join(" / ");
