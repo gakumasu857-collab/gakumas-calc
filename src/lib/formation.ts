@@ -290,16 +290,17 @@ export function scoreOwnedCards(
   return result;
 }
 
+/** 前イベがステージに入るもの（スキル／ステージ用アイテム）か */
+export function isStageCard(card: SupportCardData): boolean {
+  return card.stageItem || card.preEventType === "スキル";
+}
+
 /** ステージ持ち込み（Pアイテム/スキルカード）除外の対象か（固定カードは貫通して残す） */
-function excludedStageItem(
+export function excludedStageItem(
   card: SupportCardData,
   opts: FormationOptions | undefined,
 ): boolean {
-  return (
-    !!opts?.noStageItems &&
-    (card.stageItem || card.preEventType === "スキル") &&
-    !opts?.flags?.pinned.has(card.id)
-  );
+  return !!opts?.noStageItems && isStageCard(card) && !opts?.flags?.pinned.has(card.id);
 }
 
 /** レンタル枠の候補（全カードの完凸。BAN・レンタルNG・プラン外は除外） */
@@ -819,6 +820,63 @@ export function examAssistSum(
 export const MAX_STAT_EXCESS_WEIGHT = 0.05;
 
 /**
+ * 最高ステを超えた分のうち「他のタイプの空きに回せた分」（吸収できた超過）1点あたりの追加の減点。
+ * これを MAX_STAT_EXCESS_WEIGHT より大きくすると、超過分を捨てるだけで得をするようになる
+ * （評価値を削る動き）ので、同じ値にしている。回せるなら回すほうが必ず得、捨てても得はしない。
+ */
+export const MAX_STAT_ROOM_PENALTY = MAX_STAT_EXCESS_WEIGHT;
+
+/** 最高ステの実際の上限（シナリオ上限と設定値の小さい方。未設定・0 はシナリオ上限） */
+export function effectiveMaxStats(
+  statCap: number,
+  maxStats?: Partial<Record<TypeKey, number>> | null,
+): Record<TypeKey, number> {
+  const out = {} as Record<TypeKey, number>;
+  for (const t of TYPE_LIST) out[t] = Math.min(statCap, maxStats?.[t] || statCap);
+  return out;
+}
+
+/** 上限までの空きがこの割合（シナリオ上限に対して）未満なら「上限に達している」とみなす（1%。H.I.F.なら32） */
+export const MAX_STAT_FULL_RATIO = 0.01;
+
+/**
+ * 「最高ステ超過」と数えるタイプ。
+ * 最高ステを超えていて、しかも他のタイプの少なくとも1つにまだ空きがある（＝そちらへ回せた）ときだけ。
+ * 他の2タイプがどちらも上限（シナリオ上限か自分の最高ステ）に達しているなら、あふれは避けられないので数えない
+ * （オーナー指定 2026-09-16:「組めないっていうならまず二つをマックスにしてから」）。
+ */
+export function maxStatOverTypes(
+  stats: Record<TypeKey, number>,
+  effMax: Record<TypeKey, number>,
+  statCap: number,
+): TypeKey[] {
+  const tol = Math.max(1, statCap * MAX_STAT_FULL_RATIO);
+  const hasRoom = (t: TypeKey) => stats[t] < effMax[t] - tol;
+  return TYPE_LIST.filter(
+    (t) => stats[t] > effMax[t] + 0.5 && TYPE_LIST.some((u) => u !== t && hasRoom(u)),
+  );
+}
+
+/**
+ * 最高ステの探索用ペナルティ（目的関数から引く）。
+ * 超過分の価値を MAX_STAT_EXCESS_WEIGHT まで割り引き、さらに他タイプの空きに回せた分を少しだけ減点する。
+ * 最高ステを設定していなければ 0（従来と同じ）。
+ */
+export function maxStatSearchPenalty(
+  stats: Record<TypeKey, number>,
+  effMax: Record<TypeKey, number>,
+): number {
+  let excess = 0;
+  let room = 0;
+  for (const t of TYPE_LIST) {
+    excess += Math.max(0, stats[t] - effMax[t]);
+    room += Math.max(0, effMax[t] - stats[t]);
+  }
+  if (excess <= 0) return 0;
+  return (1 - MAX_STAT_EXCESS_WEIGHT) * excess + MAX_STAT_ROOM_PENALTY * Math.min(excess, room);
+}
+
+/**
  * SP条件の不足1枚あたりのペナルティ。
  * 最低ステータス条件の重み合計より大きくして、SP条件を常に最優先にする。
  */
@@ -1098,16 +1156,12 @@ export function findBestFormation(
       dance: team.totals.dance.capped,
       visual: team.totals.visual.capped,
     };
-    // 最高ステ設定: 超過分の価値を割り引く（評価値から削るのではなく積みに行かせない）
-    let excess = 0;
-    if (opts?.maxTargets) {
-      for (const type of TYPE_LIST) {
-        excess += Math.max(0, capped[type] - opts.maxTargets[type]);
-      }
-    }
+    // 最高ステ設定: 超過分の価値を割り引く（評価値から削るのではなく積みに行かせない。
+    // 他タイプに空きがあるならそちらへ回すほうが得になる。全自動と同じ式）
+    const maxPenalty = opts?.maxTargets ? maxStatSearchPenalty(capped, opts.maxTargets) : 0;
     return (
       team.score -
-      (1 - MAX_STAT_EXCESS_WEIGHT) * excess +
+      maxPenalty +
       (opts?.extraScore?.(members) ?? 0) +
       // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
       (opts?.examAssist ? examAssistSum(members, opts?.examStyleTags) : 0) +

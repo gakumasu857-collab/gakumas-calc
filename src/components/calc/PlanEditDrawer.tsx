@@ -226,10 +226,10 @@ function HifEditor({ r }: { r: CalcResult }) {
         <button
           type="button"
           onClick={() => schedule.clearAllLessons()}
-          title="全レッスンを「踏まない」に戻す（踏むタイプの選択を解除）"
+          title="全レッスンを踏まない"
           className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
         >
-          レッスン全クリア
+          レッスン全休み
         </button>
       </div>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
@@ -267,7 +267,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                           others[(others.indexOf(pick.sub) + 1) % others.length];
                         schedule.setLessonSub(i, next);
                       }}
-                      title={`2ndタイプ: ${TYPE_LABELS[pick.sub]}（出現率${Math.round(subAppearProb(type, pick.sub, r.typeRanks) * 100)}%・クリックで切替）`}
+                      title={`サブレッスン: ${TYPE_LABELS[pick.sub]}（出現率${Math.round(subAppearProb(type, pick.sub, r.typeRanks) * 100)}%・クリックで切替）`}
                       className={`absolute -bottom-1 -right-1.5 z-10 flex h-4 min-w-6 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-2 ring-white ${TYPE_STYLE[pick.sub].on}`}
                     >
                       {lesson.sub[spIndex]}
@@ -304,7 +304,7 @@ function HifEditor({ r }: { r: CalcResult }) {
       <Section title="選抜">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
           スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて、
-          ゲームのログに出る上昇幅（パラボ込み）をそのまま入力。今の編成のパラボ%で元のステに逆算します。ステ入力の選抜は自動探索で動かしません。
+          ゲームのログに出る上昇幅（パラボ込み）をそのまま入力。今の編成のパラボで元のステに逆算します。
         </p>
         <div className="flex flex-col divide-y divide-slate-200">
           {EXAMS.map((exam, i) => {
@@ -396,7 +396,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                           <b className="text-slate-800">
                             {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
                           </b>
-                          <span className="text-slate-400">（スコア入力の基準値は {exam.base}）</span>
+                          <span className="text-slate-400">（合計最大 {exam.base}）</span>
                         </span>
                       }
                     >
@@ -413,7 +413,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                       ))}
                     </TypeFieldGrid>
                     <span className="text-[11px] leading-relaxed text-slate-400">
-                      上の段にログの値を入れると、今の編成のパラボ%で下の段（計算に使う値）を逆算します。編成を変えると上の段の表示も変わります。
+                      上の段にパラボ込みの値（ゲーム内ログにある上昇幅）を入れると、今の編成のパラボ%で下の段（計算に使う値）を逆算します。編成を変えると上の段の表示も変わります。
                     </span>
                   </>
                 ) : (
@@ -461,7 +461,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                             </span>
                           ));
                         })()}
-                        <span className="text-slate-400">※パラメータボーナス%は別途上乗せ</span>
+                        <span className="text-slate-400">※パラメータボーナスは別途上乗せ</span>
                       </span>
                     )}
                   </>

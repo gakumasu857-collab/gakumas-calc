@@ -311,7 +311,7 @@ function ScenarioScoreCard({
     return (
       <SettingSub
         title="ファン投票数"
-        hint="営業・オーディション・札から自動集計（入力は踏み方の編集から）"
+        hint="営業・オーディション・札獲得枚数から自動集計"
       >
         <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
           <VoteChip label="営業" value={r.scenarioValues.votesSales ?? 0} />
@@ -331,11 +331,6 @@ function ScenarioScoreCard({
             </b>
           </span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          札 = プロデュースの「スキル獲得」{r.scenarioValues.setFuda ?? 0}枚
-          ＋サポカ分 {r.scenarioValues.supportFuda ?? 0}
-          枚（編成のスキル獲得から自動）。2枚ごとに3,000票、余りの1枚は無効。
-        </p>
         <NiaFinalKindRow r={r} />
         <NiaChallengeRow r={r} onOpen={onOpenNiaChallenge} />
         <DetailRow r={r} onOpen={onOpenDetail} />
@@ -428,7 +423,6 @@ function NiaFinalKindRow({ r }: { r: CalcResult }) {
           </button>
         ))}
       </span>
-      <span className="text-slate-400">（スコアからステへの換算と上限が変わる）</span>
     </div>
   );
 }
@@ -443,7 +437,6 @@ function NiaChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
         獲得ボーナス {c.map((v) => (v === 0 ? "無" : `${v}%`)).join("＋")}＝
         <b className="text-slate-800">+{niaChallengeTotal(c)}%</b>
         {isNiaChallengeMax(c) ? "（全部最大）" : ""}
-        <span className="text-slate-400">（オーディションのステ上昇に掛かる）</span>
       </span>
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
         調整

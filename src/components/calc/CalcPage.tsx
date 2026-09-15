@@ -35,11 +35,12 @@ import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
-import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
+import { allocateEventsForSlots, runFullOptimize } from "@/lib/autoOptimize";
 import { buildConditionInput } from "@/lib/diagLog";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
+  effectiveMaxStats,
   examStyleTags,
   findBestFormation,
   scoreOwnedCards,
@@ -61,10 +62,12 @@ import {
 import { findPIdolMaster, IDOL_RANKS } from "@/lib/pIdol";
 import { produceRank } from "@/lib/produceRank";
 import {
+  hasSearchOwnedEventOverride,
   preEventAutoActivations,
   preEventMax,
   preEventMaxLabel,
   preEventStatRelevant,
+  searchEventCounts,
 } from "@/lib/sheetScore";
 import { useCalcResult, type SelectedMember } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
@@ -201,19 +204,17 @@ export default function CalcPage() {
           plan: r.plan,
           noStageItems: settings.noStageItems,
         };
-        const owned = scoreOwnedCards(r.getLevel, r.ctx, r.roles.typeRole, opts);
-        const rentals = scoreRentalCandidates(r.ctx, r.roles.typeRole, opts);
+        // 前イベの取得・後イベの発動は探索が決めるので、前の探索の「取得しない」を引きずらずに点数を出す
+        const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.events.get) };
+        const owned = scoreOwnedCards(r.getLevel, searchCtx, r.roles.typeRole, opts);
+        const rentals = scoreRentalCandidates(searchCtx, r.roles.typeRole, opts);
         // ベースはサポカ抜きの現在ステ（レッスン・メモリー・Pアイドル込み）。上限溢れを考慮して選ぶ。
         // NIAでは札（スキルカード獲得→ファン投票数）の価値もステ換算で加点する
         const best = findBestFormation(owned, rentals, r.baseStats, {
           pinned: flags.pinned,
           spMin: resolveSpMin(r, settings),
           cap: r.statCap,
-          maxTargets: {
-            vocal: Math.min(r.statCap, settings.maxStats.vocal || r.statCap),
-            dance: Math.min(r.statCap, settings.maxStats.dance || r.statCap),
-            visual: Math.min(r.statCap, settings.maxStats.visual || r.statCap),
-          },
+          maxTargets: effectiveMaxStats(r.statCap, settings.maxStats),
           eventBudget: settings.eventBudget.enabled
             ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
             : undefined,
@@ -240,18 +241,28 @@ export default function CalcPage() {
             : undefined,
         });
         if (!best) {
-          setLastRun({
-            message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
-          });
+          setLastRun({ message: noFormationMessage() });
           return;
         }
-        selected.setAll(best.picks.map((p) => ({ id: p.id, rental: p.rental })));
+        const slots = best.picks.map((p) => ({ id: p.id, rental: p.rental }));
+        selected.setAll(slots);
+        // 前イベ・後イベの取得状況も探索が決める（制限があれば割り当て、無ければ全部発動）
+        const alloc = settings.eventBudget.enabled
+          ? allocateEventsForSlots(buildAutoOptimizeInput(r, flags, settings), slots)
+          : { ops: [], cappedSum: null };
+        r.events.applyEventOps(
+          slots.map((s) => s.id),
+          alloc.ops,
+        );
         bumpRun();
         setLastRun({
           message:
-            `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(best.score).toLocaleString()}）` +
+            `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(alloc.cappedSum ?? best.score).toLocaleString()}）` +
             (best.spShortfall > 0
               ? `。SPレッスン率の条件はあと${best.spShortfall}枚分満たせませんでした`
+              : "") +
+            (settings.eventBudget.enabled
+              ? `。取得回数の制限（前イベ${settings.eventBudget.pre}枚・後イベ${settings.eventBudget.post}回）に合わせて前イベ・後イベの取得状況も反映しました`
               : ""),
         });
       } finally {
@@ -262,6 +273,16 @@ export default function CalcPage() {
 
   /** 条件判定の入力（今の編成・設定・今の踏み方で決まるSP率持ち枚数・今のステ） */
   const conditionInput = (): ConditionInput => buildConditionInput(r, flags, settings);
+  /** 編成を組めなかったときの一言（ステージ用BANで候補が減っているならそれも言う） */
+  const noFormationMessage = () =>
+    "編成を組めません（プラン制限内の所持サポカが不足しています" +
+    (settings.noStageItems
+      ? "。「ステージに入るPアイテム・スキルのサポカを編成しない」で候補が減っている可能性があります"
+      : "") +
+    "）";
+  /** 前イベ・後イベを「全部発動」に戻す必要があるか（探索が決める項目を手で変えているカードがある） */
+  const hasEventOverrides = (ids: readonly string[]) =>
+    ids.some((id) => hasSearchOwnedEventOverride(r.events.get(id)));
   /**
    * 今の編成（選択サポカ）が現在の条件設定（固定・BAN・レンタルNG・プラン・ステージ用の除外・
    * SP率持ち・タイプ割合・最低/最高ステ）を満たしているか。
@@ -283,19 +304,29 @@ export default function CalcPage() {
     // 押す前の評価値（表示できているときだけ比較対象にする）と条件適合を控える。
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
     // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない。
-    // 取得回数の制限ON中も、結果は制限を反映した評価値（今の評価値より低くて当然）なので効かせない
-    const before =
-      canShowRating && !settings.examAssist && !settings.eventBudget.enabled ? r.rating : null;
-    const beforeOk = before !== null && currentMeetsConditions();
+    // 取得回数の制限ON中も、結果は制限を反映した評価値（今の評価値より低くて当然）なので効かせない。
+    const guardOn = canShowRating && !settings.examAssist && !settings.eventBudget.enabled;
+    // 前イベ・後イベを手で変えているカードがあるときは、画面の評価値（手動の値込み）ではなく、
+    // 探索と同じ前提（全部発動）で出した今の編成の評価値と比べる（探索結果の currentRating を使う）
+    const curIds = r.selected.slots.flatMap((s) => (s ? [s.id] : []));
+    const curHasOverrides = hasEventOverrides(curIds);
+    let before: number | null = guardOn && !curHasOverrides ? r.rating : null;
+    let beforeOk = guardOn && currentMeetsConditions();
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
         const res = runFullOptimize(buildAutoOptimizeInput(r, flags, settings));
         if (!res) {
-          setLastRun({
-            message: "編成を組めません（プラン制限内の所持サポカが不足しています）",
-          });
+          setLastRun({ message: noFormationMessage() });
           return;
+        }
+        // 手で前イベ・後イベを変えていたときは、評価値も条件（最低/最高ステ・ステの順）も
+        // 全部発動の前提で見る（画面のステは手動の取得OFF込みなので、比べる前提がずれる）
+        if (guardOn && curHasOverrides) {
+          before = res.currentRating ?? null;
+          beforeOk =
+            !!res.currentStats &&
+            meetsConditions({ ...conditionInput(), capped: res.currentStats });
         }
         // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
         const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
@@ -304,8 +335,14 @@ export default function CalcPage() {
           notes.push(
             `探索の条件のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
           );
-        // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
+        // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない。
+        // 手で前イベ・後イベを変えていたときは、比べた前提（全部発動）に合わせて全部発動に戻す
+        // （戻した後の評価値＝before なので、表示と「変更なし」の数字がそろう）
         if (before !== null && beforeOk && res.rating < before) {
+          if (curHasOverrides) {
+            r.events.applyEventOps(curIds, []);
+            notes.push("取得回数の制限が無いので、前イベ・後イベはすべて発動する設定に戻しました");
+          }
           setLastRun({
             evaluated: res.evaluated,
             elapsedMs: res.elapsedMs,
@@ -323,17 +360,18 @@ export default function CalcPage() {
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
         selected.setAll(res.slots);
-        // 取得回数の制限があるときは、探索が決めた前イベ・後イベの取得状況を
-        // そのまま反映する（この育成だけの設定。確認は挟まない）
+        // 前イベ・後イベの取得状況は探索が決める（この育成だけの設定。確認は挟まない）。
+        // 取得回数の制限があればその割り当て、無ければ全部発動（前の探索の「取得しない」を消す）
+        const resIds = res.slots.map((s) => s.id);
+        const hadOverrides = hasEventOverrides(resIds);
+        r.events.applyEventOps(resIds, res.eventOps ?? []);
         if (settings.eventBudget.enabled) {
-          r.events.applyEventOps(
-            res.slots.map((s) => s.id),
-            res.eventOps ?? [],
-          );
           const off = (res.eventOps ?? []).length;
           notes.push(
             `取得回数の制限（前イベ${settings.eventBudget.pre}枚・後イベ${settings.eventBudget.post}回）に合わせて、前イベ・後イベの取得状況を反映しました${off > 0 ? `（${off}枚を取得しない設定に）` : ""}`,
           );
+        } else if (hadOverrides) {
+          notes.push("取得回数の制限が無いので、前イベ・後イベはすべて発動する設定にしました");
         }
         if (before !== null && !beforeOk && res.rating < before) {
           notes.push(
@@ -718,7 +756,7 @@ export default function CalcPage() {
         countsTitle={
           r.selectedSet
             ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
-            : "プロデュースを選ぶと調整できます"
+            : "プロデュースを選ぶとここから調整できます"
         }
         highlight={sideHint}
         onDismissHighlight={dismissSideHint}
@@ -774,7 +812,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
     <div className="mt-2 overflow-x-auto rounded-lg bg-slate-50 px-1 py-1.5">
       {changed > 0 && (
         <div className="mb-1 flex items-center justify-end gap-2 px-1 text-[11px] text-slate-500">
-          手で変えているカード {changed}枚
+          変更中のサポカ {changed}枚
           <button
             type="button"
             onClick={() => r.events.pruneTo(new Set())}
@@ -787,10 +825,10 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
       <table className="w-full min-w-max text-xs text-slate-700">
         <thead>
           <tr className="border-b border-slate-200">
-            <th className={th}>カード</th>
+            <th className={th}>サポカ</th>
             <th
               className={th}
-              title="ステイベ（パラメータイベント）が発動したか。1育成に1回だけランダムで起こります"
+              title="ステイベ（パラメータイベント、Pポイントイベント）が発動したか。"
             >
               ステイベ
             </th>
@@ -802,7 +840,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
             </th>
             <th
               className={th}
-              title="前イベの強化・削除の割り振り。Mの枚数を決めると残りは自動でA"
+              title="前イベの強化・削除の割り振り。Mの枚数を決めると残りは自動でAに割り振り"
             >
               割り振り
             </th>
@@ -1034,7 +1072,7 @@ function PIdolInfo({ r }: { r: ReturnType<typeof useCalcResult> }) {
         <b className="text-slate-800">{r.pMaster.plan}</b>
       </p>
       <p className="text-[11px] leading-tight text-slate-500">
-        おすすめ: {r.pMaster.effect}
+        おすすめ効果: {r.pMaster.effect}
       </p>
     </div>
   );

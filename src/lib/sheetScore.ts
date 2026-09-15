@@ -623,6 +623,43 @@ export type EventCountOverride = {
   statEvent?: number;
 };
 
+/**
+ * 探索が決める項目（前イベの取得・前イベ回数・後イベの発動）。
+ * 探索はこれらを入力として使わず（全部発動する前提で評価し）、終わったら結果の6枚ぶんを書き直す:
+ * 取得回数の制限があればその割り当て、無ければ全部発動（上書きを消す）。
+ * ステイベ・強化のA/M・任意スキルの分類は手で決めるものなので残す。
+ */
+export const SEARCH_OWNED_EVENT_KEYS = ["acquire", "pre", "post"] as const;
+
+/** 手動指定のうち探索が決める項目を持っているか */
+export function hasSearchOwnedEventOverride(ov: EventCountOverride | undefined): boolean {
+  return !!ov && SEARCH_OWNED_EVENT_KEYS.some((k) => ov[k] !== undefined);
+}
+
+/**
+ * 探索の入力用: 探索が決める項目（acquire/pre/post）を取り除いた手動指定。
+ * 以前の探索で「取得しない」にしたカードが、次の探索で価値0と見なされて外され続けないようにする。
+ */
+export function searchEventCounts(
+  get?: (cardId: string) => EventCountOverride | undefined,
+): (cardId: string) => EventCountOverride | undefined {
+  // 探索中は同じカードを何千回も引くので、カードごとに1回だけ作って使い回す
+  // （探索の間に手動指定は変わらない。返したオブジェクトは読むだけで書き換えない）
+  const cache = new Map<string, EventCountOverride | undefined>();
+  return (id) => {
+    if (cache.has(id)) return cache.get(id);
+    const ov = get?.(id);
+    let out: EventCountOverride | undefined;
+    if (ov) {
+      const rest: EventCountOverride = { ...ov };
+      for (const k of SEARCH_OWNED_EVENT_KEYS) delete rest[k];
+      out = Object.values(rest).some((v) => v !== undefined) ? rest : undefined;
+    }
+    cache.set(id, out);
+    return out;
+  };
+}
+
 /** ステイベ（パラメータイベント）の回数キー */
 export const STAT_EVENT_KEY = "パラメータイベント";
 

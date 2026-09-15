@@ -8,6 +8,7 @@ import type { AutoOptimizeInput } from "./autoOptimize";
 import { examStyleTags, type CardFlagSets } from "./formation";
 import { IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
+import { searchEventCounts } from "./sheetScore";
 import type { useCalcResult } from "./useCalcResult";
 import type { CalcSettings, TypeKey } from "./useCalcSettings";
 import { TYPE_KEYS } from "./useCalcSettings";
@@ -68,7 +69,8 @@ export function buildAutoOptimizeInput(
     tag,
     ranks: r.typeRanks,
     manual,
-    eventCounts: r.events.get,
+    // 前イベの取得・前イベ回数・後イベの発動は探索が決める（前の探索の「取得しない」を引きずらない）
+    eventCounts: searchEventCounts(r.events.get),
     getLevel: r.getLevel,
     flags,
     spMin: resolveSpMin(r, settings),

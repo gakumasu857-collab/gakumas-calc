@@ -6,6 +6,7 @@ import {
 } from "@/lib/autoOptimize";
 import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
+  effectiveMaxStats,
   findBestFormation,
   scoreOwnedCards,
   scoreRentalCandidates,
@@ -13,6 +14,7 @@ import {
   type ScoredCard,
 } from "@/lib/formation";
 import { buildDiagLog } from "@/lib/diagLog";
+import { searchEventCounts } from "@/lib/sheetScore";
 import { useCalcResult } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
 import {
@@ -83,14 +85,17 @@ export default function DebugPage() {
 
   /** 理想編成を実行して中間情報ごと表示する */
   const runFormation = () => {
-    const opts = { flags, plan: r.plan };
+    const opts = { flags, plan: r.plan, noStageItems: r.calc.settings.noStageItems };
     const start = performance.now();
-    const owned = scoreOwnedCards(r.getLevel, r.ctx, r.roles.typeRole, opts);
-    const rentals = scoreRentalCandidates(r.ctx, r.roles.typeRole, opts);
+    // アプリの「編成だけ探索」と同じく、探索が決める前イベ・後イベの項目は入力から外す
+    const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.events.get) };
+    const owned = scoreOwnedCards(r.getLevel, searchCtx, r.roles.typeRole, opts);
+    const rentals = scoreRentalCandidates(searchCtx, r.roles.typeRole, opts);
     const best = findBestFormation(owned, rentals, r.baseStats, {
       pinned: flags.pinned,
       spMin: resolveSpMin(r, r.calc.settings),
       cap: r.statCap,
+      maxTargets: effectiveMaxStats(r.statCap, r.calc.settings.maxStats),
       extraScore: r.niaFudaExtra,
     });
     const elapsedMs = performance.now() - start;

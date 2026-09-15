@@ -161,9 +161,9 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   }, []);
 
   /**
-   * 探索の取得制限をそのまま反映する（編成6枚ぶんの前イベ・後イベを指定どおりにする）。
-   * 対象カードの acquire/pre/post をいったん自動に戻してから ops を当てるので、
-   * 探索が「取得する」と決めたカードは前の取得OFFが残らない。
+   * 探索の結果の前イベ・後イベの取得状況を反映する（どの探索でも終わったら呼ぶ）。
+   * 対象カードの acquire/pre/post をいったん自動（＝全部発動）に戻してから ops を当てる。
+   * ops が空なら「全部発動」（取得回数の制限が無いとき）。ステイベ・強化のA/Mなどは残す。
    */
   const applyEventOps = useCallback(
     (

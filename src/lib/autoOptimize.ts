@@ -51,8 +51,11 @@ import {
   evaluateTeam,
   eventBudgetScales,
   examAssistSum,
-  MAX_STAT_EXCESS_WEIGHT,
+  effectiveMaxStats,
+  excludedStageItem,
   findBestFormation,
+  maxStatOverTypes,
+  maxStatSearchPenalty,
   typeConstraintFromRatio,
   minStatBonus,
   typeRatioShortfall,
@@ -99,7 +102,7 @@ import {
   paraboAssignFromGains,
   TYPE_SHEET_ROLE,
 } from "./sheetContext";
-import { paraboConvert, type SheetScoreContext } from "./sheetScore";
+import { paraboConvert, searchEventCounts, type SheetScoreContext } from "./sheetScore";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 import type { HatsuLessonPick } from "./useHatsuSchedule";
 import type { NiaLessonPick, NiaSalePick } from "./useNiaSchedule";
@@ -258,8 +261,18 @@ export type AutoOptimizeResult = SteppingResult & {
    * イベント予算で「発動しない」ことにした前イベ・後イベのカード別設定
    * （取得OFF / 後イベ✕）。計算ページのイベント設定へ適用する。
    * ※ pre（前イベ回数の削減）は現状の割当ロジックでは生成されない（将来用の予約）。
+   * 取得回数の制限が無いときは undefined。呼び出し側は結果の6枚の acquire/pre/post を
+   * 空の ops で書き直す（＝全部発動。useEventCounts.applyEventOps）。
    */
   eventOps?: { id: string; pre?: number; acquire?: false; post?: 0 }[];
+  /**
+   * 探索に入る前の「今の編成・今の踏み方」の評価値を、探索と同じ前提（前イベの取得・前イベ回数・
+   * 後イベの発動の手動指定を外した＝全部発動）で出したもの。今の編成が候補にならなかったときは undefined。
+   * 手動指定があるときの「今の編成を残すか」の比較に使う（画面の評価値は手動指定込みなので比べられない）。
+   */
+  currentRating?: number;
+  /** currentRating と同じ前提（全部発動）での今の編成の育成後ステ（上限適用後）。条件の判定に使う */
+  currentStats?: Record<TypeKey, number>;
   /**
    * ステータスの寄せ方（軸）ごとの最良候補の評価値（仕上げ前の比較値）。
    * 3軸（VoDa/DaVi/VoVi）それぞれを本気で試したことの開示用
@@ -448,8 +461,12 @@ export function runFullOptimize(
     if (!dup) finalists.push(a);
   }
   // 今の編成＋今の踏み方も候補に入れる（使えるカードだけで組めているとき）。
-  // 探索がこれを下回ることがなくなり、押すたびに悪化しない
+  // 探索がこれを下回ることがなくなり、押すたびに悪化しない。
+  // ステージ用BAN（固定以外のスキル／ステージ用アイテムの前イベ）に当たる今の編成は候補にしない
+  // （以前はここを通って、除外したはずのカードがそのまま結果に戻っていた）
   let currentCand: (typeof finalists)[number] | undefined;
+  let currentRating: number | undefined;
+  let currentStats: Record<TypeKey, number> | undefined;
   // 今の編成のレンタル印は、所持状況を変えて未所持になったカードにも付け直す
   // （評価は未所持＝完凸レンタル扱いなので、「レンタル1枚まで」の判定に効かせる。
   //   これが無いと未所持カードが「所持」の顔で残り、もう1枚レンタルして2枚になったまま抜けられなかった）
@@ -462,6 +479,7 @@ export function runFullOptimize(
     cur.length === 6 &&
     // 固定カードが入っていない今の編成は候補にしない（固定を外した結果が勝ってしまう）
     engine.pinnedShortfall(cur) === 0 &&
+    engine.stageItemShortfall(cur) === 0 &&
     cur.every(
       (x) =>
         !input.flags.banned.has(x.id) &&
@@ -472,6 +490,12 @@ export function runFullOptimize(
     const ectx = engine.buildEctx(stepping);
     const ev = engine.preciseObjective(cur, ectx);
     if (ev.members.length === 6) {
+      // 取得回数の制限が無いときだけ意味がある（制限ありの評価値は比例の目減りを含むため比べない）
+      if (!input.eventBudget) {
+        const rep = engine.preciseObjective(cur, ectx, true);
+        currentRating = Math.round(engine.fullRating(stepping, rep.cappedSum, rep.members));
+        currentStats = { ...rep.stats };
+      }
       currentCand = {
         stepping,
         slots: cur.map((x) => ({ ...x })),
@@ -602,6 +626,8 @@ export function runFullOptimize(
     })(),
     elapsedMs: performance.now() - t0,
     eventOps,
+    currentRating,
+    currentStats,
     debug: finalEngine.buildDebug(
       best.stepping,
       best.slots,
@@ -618,7 +644,13 @@ export function runFullOptimize(
 export function optimizeSteppingForSlots(
   input: AutoOptimizeInput,
   slots: SelectedSlot[],
-): (SteppingResult & { cappedSum: number }) | null {
+):
+  | (SteppingResult & {
+      cappedSum: number;
+      /** 取得回数の制限があるときの前イベ・後イベの割り当て（無ければ undefined） */
+      eventOps?: NonNullable<AutoOptimizeResult["eventOps"]>;
+    })
+  | null {
   const t0 = performance.now();
   const engine = new OptimizeEngine(input);
   const finalDeadline = t0 + TIME_BUDGET_MS;
@@ -638,12 +670,53 @@ export function optimizeSteppingForSlots(
   // 授業を流行タイプの閾値ルール（第1流行2100+→第2流行1400+→第3流行1100+／余りは第1流行）へ寄せる。
   // 全自動最適化と同じ仕上げ（合計を落とさない範囲で割り当て直すだけ）。
   // これが無いと「踏み方だけ」では第3流行が1100に届かない授業配分のまま返していた。
+  // 取得回数の制限があれば全自動と同じく「割り当て → その状態で授業を寄せる」の順
+  let finalEngine = engine;
+  let eventOps: NonNullable<AutoOptimizeResult["eventOps"]> | undefined;
+  if (input.eventBudget) {
+    const alloc = engine.allocateEvents(best.stepping, slots);
+    eventOps = alloc.ops;
+    finalEngine = new OptimizeEngine({
+      ...input,
+      eventBudget: undefined,
+      eventCounts: alloc.eventCounts,
+    });
+  }
   const packed = { stepping: best.stepping, slots, score: best.score };
-  engine.applyClassPreference(packed);
+  finalEngine.applyClassPreference(packed);
   best = { stepping: packed.stepping, score: best.score };
-  const ectx = engine.buildEctx(best.stepping);
-  const { cappedSum } = engine.preciseObjective(slots, ectx);
-  return { ...engine.toSteppingResult(best.stepping), cappedSum };
+  const ectx = finalEngine.buildEctx(best.stepping);
+  const { cappedSum } = finalEngine.preciseObjective(slots, ectx);
+  return { ...engine.toSteppingResult(best.stepping), cappedSum, eventOps };
+}
+
+/**
+ * 編成を決めたあとの取得回数の割り当てだけを求める（「今の踏み方のまま編成だけ」用）。
+ * 取得回数の制限が無ければ空（＝全部発動）。
+ */
+export function allocateEventsForSlots(
+  input: AutoOptimizeInput,
+  slots: SelectedSlot[],
+): { ops: NonNullable<AutoOptimizeResult["eventOps"]>; cappedSum: number | null } {
+  if (!input.eventBudget) return { ops: [], cappedSum: null };
+  const engine = new OptimizeEngine({
+    ...input,
+    eventCounts: searchEventCounts(input.eventCounts),
+  });
+  const stepping = engine.initialStepping();
+  const alloc = engine.allocateEvents(stepping, slots);
+  // 割り当てを反映した状態の合計ステ（計算ページの表示と同じ前提）
+  const finalEngine = new OptimizeEngine({
+    ...input,
+    eventBudget: undefined,
+    eventCounts: alloc.eventCounts,
+  });
+  const { cappedSum } = finalEngine.preciseObjective(
+    slots,
+    finalEngine.buildEctx(stepping),
+    true,
+  );
+  return { ops: alloc.ops, cappedSum };
 }
 
 /**
@@ -679,6 +752,8 @@ export class OptimizeEngine {
    * （わざわざ積みに行かない・溢れ込みを選抜の微調整で削りにも行かない）。
    */
   private maxTargets: Record<TypeKey, number>;
+  /** ステージ用BANで編成に入れてはいけないカード（固定は除く。設定OFFなら空） */
+  private stageExcluded: ReadonlySet<string>;
   /** サポカ編成のタイプ割合条件（合計6=固定、6未満=最低枚数）。必須条件として全段階で守る */
   private ratioCons: ReturnType<typeof typeConstraintFromRatio>;
 
@@ -692,11 +767,14 @@ export class OptimizeEngine {
       dance: input.statCap,
       visual: input.statCap,
     };
-    this.maxTargets = {
-      vocal: Math.min(input.statCap, input.maxStats?.vocal || input.statCap),
-      dance: Math.min(input.statCap, input.maxStats?.dance || input.statCap),
-      visual: Math.min(input.statCap, input.maxStats?.visual || input.statCap),
-    };
+    this.maxTargets = effectiveMaxStats(input.statCap, input.maxStats);
+    this.stageExcluded = new Set(
+      input.noStageItems
+        ? SUPPORT_CARD_DB.filter((c) =>
+            excludedStageItem(c, { flags: input.flags, noStageItems: true }),
+          ).map((c) => c.id)
+        : [],
+    );
     const req = input.minStats;
     if (req && TYPE_KEYS.some((t) => (req[t] ?? 0) > 0)) {
       this.minStatCond = {
@@ -1268,12 +1346,6 @@ export class OptimizeEngine {
     return improved;
   }
 
-  /**
-   * 授業を「第1流行タイプが2100以上 → 第2流行タイプが1400以上 → 第3流行タイプが1100以上 →
-   * 余りは第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
-   * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
-   * 全割当（3^授業数）を正確に評価し、合計最優先→閾値優先の辞書式で選ぶ。
-   */
   /** レンタルの違反量（2枚目以降の枚数＋レンタルNGなのにレンタルしている枚数） */
   private rentalShortfall(members: ScoredCard[]): number {
     let rentals = 0;
@@ -1286,6 +1358,22 @@ export class OptimizeEngine {
     return Math.max(0, rentals - 1) + ng;
   }
 
+  /** ステージ用BANに当たる（固定以外のスキル／ステージ用アイテムの前イベの）カードの枚数 */
+  stageItemShortfall(members: readonly { id: string }[]): number {
+    if (this.stageExcluded.size === 0) return 0;
+    let n = 0;
+    for (const m of members) if (this.stageExcluded.has(m.id)) n++;
+    return n;
+  }
+
+  /**
+   * 授業を「第1流行タイプが2100以上 → 第2流行タイプが1400以上 → 第3流行タイプが1100以上 →
+   * 余りは第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
+   * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
+   * 全割当（3^授業数）を正確に評価し、条件（ステの順・最低ステ）→ 探索と同じ値（合計から
+   * 最高ステの減点を引いたもの）→ 閾値の辞書式で選ぶ。閾値は最高ステで頭打ちにする
+   * （以前は合計だけで比べていたので、最高ステを設定したタイプへ授業を積んで超えさせていた）。
+   */
   applyClassPreference(best: {
     stepping: Stepping;
     slots: SelectedSlot[];
@@ -1322,11 +1410,11 @@ export class OptimizeEngine {
           -statOrderShortfall(stats, this.input.statOrder),
           // 最低ステも条件。閾値ルールを優先して条件を割ると「満たせなかった条件」になる
           -minStatShortfall(stats, this.minStatCond),
-          Math.round(cappedSum),
-          Math.min(stats[t1], 2100),
-          Math.min(stats[t2], 1400),
-          Math.min(stats[t3], 1100),
-          stats[t1],
+          Math.round(cappedSum - maxStatSearchPenalty(stats, this.maxTargets)),
+          Math.min(stats[t1], 2100, this.maxTargets[t1]),
+          Math.min(stats[t2], 1400, this.maxTargets[t2]),
+          Math.min(stats[t3], 1100, this.maxTargets[t3]),
+          Math.min(stats[t1], this.maxTargets[t1]),
         ];
         if (!bestKey || better(key, bestKey)) {
           bestKey = key;
@@ -1685,7 +1773,6 @@ export class OptimizeEngine {
       }
     }
     let cappedSum = 0;
-    let excess = 0;
     let overflow = 0;
     const stats: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const type of TYPE_KEYS) {
@@ -1696,15 +1783,14 @@ export class OptimizeEngine {
         itemCut[type];
       stats[type] = Math.min(this.caps[type], raw);
       cappedSum += stats[type];
-      excess += Math.max(0, stats[type] - this.maxTargets[type]);
       overflow += Math.max(0, raw - this.caps[type]);
     }
     const obj =
       cappedSum +
       // 踏み方で変わるスター性（HIF）。評価値と同じ向きで踏み方を比べるため
       ectx.starStat -
-      // 最高ステ設定の超過分は探索価値を割り引く（評価値からは削らない）
-      (1 - MAX_STAT_EXCESS_WEIGHT) * excess +
+      // 最高ステ設定の超過分は探索価値を割り引く（評価値からは削らない。他タイプに空きがあれば回すほうが得）
+      maxStatSearchPenalty(stats, this.maxTargets) +
       (this.extraScore ? this.extraScore(members) : 0) +
       // 試験補助の加点は探索の目的関数のみ。表示・評価値には足さない
       (!forReport && this.input.examAssist
@@ -1720,15 +1806,24 @@ export class OptimizeEngine {
       // 1枚入れ替え・組み直しで外れた候補が勝たないよう目的関数でも弾く
       this.pinnedShortfall(members) * RATIO_PENALTY -
       // レンタルは1枚まで・レンタルNGのカードはレンタルしない（必須条件）
-      this.rentalShortfall(members) * RATIO_PENALTY;
+      this.rentalShortfall(members) * RATIO_PENALTY -
+      // ステージ用BAN（固定以外）も必須条件。今の編成や入れ替えの途中で残らないように
+      this.stageItemShortfall(members) * RATIO_PENALTY;
     return { obj, cappedSum, members, stats, overflow };
   }
 
   /**
    * イベント予算の離散割り当て。
-   * 前イベは取得回数（カード1枚=1）、後イベは発動回数を予算とし、価値
-   * （編成の受け手アビリティ効果量×寄与＋アイテム補正＋NIA札）が高いカードから
-   * 予算ぶんだけ発動させ、残りは前イベ=「取得OFF」・後イベ=「✕」の設定にする。
+   * 前イベは「取得するカードの枚数」、後イベは「発動するカードの枚数」を予算とし、
+   * どのカードを残すかを実際に評価して選ぶ。前イベと後イベは同じ上限（「〜回まで」の回数・
+   * ステ上限）を取り合うことがあるので、組み合わせを掛け合わせてまとめて選ぶ
+   * （6枚なので多くても 20×20=400 通り。1回の評価は数カード分なので一瞬）。
+   * 評価は取得回数の制限を掛けない探索と同じ目的関数（評価値の元のステ合計＋スター性・札など＋
+   * 最高ステ・ステの順などの条件）。
+   * 数えるのは「前イベ／後イベを持つカード」全部（ステージ用アイテムなど点数に効かないものも1枚）。
+   * 同点のときは従来の目安（受け手の効果量×寄与＋アイテム補正＋NIA札）が高いカードを残す。
+   * ※ 以前は「上限に達したタイプへ入る価値を一律5%」の近似で、上限ぎりぎりのタイプの大きな
+   *   イベントを先に切ってしまうことがあった（2026-09-16 レビュー指摘）。
    */
   allocateEvents(
     stepping: Stepping,
@@ -1744,7 +1839,7 @@ export class OptimizeEngine {
       ectx.ctx,
       TYPE_SHEET_ROLE,
     ).filter((m): m is ScoredCard => m !== null);
-    // 回数キーごとの受け手側の効果量合計（発動1回の価値の目安）
+    // 同点時の並び順に使う目安（回数キーごとの受け手側の効果量合計）
     const teamValue: Record<string, number> = {};
     for (const m of members) {
       for (const key in m.valuesByKey) {
@@ -1760,17 +1855,9 @@ export class OptimizeEngine {
           NIA_PARAM_RATE
         : 0;
     const budget = this.input.eventBudget!;
-
-    // 前イベ: 取得回数（カード1枚=1）ベースで配分。価値の高いカードから
-    // 予算枚数だけ「取得」し、残りは取得OFF。取得すれば発動回数はそのまま。
-    // 数えるのは「前イベを持つカード」全部（ステージ用アイテムなど点数に効かないものも、
-    // 育成では1枚の前イベを消費するため。価値0なので予算からは最後に落ちる）
-    const preAcquire = new Set<string>();
-    let remainingPre = budget.pre ?? Infinity;
-    members
+    const preCards = members
       .filter((m) => m.hasPre)
       .map((m) => {
-        // このカードの前イベ全体の価値（発動回数ぶんすべて合算）
         let value = m.itemBonus;
         for (const key in m.preContrib) {
           value += m.preContrib[key] * (teamValue[key] ?? 0);
@@ -1779,45 +1866,106 @@ export class OptimizeEngine {
         return { m, value };
       })
       .sort((a, b) => b.value - a.value)
-      .forEach(({ m }) => {
-        if (remainingPre >= 1) {
-          preAcquire.add(m.id);
-          remainingPre -= 1;
-        }
-      });
-
-    // 後イベ: 価値が高いカードから予算までON（各カード1回）
-    const postOn = new Set<string>();
-    let remainingPost = budget.post ?? Infinity;
-    members
+      .map((x) => x.m);
+    const postCards = members
       .filter((m) => m.hasPost)
       .map((m) => {
         let unit = 0;
-        for (const key in m.postContrib) {
-          unit += m.postContrib[key] * (teamValue[key] ?? 0);
-        }
+        for (const key in m.postContrib) unit += m.postContrib[key] * (teamValue[key] ?? 0);
         return { m, unit };
       })
       .sort((a, b) => b.unit - a.unit)
-      .forEach(({ m }) => {
-        if (remainingPost >= 1) {
-          postOn.add(m.id);
-          remainingPost -= 1;
+      .map((x) => x.m);
+
+    // ---- 実際に評価して選ぶ ----
+    // acquire/pre/post は前の値を捨ててから当てる（計算ページの applyEventOps と同じ）
+    const baseCounts = searchEventCounts(this.input.eventCounts);
+    const preOff = new Set<string>();
+    const postOff = new Set<string>();
+    const patched: SheetScoreContext["eventCounts"] = (id) => {
+      const base = baseCounts(id);
+      const a = preOff.has(id);
+      const p = postOff.has(id);
+      if (!a && !p) return base;
+      const merged = { ...(base ?? {}) };
+      if (a) merged.acquire = false;
+      if (p) merged.post = 0;
+      return merged;
+    };
+    // 制限を掛けずに、今の取得状況（preOff/postOff）そのままで評価するエンジン
+    const evalEngine = new OptimizeEngine({
+      ...this.input,
+      eventBudget: undefined,
+      eventCounts: patched,
+    });
+    // 踏み方は固定なので ectx は1回だけ作る（ctx の eventCounts は上の patched を毎回読みにいく）
+    const evalEctx = evalEngine.buildEctx(stepping);
+    const scoreNow = () => evalEngine.preciseObjective(slots, evalEctx, true).obj;
+    /** 予算を整数の枚数にする（未指定＝全部、端数は切り捨て、非数は0） */
+    const keepCount = (limit: number | undefined, n: number) => {
+      if (limit === undefined) return n;
+      const lim = Number.isFinite(limit) ? Math.floor(limit) : 0;
+      return Math.max(0, Math.min(lim, n));
+    };
+    /** cards（目安の高い順）から k 枚を選ぶ組み合わせ（目安の高い組み合わせから並ぶ） */
+    const combos = (cards: ScoredCard[], k: number): ScoredCard[][] => {
+      if (k >= cards.length) return [cards];
+      const out: ScoredCard[][] = [];
+      const pick: ScoredCard[] = [];
+      const walk = (start: number) => {
+        if (pick.length === k) {
+          out.push([...pick]);
+          return;
         }
-      });
+        for (let i = start; i <= cards.length - (k - pick.length); i++) {
+          pick.push(cards[i]);
+          walk(i + 1);
+          pick.pop();
+        }
+      };
+      walk(0);
+      return out;
+    };
+    const setOff = (cards: ScoredCard[], on: ScoredCard[], off: Set<string>) => {
+      const keep = new Set(on.map((c) => c.id));
+      for (const c of cards) {
+        if (keep.has(c.id)) off.delete(c.id);
+        else off.add(c.id);
+      }
+    };
+    const preCombos = combos(preCards, keepCount(budget.pre, preCards.length));
+    const postCombos = combos(postCards, keepCount(budget.post, postCards.length));
+    let bestPre = preCombos[0];
+    let bestPost = postCombos[0];
+    if (preCombos.length > 1 || postCombos.length > 1) {
+      let bestScore = -Infinity;
+      for (const pre of preCombos) {
+        setOff(preCards, pre, preOff);
+        for (const post of postCombos) {
+          setOff(postCards, post, postOff);
+          const s = scoreNow();
+          // 目安の高い順に列挙しているので、同点なら先に見た（目安の高い）組み合わせが残る
+          if (s > bestScore + 1e-9) {
+            bestScore = s;
+            bestPre = pre;
+            bestPost = post;
+          }
+        }
+      }
+    }
+    setOff(preCards, bestPre, preOff);
+    setOff(postCards, bestPost, postOff);
 
     // 現状から減る分だけ設定として出力
     const ops: NonNullable<AutoOptimizeResult["eventOps"]> = [];
     for (const m of members) {
-      const op: { id: string; pre?: number; acquire?: false; post?: 0 } = {
-        id: m.id,
-      };
+      const op: { id: string; pre?: number; acquire?: false; post?: 0 } = { id: m.id };
       let changed = false;
-      if (m.hasPre && !preAcquire.has(m.id)) {
+      if (preOff.has(m.id)) {
         op.acquire = false;
         changed = true;
       }
-      if (m.hasPost && !postOn.has(m.id)) {
+      if (postOff.has(m.id)) {
         op.post = 0;
         changed = true;
       }
@@ -1825,16 +1973,16 @@ export class OptimizeEngine {
     }
 
     // 割り当て適用後の eventCounts（最終評価と計算ページ表示を一致させるため）
-    const patchById = new Map(ops.map((op) => [op.id, op]));
-    const baseCounts = this.input.eventCounts;
+    const finalPre = new Set(preOff);
+    const finalPost = new Set(postOff);
     const eventCounts: SheetScoreContext["eventCounts"] = (id) => {
-      const base = baseCounts?.(id);
-      const patch = patchById.get(id);
-      if (!patch) return base;
+      const base = baseCounts(id);
+      const a = finalPre.has(id);
+      const p = finalPost.has(id);
+      if (!a && !p) return base;
       const merged = { ...(base ?? {}) };
-      if (patch.acquire !== undefined) merged.acquire = patch.acquire;
-      if (patch.pre !== undefined) merged.pre = patch.pre;
-      if (patch.post !== undefined) merged.post = patch.post;
+      if (a) merged.acquire = false;
+      if (p) merged.post = 0;
       return merged;
     };
     return { ops, eventCounts };
@@ -2030,9 +2178,10 @@ export class OptimizeEngine {
       .sort((a, b) => b.g - a.g || a.i - b.i);
     const classTypes = [...s.classTypes];
     for (const { g, i } of order) {
+      // 最高ステ（未設定ならシナリオ上限）に対する埋まり具合が低いタイプから配る
       const pick = [...TYPE_KEYS].sort(
         (a, b) =>
-          proj[a] / this.caps[a] - proj[b] / this.caps[b] ||
+          proj[a] / this.maxTargets[a] - proj[b] / this.maxTargets[b] ||
           this.input.ranks[a] - this.input.ranks[b],
       )[0];
       classTypes[i] = pick;
@@ -2668,9 +2817,11 @@ export class OptimizeEngine {
         if (req > 0 && stats[t] < req) issues.push(`最低ステ${label[t]}未達`);
       }
     }
-    for (const t of TYPE_KEYS) {
-      if (stats[t] > this.maxTargets[t] + 1e-9) issues.push(`最高ステ${label[t]}超過`);
+    // 最高ステは「他のタイプにまだ空きがあるのに超えた」ときだけ（他2タイプが上限なら仕方ない）
+    for (const t of maxStatOverTypes(stats, this.maxTargets, this.input.statCap)) {
+      issues.push(`最高ステ${label[t]}超過`);
     }
+    if (this.stageItemShortfall(members) > 0) issues.push("ステージ用BANのサポカが入っている");
     return issues;
   }
 

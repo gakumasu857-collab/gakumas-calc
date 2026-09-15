@@ -34,6 +34,7 @@ import {
 import type { Stepping } from "./optimize/stepping";
 import { computePIdolStats, findPIdolMaster, IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
+import { searchEventCounts } from "./sheetScore";
 import {
   DEFAULT_SETTINGS,
   type CalcSettings,
@@ -201,10 +202,11 @@ export function buildInput(): AutoOptimizeInput {
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),
     manual,
-    eventCounts: (id: string) =>
-      eventMap[id] as ReturnType<
-        NonNullable<AutoOptimizeInput["eventCounts"]>
-      >,
+    // アプリと同じく、探索が決める項目（acquire/pre/post）は入力から外す
+    eventCounts: searchEventCounts(
+      (id: string) =>
+        eventMap[id] as ReturnType<NonNullable<AutoOptimizeInput["eventCounts"]>>,
+    ),
     getLevel,
     flags: {
       banned: collect("ban"),

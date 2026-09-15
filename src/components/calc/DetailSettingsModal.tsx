@@ -92,8 +92,8 @@ export default function DetailSettingsModal({
       {/* ===== 親愛度（全シナリオ） ===== */}
       <h3 className="text-sm font-bold text-slate-900">親愛度</h3>
       <p className={`mb-2 ${NOTE}`}>
-        育成するアイドルの親愛度Lv。<b>スター性</b>（H.I.F.）・<b>初期Pポイント</b>（STEP3）・
-        <b>最大体力</b>が変わります。Lv20以下はどれも0で同じなので1つにまとめています。既定は37（一番星）。
+        育成するアイドルの親愛度Lv。<b>スター性の獲得率</b>（H.I.F.）・<b>初期Pポイント</b>（STEP3）・
+        <b>最大体力</b>が変わります。Lv20以下はどれも0で同じなので1つにまとめています。既定は37。
       </p>
       <div className="flex flex-wrap gap-1">
         {AFFECTION_CHOICES.map((lv) => (
@@ -134,25 +134,16 @@ export default function DetailSettingsModal({
           </tr>
         </tbody>
       </table>
-      <p className={`mt-1 ${NOTE}`}>
-        スター性ボーナスはレッスン・選抜・ワッペン・本戦のスター性に掛かります（1回ごとに切り捨て）。
-        Lv28から+5%ずつ上がり、36・37で+50%です。
-      </p>
 
       {/* ===== H.I.F.ボーナス（H.I.F.のときだけ） ===== */}
       {isHif && (
         <>
           <h3 className="mt-5 text-sm font-bold text-slate-900">H.I.F.ボーナス</h3>
-          <p className={`mb-2 ${NOTE}`}>
-            H.I.F.専用のボーナスです。ふつうは全部最大にしているので、既定も最大です。
-            Vo・Da・Viの上昇は固定値とパラボが別のレベルになっています。
-            レベルを下げると、そのぶん固定値・パラボ%・SP率・本戦のステ上限が下がります。
-          </p>
           {TYPE_KEYS.map((type) => (
             <div key={type} className="flex flex-col gap-1.5 border-b border-slate-100 py-2.5">
               <span className="text-sm font-bold text-slate-900">{JP[type]}上昇</span>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="w-24 shrink-0 text-xs text-slate-600">
+                <span className="w-30 shrink-0 text-xs text-slate-600">
                   固定値 <b className="text-slate-800">Lv{levels.fixed[type]}</b>
                   <span className="ml-1 text-slate-400">{fixedAt(levels.fixed[type])}</span>
                 </span>
@@ -164,7 +155,7 @@ export default function DetailSettingsModal({
                 />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="w-24 shrink-0 text-xs text-slate-600">
+                <span className="w-30 shrink-0 text-xs text-slate-600">
                   パラボ <b className="text-slate-800">Lv{levels.pct[type]}</b>
                   <span className="ml-1 text-slate-400">{pctAt(levels.pct[type])}</span>
                 </span>
@@ -224,11 +215,6 @@ export default function DetailSettingsModal({
         >
           全部最大に戻す
         </button>
-        {isHif && (
-          <span className={NOTE}>
-            試験前の体力回復量・選抜／本戦の初期Pポイント・相談の割引は評価値に影響しないので、ここにはありません。
-          </span>
-        )}
       </div>
     </Modal>
   );

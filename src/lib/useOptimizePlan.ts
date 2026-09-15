@@ -41,7 +41,17 @@ export function useOptimizePlan(r: CalcResult) {
           r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
         if (result.hatsu)
           r.hatsuSchedule.setPlan(result.hatsu.lessons, result.hatsu.classTypes);
-        const message = `今のサポカ編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）`;
+        // 前イベ・後イベの取得状況も探索が決める（制限が無ければ全部発動）
+        r.events.applyEventOps(
+          slots.map((s) => s.id),
+          result.eventOps ?? [],
+        );
+        const budget = r.calc.settings.eventBudget;
+        const message =
+          `今のサポカ編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）` +
+          (budget.enabled
+            ? `。取得回数の制限（前イベ${budget.pre}枚・後イベ${budget.post}回）に合わせて前イベ・後イベの取得状況も反映しました`
+            : "");
         setMsg(message);
         onDone?.(message);
       } finally {

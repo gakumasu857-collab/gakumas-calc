@@ -65,13 +65,13 @@ export default function ParaboTableModal({
   return (
     <Modal title="パラボ変換表" onClose={onClose} widthClass="max-w-3xl">
       <p className="mb-3 text-xs leading-relaxed text-slate-500">
-        今の踏み方で、パラメータボーナス%が最終的に何点ぶんのステータスになるかの表です。
+        今の踏み方で、パラメータボーナスが最終的に何点分のステータスになるかの表です。
         パラボはレッスン・試験の獲得ごとに「獲得量×%」を切り捨てて足します。
         <b className="text-slate-600">合計</b>
         は全部の%を合算してから1回で変換するので値が1つに決まります（＝実際にステへ足されている値）。
         1枠ずつの表は「その枠を足したときに増える量」で、他のパラボと重なると端数が繰り上がるため
-        幅が出ます（最小＝他にパラボが無いとき／最大＝端数が全部繰り上がったとき）。
-        レッスンや選抜スコアを変えると母数が変わるので、この表の値も変わります。
+        幅が出ます（最小＝端数が全て切り捨てされたとき／最大＝端数が全部繰り上がったとき）。
+        レッスンや選抜スコアを変えると素のステが変わるので、この表の値も変わります。
       </p>
 
       <h3 className="mb-1 text-sm font-bold text-slate-800">今の編成のプロデュース開始時のパラボ</h3>
@@ -99,15 +99,15 @@ export default function ParaboTableModal({
         </tbody>
       </table>
 
-      <h3 className="mb-1 text-sm font-bold text-slate-800">メモリー1枠のパラボ</h3>
+      <h3 className="mb-1 text-sm font-bold text-slate-800">メモリーアビリティのパラボ</h3>
       <table className="mb-5 w-full border-collapse">
         <thead>{typeHead}</thead>
         <tbody>{MEMORY_PARABO_PCTS.map((pct) => pctRow(pct, `m-${pct}`))}</tbody>
       </table>
 
-      <h3 className="mb-1 text-sm font-bold text-slate-800">サポカのパラボ（レアリティ別）</h3>
+      <h3 className="mb-1 text-sm font-bold text-slate-800">サポカのパラボ</h3>
       <p className="mb-1 text-[11px] text-slate-500">
-        %はアビリティ枠と凸数で決まります（凸ごとの%は点数表の内訳モーダルで確認できます）。
+        値はアビリティ枠と凸数で決まります（凸ごとの%は点数表の内訳モーダルで確認できます）。
       </p>
       <table className="w-full border-collapse">
         <thead>
@@ -149,7 +149,7 @@ export default function ParaboTableModal({
         </tbody>
       </table>
       <p className="mt-2 text-[11px] text-slate-400">
-        ※ 1枠ずつの幅はごくまれに1点だけ外れることがあります（小数計算の丸めの都合）。
+        ※ 1枠ずつの幅はごくたまにずれることがあります。
       </p>
     </Modal>
   );

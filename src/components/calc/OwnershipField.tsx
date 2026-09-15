@@ -75,7 +75,7 @@ export default function OwnershipField({
   };
 
   const items = [
-    { id: BUILTIN_ID, name: "全サポカ完凸（既定）", note: "持っていないサポカも完凸で入れる想定" },
+    { id: BUILTIN_ID, name: "全サポカ完凸（既定）", note: "" },
     ...owned.saves.map((s) => ({
       id: s.id,
       name: s.name,

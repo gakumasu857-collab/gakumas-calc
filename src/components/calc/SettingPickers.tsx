@@ -216,9 +216,6 @@ export function TheorySettingsModal({
                   </label>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
-                トレーナーなど「全SPレッスン率」持ちは全タイプの1枚として数えます。
-              </p>
             </section>
 
             {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ。3本の柱で決める） */}

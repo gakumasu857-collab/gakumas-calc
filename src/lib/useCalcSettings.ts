@@ -214,10 +214,7 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     ...stored,
     idol,
     spTop: { ...DEFAULT_SETTINGS.spTop, ...(stored.spTop ?? {}) },
-    eventBudget: {
-      ...DEFAULT_SETTINGS.eventBudget,
-      ...(stored.eventBudget ?? {}),
-    },
+    eventBudget: normalizeEventBudget(stored.eventBudget),
     typeRatio: {
       ...DEFAULT_SETTINGS.typeRatio,
       ...(stored.typeRatio ?? {}),
@@ -229,6 +226,19 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
     statOrder: normalizeStatOrder(stored.statOrder),
+  };
+}
+
+/** 取得回数の制限: 枚数は 0〜6 の整数に丸める（壊れた値で探索が止まらないように） */
+function normalizeEventBudget(raw: unknown): CalcSettings["eventBudget"] {
+  const d = DEFAULT_SETTINGS.eventBudget;
+  const o = (raw && typeof raw === "object" ? raw : {}) as Partial<CalcSettings["eventBudget"]>;
+  const cnt = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.min(6, Math.floor(v))) : fallback;
+  return {
+    enabled: typeof o.enabled === "boolean" ? o.enabled : d.enabled,
+    pre: cnt(o.pre, d.pre),
+    post: cnt(o.post, d.post),
   };
 }
 

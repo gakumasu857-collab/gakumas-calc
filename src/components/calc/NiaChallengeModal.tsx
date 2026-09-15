@@ -70,9 +70,6 @@ export default function NiaChallengeModal({
           全部最大に戻す
         </button>
       </div>
-      <p className={`mt-2 ${NOTE}`}>
-        Pポイント・体力回復・ライバルスコア増加は評価値に影響しないので、ここには入れていません。
-      </p>
     </Modal>
   );
 }

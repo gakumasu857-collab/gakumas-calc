@@ -10,7 +10,13 @@ import { statOrderShortfall } from "./formation";
  * 全部ここで見る。純関数なので scratchpad のテストで各条件を確認できる。
  */
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
-import { planAllows, type CardFlagSets } from "./formation";
+import {
+  effectiveMaxStats,
+  isStageCard,
+  maxStatOverTypes,
+  planAllows,
+  type CardFlagSets,
+} from "./formation";
 import type { SelectedMember } from "./useCalcResult";
 import { TYPE_KEYS, type CalcSettings, type TypeKey } from "./useCalcSettings";
 
@@ -81,7 +87,7 @@ export function formationIssues(input: ConditionInput): string[] {
     if (m.rental && flags.rentalNg?.has(m.id)) issues.push(`${db.name}: レンタルNG`);
     if (flags.pinned.has(m.id)) continue; // 固定はBAN・ステージ用の除外を貫通する
     if (flags.banned.has(m.id)) issues.push(`${db.name}: BAN`);
-    if (settings.noStageItems && (db.stageItem || db.preEventType === "スキル"))
+    if (settings.noStageItems && isStageCard(db))
       issues.push(`${db.name}: ステージ用（除外の設定）`);
   }
   for (const name of missingPinned(input)) issues.push(`固定「${name}」が入っていない`);
@@ -109,9 +115,14 @@ export function formationIssues(input: ConditionInput): string[] {
     const stat = input.capped[t];
     const min = settings.minStats[t];
     if (min > 0 && stat < min) issues.push(`${TYPE_JA[t]}が最低ステ未達`);
-    const max = settings.maxStats[t];
-    if (max > 0 && max < input.statCap && stat > max) issues.push(`${TYPE_JA[t]}が最高ステ超過`);
   }
+  // 最高ステは「他のタイプにまだ空きがあるのに超えた」ときだけ未達（他2タイプが上限なら仕方ない）
+  for (const t of maxStatOverTypes(
+    input.capped,
+    effectiveMaxStats(input.statCap, settings.maxStats),
+    input.statCap,
+  ))
+    issues.push(`${TYPE_JA[t]}が最高ステ超過`);
   return issues;
 }
 
@@ -201,16 +212,35 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
   if (
     TYPE_KEYS.some((t) => settings.maxStats[t] > 0 && settings.maxStats[t] < input.statCap)
   ) {
-    const bad = TYPE_KEYS.filter(
-      (t) =>
-        settings.maxStats[t] > 0 &&
-        settings.maxStats[t] < input.statCap &&
-        input.capped[t] > settings.maxStats[t],
+    const effMax = effectiveMaxStats(input.statCap, settings.maxStats);
+    const bad = maxStatOverTypes(input.capped, effMax, input.statCap);
+    // 超えているが、他の2タイプが上限なので仕方ない（条件は満たした扱い）
+    const unavoidable = TYPE_KEYS.filter(
+      (t) => input.capped[t] > effMax[t] + 0.5 && !bad.includes(t),
     );
     out.push({
       label: "最高ステ",
       ok: bad.length === 0,
-      detail: bad.length ? bad.map((t) => TYPE_JA[t]).join("・") + "超過" : undefined,
+      detail: bad.length
+        ? `${bad.map((t) => TYPE_JA[t]).join("・")}超過（ほかのタイプにまだ空きあり）`
+        : unavoidable.length
+          ? `${unavoidable.map((t) => TYPE_JA[t]).join("・")}超過（ほかの2タイプが上限のため可）`
+          : undefined,
+    });
+  }
+  // ステージ用BAN（固定したカードは除く）
+  if (settings.noStageItems) {
+    const names = members
+      .filter((m) => !input.flags.pinned.has(m.id))
+      .filter((m) => {
+        const db = DB_BY_ID.get(m.id);
+        return !!db && isStageCard(db);
+      })
+      .map((m) => m.name);
+    out.push({
+      label: "ステージ用BAN",
+      ok: names.length === 0,
+      detail: names.length ? `${names.join("・")}が編成に入っている` : undefined,
     });
   }
   return out;

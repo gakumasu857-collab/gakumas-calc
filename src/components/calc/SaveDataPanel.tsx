@@ -87,7 +87,7 @@ export default function SaveDataPanel({ r }: { r: CalcResult }) {
           名前をつけて保存
         </button>
         <span className="text-[11px] text-slate-400">
-          育成の状態をまるごと保存します（読み込みで評価値まで再現）
+          育成の状態をまるごと保存します
         </span>
       </div>
 

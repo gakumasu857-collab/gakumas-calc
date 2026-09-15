@@ -60,7 +60,7 @@ export default function FormationPlanCard({
     <Card
       title="サポカ編成と踏み方"
       hint={
-        <Hint text="上がサポカ6枚（クリックで入れ替え・凸・固定・BAN）、下がレッスンの踏み方（画面左端の「レッスン等の踏み方」タブか、チップのクリックで編集）。自動探索を押すとここが書き換わります。手で変えると評価値がその場で変わります。" />
+        <Hint text="上がサポカ6枚（クリックで入れ替え・凸変更・固定・BAN）、下がレッスンの踏み方（画面左端の「レッスン等の踏み方」タブか、エリアをクリックで編集）。自動探索を押すとここが書き換わります。変更すると評価値がその場で変わります。" />
       }
       action={
         <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
@@ -120,7 +120,7 @@ export default function FormationPlanCard({
           <button
             type="button"
             onClick={onOpenParabo}
-            title="パラボ%が今の踏み方で何点ぶんのステになるかの変換表を開きます"
+            title="パラボが今の踏み方で実質いくつのステになるかの変換表を開きます"
             className={`${BTN_SECONDARY} ml-auto`}
           >
             <Table2 size={12} />
