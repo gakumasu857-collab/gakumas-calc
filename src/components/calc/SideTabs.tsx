@@ -58,7 +58,6 @@ export default function SideTabs({
           <p className="text-sm font-bold text-slate-900">踏み方とプロデュース設定はここから</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
             左端のタブで、レッスンの踏み方とプロデュース（アビリティの発動回数）を実際の育成に合わせて変えられます。
-            変えると評価値がその場で動きます。
           </p>
           <button
             type="button"

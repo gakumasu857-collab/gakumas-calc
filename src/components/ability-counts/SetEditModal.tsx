@@ -9,8 +9,14 @@ import {
   type CategoryKey,
 } from "@/data/abilityCounts";
 import type { AbilityName } from "@/data/constants";
+import {
+  isChoiceAbilityKey,
+  type ChoiceEvent,
+  type ScheduleChoices,
+} from "@/data/scheduleCalendar";
 import { useScenario } from "@/lib/useScenario";
 import AbilityCounter from "./AbilityCounter";
+import ScheduleChoiceGrid from "./ScheduleChoiceGrid";
 
 type Props = {
   set: AbilityCountSet;
@@ -45,6 +51,14 @@ type Props = {
   /** ユーザーセットのプラン変更（テンプレは名前から自動決定なので渡さない） */
   onSetPlan?: (plan: string) => void;
   onClose: () => void;
+  /**
+   * スケジュールの選択（週・日ごとに1つ）。渡すと「スケジュール」分類が正方形カードの選択UIになり、
+   * おでかけ・相談・活動支給・特別指導の回数はカードで決まる（数のカウンターは出さない）
+   */
+  choices?: ScheduleChoices;
+  onPickChoice?: (rowId: string, event: ChoiceEvent | null) => void;
+  /** run のとき: この育成だけ変えた週（黄色い枠） */
+  choiceAdjustedRowIds?: ReadonlySet<string>;
   /** 出し方（計算ページからは左の引き出し） */
   side?: "center" | "left";
 };
@@ -68,6 +82,9 @@ export default function SetEditModal({
   onRename,
   onSetPlan,
   onClose,
+  choices,
+  onPickChoice,
+  choiceAdjustedRowIds,
   side,
 }: Props) {
   const [category, setCategory] = useState<CategoryKey>(
@@ -83,13 +100,17 @@ export default function SetEditModal({
   const [schedOpen, setSchedOpen] = useState(false);
   const { scenario } = useScenario();
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
+  // スケジュール分類は、選択カードで決まるアビリティ（おでかけ・相談・活動支給・特別指導）を
+  // カウンターでは出さない（カードで1つ選ぶと回数が決まるため）
+  const showChoiceGrid = category === "schedule" && !!choices;
   // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する
-  const visibleAbilities =
+  const visibleAbilities = (
     onlyFormation && formationKeys
       ? current.abilities.filter(
           (key) => key === "skill_ac" || formationKeys.has(key),
         )
-      : [...current.abilities];
+      : [...current.abilities]
+  ).filter((key) => !(showChoiceGrid && isChoiceAbilityKey(key)));
 
   return (
     <Modal
@@ -258,7 +279,21 @@ export default function SetEditModal({
             </div>
           )}
           <div className="grid min-h-0 flex-1 content-start grid-cols-1 gap-2 overflow-y-auto md:grid-cols-2">
-            {visibleAbilities.length === 0 ? (
+            {/* スケジュール: 週（日）ごとに1つ選ぶ正方形カード。選んだ回数がそのまま発動回数になる */}
+            {showChoiceGrid && choices && (
+              <div className="md:col-span-2">
+                <ScheduleChoiceGrid
+                  scenario={scenario}
+                  choices={choices}
+                  onPick={onPickChoice}
+                  adjustedRowIds={choiceAdjustedRowIds}
+                />
+                <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-bold text-slate-600">
+                  そのほかのスケジュールの回数
+                </p>
+              </div>
+            )}
+            {visibleAbilities.length === 0 && !showChoiceGrid ? (
               <p className="text-xs text-slate-400">
                 この分類には編成中のアビリティがありません。
               </p>

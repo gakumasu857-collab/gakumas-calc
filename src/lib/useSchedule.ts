@@ -50,7 +50,8 @@ export type ScheduleState = {
   examScores: ExamScores[];
   /**
    * 選抜ごとの上昇ステの直接入力（パラメータボーナス%は含まない値）。
-   * null はスコアから分配式で出す（既定）。入力した選抜は自動探索で動かさない。
+   * null はスコアから分配式で出す（既定）。入力した選抜も自動探索で動かしてよく、
+   * 探索がスコアを置き換えた選抜は null（スコア入力）に戻る。
    * スター性はどちらのときもスコアの合計から計算する。
    */
   examStats: (ExamScores | null)[];
@@ -372,25 +373,29 @@ export function useSchedule() {
     }));
   }, []);
 
-  /** 踏み方の一括適用（最適化ボタン用） */
+  /**
+   * 踏み方の一括適用（最適化ボタン用）。
+   * 選抜スコアは渡された値をそのまま書く（ステ入力の選抜も探索で動かしてよい）。
+   * examStats を省略して examScores だけ渡したときは、全選抜をスコア入力に戻す
+   * （渡したスコアで計算されるように）。どちらも省略なら選抜はそのまま。
+   */
   const setPlan = useCallback(
     (
       lessons: LessonPick[],
       classTypes: TypeKey[],
       examScores?: ExamScores[],
+      examStats?: (ExamScores | null)[],
     ) => {
       setState((prev) => ({
         ...prev,
         lessons,
         classTypes,
-        // ステ直接入力の選抜はスコアを動かさない（スター性がずれないように）
-        ...(examScores
-          ? {
-              examScores: examScores.map((e, i) =>
-                prev.examStats[i] ? prev.examScores[i] : e,
-              ),
-            }
-          : {}),
+        ...(examScores ? { examScores } : {}),
+        examStats: examStats
+          ? EXAMS.map((_, i) => examStats[i] ?? null)
+          : examScores
+            ? EXAMS.map(() => null)
+            : prev.examStats,
       }));
     },
     [],

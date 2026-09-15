@@ -68,6 +68,7 @@ import { CALC_EVENT_COUNTS_KEY, useEventCounts } from "./useEventCounts";
 import { useHatsuSchedule } from "./useHatsuSchedule";
 import { useMemoryStore } from "./useMemoryStore";
 import { hifBonusValues } from "@/data/hifBonus";
+import { supplyPFromChoices } from "@/data/scheduleCalendar";
 import { useNiaSchedule } from "./useNiaSchedule";
 import { niaChallengeTotal } from "@/data/niaChallenge";
 import { useOwnedLevels } from "./useOwnedLevels";
@@ -82,9 +83,6 @@ import {
 import { useSelectedSupports } from "./useSelectedSupports";
 
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
-
-/** HIFの選抜・本戦それぞれの開始時Pポイントのうち、H.I.F.ボーナス分（STEP3の分は親愛度で変わる） */
-export const P_FIXED_START_HIF_BONUS = 200;
 
 export type SelectedMember = ScoredCard & {
   /** イベント相互作用によるこのカードの追加点 */
@@ -317,9 +315,9 @@ export function useCalcResult() {
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
     const resources = (() => {
-      // HIFのレッスン・サポカ以外の固定取得: 選抜・本戦とも開始時230
-      // （HIFボーナス200＋STEP3の30）・差し入れ80×5（うち1回は本戦）。
-      // 画面には「サポカ分」だけを出す（固定分は計算ページのヘルプに記載）。
+      // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.F.ボーナスの初期Pポイント＋STEP3）と
+      // 差し入れ（活動支給。踏んだ週ごとのPポイント）。
+      // 画面には「サポカ分」と「サポカ＋H.I.F.ボーナス＋親愛度＋メモリー」＋差し入れを出す。
       // サポカ固定P・メモリーは選抜期間に計上し、レッスンP率・タイプSPレッスンP率の
       // 換算は対象レッスンの期間（選抜/本戦）に入れる
       const isHifP = scenario === "hif";
@@ -364,23 +362,46 @@ export function useCalcResult() {
       const ratePSen = Math.floor(rateLesson * lessonPSenbatsu + rateTypeSpSen);
       const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
-      // 開始時Pポイント = H.I.F.ボーナス200 ＋ STEP3（親愛度21〜で+10〜+30）
-      const pStart = P_FIXED_START_HIF_BONUS + affectionStepP(settings.affection);
-      const pFixedSenbatsu = isHifP ? pStart + 80 * 4 : 0;
-      const pFixedHonsen = isHifP ? pStart + 80 : 0;
+      // 差し入れ（活動支給）のPポイントは、どの週（日）で踏んだかで変わる
+      // （スケジュールの選択から。H.I.F.は選抜・本戦に分けて計上する）
+      const supply = selectedSet
+        ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet, scenario))
+        : { total: 0, bySection: [] as number[] };
+      // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.F.は選抜・本戦の2回ぶん
+      const stepP = affectionStepP(settings.affection);
+      const pAffection = isHifP ? stepP * 2 : stepP;
+      // H.I.F.ボーナスの初期Pポイント増加（【選抜試験】と【本戦】の2枠）
+      const pHifBonus = isHifP
+        ? hifBonus.startP.senbatsu + hifBonus.startP.honsen
+        : 0;
+      const pFixedSenbatsu = isHifP
+        ? hifBonus.startP.senbatsu + stepP + (supply.bySection[0] ?? 0)
+        : 0;
+      const pFixedHonsen = isHifP
+        ? hifBonus.startP.honsen + stepP + (supply.bySection[1] ?? 0)
+        : 0;
       const pCardsSenbatsu = cardP + ratePSen;
       const pCardsHonsen = ratePHon;
       const pSenbatsu =
         pFixedSenbatsu + lessonPSenbatsu + mem.P + pCardsSenbatsu;
       const pHonsen = pFixedHonsen + lessonPHonsen + pCardsHonsen;
+      const pCards = isHifP ? pCardsSenbatsu + pCardsHonsen : cardP + rateP;
       return {
-        /** 合計Pポイント（HIFは開始時・差し入れの固定取得も含む） */
+        /** 合計Pポイント（開始時・差し入れ・レッスン・メモリー・サポカの全部） */
         pTotal: isHifP
           ? pSenbatsu + pHonsen
-          : lessonP + mem.P + cardP + rateP,
+          : lessonP + mem.P + pCards + pAffection + supply.total,
         pLesson: lessonP,
         pMemory: mem.P,
-        pCards: isHifP ? pCardsSenbatsu + pCardsHonsen : cardP + rateP,
+        pCards,
+        /** 画面の「Pポイント」＝サポカ＋H.I.F.ボーナス＋親愛度＋メモリー（レッスン分は入れない） */
+        pBase: pCards + pHifBonus + pAffection + mem.P,
+        /** H.I.F.ボーナスの初期Pポイント（他シナリオは0） */
+        pHifBonus,
+        /** 親愛度の初期Pポイント（H.I.F.は選抜・本戦の2回ぶん） */
+        pAffection,
+        /** 差し入れ（活動支給）で増えるPポイント（踏んだ週から） */
+        pSupply: supply.total,
         /** HIFの内訳（他シナリオは0） */
         pSenbatsu,
         pHonsen,

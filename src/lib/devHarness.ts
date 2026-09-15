@@ -295,6 +295,11 @@ export type ComboSpec = {
   lessons: LessonPick[];
   classTypes: TypeKey[];
   examScores: ExamScores[];
+  /**
+   * 選抜ごとのステ直接入力（null＝スコアから）。省略すると保存してある踏み方の値を使う。
+   * 探索の結果を渡すときは res.hif.examStats をそのまま渡す（スコアを置き換えた選抜は null）
+   */
+  examStats?: (ExamScores | null)[];
   /** レンタル扱いにするカード名（省略時は全部所持凸） */
   rentalName?: string;
 };
@@ -308,6 +313,7 @@ export function evalCombo(spec: ComboSpec) {
     lessons: spec.lessons,
     classTypes: spec.classTypes,
     examScores: spec.examScores,
+    examStats: spec.examStats ?? input.hif.examStats,
   };
   const slots = spec.names.map((n) => ({
     id: nameToId(n),
@@ -346,6 +352,7 @@ export function optimizeFor(names: string[], rentalName?: string) {
     lessons: res.hif.lessons,
     classTypes: res.hif.classTypes,
     examScores: res.hif.examScores,
+    examStats: res.hif.examStats,
     rentalName,
   });
   return {

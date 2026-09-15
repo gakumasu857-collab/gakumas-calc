@@ -60,7 +60,7 @@ export default function FormationPlanCard({
     <Card
       title="サポカ編成と踏み方"
       hint={
-        <Hint text="上がサポカ6枚（クリックで入れ替え・凸変更・固定・BAN）、下がレッスンの踏み方（画面左端の「レッスン等の踏み方」タブか、エリアをクリックで編集）。自動探索を押すとここが書き換わります。変更すると評価値がその場で変わります。" />
+        <Hint text={GLOSSARY.formationPlan} />
       }
       action={
         <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>

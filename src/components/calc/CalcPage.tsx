@@ -354,8 +354,16 @@ export default function CalcPage() {
           bumpRun();
           return;
         }
-        if (res.hif)
-          r.schedule.setPlan(res.hif.lessons, res.hif.classTypes, res.hif.examScores);
+        if (res.hif) {
+          const hif = res.hif;
+          // ステ入力にしていた選抜を、探索がスコア入力へ切り替えたら知らせる
+          const statToScore = r.schedule.examStats.some(
+            (x, i) => x != null && hif.examStats[i] == null,
+          );
+          r.schedule.setPlan(hif.lessons, hif.classTypes, hif.examScores, hif.examStats);
+          if (statToScore)
+            notes.push("ステ入力にしていた選抜を、探索したスコアの入力に切り替えました");
+        }
         if (res.nia) r.niaSchedule.setPlan(res.nia.lessons, res.nia.sales);
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);

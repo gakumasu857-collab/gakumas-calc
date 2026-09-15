@@ -10,6 +10,16 @@ import {
   planFromSetName,
   type AbilityCountSet,
 } from "@/data/abilityCounts";
+import type { ScenarioKey } from "@/data/scenarios";
+import {
+  abilityCountsFromChoices,
+  CHOICE_ABILITY_KEYS,
+  choiceTargets,
+  isChoiceAbilityKey,
+  resolveChoices,
+  type ChoiceEvent,
+  type ScheduleChoices,
+} from "@/data/scheduleCalendar";
 
 /**
  * 発動回数のストア。
@@ -28,6 +38,17 @@ const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
  * プロデュース設定ページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
  */
 const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
+/**
+ * スケジュールの選択（セットID → シナリオ → 週の行id → 選んだ行動）。
+ * おでかけ・相談・活動支給・特別指導の回数はこの選択から決まり、選ぶたびに回数へ書き戻す
+ * （回数を読む側はこれまでどおり回数だけを見ればよい）。ユーザーセットは全シナリオで出るのでシナリオ別に持つ。
+ * 保存した選択が回数と合わない（テンプレ・旧データ・セーブの読み込み）ときは回数から推測して表示する。
+ */
+const CHOICES_KEY = "gakumas:scheduleChoices:v1";
+/** 計算ページでの「この育成だけ」の選択（同じ形） */
+const RUN_CHOICES_KEY = "gakumas:calc:scheduleChoiceAdjust:v1";
+
+type ChoiceStore = Record<string, Partial<Record<ScenarioKey, ScheduleChoices>>>;
 
 /** setId -> (アビリティキー -> 上書き回数) */
 type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
@@ -63,6 +84,12 @@ export function useAbilityCounts() {
   const [adjust, setAdjust] = useState<Overrides>(() =>
     loadJson<Overrides>(ADJUST_KEY, {}),
   );
+  const [choices, setChoices] = useState<ChoiceStore>(() =>
+    loadJson<ChoiceStore>(CHOICES_KEY, {}),
+  );
+  const [runChoices, setRunChoices] = useState<ChoiceStore>(() =>
+    loadJson<ChoiceStore>(RUN_CHOICES_KEY, {}),
+  );
   const [selectedSetId, setSelectedSetId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(SELECTED_SET_KEY);
@@ -77,13 +104,15 @@ export function useAbilityCounts() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
       localStorage.setItem(USER_SETS_KEY, JSON.stringify(userSets));
       localStorage.setItem(ADJUST_KEY, JSON.stringify(adjust));
+      localStorage.setItem(CHOICES_KEY, JSON.stringify(choices));
+      localStorage.setItem(RUN_CHOICES_KEY, JSON.stringify(runChoices));
       if (selectedSetId) localStorage.setItem(SELECTED_SET_KEY, selectedSetId);
       else localStorage.removeItem(SELECTED_SET_KEY);
       notifySave();
     } catch {
       // 容量超過などは無視
     }
-  }, [overrides, userSets, adjust, selectedSetId, notifySave]);
+  }, [overrides, userSets, adjust, choices, runChoices, selectedSetId, notifySave]);
 
   const defaultFor = (set: AbilityCountSet, key: AbilityName): number =>
     set.defaults[key] ?? 0;
@@ -152,6 +181,63 @@ export function useAbilityCounts() {
     [getCount],
   );
 
+  /** スケジュールの選択（セットのデフォルト）。保存した選択が回数と合わなければ回数から推測する */
+  const getChoices = useCallback(
+    (set: AbilityCountSet, scenario: ScenarioKey): ScheduleChoices =>
+      resolveChoices(
+        scenario,
+        choices[set.id]?.[scenario],
+        choiceTargets((k) => getCount(set, k)),
+      ),
+    [choices, getCount],
+  );
+
+  /** スケジュールの選択を変える（デフォルト）。選択から決まる回数もセットへ書き戻す */
+  const setChoice = useCallback(
+    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string, event: ChoiceEvent | null) => {
+      const next: ScheduleChoices = { ...getChoices(set, scenario), [rowId]: event };
+      setChoices((prev) => ({
+        ...prev,
+        [set.id]: { ...(prev[set.id] ?? {}), [scenario]: next },
+      }));
+      const counts = abilityCountsFromChoices(scenario, next);
+      for (const key of CHOICE_ABILITY_KEYS) setCount(set, key, counts[key]);
+    },
+    [getChoices, setCount],
+  );
+
+  /** この育成でのスケジュールの選択（この育成だけの選択があればそれ、無ければデフォルト） */
+  const getRunChoices = useCallback(
+    (set: AbilityCountSet, scenario: ScenarioKey): ScheduleChoices =>
+      resolveChoices(
+        scenario,
+        runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario],
+        choiceTargets((k) => getRunCount(set, k)),
+      ),
+    [runChoices, choices, getRunCount],
+  );
+
+  /** この育成だけのスケジュールの選択を変える（回数はこの育成だけの調整に書く） */
+  const setRunChoice = useCallback(
+    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string, event: ChoiceEvent | null) => {
+      const next: ScheduleChoices = { ...getRunChoices(set, scenario), [rowId]: event };
+      setRunChoices((prev) => ({
+        ...prev,
+        [set.id]: { ...(prev[set.id] ?? {}), [scenario]: next },
+      }));
+      const counts = abilityCountsFromChoices(scenario, next);
+      for (const key of CHOICE_ABILITY_KEYS) setRunCount(set, key, counts[key]);
+    },
+    [getRunChoices, setRunCount],
+  );
+
+  /** この育成だけの選択がデフォルトと違う週か（黄色い枠） */
+  const isRunChoiceAdjusted = useCallback(
+    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string): boolean =>
+      (getRunChoices(set, scenario)[rowId] ?? null) !== (getChoices(set, scenario)[rowId] ?? null),
+    [getRunChoices, getChoices],
+  );
+
   /** この育成だけの調整が入っているか */
   const isRunAdjusted = useCallback(
     (set: AbilityCountSet, key: AbilityName): boolean =>
@@ -159,15 +245,35 @@ export function useAbilityCounts() {
     [adjust],
   );
 
-  /** この育成だけの調整の件数 */
+  /**
+   * この育成だけの調整の件数。スケジュールの選択で決まる回数は「変えた週の数」で数える
+   * （同じ回数のまま週だけ入れ替えた場合も、上書き保存できるように）。
+   */
   const runAdjustCount = useCallback(
-    (set: AbilityCountSet): number => Object.keys(adjust[set.id] ?? {}).length,
-    [adjust],
+    (set: AbilityCountSet): number => {
+      const keys = Object.keys(adjust[set.id] ?? {});
+      const plain = keys.filter((k) => !isChoiceAbilityKey(k)).length;
+      let rows = 0;
+      for (const sc of Object.keys(runChoices[set.id] ?? {}) as ScenarioKey[]) {
+        const run = getRunChoices(set, sc);
+        const def = getChoices(set, sc);
+        for (const id of Object.keys(run)) if ((run[id] ?? null) !== (def[id] ?? null)) rows++;
+      }
+      const choiceKeys = keys.filter((k) => isChoiceAbilityKey(k)).length;
+      return plain + (rows > 0 ? rows : choiceKeys);
+    },
+    [adjust, runChoices, getRunChoices, getChoices],
   );
 
   /** この育成だけの調整をすべて消してデフォルトに戻す */
   const resetRunAdjust = useCallback((setId: string) => {
     setAdjust((prev) => {
+      if (!prev[setId]) return prev;
+      const next = { ...prev };
+      delete next[setId];
+      return next;
+    });
+    setRunChoices((prev) => {
       if (!prev[setId]) return prev;
       const next = { ...prev };
       delete next[setId];
@@ -181,8 +287,18 @@ export function useAbilityCounts() {
    */
   const commitRunAdjust = useCallback(
     (set: AbilityCountSet) => {
-      const forSet = adjust[set.id];
-      if (!forSet) return;
+      const forSet = adjust[set.id] ?? {};
+      const runSel = runChoices[set.id];
+      if (Object.keys(forSet).length === 0 && !runSel) return;
+      // スケジュールの選択もデフォルトへ移す
+      if (runSel) {
+        setChoices((prev) => ({ ...prev, [set.id]: { ...(prev[set.id] ?? {}), ...runSel } }));
+        setRunChoices((prev) => {
+          const next = { ...prev };
+          delete next[set.id];
+          return next;
+        });
+      }
       setOverrides((prev) => {
         const next = { ...(prev[set.id] ?? {}) };
         for (const [key, value] of Object.entries(forSet)) {
@@ -201,7 +317,7 @@ export function useAbilityCounts() {
         return next;
       });
     },
-    [adjust],
+    [adjust, runChoices],
   );
 
   /** セット選択を解除する（シナリオ変更時など） */
@@ -213,6 +329,8 @@ export function useAbilityCounts() {
   const resetEverything = useCallback(() => {
     setOverrides({});
     setAdjust({});
+    setChoices({});
+    setRunChoices({});
     setUserSets([]);
     setSelectedSetId(null);
   }, []);
@@ -227,6 +345,13 @@ export function useAbilityCounts() {
       const next: Overrides = {};
       for (const [setId, counts] of Object.entries(prev)) {
         if (!targets.has(setId)) next[setId] = counts;
+      }
+      return next;
+    });
+    setChoices((prev) => {
+      const next: ChoiceStore = {};
+      for (const [setId, sel] of Object.entries(prev)) {
+        if (!targets.has(setId)) next[setId] = sel;
       }
       return next;
     });
@@ -259,6 +384,14 @@ export function useAbilityCounts() {
       delete next[setId];
       return next;
     });
+    for (const setter of [setChoices, setRunChoices]) {
+      setter((prev) => {
+        if (!prev[setId]) return prev;
+        const next = { ...prev };
+        delete next[setId];
+        return next;
+      });
+    }
     setSelectedSetId((prev) => (prev === setId ? null : prev));
   }, []);
 
@@ -281,6 +414,8 @@ export function useAbilityCounts() {
       }
       return { ...prev, [id]: counts };
     });
+    // スケジュールの選択もコピー
+    setChoices((prev) => (prev[source.id] ? { ...prev, [id]: { ...prev[source.id] } } : prev));
   }, []);
 
   /** 参照用に選択するセット（チェックボックス）。同じIDを渡すと解除 */
@@ -303,6 +438,8 @@ export function useAbilityCounts() {
       name: string,
       plan: string,
       counts: Partial<Record<AbilityName, number>>,
+      /** 保存時のスケジュールの選択（あれば） */
+      schedule?: { scenario: ScenarioKey; choices: ScheduleChoices },
     ): string => {
       // IDは更新関数の外で確定させる（setStateの更新関数は遅延実行されるので、
       // その中でIDを決めると呼び出し側へ返すIDがズレる）
@@ -326,6 +463,15 @@ export function useAbilityCounts() {
         delete next[id];
         return next;
       });
+      setRunChoices((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      if (schedule) {
+        setChoices((prev) => ({ ...prev, [id]: { [schedule.scenario]: { ...schedule.choices } } }));
+      }
       return id;
     },
     [userSets],
@@ -356,6 +502,13 @@ export function useAbilityCounts() {
         for (const id of targets) delete next[id];
         return next;
       });
+      for (const setter of [setChoices, setRunChoices]) {
+        setter((prev) => {
+          const next = { ...prev };
+          for (const id of targets) delete next[id];
+          return next;
+        });
+      }
       setSelectedSetId((cur) => (cur && targets.includes(cur) ? null : cur));
     },
     [userSets],
@@ -422,6 +575,11 @@ export function useAbilityCounts() {
     runAdjustCount,
     resetRunAdjust,
     commitRunAdjust,
+    getChoices,
+    setChoice,
+    getRunChoices,
+    setRunChoice,
+    isRunChoiceAdjusted,
     resetSets,
     resetEverything,
     clearSelected,

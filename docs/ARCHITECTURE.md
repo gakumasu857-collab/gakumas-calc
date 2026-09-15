@@ -152,7 +152,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
-| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠 |
+| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyPOf`＝差し入れ1回のPポイント（H.I.F. 80／初 180／N.I.A. は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.F.は選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存した選択が回数と合わないときに回数から推測） |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
 
@@ -180,7 +180,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
 | `useCalcSettings.ts` | 計算ページの設定（アイドル・Pアイドル・条件設定・本戦点数など）とセーブ一覧のストア |
 | `useOwnedLevels.ts` / `useOwnedPIdols.ts` / `useOwnedSaves.ts` | 所持状況（サポカ凸・Pアイドル特訓/開花）とその名前つき保存 |
-| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存＝プロデュースごとのデフォルト）、計算ページで使うセットの選択、計算ページでの「この育成だけ」の調整レイヤー `adjust`（`getRunCount`／`setRunCount`／`isRunAdjusted`／`resetRunAdjust`。デフォルトは変えず、計算・探索・セーブはこちらを使う。セーブ用セットを作るときは調整込みで固めて調整を消す） |
+| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存＝プロデュースごとのデフォルト）、計算ページで使うセットの選択、計算ページでの「この育成だけ」の調整レイヤー `adjust`（`getRunCount`／`setRunCount`／`isRunAdjusted`／`resetRunAdjust`。デフォルトは変えず、計算・探索・セーブはこちらを使う。セーブ用セットを作るときは調整込みで固めて調整を消す）。**スケジュールの選択**（`getChoices` / `setChoice` / `getRunChoices` / `setRunChoice` / `isRunChoiceAdjusted`）も同じ2層で持ち、1つ選ぶたびに お出かけ・相談・活動支給・特別指導（と「(N回まで)」版）の回数へ書き戻すので、回数を読む側（計算・探索・セーブ・書き出し）はこれまでどおり回数だけを見ればよい |
 | `useEventCounts.ts` | カードごとの前イベ・後イベ・ステイベの手動設定 |
 | `useMemoryStore.ts` | スロット 4 枠の中身（保存していないメモリーもそのまま持つ。`gakumas:memorySlots:v2`）・保存したメモリー（ライブラリ）・メモリーセット（4 枠の中身のスナップショット）。枠の保存状態 `slotStatus`（空／テンプレ／未保存／保存済み／変更あり）、`saveSlot`（新規／上書き）、`pickIntoSlot`（一覧から枠へコピー）、`fillSlots`（4 枠すべて同じテンプレ） |
 | `useSelectedSupports.ts` | 計算ページの「選択サポカ」6 枠 |
@@ -204,7 +204,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「設定欄」のメモリー欄から開く。中身は `memory-manager/MemoryWorkbench.tsx`。「汎用メモリーを入れる」（メインパラボ60点×4）を目立つ枠で上に置き、メインパラボの説明を添える。A/B の枠は廃止）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/PIdolTrainingModal.tsx`（特訓・才能開花のモーダル。「設定欄」のアイドル欄の右のボタンから）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・使い方（画面の要点を押せない模式図 `Mock` で描く。画面写真は小さくて見づらいので使わない）・操作のヒント・プロデュースと発動回数・用語・よくある質問（オーナー提供の文）・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
-`Hint.tsx`（ⓘの説明。文言は `src/lib/glossary.ts`。設定欄のプロデュースの ⓘ もこれ（ヘルプへのリンクではない））、
+`Hint.tsx`（ⓘの説明。**文言は `src/lib/glossary.ts` に集約**し、どのキーが画面のどこに出るかの対応表をそのファイルの先頭コメントに置いている（ヘルプページの「用語」は別の文章）。設定欄のプロデュースの ⓘ もこれ（ヘルプへのリンクではない））、
 `calc/DetailSettingsModal.tsx`（設定欄の一番下「詳細設定」→ 親愛度（全シナリオ）＋ H.I.F.ボーナス（H.I.F.のみ）。旧 HifBonusModal）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
@@ -234,7 +234,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `event-counter/` | `/event-counter` イベントカウンター（別ツール） |
 | `EventControls.tsx` | 前イベ「取得」トグル、強化／削除の A/M 割り振り、任意スキル獲得の分類ピッカー、後イベ M/A/✕ ボタン、ステイベ 〇/✕（計算ページとサポカ設定ページで共用） |
 | `ScoreDetailModal.tsx` | サポカ 1 枚の点数内訳モーダル |
-| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル、数値入力、スケジュール表） |
+| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
 
 ---
 
@@ -355,7 +355,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 - **N.I.A.**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
 - **初（レジェンド）**: `切り捨て(Σ最終ステ × 2.1) ＋ 最終順位分（1700/900/500/0）＋ 中間スコア換算 ＋ 最終スコア換算`
 
-Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 差し入れ 80×5（うち 1 回は本戦）の固定分も含む）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。
+Pポイント・体力（H.I.F. は選抜・本戦それぞれ「H.I.F.ボーナスの初期Pポイント＋親愛度のSTEP3」と差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋H.I.F.ボーナスの初期P＋親愛度＋メモリー）＋`pSupply`（差し入れ）の2行です。
 
 ### 3-5. 理想編成（全自動最適化）の流れ（`src/lib/autoOptimize.ts` の `runFullOptimize`）
 
@@ -396,7 +396,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 
 「理想編成」だけのボタン（`applyIdealFormation`）は今の踏み方のまま `findBestFormation` を 1 回、
 踏み方エディタの「選択サポカで踏み方を最適化」（計算ページの ▾「踏み方だけ」も同じ）は今の編成のまま `optimizeSteppingForSlots` を回します。
-ステ直接入力にした選抜（`examStats`）は、全自動でも踏み方だけでも動かしません（`Stepping.examLocked`。スコアの候補を作らず、結果を当てるときも元のスコアを保つ）。
+ステ直接入力にした選抜（`examStats`）も、全自動・踏み方だけの探索で動かします。候補ごとに `Stepping.examStats` を持ち、今の踏み方は画面どおりステ入力の値で評価します。スコアを置き換えた候補はその選抜を null（スコア入力）に戻します（`withExamScores` / `withAllExamScores`）。結果は `SteppingResult.hif.examStats` で返り、`setPlan(lessons, classTypes, examScores, examStats)` がそのまま書きます。ステ入力からスコア入力に切り替わった選抜があれば、探索結果の注記で知らせます。
 仕上げの授業寄せ（`applyClassPreference`）はこちらにも掛かります（2026-09-12。以前は掛かっておらず、第3流行が 1100 に届かない配分のまま返していた）。
 
 ### 3-6. 探索の条件の扱い（「探索の条件」モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
@@ -612,7 +612,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:setup:ownershipAck:v1` | 「完凸のままでOK」（所持状況を入力せず全完凸で探索する）を押した印。計算ページの所持状況のステップと初回の確認モーダルが出なくなる | `src/lib/ownershipAck.ts` |
 | `gakumas:calc:memoryPathsDone:v1` | 廃止（メモリー選択のA/Bの枠をやめた。残っていても使わない） | — |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
-| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算し、探索では動かさない。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
+| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算する。探索はこの選抜も動かしてよく、スコアを置き換えたら null（スコア入力）に戻す。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア、最終の素点入力 finalStats） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:pIdols:count:v1` | Pアイドルの所持状況を最後に保存したときのPアイドル数（これ以降に追加された新しいPアイドルは特訓6・開花4で持っている扱い。所持状況の保存・セーブデータにも `pIdolCount` として入る） | `src/lib/useOwnedPIdols.ts` |
 | `gakumas:calc:sideTabsSeen:v1` | 左端タブの案内（初めて探索したあとの吹き出し）を見たか | `src/components/calc/CalcPage.tsx` |
@@ -626,6 +626,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれ開始時 230 ＋ 
 | `gakumas:abilityUserSets:v1` | 利用者が追加した発動回数セット（名前・プラン。セーブ由来は `saveId` 付き） | 同上 |
 | `gakumas:abilitySelectedSet:v1` | 計算ページで使うセット（プロデュース）の ID | 同上 |
 | `gakumas:calc:countAdjust:v1` | 計算ページでの「この育成だけ」の回数調整（セット ID → アビリティ → 回数。デフォルトより優先。セーブ用セットに固めたら消える） | 同上 |
+| `gakumas:scheduleChoices:v1` | スケジュールの選択（セット ID → シナリオ → 週の行 id → お出かけ／相談／活動支給／特別指導）。プロデュースごとのデフォルト。回数と食い違うときは回数から推測して表示する | 同上 |
+| `gakumas:calc:scheduleChoiceAdjust:v1` | 計算ページでの「この育成だけ」のスケジュールの選択（同じ形。「上書き保存」でデフォルトへ移る） | 同上 |
 | `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定 | `src/lib/useEventCounts.ts` |
 | `gakumas:calcEventCounts:v1` | 計算ページ専用の同じ設定（サポカ設定と混ざらないよう別キー） | 同上 |
 | `gakumas:ownedLevels:v1` | サポカの所持凸（`card:<名前>` → -1 未所持／0〜4 凸。初回は全カード 4） | `src/lib/useOwnedLevels.ts` |

@@ -54,6 +54,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
     abilityCounts: selectedSet ? r.ability.snapshotCounts(selectedSet) : {},
     abilitySetName: selectedSet?.name ?? "",
     abilitySetPlan: selectedSet?.plan ?? "",
+    scheduleChoices: selectedSet ? r.ability.getRunChoices(selectedSet, r.scenario) : undefined,
     slots: [...r.selected.slots],
     eventCounts: { ...r.events.map },
     ownedLevels: { ...r.ownedLevels.levels },
@@ -89,6 +90,9 @@ export function saveExtrasFor(
         label,
         snapshot.abilitySetPlan,
         snapshot.abilityCounts,
+        snapshot.scheduleChoices
+          ? { scenario: snapshot.scenario, choices: snapshot.scheduleChoices }
+          : undefined,
       )
     : undefined;
   const ownedSaveId = ownedSaves.upsert({
@@ -147,6 +151,7 @@ export function applySave(
       `${SAVE_SET_PREFIX}${save.name}`,
       snap.abilitySetPlan,
       snap.abilityCounts,
+      snap.scheduleChoices ? { scenario: snap.scenario, choices: snap.scheduleChoices } : undefined,
     );
     r.ability.setSelectedSet(abilitySetId);
   } else {

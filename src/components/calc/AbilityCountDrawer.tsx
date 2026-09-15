@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import SetEditModal from "@/components/ability-counts/SetEditModal";
 import Modal from "@/components/Modal";
 import { abilityKeyFromLabel, type AbilityName } from "@/data/constants";
+import { scheduleChoiceRows } from "@/data/scheduleCalendar";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
@@ -53,6 +54,16 @@ export default function AbilityCountDrawer({
     return out;
   }, [r.members]);
 
+  // この育成だけ選び直したスケジュールの週（黄色い枠）
+  const choiceAdjustedRowIds = useMemo(() => {
+    const out = new Set<string>();
+    if (!set) return out;
+    for (const row of scheduleChoiceRows(r.scenario)) {
+      if (r.ability.isRunChoiceAdjusted(set, r.scenario, row.id)) out.add(row.id);
+    }
+    return out;
+  }, [set, r.scenario, r.ability]);
+
   return (
     <>
       {open &&
@@ -70,6 +81,11 @@ export default function AbilityCountDrawer({
             onCommitAdjust={() => r.ability.commitRunAdjust(set)}
             formationKeys={formationKeys}
             eventExtras={eventExtras}
+            choices={r.ability.getRunChoices(set, r.scenario)}
+            onPickChoice={(rowId, event) =>
+              r.ability.setRunChoice(set, r.scenario, rowId, event)
+            }
+            choiceAdjustedRowIds={choiceAdjustedRowIds}
             onDelete={() => r.ability.deleteSet(set.id)}
             onRename={(name) => r.ability.renameSet(set.id, name)}
             onSetPlan={

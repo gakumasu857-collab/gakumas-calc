@@ -118,7 +118,7 @@ export default function StatsCard({
   return (
     <Card
       title="育成後のステータス"
-      hint={<Hint text={`${GLOSSARY.finalStats} 各タイプの上限は${cap}です。数字の下のバーは上限までの割合と内訳（色の意味は下）。「内訳の数字」で区分ごとの値が見られます。`} />}
+      hint={<Hint text={`${GLOSSARY.finalStats} ${GLOSSARY.finalStatsCap(cap)}`} />}
       action={
         <button
           type="button"
@@ -279,11 +279,25 @@ export default function StatsCard({
             <b className="text-blue-600">{(r.scenarioValues.fanValue ?? 0).toLocaleString()}</b>
           </p>
         )}
-        {/* サポカ由来のPポイントだけ（固定P・前イベP・P率換算・タイプSPレッスンP率）。開始時230や差し入れ等は含めない */}
-        <p className="flex items-center gap-1">
+        {/* サポカ由来のPポイントだけ（固定P・前イベP・P率換算・タイプSPレッスンP率） */}
+        <p className="flex flex-wrap items-center gap-x-1">
           Pポイント（サポカ分）:{" "}
           <b className="text-cyan-700">{Math.round(r.resources.pCards).toLocaleString()}</b>
-          <Hint text="サポカ由来のPポイント（固定P・前イベP・レッスンP率換算・タイプSPレッスンP率）。開始時230（HIFボーナス200＋STEP3の30。選抜・本戦とも）・差し入れ80×5・レッスン・メモリー分は含みません" />
+          <Hint text={GLOSSARY.pCards} />
+        </p>
+        {/* サポカ＋H.I.F.ボーナス＋親愛度＋メモリー。差し入れは踏む週で変わるので別表記 */}
+        <p className="flex flex-wrap items-center gap-x-1">
+          Pポイント:{" "}
+          <b className="text-cyan-700">{Math.round(r.resources.pBase).toLocaleString()}</b>
+          <span className="text-xs text-slate-400">
+            （サポカ {Math.round(r.resources.pCards).toLocaleString()}
+            {r.scenario === "hif" && `・HIFボーナス ${r.resources.pHifBonus}`}・親愛度{" "}
+            {r.resources.pAffection}・メモリー{" "}
+            {Math.round(r.resources.pMemory).toLocaleString()}）
+          </span>
+          ＋差し入れ（活動支給）{" "}
+          <b className="text-cyan-700">{r.resources.pSupply.toLocaleString()}</b>
+          <Hint text={GLOSSARY.pTotal} />
         </p>
         <p>
           体力: <b className="text-emerald-700">{Math.round(r.resources.hpTotal)}</b>

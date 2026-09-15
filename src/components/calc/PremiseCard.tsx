@@ -6,7 +6,11 @@ import {
   hatsuExamCapScore,
   NIA_FINAL_KIND_LABELS,
   NIA_FINAL_KINDS,
+  niaFinaleVotes,
+  niaFinalStatCapScore,
+  niaFinalVotesCapScore,
   SCENARIO_LABELS,
+  type NiaTag,
   type ScenarioKey,
 } from "@/data/scenarios";
 import { Field } from "@/components/calc/CalcCard";
@@ -20,7 +24,7 @@ import { isNiaChallengeMax, niaChallengeTotal, normalizeNiaChallenge } from "@/d
 import { GLOSSARY } from "@/lib/glossary";
 import { readOwnershipAck, readOwnershipVisited } from "@/lib/ownershipAck";
 import type { useCalcResult } from "@/lib/useCalcResult";
-import { TYPE_KEYS } from "@/lib/useCalcSettings";
+import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 import { BUILTIN_ID, useOwnedSaves } from "@/lib/useOwnedSaves";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
@@ -34,6 +38,9 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
 
 /** 欄のラベル（番号の横）。欄の値も同じ text-sm にそろえる */
 const LABEL = "text-sm font-bold text-slate-800";
+
+/** タイプの短い名前（N.I.A.の最終オーディションのスコア欄） */
+const TYPE_SHORT_JP: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
 
 /**
  * 「設定欄」（育成の前提）カード。
@@ -309,29 +316,8 @@ function ScenarioScoreCard({
   }
   if (r.scenario === "niaMaster") {
     return (
-      <SettingSub
-        title="ファン投票数"
-        hint="営業・オーディション・札獲得枚数から自動集計"
-      >
-        <div className="flex flex-wrap items-center gap-1.5 text-xs tabular-nums text-slate-600">
-          <VoteChip label="営業" value={r.scenarioValues.votesSales ?? 0} />
-          <VoteChip label="1次・2次" value={r.scenarioValues.votesAuditions ?? 0} />
-          <VoteChip label="最終" value={r.scenarioValues.votesFinale ?? 0} />
-          <VoteChip
-            label={`札${r.scenarioValues.totalFuda ?? 0}枚`}
-            value={r.scenarioValues.votesFuda ?? 0}
-          />
-          <span className="font-bold text-slate-800">
-            = 合計 {(r.scenarioValues.totalVotes ?? 0).toLocaleString()}
-          </span>
-          <span className="text-slate-500">
-            → 評価値換算{" "}
-            <b className="text-blue-600">
-              {(r.scenarioValues.fanValue ?? 0).toLocaleString()}
-            </b>
-          </span>
-        </div>
-        <NiaFinalKindRow r={r} />
+      <SettingSub title="最終オーディション" hint="スコアからステと投票数が決まります">
+        <NiaFinalScoreRows r={r} />
         <NiaChallengeRow r={r} onOpen={onOpenNiaChallenge} />
         <DetailRow r={r} onOpen={onOpenDetail} />
       </SettingSub>
@@ -393,7 +379,7 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
           ／ H.I.F.ボーナス{" "}
           {max
             ? "全部最大"
-            : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+            : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）／初期P Lv${b.levels.startPSenbatsu}・${b.levels.startPHonsen}（+${b.startP.senbatsu}・+${b.startP.honsen}）`}
         </span>
       )}
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
@@ -403,26 +389,91 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
   );
 }
 
-/** 最終オーディションの種類（FINALE／QUARTET。スコア→ステの式と上限が変わる） */
-function NiaFinalKindRow({ r }: { r: CalcResult }) {
+/**
+ * N.I.A.: 最終オーディションの種類（FINALE／QUARTET）とタイプ別スコアの入力。
+ * 「レッスン等の踏み方」タブの最終オーディションと同じ値（どちらで変えても同じ）。
+ * 素点を直接入れる「ステ入力」にしているときは、投票数の計算に使う合計スコアだけ入れる。
+ */
+function NiaFinalScoreRows({ r }: { r: CalcResult }) {
   const nia = r.niaSchedule;
+  const tag: NiaTag = r.ranks?.tag === "特化" ? "skew" : "flat";
+  const total = TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
+  const votesCap = niaFinalVotesCapScore(nia.finalKind);
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
-      <span className="font-bold text-slate-700">最終オーディション</span>
-      <span className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
-        {NIA_FINAL_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => nia.setFinalKind(k)}
-            className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
-              nia.finalKind === k ? "bg-violet-600 text-white" : "text-slate-500 hover:bg-slate-200"
-            }`}
-          >
-            {NIA_FINAL_KIND_LABELS[k]}
-          </button>
-        ))}
-      </span>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        <span className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+          {NIA_FINAL_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => nia.setFinalKind(k)}
+              className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+                nia.finalKind === k
+                  ? "bg-violet-600 text-white"
+                  : "text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              {NIA_FINAL_KIND_LABELS[k]}
+            </button>
+          ))}
+        </span>
+        {nia.finalStats && (
+          <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-700">
+            ステ入力中（素点は「レッスン等の踏み方」タブで）
+          </span>
+        )}
+      </div>
+      {nia.finalStats ? (
+        <Field label="合計スコア">
+          <div className="flex items-center gap-2">
+            <NumberField
+              value={total}
+              onChange={(v) => nia.setFinalTotalScore(v)}
+              max={votesCap}
+              sliderMax={votesCap}
+              className="w-32"
+            />
+            <span className="text-xs text-slate-500">
+              → 投票 +{niaFinaleVotes(total, nia.finalKind).toLocaleString()}
+              （投票数の計算にだけ使います）
+            </span>
+          </div>
+        </Field>
+      ) : (
+        <>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {TYPE_KEYS.map((type) => (
+              <Field key={type} label={`${TYPE_SHORT_JP[type]} スコア`}>
+                <div className="flex items-center gap-1">
+                  <NumberField
+                    value={nia.finalScores[type]}
+                    onChange={(v) => nia.setFinalScore(type, v)}
+                    max={votesCap}
+                    sliderMax={votesCap}
+                    className="w-full"
+                  />
+                  {nia.finalScores[type] >=
+                    niaFinalStatCapScore(tag, r.typeRanks[type], nia.finalKind) && (
+                    <span className="shrink-0 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-bold text-emerald-700">
+                      ステ上限
+                    </span>
+                  )}
+                </div>
+              </Field>
+            ))}
+          </div>
+          <p className="text-[11px] tabular-nums text-slate-500">
+            合計 {total.toLocaleString()} → 投票 +
+            {niaFinaleVotes(total, nia.finalKind).toLocaleString()}
+            {total >= votesCap && (
+              <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 font-bold text-emerald-700">
+                投票上限
+              </span>
+            )}
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -445,11 +496,3 @@ function NiaChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
   );
 }
 
-/** ファン投票数の内訳チップ */
-function VoteChip({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="rounded bg-slate-100 px-1.5 py-0.5">
-      {label} <b className="text-slate-700">{value.toLocaleString()}</b>
-    </span>
-  );
-}

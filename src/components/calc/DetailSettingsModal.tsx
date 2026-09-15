@@ -13,6 +13,7 @@ import {
   HIF_BASE_CAP,
   HIF_BONUS_CAP,
   HIF_BONUS_SP,
+  HIF_BONUS_START_P,
   HIF_BONUS_STAT_FIXED,
   HIF_BONUS_STAT_PCT,
   hifBonusMax,
@@ -61,7 +62,7 @@ function LevelButtons({
 /**
  * 詳細設定（設定欄の「調整」から）。
  * - 親愛度: 全シナリオ共通。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く
- * - H.I.F.ボーナス: H.I.F.のときだけ。固定値・パラボ・SP率・本戦のステ上限
+ * - H.I.F.ボーナス: H.I.F.のときだけ。固定値・パラボ・SP率・本戦のステ上限・初期Pポイント
  * どちらも既定は最大（親愛度37＝一番星／H.I.F.ボーナス全部最大）。
  */
 export default function DetailSettingsModal({
@@ -82,6 +83,8 @@ export default function DetailSettingsModal({
 
   const fixedAt = (lv: number) => (lv === 0 ? "なし" : `固定 +${HIF_BONUS_STAT_FIXED[lv]}`);
   const pctAt = (lv: number) => (lv === 0 ? "なし" : `パラボ +${HIF_BONUS_STAT_PCT[lv]}%`);
+  const startPAt = (lv: number) =>
+    lv === 0 ? "なし" : `初期Pポイント +${HIF_BONUS_START_P[lv]}`;
 
   const starPct = Math.round(affectionStarBonus(affection) * 100);
   const th = "border border-slate-300 bg-slate-100 px-2 py-1 font-bold";
@@ -202,6 +205,31 @@ export default function DetailSettingsModal({
               }
             />
           </div>
+          {/* 初期Pポイントは選抜試験・本戦で別の枠（Pポイントの表示に効く） */}
+          {(
+            [
+              [
+                "【選抜試験】初期Pポイント増加",
+                levels.startPSenbatsu,
+                (lv: number) => set({ startPSenbatsu: lv }),
+              ],
+              [
+                "【本戦】初期Pポイント増加",
+                levels.startPHonsen,
+                (lv: number) => set({ startPHonsen: lv }),
+              ],
+            ] as const
+          ).map(([label, lv, onPick]) => (
+            <div key={label} className="flex flex-col gap-1 border-t border-slate-100 py-2.5">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-sm font-bold text-slate-900">{label}</span>
+                <span className="text-xs text-slate-500">
+                  Lv{lv}: {startPAt(lv)}
+                </span>
+              </div>
+              <LevelButtons max={6} current={lv} onPick={onPick} valueAt={startPAt} />
+            </div>
+          ))}
         </>
       )}
 

@@ -31,11 +31,17 @@ export function useOptimizePlan(r: CalcResult) {
         );
         const result = optimizeSteppingForSlots(input, slots);
         if (!result) return;
-        if (result.hif)
+        // ステ入力にしていた選抜を探索がスコア入力へ切り替えたか（メッセージで知らせる）
+        const hif = result.hif;
+        const statToScore =
+          !!hif &&
+          r.schedule.examStats.some((x, i) => x != null && hif.examStats[i] == null);
+        if (hif)
           r.schedule.setPlan(
-            result.hif.lessons,
-            result.hif.classTypes,
-            result.hif.examScores,
+            hif.lessons,
+            hif.classTypes,
+            hif.examScores,
+            hif.examStats,
           );
         if (result.nia)
           r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
@@ -51,6 +57,9 @@ export function useOptimizePlan(r: CalcResult) {
           `今のサポカ編成での最適な踏み方に更新しました（合計ステ ${Math.round(result.cappedSum).toLocaleString()}）` +
           (budget.enabled
             ? `。取得回数の制限（前イベ${budget.pre}枚・後イベ${budget.post}回）に合わせて前イベ・後イベの取得状況も反映しました`
+            : "") +
+          (statToScore
+            ? "。ステ入力にしていた選抜を、探索したスコアの入力に切り替えました"
             : "");
         setMsg(message);
         onDone?.(message);

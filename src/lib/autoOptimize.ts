@@ -86,6 +86,8 @@ import {
   sameExamScores,
   steppingAxes,
   uniformStepping,
+  withAllExamScores,
+  withExamScores,
   type Stepping,
 } from "./optimize/stepping";
 import {
@@ -167,7 +169,10 @@ export type AutoOptimizeInput = {
     lessons: LessonPick[];
     classTypes: TypeKey[];
     examScores: ExamScores[];
-    /** 選抜ごとの上昇ステの直接入力（null=スコアから）。入力済みの選抜は探索で動かさない */
+    /**
+     * 選抜ごとの上昇ステの直接入力（null=スコアから）。今の踏み方の評価にはこの値を使う。
+     * 入力済みの選抜も探索で動かしてよく、スコアを置き換えた選抜は結果で null（スコア入力）になる
+     */
     examStats?: (ExamScores | null)[];
   };
   nia: NiaStateLike;
@@ -242,6 +247,8 @@ export type SteppingResult = {
     lessons: LessonPick[];
     classTypes: TypeKey[];
     examScores: ExamScores[];
+    /** 選抜ごとのステ直接入力（null=スコア入力。探索がスコアを置き換えた選抜は null） */
+    examStats: (ExamScores | null)[];
   };
   nia?: { lessons: NiaLessonPick[]; sales: NiaSalePick[] };
   hatsu?: { lessons: HatsuLessonPick[]; classTypes: TypeKey[] };
@@ -853,7 +860,8 @@ export class OptimizeEngine {
       lessons: hif.lessons.map((l) => ({ ...l })),
       classTypes: [...hif.classTypes],
       examScores: hif.examScores.map((e) => ({ ...e })),
-      examLocked: hif.examStats?.map((x) => !!x),
+      // 今の踏み方は画面と同じ前提（ステ入力の選抜はその値）で評価する
+      examStats: hif.examStats?.map((x) => x && { ...x }),
     };
   }
 
@@ -866,6 +874,7 @@ export class OptimizeEngine {
         lessons: s.lessons,
         classTypes: s.classTypes,
         examScores: s.examScores,
+        examStats: s.examStats ?? EXAMS.map(() => null),
       },
     };
   }
@@ -929,12 +938,13 @@ export class OptimizeEngine {
       for (const seed of baseSeeds) {
         if (seed.kind !== "hif") continue;
         for (const ratio of EXAM_PRESET_RATIOS) {
-          seeds.push({
-            ...seed,
-            examScores: seed.examScores.map((e, i) =>
-              this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
+          // ステ入力の選抜も寄せ直す（スコア入力に戻る）
+          seeds.push(
+            withAllExamScores(
+              seed,
+              seed.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
             ),
-          });
+          );
         }
       }
     }
@@ -1008,14 +1018,16 @@ export class OptimizeEngine {
       for (let i = 0; i < current.examScores.length; i++) {
         if (performance.now() > this.deadline)
           return { stepping: current, score };
-        if (this.input.hif.examStats?.[i]) continue; // ステ直接入力の選抜は動かさない
         for (const ratio of EXAM_RATIOS_FINE) {
           const e = examScoresFromRatio(i, ratio);
-          if (sameExamScores(e, current.examScores[i])) continue;
-          const trial: Stepping = {
-            ...current,
-            examScores: current.examScores.map((x, j) => (j === i ? e : x)),
-          };
+          // ステ入力の選抜も動かす（試す候補はスコア入力に戻す）。ステ入力中は
+          // 同じスコアでもステが変わるので、同値のスキップはスコア入力のときだけ
+          if (
+            current.examStats?.[i] == null &&
+            sameExamScores(e, current.examScores[i])
+          )
+            continue;
+          const trial = withExamScores(current, i, e);
           const trialScore = evalOf(trial);
           if (trialScore > score + 1e-9) {
             current = trial;
@@ -1115,10 +1127,10 @@ export class OptimizeEngine {
             type === "dance" ? 1 : 0,
             type === "visual" ? 1 : 0,
           ];
-          const exams = cur.examScores.map((e, k) =>
-            this.input.hif.examStats?.[k] ? e : examScoresFromRatio(k, ratio),
+          const exams = cur.examScores.map((_, k) =>
+            examScoresFromRatio(k, ratio),
           );
-          const s: Stepping = { ...cur, lessons, examScores: exams };
+          const s: Stepping = { ...withAllExamScores(cur, exams), lessons };
           const ectx = this.buildEctx(s);
           const formation = this.buildFormation(ectx);
           if (!formation) continue;
@@ -1313,12 +1325,12 @@ export class OptimizeEngine {
               type === "dance" ? 1 : 0,
               type === "visual" ? 1 : 0,
             ];
-            examVariants.push({
-              ...base,
-              examScores: base.examScores.map((e, k) =>
-                this.input.hif.examStats?.[k] ? e : examScoresFromRatio(k, ratio),
+            examVariants.push(
+              withAllExamScores(
+                base,
+                base.examScores.map((_, k) => examScoresFromRatio(k, ratio)),
               ),
-            });
+            );
           }
           for (const trial of examVariants) {
             const { obj } =
@@ -1621,7 +1633,8 @@ export class OptimizeEngine {
         lessons: s.lessons,
         classTypes: s.classTypes,
         examScores: s.examScores,
-        examStats: input.hif.examStats,
+        // 候補ごとのステ入力（入力の値ではなく候補の値。スコアを置き換えた選抜は null）
+        examStats: s.examStats,
       };
       const sched = computeScheduleGains(state, this.affection);
       bd = sched.breakdown;
@@ -2260,13 +2273,8 @@ export class OptimizeEngine {
         sp: true,
       })),
       classTypes: CLASSES.map(() => "visual" as TypeKey),
-      // ステ直接入力の選抜は今のスコアのまま（探索で動かさない）
-      examScores: EXAMS.map((_, i) =>
-        this.input.hif.examStats?.[i]
-          ? this.input.hif.examScores[i]
-          : examScoresUniform(i),
-      ),
-      examLocked: this.input.hif.examStats?.map((x) => !!x),
+      // 選抜は一様配分のスコア入力から始める（ステ入力の選抜も探索で動かす）
+      examScores: EXAMS.map((_, i) => examScoresUniform(i)),
     };
   }
 
@@ -2509,12 +2517,10 @@ export class OptimizeEngine {
     if (baseStepping && baseStepping.kind === "hif" && best) {
       const top = finalists.slice(0, opts?.examFinalists ?? 10);
       for (const ratio of EXAM_PRESET_RATIOS) {
-        const stepping: Stepping = {
-          ...baseStepping,
-          examScores: baseStepping.examScores.map((e, i) =>
-            this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
-          ),
-        };
+        const stepping: Stepping = withAllExamScores(
+          baseStepping,
+          baseStepping.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
+        );
         const varEctx = this.buildEctx(stepping);
         for (const f of top) {
           // 選抜配分が変わるとパラボ母数が変わるので採点し直す
@@ -2749,12 +2755,10 @@ export class OptimizeEngine {
     if (base.kind !== "hif") return;
     // まず各プリセットを素で評価し、有望な上位だけ日入替まで回す（時間節約）
     const rated = EXAM_PRESET_RATIOS.map((ratio) => {
-      const trial: Stepping = {
-        ...base,
-        examScores: base.examScores.map((e, i) =>
-          this.input.hif.examStats?.[i] ? e : examScoresFromRatio(i, ratio),
-        ),
-      };
+      const trial: Stepping = withAllExamScores(
+        base,
+        base.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
+      );
       return {
         stepping: trial,
         score: this.preciseObjective(best.slots, this.buildEctx(trial)).obj,
@@ -2851,6 +2855,7 @@ export class OptimizeEngine {
         lessons: s.lessons,
         classTypes: s.classTypes,
         examScores: s.examScores,
+        examStats: s.examStats,
       },
       this.affection,
     );

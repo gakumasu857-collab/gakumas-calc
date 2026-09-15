@@ -6,7 +6,8 @@ import type { TypeKey } from "@/lib/useCalcSettings";
  * - ボーカル／ダンス／ビジュアル上昇のパラボ（Lv1〜5）: +2/4/6/8/10%（固定値とは別のレベル）
  * - SPレッスン発生率増加（Lv1〜5）: 全タイプ +1〜+5%（ゲーム内の「SPレッスン率上昇」表示に含まれる分）
  * - 【本戦】パラメータ上限増加（Lv1〜6）: +50/+80/+110/+140/+170/+200（上限 3000 に足す）
- * 計算に効かない枠（試験前の体力回復量・選抜／本戦の初期Pポイント・相談の割引）は持たない。
+ * - 【選抜試験】／【本戦】初期Pポイント増加（それぞれ Lv1〜6）: +50/+80/+110/+140/+170/+200（Pポイントの表示にだけ効く）
+ * 計算に効かない枠（試験前の体力回復量・相談の割引）は持たない。
  * 既定はすべて最大（＝従来の固定 +100・パラボ +10%・SP率 +5%・上限 3200）。
  */
 export type HifBonusLevels = {
@@ -16,6 +17,10 @@ export type HifBonusLevels = {
   pct: Record<TypeKey, number>;
   spRate: number;
   finalCap: number;
+  /** 【選抜試験】初期Pポイント増加のレベル（0〜6） */
+  startPSenbatsu: number;
+  /** 【本戦】初期Pポイント増加のレベル（0〜6） */
+  startPHonsen: number;
 };
 
 /** レベル→値（添字＝レベル。0＝無し） */
@@ -23,6 +28,7 @@ export const HIF_BONUS_STAT_FIXED = [0, 20, 40, 60, 80, 100] as const;
 export const HIF_BONUS_STAT_PCT = [0, 2, 4, 6, 8, 10] as const;
 export const HIF_BONUS_SP = [0, 1, 2, 3, 4, 5] as const;
 export const HIF_BONUS_CAP = [0, 50, 80, 110, 140, 170, 200] as const;
+export const HIF_BONUS_START_P = [0, 50, 80, 110, 140, 170, 200] as const;
 /** 本戦のステ上限の素の値（ボーナス無し） */
 export const HIF_BASE_CAP = 3000;
 
@@ -33,6 +39,8 @@ export function hifBonusMax(): HifBonusLevels {
     pct: { vocal: 5, dance: 5, visual: 5 },
     spRate: 5,
     finalCap: 6,
+    startPSenbatsu: 6,
+    startPHonsen: 6,
   };
 }
 export const HIF_BONUS_MAX: HifBonusLevels = hifBonusMax();
@@ -65,6 +73,8 @@ export function normalizeHifBonus(raw: unknown): HifBonusLevels {
     pct,
     spRate: clampLevel(r.spRate, 5, 5),
     finalCap: clampLevel(r.finalCap, 6, 6),
+    startPSenbatsu: clampLevel(r.startPSenbatsu, 6, 6),
+    startPHonsen: clampLevel(r.startPHonsen, 6, 6),
   };
 }
 
@@ -85,6 +95,11 @@ export function hifBonusValues(raw: unknown) {
     spRate: HIF_BONUS_SP[lv.spRate] / 100,
     /** 本戦のステ上限（既定 3200） */
     statCap: HIF_BASE_CAP + HIF_BONUS_CAP[lv.finalCap],
+    /** 初期Pポイント（選抜試験開始時・本戦開始時。既定 200 ずつ） */
+    startP: {
+      senbatsu: HIF_BONUS_START_P[lv.startPSenbatsu],
+      honsen: HIF_BONUS_START_P[lv.startPHonsen],
+    },
   };
 }
 
@@ -94,6 +109,8 @@ export function isHifBonusMax(raw: unknown): boolean {
   return (
     TYPES.every((t) => lv.fixed[t] === 5 && lv.pct[t] === 5) &&
     lv.spRate === 5 &&
-    lv.finalCap === 6
+    lv.finalCap === 6 &&
+    lv.startPSenbatsu === 6 &&
+    lv.startPHonsen === 6
   );
 }

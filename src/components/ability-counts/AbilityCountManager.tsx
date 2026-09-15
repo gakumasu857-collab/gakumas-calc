@@ -23,6 +23,8 @@ import { useScenario } from "@/lib/useScenario";
 import { useSelectedSupports } from "@/lib/useSelectedSupports";
 import Modal from "@/components/Modal";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
+import { isChoiceAbilityKey } from "@/data/scheduleCalendar";
+import ScheduleChoiceGrid from "./ScheduleChoiceGrid";
 import SetEditModal from "./SetEditModal";
 
 /** 列幅(rem): アビリティ名列 / セット列（プランはチップ表示になったぶん少し狭める） */
@@ -78,6 +80,8 @@ export default function AbilityCountManager() {
   const [delResetOpen, setDelResetOpen] = useState(false);
   const [otherOpen, setOtherOpen] = useState(false);
   const [schedOpen, setSchedOpen] = useState(false);
+  // スケジュールの選択（週ごとに1つ選ぶカード）を開いているセット
+  const [choiceSetId, setChoiceSetId] = useState<string | null>(null);
 
   // シナリオに合うセットだけ（HIF用/NIA用/初用テンプレ＋ユーザーセット）
   const scenarioSets = store.sets.filter(
@@ -91,6 +95,7 @@ export default function AbilityCountManager() {
   );
   const selectedSet = store.sets.find((s) => s.id === store.selectedSetId);
   const editingSet = store.sets.find((s) => s.id === editingSetId);
+  const choiceSet = store.sets.find((s) => s.id === choiceSetId);
   const totalCols = visibleSets.length + 1; // +1 = 参照列（常設）
 
   // 編成中（選択サポカ6枠）のカードが持つアビリティの集合
@@ -303,11 +308,29 @@ export default function AbilityCountManager() {
           <tbody>
             {visibleAbilities.map((ability) => {
               const max = abilityMax(ability, scenario);
+              // おでかけ・相談・活動支給・特別指導はスケジュールの選択（カード）で決める
+              const choiceRow = isChoiceAbilityKey(ability);
               return (
                 <tr key={ability}>
-                  {/* アビリティ名（左固定） */}
+                  {/* アビリティ名（左固定）。スケジュールの選択で決まる行は押すとカードのUIが開く */}
                   <td className="sticky left-0 z-10 border-b border-l-2 border-r-2 border-b-slate-200 border-l-slate-500 border-r-slate-400 bg-white px-2 py-1.5 text-sm font-medium text-slate-800">
-                    {ABILITY_NAMES[ability]}
+                    {choiceRow ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChoiceSetId(selectedSet?.id ?? visibleSets[0]?.id ?? null)
+                        }
+                        title="週（日）ごとに踏むものを選ぶ画面を開きます"
+                        className="flex w-full items-center gap-1 text-left transition hover:text-blue-600"
+                      >
+                        <CalendarDays size={12} className="shrink-0 text-slate-400" />
+                        <span className="min-w-0 truncate underline decoration-slate-300 underline-offset-2">
+                          {ABILITY_NAMES[ability]}
+                        </span>
+                      </button>
+                    ) : (
+                      ABILITY_NAMES[ability]
+                    )}
                   </td>
                   {/* 参照列（選択中セット・直接編集可・左に固定・未選択なら空欄）。
                       ポップオーバーが下の行の固定セルや外側クリックレイヤーに埋まらないよう、
@@ -324,13 +347,15 @@ export default function AbilityCountManager() {
                         <button
                           type="button"
                           onClick={() =>
-                            activeCell?.ref && activeCell.ability === ability
-                              ? setActiveCell(null)
-                              : setActiveCell({
-                                  setId: selectedSet.id,
-                                  ability,
-                                  ref: true,
-                                })
+                            choiceRow
+                              ? setChoiceSetId(selectedSet.id)
+                              : activeCell?.ref && activeCell.ability === ability
+                                ? setActiveCell(null)
+                                : setActiveCell({
+                                    setId: selectedSet.id,
+                                    ability,
+                                    ref: true,
+                                  })
                           }
                           className={`w-full transition ${
                             activeCell?.ref && activeCell.ability === ability
@@ -343,7 +368,7 @@ export default function AbilityCountManager() {
                             max={max}
                           />
                         </button>
-                        {activeCell?.ref && activeCell.ability === ability && (
+                        {activeCell?.ref && activeCell.ability === ability && !choiceRow && (
                           <CountPopover
                             count={store.getCount(selectedSet, ability)}
                             max={max}
@@ -374,6 +399,7 @@ export default function AbilityCountManager() {
                       }
                       onClose={() => setActiveCell(null)}
                       onChange={(value) => store.setCount(set, ability, value)}
+                      onOpenModal={choiceRow ? () => setChoiceSetId(set.id) : undefined}
                     />
                   ))}
                 </tr>
@@ -398,6 +424,23 @@ export default function AbilityCountManager() {
           widthClass="max-w-3xl"
         >
           <ScheduleCalendarView scenario={scenario} />
+        </Modal>
+      )}
+
+      {/* スケジュールの選択（週ごとに1つ。選んだ回数がこのセットの発動回数になる） */}
+      {choiceSet && (
+        <Modal
+          title={`${choiceSet.name} のスケジュール`}
+          onClose={() => setChoiceSetId(null)}
+          widthClass="max-w-3xl"
+        >
+          <ScheduleChoiceGrid
+            scenario={scenario}
+            choices={store.getChoices(choiceSet, scenario)}
+            onPick={(rowId, event) =>
+              store.setChoice(choiceSet, scenario, rowId, event)
+            }
+          />
         </Modal>
       )}
 
@@ -490,6 +533,10 @@ export default function AbilityCountManager() {
           getCount={store.getCount}
           setCount={store.setCount}
           formationKeys={onlyFormation ? formationAbilities : undefined}
+          choices={store.getChoices(editingSet, scenario)}
+          onPickChoice={(rowId, event) =>
+            store.setChoice(editingSet, scenario, rowId, event)
+          }
           onDelete={() => store.deleteSet(editingSet.id)}
           onRename={(name) => store.renameSet(editingSet.id, name)}
           onSetPlan={
@@ -772,6 +819,7 @@ function CountCell({
   onOpen,
   onClose,
   onChange,
+  onOpenModal,
 }: {
   /** 最大回数（ラベルの(N回まで)とシナリオのスケジュール回数の小さい方） */
   max: number;
@@ -781,6 +829,8 @@ function CountCell({
   onOpen: () => void;
   onClose: () => void;
   onChange: (value: number) => void;
+  /** 渡すと数の直接入力ではなく、これを呼ぶ（スケジュールの選択のモーダル） */
+  onOpenModal?: () => void;
 }) {
   return (
     <td
@@ -790,14 +840,17 @@ function CountCell({
     >
       <button
         type="button"
-        onClick={isActive ? onClose : onOpen}
+        onClick={onOpenModal ?? (isActive ? onClose : onOpen)}
+        title={onOpenModal ? "週（日）ごとに踏むものを選ぶ画面を開きます" : undefined}
         className={`w-full transition ${isActive ? "bg-blue-100" : "hover:bg-blue-50"}`}
       >
         <CountValue count={count} max={max} />
       </button>
 
       {/* 編集ポップオーバー */}
-      {isActive && <CountPopover count={count} max={max} onChange={onChange} />}
+      {isActive && !onOpenModal && (
+        <CountPopover count={count} max={max} onChange={onChange} />
+      )}
     </td>
   );
 }

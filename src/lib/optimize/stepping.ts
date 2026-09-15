@@ -21,8 +21,12 @@ export type Stepping =
       classTypes: TypeKey[];
       /** 選抜試験のタイプ別スコア（分配も最適化対象）。 */
       examScores: ExamScores[];
-      /** ステ直接入力の選抜（true）は探索で動かさない */
-      examLocked?: boolean[];
+      /**
+       * この候補での選抜ごとの上昇ステの直接入力（null／省略＝スコアから分配）。
+       * ステ入力の選抜も探索で動かしてよい。examScores[i] を置き換えた候補は
+       * 必ず examStats[i] を null に戻す（withExamScores / withAllExamScores を使う）
+       */
+      examStats?: (ExamScores | null)[];
     }
   | { kind: "nia"; lessons: NiaLessonPick[]; sales: NiaSalePick[] }
   | { kind: "hatsu"; lessons: HatsuLessonPick[]; classTypes: TypeKey[] };
@@ -129,6 +133,30 @@ const nextType = (type: TypeKey): TypeKey =>
 const replaceAt = <T>(arr: readonly T[], i: number, v: T): T[] =>
   arr.map((x, j) => (j === i ? v : x));
 
+/**
+ * 選抜i のスコアだけ置き換えた踏み方。置き換えた選抜はスコア入力に戻す
+ * （ステ直接入力のままだとスコアを変えてもステが変わらず、比べる意味がないため）
+ */
+export function withExamScores(
+  c: HifStepping,
+  i: number,
+  scores: ExamScores,
+): HifStepping {
+  return {
+    ...c,
+    examScores: replaceAt(c.examScores, i, scores),
+    examStats: c.examStats && replaceAt(c.examStats, i, null),
+  };
+}
+
+/** 全選抜のスコアを置き換えた踏み方（全部スコア入力に戻す） */
+export function withAllExamScores(
+  c: HifStepping,
+  examScores: ExamScores[],
+): HifStepping {
+  return { ...c, examScores, examStats: undefined };
+}
+
 const otherTypes = (t: TypeKey | null | undefined): TypeKey[] =>
   TYPE_KEYS.filter((x) => x !== t);
 
@@ -194,13 +222,14 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
           lessons: replaceAt(c.lessons, i, { ...l, main, sub }),
         }));
       }),
-      // 選抜: スコアの分配比を入れ替える
+      // 選抜: スコアの分配比を入れ替える（ステ入力の選抜も動かし、スコア入力に戻す。
+      // ステ入力中は同じスコアでもステが変わるので、同値の比率も候補に残す）
       ...axesOver(s.examScores.length, (cur, i) => {
         const c = cur as HifStepping;
-        if (c.examLocked?.[i]) return []; // ステ直接入力の選抜は動かさない
+        const manual = c.examStats?.[i] != null;
         return EXAM_RATIOS.map((r) => examScoresFromRatio(i, r))
-          .filter((e) => !sameExamScores(c.examScores[i], e))
-          .map((e) => ({ ...c, examScores: replaceAt(c.examScores, i, e) }));
+          .filter((e) => manual || !sameExamScores(c.examScores[i], e))
+          .map((e) => withExamScores(c, i, e));
       }),
       // 授業: タイプを入れ替える
       ...axesOver(s.classTypes.length, (cur, i) => {
@@ -261,17 +290,17 @@ export function uniformStepping(
 ): Stepping {
   if (base.kind === "hif") {
     return {
-      ...base,
+      // 選抜スコアは初期状態に依存しない一様配分から始める（ステ入力の選抜もスコア入力に戻す）
+      ...withAllExamScores(
+        base,
+        base.examScores.map((_, i) => examScoresUniform(i)),
+      ),
       lessons: base.lessons.map((l) => ({
         ...l,
         main: lessonType,
         sub: nextType(lessonType),
       })),
       classTypes: base.classTypes.map(() => secondType),
-      // 選抜スコアは初期状態に依存しない一様配分から始める
-      examScores: base.examScores.map((e, i) =>
-        base.examLocked?.[i] ? e : examScoresUniform(i),
-      ),
     };
   }
   if (base.kind === "nia") {

@@ -7,6 +7,7 @@ import type { Memory, SlotMemory } from "./memoryTypes";
 import { AFFECTION_DEFAULT, normalizeAffection } from "@/data/affection";
 import { hifBonusMax, normalizeHifBonus, type HifBonusLevels } from "@/data/hifBonus";
 import { NIA_CHALLENGE_MAX, normalizeNiaChallenge, type NiaChallenge } from "@/data/niaChallenge";
+import type { ScheduleChoices } from "@/data/scheduleCalendar";
 import type { EventCountOverride } from "./sheetScore";
 import type { PIdolOwnership } from "./useOwnedPIdols";
 import type { HatsuState } from "./useHatsuSchedule";
@@ -131,6 +132,8 @@ export type CalcSaveSnapshot = {
   abilityCounts: Partial<Record<AbilityName, number>>;
   abilitySetName: string;
   abilitySetPlan: string;
+  /** 保存時のスケジュールの選択（scenario のもの。旧データには無い＝回数から推測） */
+  scheduleChoices?: ScheduleChoices;
   /** 選択サポカ6枠 */
   slots: (SelectedSlot | null)[];
   /** 計算ページの前イベ・後イベ設定 */
