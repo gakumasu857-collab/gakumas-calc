@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { ClipboardCopy, Sparkles } from "lucide-react";
 import {
   runFullOptimize,
   type AutoOptimizeResult,
@@ -12,6 +12,7 @@ import {
   type Formation,
   type ScoredCard,
 } from "@/lib/formation";
+import { buildDiagLog } from "@/lib/diagLog";
 import { useCalcResult } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
 import {
@@ -45,6 +46,25 @@ export default function DebugPage() {
   const [formation, setFormation] = useState<FormationDebug | null>(null);
   const [search, setSearch] = useState<AutoOptimizeResult | null>(null);
   const [searching, setSearching] = useState(false);
+  /** 診断ログ（コピーできない環境では本文を表示する） */
+  const [logShown, setLogShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const diagLog = () => buildDiagLog(r, flags, r.calc.settings, search);
+  const copyLog = () => {
+    const log = diagLog();
+    const clip = navigator.clipboard?.writeText(log);
+    if (!clip) {
+      setLogShown(true);
+      return;
+    }
+    void clip.then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      () => setLogShown(true),
+    );
+  };
 
   /**
    * 「理論評価値を求める」と同じ探索を回して、選定過程だけ表示する（設定は変更しない）。
@@ -99,6 +119,36 @@ export default function DebugPage() {
         計算の中身をそのまま表示するページです（シナリオ: {r.scenario} / 上限{" "}
         {r.statCap}）。
       </p>
+
+      {/* ===== 診断ログ ===== */}
+      <Section
+        title="診断ログ（探索の結果がおかしいときに送るJSON）"
+        action={
+          <button
+            type="button"
+            onClick={copyLog}
+            className="flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+          >
+            <ClipboardCopy size={13} />
+            診断ログをコピー
+          </button>
+        }
+      >
+        <p className="text-xs text-slate-500">
+          今の設定・踏み方・メモリー・プロデュース（アビリティ発動回数）・所持状況・今の評価値と条件の判定が入ります。
+          下の「探索を実行」を先に押しておくと、その探索結果（編成・踏み方・寄せ方の比較・フェーズ別スコア・取得制限）も一緒に入ります。
+          {copied && <span className="ml-1 font-bold text-emerald-600">コピーしました</span>}
+        </p>
+        {logShown && (
+          <textarea
+            readOnly
+            value={diagLog()}
+            onFocus={(e) => e.currentTarget.select()}
+            className="mt-1 h-32 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
+            title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
+          />
+        )}
+      </Section>
 
       {/* ===== 全自動最適化の選定過程 ===== */}
       <Section

@@ -19,6 +19,8 @@ import {
   clampExtraCount,
   eventActivations,
   eventCountContributionSplit,
+  hasPostEvent,
+  hasPreEvent,
   itemCorrectionAuto,
   paraboConvert,
   postEventActivations,
@@ -90,6 +92,10 @@ export type ScoredCard = {
   postContrib: Record<string, number>;
   /** 前イベの発動回数（予算の分母） */
   preActs: number;
+  /** 前イベを持つか（点数に効かないステージ用アイテム等も含む。取得回数の予算用） */
+  hasPre: boolean;
+  /** 後イベを持つか（同上） */
+  hasPost: boolean;
   /** 後イベの発動回数（0/1。予算の分母） */
   postActs: number;
   /** 回数キー→アビリティ効果量の合計（イベント相互作用の受け手側） */
@@ -228,6 +234,8 @@ function scoreCard(
     preContrib: contrib.pre,
     postContrib: contrib.post,
     preActs: eventActivations(card, role, ctx),
+    hasPre: hasPreEvent(card),
+    hasPost: hasPostEvent(card),
     postActs: postEventStatRelevant(card)
       ? postEventActivations(card, ctx)
       : 0,
@@ -467,6 +475,24 @@ export function minStatBonus(
       stat >= req ? weight : (0.5 * weight * Math.max(0, stat)) / req;
   }
   return bonus;
+}
+
+/**
+ * 最低ステ条件の不足量（0＝満たしている）。優先度は見ずに単純合計。
+ * 目的関数では minStatBonus（優先度つきの重み）を使い、これは
+ * 「授業の寄せで条件を壊さない」ような比較用に使う。
+ */
+export function minStatShortfall(
+  stats: Record<TypeKey, number>,
+  cond: MinStatCondition | undefined,
+): number {
+  if (!cond) return 0;
+  let short = 0;
+  for (const type of TYPE_LIST) {
+    const req = cond.req[type];
+    if (req > 0) short += Math.max(0, req - stats[type]);
+  }
+  return short;
 }
 
 /** SP条件の不足数（0なら条件クリア） */

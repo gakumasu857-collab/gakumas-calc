@@ -96,6 +96,7 @@ export function buildAutoOptimizeInput(
     statOrder: settings.statOrder,
     round1: settings.round1,
     round2: settings.round2,
+    affection: settings.affection,
   };
 }
 

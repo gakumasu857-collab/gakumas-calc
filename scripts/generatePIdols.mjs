@@ -9,7 +9,9 @@
  *                        kunren6:[10], kaika1:[10], kaika3:[10], kaika4:[10] } },
  *     ※ 配列は [体力, Vo初期値, Da初期値, Vi初期値, Voパラボ, Daパラボ, Viパラボ, VoSP率, DaSP率, ViSP率]
  *     ※ パラボ・SP率はスプシの小数表記のまま（0.11 = 11%）。%変換は pIdol.ts 側で行う
- *     ※ 無条件で加算する段階（初期・初・NIA・HIF・親愛度22・親愛度25）は base に合算済み
+ *     ※ 無条件で加算する段階（初期・初・NIA・HIF）は base に合算済み
+ *     ※ 親愛度の段階（親愛度22・親愛度25＝最大体力）は取り込まない。親愛度は計算機側の設定で
+ *        扱う（src/data/affection.ts）ので、スプシに行が残っていても無視する
  *   idolRanks: { アイドル名: { vocal, dance, visual, tag } }
  * }
  *
@@ -47,16 +49,11 @@ const masters = pidleName.map((r) => ({
 }));
 
 // ---- growth（段階行→ブロック）----
-// 段階のうち 初期・初・NIA・HIF・親愛度22/25 は所持状況によらず常に効く（無条件加算）ので
-// base に合算する。特訓・才能開花は段階条件つきの個別ブロック。
-const UNCONDITIONAL_STAGES = new Set([
-  "初期",
-  "初",
-  "NIA",
-  "HIF",
-  "親愛度22",
-  "親愛度25",
-]);
+// 段階のうち 初期・初・NIA・HIF は所持状況によらず常に効く（無条件加算）ので base に合算する。
+// 特訓・才能開花は段階条件つきの個別ブロック。
+const UNCONDITIONAL_STAGES = new Set(["初期", "初", "NIA", "HIF"]);
+// 親愛度は計算機側の設定（src/data/affection.ts）で扱うので、スプシに行が残っていても取り込まない
+const IGNORED_STAGES = new Set(["親愛度22", "親愛度25"]);
 const STAGE_TO_BLOCK = {
   特訓1: "kunren1",
   特訓2: "kunren2",
@@ -86,6 +83,7 @@ for (const r of pidleStatus) {
   const tag = r["成長タグ"];
   if (!tag) continue;
   const stage = r["段階"];
+  if (IGNORED_STAGES.has(stage)) continue;
   const block = UNCONDITIONAL_STAGES.has(stage)
     ? "base"
     : STAGE_TO_BLOCK[stage];

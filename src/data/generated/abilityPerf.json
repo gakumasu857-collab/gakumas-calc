@@ -866,9 +866,9 @@
   },
   "SSR回復イベント": {
    "tiers": [
-    10,
-    12,
-    14,
+    7,
+    null,
+    null,
     null,
     null
    ],

@@ -12,21 +12,28 @@ import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import { TYPE_SHORT } from "@/components/ui";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
+import { affectionLabel, AFFECTION_DEFAULT, starWithAffection } from "@/data/affection";
 import {
   CLASSES,
   distributeExam,
+  EXAM_STAR_SEGMENTS,
   EXAMS,
   examBaseFromRise,
   examRiseWithParabo,
   examStar,
   examStarCapScore,
+  FINAL_ROUNDS,
   LESSON_KIND_LABELS,
   LESSONS,
+  starFromObserved,
 } from "@/data/schedule";
 import {
   HATSU_CLASSES,
   HATSU_EXAMS,
+  HATSU_FINAL_BRACKETS,
   HATSU_LESSONS,
+  HATSU_MID_BRACKETS,
+  NIA_FAN_BRACKETS,
   NIA_AUDITION_CAPS,
   NIA_AUDITION_VOTE_MAX,
   NIA_FINAL_CAPS,
@@ -191,7 +198,11 @@ export default function PlanEditDrawer({
           {r.scenario === "niaMaster" && <NiaEditor r={r} />}
           {r.scenario === "hatsuLegend" && <HatsuEditor r={r} />}
           {helpOpen && (
-            <HelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+            <HelpModal
+              scenario={r.scenario}
+              affection={r.calc.settings.affection}
+              onClose={() => setHelpOpen(false)}
+            />
           )}
         </Modal>
       )}
@@ -855,13 +866,15 @@ function HatsuEditor({ r }: { r: CalcResult }) {
 function HelpModal({
   onClose,
   scenario,
+  affection,
 }: {
   onClose: () => void;
   scenario: ScenarioKey;
+  affection: number;
 }) {
   return (
     <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
-      <NumbersTables scenario={scenario} />
+      <NumbersTables scenario={scenario} affection={affection} />
     </Modal>
   );
 }
@@ -869,8 +882,11 @@ function HelpModal({
 /** レッスン・授業・試験の数値表本体（ヘルプモーダルからも使う）。シナリオ別 */
 export function NumbersTables({
   scenario = "hif",
+  affection = AFFECTION_DEFAULT,
 }: {
   scenario?: ScenarioKey;
+  /** 親愛度Lv（スター性の表示に効く） */
+  affection?: number;
 }) {
   return (
     <>
@@ -883,13 +899,76 @@ export function NumbersTables({
       ) : scenario === "hatsuLegend" ? (
         <HatsuNumbers />
       ) : (
-        <HifNumbers />
+        <HifNumbers affection={affection} />
       )}
     </>
   );
 }
 
-function HifNumbers() {
+/** 数値の表示（3桁区切り・小数は丸めない） */
+const fmtNum = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+
+/**
+ * 区分ごとの式を表で見せる部品（区分線形の式は文章にすると読みづらいため）。
+ * 1列目は左寄せ、残りは中央寄せ。
+ */
+function PieceTable({
+  headers,
+  rows,
+  caption,
+}: {
+  headers: string[];
+  rows: (string | number)[][];
+  caption?: string;
+}) {
+  return (
+    <div className="mb-3 overflow-x-auto">
+      <table className="w-full border-collapse text-xs tabular-nums">
+        {caption && (
+          <caption className="mb-1 text-left text-[11px] text-slate-500">{caption}</caption>
+        )}
+        <thead>
+          <tr>
+            {headers.map((h) => (
+              <th key={h} className={NUM_TH}>
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((cells, i) => (
+            <tr key={i}>
+              {cells.map((c, j) => (
+                <td key={j} className={j === 0 ? NUM_TD : NUM_TDC}>
+                  {c}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** [上限, 倍率, 固定値] の換算表 → 表の行（範囲・式・その区間の上限での値） */
+function bracketRows(
+  brackets: readonly (readonly [number, number, number])[],
+  unit: string,
+): (string | number)[][] {
+  let from = 0;
+  return brackets.map(([cap, rate, fixed]) => {
+    const range =
+      cap === Infinity ? `${fmtNum(from)}〜` : `${fmtNum(from)}〜${fmtNum(cap)}`;
+    const formula = `${unit}×${rate}${fixed ? ` ＋ ${fmtNum(fixed)}` : ""}`;
+    const end = cap === Infinity ? "—" : fmtNum(Math.floor(cap * rate + fixed));
+    from = cap;
+    return [range, formula, end];
+  });
+}
+
+function HifNumbers({ affection }: { affection: number }) {
   const th = "border border-slate-300 bg-slate-100 px-2 py-1";
   const td = "border border-slate-200 px-2 py-1";
   const tdC = `${td} text-center`;
@@ -928,7 +1007,8 @@ function HifNumbers() {
                 {lesson.sub[0]} / {lesson.sub[1]}
               </td>
               <td className={tdC}>
-                {Math.floor(lesson.star[0])} / {lesson.star[1]}
+                {starFromObserved(lesson.star[0], affection)} /{" "}
+                {starFromObserved(lesson.star[1], affection)}
               </td>
               <td className={tdC}>{lesson.p}</td>
             </tr>
@@ -948,18 +1028,41 @@ function HifNumbers() {
         </tbody>
       </table>
 
-      <h3 className="mb-1 text-xs font-bold text-slate-700">本戦スコア評価値</h3>
-      <div className="mb-4 text-xs leading-relaxed text-slate-600">
-        <p>
-          ラウンド1: 〜70万 (X−30万)×0.01 ／ 〜100万 4,000+(X−70万)×0.003 ／
-          〜120万 4,900+(X−100万)×0.002 ／ 〜140万 5,300+(X−120万)×0.001（上限5,500。小数点以下は切り捨て）
-        </p>
-        <p className="mt-1">
-          ラウンド2: 〜90万 (X−60万)×0.004 ／ 〜150万 1,200+(X−90万)×0.008 ／
-          〜200万 6,000+(X−150万)×0.002 ／ 〜240万 7,000+(X−200万)×0.001（上限7,400。小数点以下は切り捨て）
-        </p>
-        <p className="mt-1">★は固定（ラウンド1: 180 / ラウンド2: 225）。</p>
-      </div>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">本戦のスター性</h3>
+      <PieceTable
+        caption={`区間に入った分だけ倍率が掛かり、累計がスター性になります（上限あり）。「${affectionLabel(affection)}」は今の親愛度での値（切り捨て）。`}
+        headers={["ラウンド", "スコア", "倍率", "素の累計", affectionLabel(affection)]}
+        rows={FINAL_ROUNDS.flatMap((round, ri) => {
+          let from = 0;
+          let acc = 0;
+          return round.starBands.map(([to, rate]) => {
+            acc += (to - from) * rate;
+            const row = [
+              ri === 0 ? (from === 0 ? "ラウンド1" : "") : from === 0 ? "ラウンド2" : "",
+              `${fmtNum(from)}〜${fmtNum(to)}`,
+              `×${rate}`,
+              `${fmtNum(Math.round(acc))}${acc >= round.starMax ? "（上限）" : ""}`,
+              fmtNum(starWithAffection(Math.min(acc, round.starMax), affection)),
+            ];
+            from = to;
+            return row;
+          });
+        })}
+      />
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">本戦の点数評価値</h3>
+      <PieceTable
+        caption="区間ごとに「その区間の下限からの超過分 × 倍率 ＋ ベース」（小数点以下は切り捨て）。"
+        headers={["ラウンド", "スコア", "式", "区間の上限での値"]}
+        rows={FINAL_ROUNDS.flatMap((round, ri) =>
+          round.brackets.map(([cap, base, rate, add], bi) => [
+            bi === 0 ? `ラウンド${ri + 1}` : "",
+            `〜${fmtNum(cap)}`,
+            `${add ? `${fmtNum(add)} ＋ ` : ""}(X−${fmtNum(base)})×${rate}`,
+            fmtNum(add + Math.floor((cap - base) * rate)),
+          ]),
+        )}
+      />
 
       <h3 className="mb-1 text-xs font-bold text-slate-700">選抜のステータス分配</h3>
       <table className="mb-2 w-full border-collapse text-xs tabular-nums">
@@ -981,26 +1084,33 @@ function HifNumbers() {
                 {exam.fixed}（各タイプ+{exam.fixed / 3}）
               </td>
               <td className={tdC}>{exam.dist}</td>
-              <td className={tdC}>{exam.starCap * 1.5}</td>
+              <td className={tdC}>{starWithAffection(exam.starCap, affection)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="mb-2 text-xs leading-relaxed text-slate-600">
-        <p>
-          分配: スコア昇順に 下位=配分×スコア比（切り捨て）+固定÷3（端数は繰り越し）、
-          中位=（繰り越し+配分×スコア比）（切り捨て）+固定÷3、上位=基準値−下位−中位。
-        </p>
-        <p className="mt-1">
-          スター性はスコアの区間ごとに直線（両端の値をつなぐ。小数は切り捨て）:
-          選抜1 0〜2,850: 0→28／2,851〜6,666: 30→46／6,667〜14,000: 48→58／14,001〜: 60、
-          選抜2 0〜29,454: 0→81／29,455〜68,788: 82→130／68,789〜146,364: 132→163／146,365〜: 165、
-          選抜3 0〜98,181: 0→81／98,182〜196,969: 82→130／196,970〜390,909: 132→163／390,910〜: 165。
-        </p>
-        <p className="mt-1 text-slate-400">
-          ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
-        </p>
-      </div>
+      <p className="mb-3 text-xs leading-relaxed text-slate-600">
+        分配: スコア昇順に 下位=配分×スコア比（切り捨て）+固定÷3（端数は繰り越し）、
+        中位=（繰り越し+配分×スコア比）（切り捨て）+固定÷3、上位=基準値−下位−中位。
+      </p>
+
+      <h3 className="mb-1 text-xs font-bold text-slate-700">選抜のスター性</h3>
+      <PieceTable
+        caption={`合計スコアの区間ごとに、両端のスター性を直線でつなぎます（小数は切り捨て）。表は「${affectionLabel(affection)}」での値。`}
+        headers={["選抜", "合計スコア", "スター性"]}
+        rows={EXAM_STAR_SEGMENTS.flatMap((segs, i) =>
+          segs.map((seg, si) => [
+            si === 0 ? EXAMS[i].name : "",
+            seg.to === Infinity ? `${fmtNum(seg.from)}〜` : `${fmtNum(seg.from)}〜${fmtNum(seg.to)}`,
+            seg.to === Infinity
+              ? `${starFromObserved(seg.star[0], affection)}（上限）`
+              : `${starFromObserved(seg.star[0], affection)} → ${starFromObserved(seg.star[1], affection)}`,
+          ]),
+        )}
+      />
+      <p className="mb-2 text-xs text-slate-400">
+        ※ 合計スコアが低く上昇基準値が上限に達しない場合の式は暫定版のため未実装（常に上限到達として計算）。
+      </p>
     </>
   );
 }
@@ -1085,13 +1195,16 @@ function NiaNumbers() {
           ])}
         </tbody>
       </table>
+      <p className="mb-2 text-xs text-slate-600">
+        評価値 = ステ合計（各2600まで）× 2.3（小数点以下は切り捨て）＋ ファン投票数換算。
+      </p>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">ファン投票数→評価値</h3>
+      <PieceTable
+        headers={["投票数", "式", "区間の上限での値"]}
+        rows={bracketRows(NIA_FAN_BRACKETS, "票")}
+      />
       <div className="mb-2 text-xs leading-relaxed text-slate-600">
-        <p>評価値 = ステ合計（各2600まで）× 2.3（小数点以下は切り捨て）＋ ファン投票数換算。</p>
-        <p className="mt-1">
-          ファン投票数換算: 〜2万 ×0.1 ／ 〜4万 ×0.085+300 ／ 〜6万 ×0.07+900 ／ 〜8万 ×0.065+1,200 ／
-          〜10万 ×0.06+1,600 ／ 〜12万 ×0.05+2,600 ／ 〜14万 ×0.04+3,800 ／ それ以上 ×0.03+5,200（切り捨て）
-        </p>
-        <p className="mt-1">札（スキルカード獲得）2枚ごとに+3,000票（端数の1枚は無効）。</p>
+        <p>札（スキルカード獲得）2枚ごとに+3,000票（端数の1枚は無効）。</p>
         <p className="mt-1">
           最終オーディションはスコアからステ素点（流行順位別の式）と投票数を自動導出（「ステ」に切り替えて素点を直接入れることもできる）。
         </p>
@@ -1168,17 +1281,14 @@ function HatsuNumbers() {
           ))}
         </tbody>
       </table>
-      <div className="mb-2 text-xs leading-relaxed text-slate-600">
-        <p>評価値 = ステ合計（各3000まで）× 2.1（小数点以下は切り捨て）＋ 最終順位分（1位1,700／2位900／3位500）＋ 試験スコア換算。</p>
-        <p className="mt-1">
-          中間スコア換算: 〜1万 ×0.11 ／ 〜2万 ×0.08+300 ／ 〜3万 ×0.05+900 ／ 〜4万 ×0.008+2,160 ／
-          〜5万 ×0.003+2,360 ／ 〜6万 ×0.002+2,410 ／ 〜20万 ×0.001+2,470（上限2,670）
-        </p>
-        <p className="mt-1">
-          最終スコア換算: 〜30万 ×0.015 ／ 〜50万 ×0.01+1,500 ／ 〜60万 ×0.008+2,500 ／
-          〜200万 ×0.001+6,700（上限8,700）
-        </p>
-      </div>
+      <p className="mb-2 text-xs text-slate-600">
+        評価値 = ステ合計（各3000まで）× 2.1（小数点以下は切り捨て）＋
+        最終順位分（1位1,700／2位900／3位500）＋ 試験スコア換算。
+      </p>
+      <h3 className="mb-1 text-xs font-bold text-slate-700">中間試験のスコア→評価値</h3>
+      <PieceTable headers={["スコア", "式", "区間の上限での値"]} rows={bracketRows(HATSU_MID_BRACKETS, "点")} />
+      <h3 className="mb-1 text-xs font-bold text-slate-700">最終試験のスコア→評価値</h3>
+      <PieceTable headers={["スコア", "式", "区間の上限での値"]} rows={bracketRows(HATSU_FINAL_BRACKETS, "点")} />
     </>
   );
 }

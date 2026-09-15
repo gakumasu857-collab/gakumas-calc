@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ArrowDown, ChevronDown, ClipboardCopy, Settings, Sparkles } from "lucide-react";
-import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
+import { ArrowDown, ChevronDown, Settings, Sparkles } from "lucide-react";
+import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
 
 /** 直近の探索の状況（1行で出す。結果そのものは編成・踏み方・評価値に出る） */
 export type RunStatus = {
@@ -13,7 +13,6 @@ export type RunStatus = {
   /** 探索結果が今の評価値を下回ったため反映しなかった */
   kept?: boolean;
   notes?: string[];
-  diagLog?: string | null;
 };
 
 type RunHandlers = {
@@ -105,7 +104,8 @@ function RunButtons({
  * 操作パネル（「設定欄」のすぐ下＝設定を入れたらそのまま押す。PC・スマホ共通）。
  * 主役ボタン＋▾と「探索の条件」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す
  * （所持状況が未入力なら「全完凸の想定で探索できる」ことと入力先を一緒に案内する）。
- * 下に所持状況の注記と、直近の探索の内訳（何通り・何秒・前後の評価値）と診断ログ。
+ * 下に所持状況の注記と、直近の探索の内訳（何通り・何秒・前後の評価値）。
+ * 診断ログ（JSONのコピー）はデバッグページ（/debug）にある。
  */
 export default function ActionPanel({
   busy,
@@ -125,26 +125,6 @@ export default function ActionPanel({
   status: RunStatus | null;
   onConditions: () => void;
 }) {
-  const [logShown, setLogShown] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const copyLog = () => {
-    const log = status?.diagLog;
-    if (!log) return;
-    const clip = navigator.clipboard?.writeText(log);
-    if (!clip) {
-      setLogShown(true);
-      return;
-    }
-    void clip.then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      },
-      () => setLogShown(true),
-    );
-  };
-
   const delta =
     status && status.before != null && status.after != null
       ? status.after - status.before
@@ -181,7 +161,7 @@ export default function ActionPanel({
       </div>
       {!ready && (
         <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
-          「設定欄」で {missingInputs.join("・")} を選ぶと押せます
+          上の「設定欄」で {missingInputs.join("・")} を選択してください
         </p>
       )}
 
@@ -209,7 +189,7 @@ export default function ActionPanel({
               )}
               {status.kept && (
                 <span className="ml-1 font-semibold text-slate-700">
-                  今の評価値を下回ったため変更なし
+                  現在の評価値を下回ったため変更なし
                 </span>
               )}
             </p>
@@ -219,29 +199,6 @@ export default function ActionPanel({
               ・{n}
             </p>
           ))}
-          {status.diagLog && (
-            <div className="mt-0.5 flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                onClick={copyLog}
-                className={`${BTN_GHOST} -ml-2`}
-                title="今の設定・踏み方・メモリー・プロデュース（アビリティ発動回数）・所持状況と探索結果をJSONでコピーします（結果に納得できないときに送ってください）"
-              >
-                <ClipboardCopy size={12} />
-                診断ログをコピー
-              </button>
-              {copied && <span className="text-emerald-600">コピーしました</span>}
-            </div>
-          )}
-          {logShown && status.diagLog && (
-            <textarea
-              readOnly
-              value={status.diagLog}
-              onFocus={(e) => e.currentTarget.select()}
-              className="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-[10px] text-slate-600"
-              title="コピーできなかったので本文を表示しています。全選択してコピーしてください"
-            />
-          )}
         </div>
       )}
     </section>

@@ -116,22 +116,23 @@ export function buildCountResolver(
 }
 
 /**
- * パラボ%→固定値変換。
- * レッスン・試験の獲得ステの合計に%を掛けて切り捨てる（2026-09 にオーナー指示で変更。
- * 以前は獲得ごとに切り捨てて合算していた）。
- * @param lessonGains そのロールのレッスン分の獲得値
- * @param examGains そのロールの試験（選抜・オーディション）分の獲得値
+ * パラボ%→固定値変換（パラボ参照用!E:I の式の移植）。
+ * ステが上がるたび（レッスン1回・試験1回ごと）に「獲得ステ × %」を切り捨てて合算する。
+ * 例: パラボ15%でレッスン115・225なら floor(115×0.15)+floor(225×0.15)=17+33=50（合計340×0.15=51 ではない）。
+ * ※ 2026-09-15 にいったん「合計×%」へ変えたが、2026-09-16 にオーナー指摘で元へ戻した。
+ * @param lessonGains そのロールのレッスン1回ごとの獲得値
+ * @param examGains そのロールの試験（選抜・オーディション）1回ごとの獲得値
  */
 export function paraboConvert(
   pct: number,
   lessonGains: number[],
   examGains: number[],
 ): number {
-  let sum = 0;
-  for (const g of lessonGains) sum += g;
-  for (const g of examGains) sum += g;
+  let total = 0;
   // 浮動小数の誤差（0.29×100=28.999…）で1点欠けないよう、ごくわずかに足してから切り捨てる
-  return Math.floor(sum * pct + 1e-9);
+  for (const g of lessonGains) total += Math.floor(g * pct + 1e-9);
+  for (const g of examGains) total += Math.floor(g * pct + 1e-9);
+  return total;
 }
 
 /** ティア表示用（tier index 0..4 → Ⅰ..Ⅴ） */
@@ -332,6 +333,16 @@ const POST_EVENT_KEY: Record<string, string> = {
   チェンジ: "チェンジ（3回まで）",
   トラブル削除: "スキル削除",
 };
+
+/** 前イベを持つか（ステージ用アイテムなど点数に効かないものも含む。取得回数の予算に数える） */
+export function hasPreEvent(card: SupportCardData): boolean {
+  return !!card.preEventType;
+}
+
+/** 後イベを持つか（点数に効かない種類も含む。取得回数の予算に数える） */
+export function hasPostEvent(card: SupportCardData): boolean {
+  return !!card.postEventType;
+}
 
 /** ステータスに影響する後イベか（強化・チェンジ・削除系。体力回復等は対象アビリティなし） */
 export function postEventStatRelevant(card: SupportCardData): boolean {

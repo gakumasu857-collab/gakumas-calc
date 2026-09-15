@@ -36,7 +36,7 @@ export default function SideTabs({
         className={`${base} top-16 bottom-[calc(50%+4px)] ${glow}`}
       >
         <ListOrdered size={14} />
-        プロデュース
+        プロデュース設定
       </button>
       <button
         type="button"
@@ -55,7 +55,7 @@ export default function SideTabs({
         <div className="fixed left-11 top-1/2 z-30 w-64 -translate-y-1/2 rounded-xl border-2 border-amber-300 bg-white p-3 shadow-xl">
           {/* 左のタブを指す矢印 */}
           <span className="absolute -left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-amber-300 bg-white" />
-          <p className="text-sm font-bold text-slate-900">踏み方とプロデュースはここから</p>
+          <p className="text-sm font-bold text-slate-900">踏み方とプロデュース設定はここから</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
             左端のタブで、レッスンの踏み方とプロデュース（アビリティの発動回数）を実際の育成に合わせて変えられます。
             変えると評価値がその場で動きます。

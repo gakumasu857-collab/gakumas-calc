@@ -160,6 +160,40 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     });
   }, []);
 
+  /**
+   * 探索の取得制限をそのまま反映する（編成6枚ぶんの前イベ・後イベを指定どおりにする）。
+   * 対象カードの acquire/pre/post をいったん自動に戻してから ops を当てるので、
+   * 探索が「取得する」と決めたカードは前の取得OFFが残らない。
+   */
+  const applyEventOps = useCallback(
+    (
+      ids: readonly string[],
+      ops: readonly { id: string; pre?: number; acquire?: false; post?: 0 }[],
+    ) => {
+      setMap((prev) => {
+        const next = { ...prev };
+        for (const id of ids) {
+          const cur = { ...(next[id] ?? {}) };
+          delete cur.acquire;
+          delete cur.pre;
+          delete cur.post;
+          if (isEmpty(cur)) delete next[id];
+          else next[id] = cur;
+        }
+        for (const op of ops) {
+          const cur = { ...(next[op.id] ?? {}) };
+          if (op.acquire === false) cur.acquire = false;
+          if (op.pre !== undefined) cur.pre = Math.max(0, op.pre);
+          if (op.post !== undefined) cur.post = Math.max(0, op.post);
+          if (isEmpty(cur)) delete next[op.id];
+          else next[op.id] = cur;
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   return {
     get,
     set,
@@ -170,6 +204,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     replaceAll,
     clear,
     pruneTo,
+    applyEventOps,
     loaded: true,
     map,
   };

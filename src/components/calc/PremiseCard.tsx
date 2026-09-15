@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, Pencil } from "lucide-react";
-import { FINAL_ROUNDS } from "@/data/schedule";
+import { affectionLabel, affectionSummary } from "@/data/affection";
+import { FINAL_ROUNDS, finalRoundStar, finalRoundStarCapScore } from "@/data/schedule";
 import {
   hatsuExamCapScore,
   NIA_FINAL_KIND_LABELS,
@@ -49,7 +50,7 @@ export default function PremiseCard({
   onOpenIdol,
   onOpenMemory,
   onOpenIdolTraining,
-  onOpenHifBonus,
+  onOpenDetail,
   onOpenNiaChallenge,
 }: {
   r: CalcResult;
@@ -58,8 +59,8 @@ export default function PremiseCard({
   onOpenMemory: () => void;
   /** 特訓・才能開花のモーダルを開く（Pアイドルを選んだあと） */
   onOpenIdolTraining: () => void;
-  /** H.I.F.ボーナスの調整モーダルを開く（H.I.F.のとき） */
-  onOpenHifBonus: () => void;
+  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダルを開く */
+  onOpenDetail: () => void;
   /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
   onOpenNiaChallenge: () => void;
 }) {
@@ -160,7 +161,7 @@ export default function PremiseCard({
         {/* 本戦・試験の点数（シナリオ別） */}
         <ScenarioScoreCard
           r={r}
-          onOpenHifBonus={onOpenHifBonus}
+          onOpenDetail={onOpenDetail}
           onOpenNiaChallenge={onOpenNiaChallenge}
         />
       </div>
@@ -262,11 +263,12 @@ function SettingSub({
 /** シナリオ別の本戦・試験スコア入力 */
 function ScenarioScoreCard({
   r,
-  onOpenHifBonus,
+  onOpenDetail,
   onOpenNiaChallenge,
 }: {
   r: CalcResult;
-  onOpenHifBonus: () => void;
+  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダルを開く */
+  onOpenDetail: () => void;
   /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
   onOpenNiaChallenge: () => void;
 }) {
@@ -292,13 +294,16 @@ function ScenarioScoreCard({
                 />
                 <span className="text-xs text-slate-500">
                   → 評価値 {r.roundValues[i].toLocaleString()} / ★
-                  {FINAL_ROUNDS[i].star}
+                  {finalRoundStar(i, value, settings.affection)}
+                  {value >= finalRoundStarCapScore(i) && (
+                    <span className="ml-1 text-slate-400">（★上限）</span>
+                  )}
                 </span>
               </div>
             </Field>
           ))}
         </div>
-        <HifBonusRow r={r} onOpen={onOpenHifBonus} />
+        <DetailRow r={r} onOpen={onOpenDetail} />
       </SettingSub>
     );
   }
@@ -333,6 +338,7 @@ function ScenarioScoreCard({
         </p>
         <NiaFinalKindRow r={r} />
         <NiaChallengeRow r={r} onOpen={onOpenNiaChallenge} />
+        <DetailRow r={r} onOpen={onOpenDetail} />
       </SettingSub>
     );
   }
@@ -370,22 +376,31 @@ function ScenarioScoreCard({
           </div>
         </Field>
       </div>
+      <DetailRow r={r} onOpen={onOpenDetail} />
     </SettingSub>
   );
 }
 
-/** H.I.F.ボーナス（既定は全部最大）の要約と「調整」 */
-function HifBonusRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
-  const b = hifBonusValues(r.calc.settings.hifBonus);
-  const max = isHifBonusMax(r.calc.settings.hifBonus);
+/** 詳細設定（親愛度・H.I.F.ボーナス。既定は最大）の要約と「調整」 */
+function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
+  const { settings } = r.calc;
+  const b = hifBonusValues(settings.hifBonus);
+  const max = isHifBonusMax(settings.hifBonus);
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
-      <span className="font-bold text-slate-700">H.I.F.ボーナス</span>
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 pt-2 text-xs text-slate-600">
+      <span className="font-bold text-slate-700">詳細設定</span>
       <span>
-        {max
-          ? "全部最大"
-          : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+        親愛度 <b className="text-slate-800">{affectionLabel(settings.affection)}</b>
+        <span className="ml-1 text-slate-400">（{affectionSummary(settings.affection)}）</span>
       </span>
+      {r.scenario === "hif" && (
+        <span>
+          ／ H.I.F.ボーナス{" "}
+          {max
+            ? "全部最大"
+            : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）`}
+        </span>
+      )}
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
         調整
       </button>

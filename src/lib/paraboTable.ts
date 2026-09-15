@@ -31,7 +31,8 @@ export function paraboRange(pct: number, gains: number[]): ParaboRange {
   let min = 0;
   let max = 0;
   for (const g of gains) {
-    const x = g * (pct / 100);
+    // エンジン（sheetScore.paraboConvert）と同じ丸め（獲得1回ごとに切り捨て）
+    const x = g * (pct / 100) + 1e-9;
     const floored = Math.floor(x);
     min += floored;
     max += x === floored ? floored : floored + 1;

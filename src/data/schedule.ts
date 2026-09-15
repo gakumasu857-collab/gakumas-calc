@@ -8,10 +8,30 @@
  *   （1タイプのみ等、実際の仕様が違う場合は要修正 → ヘルプモーダルにも明記）
  */
 
+import { AFFECTION_DEFAULT, starWithAffection } from "./affection";
+
 export type LessonKind = "star" | "normal";
 
 /** HIFワッペンの最大発動回数（札を何枚取ってもこれ以上は発動しない） */
 export const WAPPEN_MAX = 20;
+/** ワッペン1回のスター性（素の値。親愛度37＝+50%なら15） */
+export const WAPPEN_STAR_BASE = 10;
+/** ワッペンのスター性の合計（1回ごとに切り捨て） */
+export function wappenStarTotal(count: number, affection: number): number {
+  return starWithAffection(WAPPEN_STAR_BASE, affection) * Math.max(0, count);
+}
+
+/**
+ * このファイルのレッスン★・選抜★は「親愛度37（スター性ボーナス+50%）で観測した値」。
+ * 素の値に戻すためにこれで割ってから、実際の親愛度のボーナスを掛ける
+ * （オーナー確認 2026-09-16: 従来の 150→225・5→7・110→165・30→45 はすべて+50%込みの値だった）。
+ */
+export const STAR_OBSERVED_MULT = 1.5;
+
+/** 観測値（親愛度37の値）→ 指定した親愛度でのスター性（切り捨て） */
+export function starFromObserved(observed: number, affection: number): number {
+  return starWithAffection(observed / STAR_OBSERVED_MULT, affection);
+}
 
 export const LESSON_KIND_LABELS: Record<LessonKind, string> = {
   star: "スター性重視",
@@ -52,6 +72,7 @@ export const CLASSES = [
 //   1. EXAMS ………………… 選抜1〜3の上昇基準値（base）・固定上昇（fixed）・配分上昇（dist）・スター性上限（starCap）
 //   2. examStar …………… 合計スコア→スター性の近似式
 //   3. distributeExam …… タイプ別スコア→ステ上昇の分配式
+//   （本戦は FINAL_ROUNDS の starBands＝スター性・brackets＝点数評価値。親愛度は src/data/affection.ts）
 //   直したら PlanEditDrawer.tsx の HifNumbers（「選抜のステータス分配」「スター性の近似式」の説明文）も合わせる。
 // ============================================================
 /**
@@ -100,19 +121,23 @@ export const EXAM_STAR_SEGMENTS: readonly (readonly ExamStarSegment[])[] = [
   ],
 ];
 
-export function examStar(examIndex: number, score: number): number {
+export function examStar(
+  examIndex: number,
+  score: number,
+  affection: number = AFFECTION_DEFAULT,
+): number {
   const segs = EXAM_STAR_SEGMENTS[examIndex];
   if (!segs || score <= 0) return 0;
   const s = Math.floor(score);
   for (const seg of segs) {
     if (s > seg.to) continue;
-    if (seg.to === Infinity) return seg.star[0];
     const [y0, y1] = seg.star;
+    // 表の値は親愛度37のもの。素の値に直してから親愛度のボーナスを掛ける（切り捨て）
+    if (seg.to === Infinity) return starFromObserved(y0, affection);
     const y = y0 + ((s - seg.from) * (y1 - y0)) / (seg.to - seg.from);
-    // 浮動小数の誤差で 27.999999 → 27 にならないよう、ごくわずかに足してから切り捨てる
-    return Math.max(0, Math.floor(y + 1e-9));
+    return Math.max(0, starFromObserved(y, affection));
   }
-  return segs[segs.length - 1].star[0];
+  return starFromObserved(segs[segs.length - 1].star[0], affection);
 }
 
 /** スター性が上限に達する合計スコア（これ以上入れても増えない。入力の上限に使う） */
@@ -122,13 +147,20 @@ export function examStarCapScore(examIndex: number): number {
 }
 
 /**
- * 本戦ラウンド。スター性は固定値、スコア評価値は区分線形（シートの実式）。
- * brackets: [スコア上限, 差し引き基準, 係数, 加算ベース] を昇順で評価。
+ * 本戦ラウンド。スター性もスコア評価値も区分線形（シートの実式）。
+ * - starBands: [その区間の上限スコア, 倍率]。区間に入った分だけ倍率が掛かり、累計が starMax で頭打ち
+ *   （素の値。オーナー提供 2026-09-16。親愛度37なら ×1.5 で従来の 180／225 になる）
+ * - brackets: [スコア上限, 差し引き基準, 係数, 加算ベース] を昇順で評価
  */
 export const FINAL_ROUNDS = [
   {
     name: "ラウンド1",
-    star: 180,
+    starBands: [
+      [200000, 0.0003],
+      [300000, 0.00036],
+      [500000, 0.00012],
+    ],
+    starMax: 120,
     maxScore: 1400000,
     brackets: [
       [700000, 300000, 0.01, 0],
@@ -139,7 +171,12 @@ export const FINAL_ROUNDS = [
   },
   {
     name: "ラウンド2",
-    star: 225,
+    starBands: [
+      [400000, 0.0001875],
+      [600000, 0.000225],
+      [1000000, 0.000075],
+    ],
+    starMax: 150,
     maxScore: 2400000,
     brackets: [
       [900000, 600000, 0.004, 0],
@@ -151,6 +188,36 @@ export const FINAL_ROUNDS = [
 ] as const;
 
 /** 本戦スコア→スコア評価値（レッスン・試験・授業!G39/G41 の式の移植） */
+/** 本戦ラウンドのスター性（素の値。区間ごとの倍率を累積し、starMax で頭打ち） */
+export function finalRoundStarBase(roundIndex: number, score: number): number {
+  const round = FINAL_ROUNDS[roundIndex];
+  if (!round || score <= 0) return 0;
+  let star = 0;
+  let from = 0;
+  for (const [to, rate] of round.starBands) {
+    if (score <= from) break;
+    star += (Math.min(score, to) - from) * rate;
+    from = to;
+  }
+  return Math.min(round.starMax, star);
+}
+
+/** 本戦ラウンドのスター性（親愛度のボーナス込み・切り捨て） */
+export function finalRoundStar(
+  roundIndex: number,
+  score: number,
+  affection: number = AFFECTION_DEFAULT,
+): number {
+  return starWithAffection(finalRoundStarBase(roundIndex, score), affection);
+}
+
+/** スター性が上限に達するスコア（本戦。これ以上入れてもスター性は増えない） */
+export function finalRoundStarCapScore(roundIndex: number): number {
+  const round = FINAL_ROUNDS[roundIndex];
+  if (!round) return Infinity;
+  return round.starBands[round.starBands.length - 1][0];
+}
+
 export function finalRoundValue(roundIndex: number, score: number): number {
   const round = FINAL_ROUNDS[roundIndex];
   if (!round || score <= 0) return 0;

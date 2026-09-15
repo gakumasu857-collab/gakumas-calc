@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSaveNotifier } from "./storeSync";
+import { AFFECTION_DEFAULT } from "@/data/affection";
 import {
   CLASSES,
   distributeExam,
@@ -7,6 +8,7 @@ import {
   examStar,
   examStarCapScore,
   LESSONS,
+  starFromObserved,
 } from "@/data/schedule";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 
@@ -121,13 +123,17 @@ export function roleToTypeFromCalcStorage(): Record<string, TypeKey> {
 /**
  * スケジュール入力からタイプ別上昇量・スター性・Pポイントを集計する（純関数）。
  * パラメータボーナスはここでは掛けない（sheetScore 側でまとめて変換する）。
+ * @param affection 親愛度Lv（スター性のボーナスが変わる。既定は37＝+50%）
  */
-export function computeScheduleGains(state: {
-  lessons: LessonPick[];
-  classTypes: TypeKey[];
-  examScores: ExamScores[];
-  examStats?: (ExamScores | null)[];
-}) {
+export function computeScheduleGains(
+  state: {
+    lessons: LessonPick[];
+    classTypes: TypeKey[];
+    examScores: ExamScores[];
+    examStats?: (ExamScores | null)[];
+  },
+  affection: number = AFFECTION_DEFAULT,
+) {
   const gains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const lessonGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const classGains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -146,8 +152,8 @@ export function computeScheduleGains(state: {
     gains[pick.sub] += subGain;
     lessonGains[pick.main] += mainGain;
     lessonGains[pick.sub] += subGain;
-    // スター性は非SPでSPの半分（7.5等の小数は切り捨て）
-    lessonStar += Math.floor(lesson.star[spIndex]);
+    // スター性は非SPでSPの半分。表の値は親愛度37のものなので素の値に直して掛け直す（切り捨て）
+    lessonStar += starFromObserved(lesson.star[spIndex], affection);
     pPoints += lesson.p;
   });
 
@@ -166,7 +172,7 @@ export function computeScheduleGains(state: {
     const dist = Object.fromEntries(
       TYPE_KEYS.map((t) => [t, Math.max(0, Math.floor(rawDist[t]))]),
     ) as Record<TypeKey, number>;
-    const starGain = total > 0 ? examStar(i, total) : 0;
+    const starGain = total > 0 ? examStar(i, total, affection) : 0;
     for (const type of TYPE_KEYS) {
       gains[type] += dist[type];
       examGains[type] += dist[type];

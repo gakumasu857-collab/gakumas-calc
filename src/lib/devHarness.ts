@@ -258,6 +258,7 @@ export function buildInput(): AutoOptimizeInput {
     maxStats: settings.maxStats,
     round1: settings.round1,
     round2: settings.round2,
+    affection: settings.affection,
   };
 }
 

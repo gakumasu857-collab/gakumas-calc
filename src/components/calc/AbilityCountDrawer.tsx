@@ -86,7 +86,7 @@ export default function AbilityCountDrawer({
               <Link to="/ability-counts" className="text-blue-600 underline">
                 プロデュース設定ページ
               </Link>
-              でチェックしてください。
+              にてチェックを入れてください。
             </p>
           </Modal>
         ))}

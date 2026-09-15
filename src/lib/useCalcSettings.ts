@@ -4,6 +4,7 @@ import { IDLE_NAMES, type AbilityName } from "@/data/constants";
 import type { ScenarioKey } from "@/data/scenarios";
 import type { SelectedSlot } from "./formation";
 import type { Memory, SlotMemory } from "./memoryTypes";
+import { AFFECTION_DEFAULT, normalizeAffection } from "@/data/affection";
 import { hifBonusMax, normalizeHifBonus, type HifBonusLevels } from "@/data/hifBonus";
 import { NIA_CHALLENGE_MAX, normalizeNiaChallenge, type NiaChallenge } from "@/data/niaChallenge";
 import type { EventCountOverride } from "./sheetScore";
@@ -73,6 +74,11 @@ export type CalcSettings = {
   baseSpRate: Record<ScenarioKey, number>;
   /** 探索で、育成後のステータスをこの順（高い→低い）にする（null＝指定なし） */
   statOrder: TypeKey[] | null;
+/**
+   * 親愛度Lv（20以下＝20、21〜37）。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く。
+   * シナリオ共通（Pポイントは全シナリオに関わる）。既定は37（一番星）。
+   */
+  affection: number;
   /** H.I.F.ボーナスのレベル（H.I.F.限定。Vo/Da/Viは固定値とパラボが別レベル。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
   hifBonus: HifBonusLevels;
   /** N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（N.I.A.限定。既定は各枠の最大＝15/20/20） */
@@ -97,6 +103,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   noStageItems: false,
   baseSpRate: { hif: 10, niaMaster: 15, hatsuLegend: 15 },
   statOrder: null,
+  affection: AFFECTION_DEFAULT,
   hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
@@ -217,6 +224,7 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     },
     minStats: { ...DEFAULT_SETTINGS.minStats, ...(stored.minStats ?? {}) },
     maxStats: { ...DEFAULT_SETTINGS.maxStats, ...(stored.maxStats ?? {}) },
+    affection: normalizeAffection(stored.affection),
     hifBonus: normalizeHifBonus(stored.hifBonus),
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),

@@ -20,13 +20,16 @@
  * ※ 踏み方で変わるのはステ由来の評価値のみ（スター性・投票数・本戦は不変）なので、
  *    比較は Σmin(上限, ステ)＋NIA札換算 で行い、最終的な評価値は勝者だけ算出する。
  */
+import { AFFECTION_DEFAULT, starWithAffection } from "@/data/affection";
 import {
   CLASSES,
   EXAMS,
-  FINAL_ROUNDS,
+  finalRoundStar,
   finalRoundValue,
   LESSONS,
   WAPPEN_MAX,
+  WAPPEN_STAR_BASE,
+  wappenStarTotal,
 } from "@/data/schedule";
 import {
   HATSU_CLASSES,
@@ -55,6 +58,7 @@ import {
   typeRatioShortfall,
   RATIO_PENALTY,
   SP_PENALTY,
+  minStatShortfall,
   statOrderShortfall,
   spConditionShortfall,
   scoreOwnedCards,
@@ -223,9 +227,11 @@ export type AutoOptimizeInput = {
   maxStats?: Record<TypeKey, number>;
   /** 育成後のステータスをこの順（高い→低い）にする。必須条件（違反した候補は勝たせない） */
   statOrder?: TypeKey[] | null;
-  /** H.I.F.の評価値の固定部分（本戦。ワッペンは札取得回数から自動算出） */
+  /** H.I.F.の本戦ラウンドの点数（スター性と点数評価値がここから決まる） */
   round1: number;
   round2: number;
+  /** 親愛度Lv（スター性ボーナス。既定は37＝+50%） */
+  affection?: number;
 };
 
 export type SteppingResult = {
@@ -677,6 +683,7 @@ export class OptimizeEngine {
   private ratioCons: ReturnType<typeof typeConstraintFromRatio>;
 
   constructor(private input: AutoOptimizeInput) {
+    this.affection = input.affection ?? AFFECTION_DEFAULT;
     this.ratioCons = input.typeRatio
       ? typeConstraintFromRatio(input.typeRatio)
       : {};
@@ -718,10 +725,11 @@ export class OptimizeEngine {
     // 上限20を超える札には価値がないので、超過分は加点しない
     if (input.scenario === "hif") {
       this.fudaBase = input.manual("スキル獲得") ?? 0;
+      const wappenStar = starWithAffection(WAPPEN_STAR_BASE, this.affection);
       this.extraScore = (cards) => {
         const withCards = Math.min(WAPPEN_MAX, this.fudaBase + this.supportFudaOf(cards));
         const without = Math.min(WAPPEN_MAX, this.fudaBase);
-        return ((withCards - without) * 15 * 7.5) / 2;
+        return ((withCards - without) * wappenStar * 7.5) / 2;
       };
     }
   }
@@ -1291,7 +1299,7 @@ export class OptimizeEngine {
     const t1 = TYPE_KEYS.find((t) => ranks[t] === 1) ?? "vocal";
     const t2 = TYPE_KEYS.find((t) => ranks[t] === 2) ?? "dance";
     const t3 = TYPE_KEYS.find((t) => ranks[t] === 3) ?? "visual";
-    type Key = [number, number, number, number, number, number];
+    type Key = [number, number, number, number, number, number, number];
     const better = (a: Key, b: Key) => {
       for (let i = 0; i < a.length; i++) {
         if (a[i] !== b[i]) return a[i] > b[i];
@@ -1312,6 +1320,8 @@ export class OptimizeEngine {
         const key: Key = [
           // ステの高さの順（指定があれば最優先。閾値ルールで順が崩れないように）
           -statOrderShortfall(stats, this.input.statOrder),
+          // 最低ステも条件。閾値ルールを優先して条件を割ると「満たせなかった条件」になる
+          -minStatShortfall(stats, this.minStatCond),
           Math.round(cappedSum),
           Math.min(stats[t1], 2100),
           Math.min(stats[t2], 1400),
@@ -1525,7 +1535,7 @@ export class OptimizeEngine {
         examScores: s.examScores,
         examStats: input.hif.examStats,
       };
-      const sched = computeScheduleGains(state);
+      const sched = computeScheduleGains(state, this.affection);
       bd = sched.breakdown;
       starStat = (sched.star * 7.5) / 2;
       ctx = buildSheetScoreContext(state, input.manual, input.eventCounts);
@@ -1753,10 +1763,12 @@ export class OptimizeEngine {
 
     // 前イベ: 取得回数（カード1枚=1）ベースで配分。価値の高いカードから
     // 予算枚数だけ「取得」し、残りは取得OFF。取得すれば発動回数はそのまま。
+    // 数えるのは「前イベを持つカード」全部（ステージ用アイテムなど点数に効かないものも、
+    // 育成では1枚の前イベを消費するため。価値0なので予算からは最後に落ちる）
     const preAcquire = new Set<string>();
     let remainingPre = budget.pre ?? Infinity;
     members
-      .filter((m) => m.preActs > 0)
+      .filter((m) => m.hasPre)
       .map((m) => {
         // このカードの前イベ全体の価値（発動回数ぶんすべて合算）
         let value = m.itemBonus;
@@ -1774,11 +1786,11 @@ export class OptimizeEngine {
         }
       });
 
-    // 後イベ: 価値が高いカードから予算までON（各カード0/1）
+    // 後イベ: 価値が高いカードから予算までON（各カード1回）
     const postOn = new Set<string>();
     let remainingPost = budget.post ?? Infinity;
     members
-      .filter((m) => m.postActs > 0)
+      .filter((m) => m.hasPost)
       .map((m) => {
         let unit = 0;
         for (const key in m.postContrib) {
@@ -1788,9 +1800,9 @@ export class OptimizeEngine {
       })
       .sort((a, b) => b.unit - a.unit)
       .forEach(({ m }) => {
-        if (remainingPost >= m.postActs) {
+        if (remainingPost >= 1) {
           postOn.add(m.id);
-          remainingPost -= m.postActs;
+          remainingPost -= 1;
         }
       });
 
@@ -1801,11 +1813,11 @@ export class OptimizeEngine {
         id: m.id,
       };
       let changed = false;
-      if (m.preActs > 0 && !preAcquire.has(m.id)) {
+      if (m.hasPre && !preAcquire.has(m.id)) {
         op.acquire = false;
         changed = true;
       }
-      if (m.postActs > 0 && !postOn.has(m.id)) {
+      if (m.hasPost && !postOn.has(m.id)) {
         op.post = 0;
         changed = true;
       }
@@ -1832,6 +1844,8 @@ export class OptimizeEngine {
   /** 探索対象のショートリスト（buildShortlistで作る。null=全プール） */
   private shortlistIds: Set<string> | null = null;
   private rentalShortlistIds: Set<string> | null = null;
+  /** 親愛度Lv（スター性ボーナス） */
+  readonly affection: number;
   /** 必ず編成に入れる固定カード（プランが合うものだけ。候補に入れられない固定は数えない） */
   private pinnedEnforced = new Set<string>();
   /** /debug用: 決定的探索の分割別推定スコア（上位から） */
@@ -2681,15 +2695,20 @@ export class OptimizeEngine {
       );
     }
     const s = stepping as Stepping & { kind: "hif" };
-    const sched = computeScheduleGains({
-      lessons: s.lessons,
-      classTypes: s.classTypes,
-      examScores: s.examScores,
-    });
-    const finalStar = FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0);
+    const sched = computeScheduleGains(
+      {
+        lessons: s.lessons,
+        classTypes: s.classTypes,
+        examScores: s.examScores,
+      },
+      this.affection,
+    );
+    const finalStar =
+      finalRoundStar(0, input.round1, this.affection) +
+      finalRoundStar(1, input.round2, this.affection);
     // ワッペン発動回数 = 札取得回数（セットのスキル獲得＋編成サポカのスキル獲得分）。最大20回
     const wappen = Math.min(WAPPEN_MAX, this.fudaBase + this.supportFudaOf(members));
-    const totalStar = 15 * wappen + sched.star + finalStar;
+    const totalStar = wappenStarTotal(wappen, this.affection) + sched.star + finalStar;
     return (
       cappedSum * 2 +
       Math.floor(totalStar * 7.5) +

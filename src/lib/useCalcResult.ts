@@ -12,11 +12,13 @@
  * パラボ追従メモリーは「パラボ母数が大きい上位2タイプ」に%が付く。
  */
 import { useMemo } from "react";
+import { affectionHpBonus, affectionStepP } from "@/data/affection";
 import {
-  FINAL_ROUNDS,
+  finalRoundStar,
   finalRoundValue,
   LESSONS,
   WAPPEN_MAX,
+  wappenStarTotal,
 } from "@/data/schedule";
 import {
   HATSU_LESSONS,
@@ -81,8 +83,8 @@ import { useSelectedSupports } from "./useSelectedSupports";
 
 const DB_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
-/** HIFの選抜・本戦それぞれの開始時Pポイント（HIFボーナス200＋STEP3の30） */
-export const P_FIXED_START = 230;
+/** HIFの選抜・本戦それぞれの開始時Pポイントのうち、H.I.F.ボーナス分（STEP3の分は親愛度で変わる） */
+export const P_FIXED_START_HIF_BONUS = 200;
 
 export type SelectedMember = ScoredCard & {
   /** イベント相互作用によるこのカードの追加点 */
@@ -191,7 +193,7 @@ export function useCalcResult() {
       });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
-      const sched = computeScheduleGains(schedule);
+      const sched = computeScheduleGains(schedule, settings.affection);
       bd = sched.breakdown;
       schedGains = sched.gains;
       hifStar = {
@@ -362,8 +364,10 @@ export function useCalcResult() {
       const ratePSen = Math.floor(rateLesson * lessonPSenbatsu + rateTypeSpSen);
       const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
-      const pFixedSenbatsu = isHifP ? P_FIXED_START + 80 * 4 : 0;
-      const pFixedHonsen = isHifP ? P_FIXED_START + 80 : 0;
+      // 開始時Pポイント = H.I.F.ボーナス200 ＋ STEP3（親愛度21〜で+10〜+30）
+      const pStart = P_FIXED_START_HIF_BONUS + affectionStepP(settings.affection);
+      const pFixedSenbatsu = isHifP ? pStart + 80 * 4 : 0;
+      const pFixedHonsen = isHifP ? pStart + 80 : 0;
       const pCardsSenbatsu = cardP + ratePSen;
       const pCardsHonsen = ratePHon;
       const pSenbatsu =
@@ -386,9 +390,9 @@ export function useCalcResult() {
         pLessonHonsen: lessonPHonsen,
         pCardsSenbatsu,
         pCardsHonsen,
-        /** 体力（Pアイドルの体力＋サポカの最大体力上昇） */
-        hpTotal: (pStats?.hp ?? 0) + maxHp,
-        hpIdol: pStats?.hp ?? 0,
+        /** 体力（Pアイドルの体力＋親愛度の最大体力上昇＋サポカの最大体力上昇） */
+        hpTotal: (pStats?.hp ?? 0) + affectionHpBonus(settings.affection) + maxHp,
+        hpIdol: (pStats?.hp ?? 0) + affectionHpBonus(settings.affection),
         hpCards: maxHp,
       };
     })();
@@ -460,8 +464,10 @@ export function useCalcResult() {
 
     // ---- スター性・本戦・評価値（シナリオ別） ----
     const isHif = scenario === "hif";
+    // 本戦のスター性はラウンドの点数で変わる（親愛度のボーナス込み・ラウンドごとに切り捨て）
     const finalStar = isHif
-      ? FINAL_ROUNDS.reduce((sum, r) => sum + r.star, 0)
+      ? finalRoundStar(0, settings.round1, settings.affection) +
+        finalRoundStar(1, settings.round2, settings.affection)
       : 0;
     // HIFのワッペンは札（スキルカード取得）のたびに発動する（最大20回）:
     // 発動回数 = セットのスキル獲得回数 + 編成サポカのスキル獲得分（前イベ・後イベ込み）
@@ -475,7 +481,7 @@ export function useCalcResult() {
             ),
         )
       : 0;
-    const wappenStar = isHif ? 15 * wappenCount : 0;
+    const wappenStar = isHif ? wappenStarTotal(wappenCount, settings.affection) : 0;
     const totalStar =
       wappenStar + hifStar.lessonStar + hifStar.examStar + finalStar;
     const roundValues = isHif

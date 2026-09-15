@@ -255,7 +255,7 @@ export function niaFudaVotes(fuda: number): number {
 }
 
 /** ファン投票数→評価値換算（マスター）。[投票数上限, 倍率, 固定値] を昇順で評価 */
-const NIA_FAN_BRACKETS: readonly (readonly [number, number, number])[] = [
+export const NIA_FAN_BRACKETS: readonly (readonly [number, number, number])[] = [
   [20000, 0.1, 0],
   [40000, 0.085, 300],
   [60000, 0.07, 900],
@@ -348,7 +348,7 @@ export const HATSU_EXAMS = [
 export const HATSU_RANK_VALUES = [1700, 900, 500, 0] as const;
 
 /** 中間試験スコア→評価値換算（有志検証の推定値）。[スコア上限, 倍率, 固定値] */
-const HATSU_MID_BRACKETS: readonly (readonly [number, number, number])[] = [
+export const HATSU_MID_BRACKETS: readonly (readonly [number, number, number])[] = [
   [10000, 0.11, 0],
   [20000, 0.08, 300],
   [30000, 0.05, 900],
@@ -360,7 +360,7 @@ const HATSU_MID_BRACKETS: readonly (readonly [number, number, number])[] = [
 ];
 
 /** 最終試験スコア→評価値換算 */
-const HATSU_FINAL_BRACKETS: readonly (readonly [number, number, number])[] = [
+export const HATSU_FINAL_BRACKETS: readonly (readonly [number, number, number])[] = [
   [300000, 0.015, 0],
   [500000, 0.01, 1500],
   [600000, 0.008, 2500],

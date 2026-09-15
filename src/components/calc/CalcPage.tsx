@@ -7,7 +7,7 @@ import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
-import HifBonusModal from "@/components/calc/HifBonusModal";
+import DetailSettingsModal from "@/components/calc/DetailSettingsModal";
 import NiaChallengeModal from "@/components/calc/NiaChallengeModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
@@ -36,7 +36,7 @@ import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
 import { runFullOptimize, type AutoOptimizeResult } from "@/lib/autoOptimize";
-import { buildSnapshot } from "@/lib/calcSaveIO";
+import { buildConditionInput } from "@/lib/diagLog";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -125,13 +125,6 @@ export default function CalcPage() {
   const [idealBusy, setIdealBusy] = useState(false);
   const [detail, setDetail] = useState<SelectedMember | null>(null);
   const [optBusy, setOptBusy] = useState(false);
-  // 全自動最適化がイベント予算に合わせて提案した前イベ/後イベ設定（未反映）。
-  // ユーザーが「反映する」を押して初めてサポカ設定へ書き込む。
-  const [pendingOps, setPendingOps] = useState<
-    { id: string; pre?: number; acquire?: false; post?: 0 }[] | null
-  >(null);
-  // 取得制限を反映した理論評価値（提案中だけ評価値ボックスに一時表示する）
-  const [previewRating, setPreviewRating] = useState<number | null>(null);
   const [scenarioPickerOpen, setScenarioPickerOpen] = useState(false);
   const [idolPickerOpen, setIdolPickerOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
@@ -144,8 +137,8 @@ export default function CalcPage() {
   const [countsOpen, setCountsOpen] = useState(false);
   /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
-  /** H.I.F.ボーナスの調整モーダル（設定欄の本戦ラウンド点数の下から） */
-  const [hifBonusOpen, setHifBonusOpen] = useState(false);
+  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダル（設定欄の「調整」から） */
+  const [detailOpen, setDetailOpen] = useState(false);
   /** チャレンジPアイテムの獲得ボーナスのモーダル（設定欄のファン投票数の下から。N.I.A.） */
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
   /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
@@ -268,20 +261,7 @@ export default function CalcPage() {
   };
 
   /** 条件判定の入力（今の編成・設定・今の踏み方で決まるSP率持ち枚数・今のステ） */
-  const conditionInput = (): ConditionInput => ({
-    members: r.members.filter((m): m is SelectedMember => m !== null),
-    flags,
-    settings,
-    plan: r.plan,
-    spMin: resolveSpMin(r, settings),
-    capped: {
-      vocal: r.perType.vocal.capped,
-      dance: r.perType.dance.capped,
-      visual: r.perType.visual.capped,
-    },
-    statCap: r.statCap,
-    getLevel: r.getLevel,
-  });
+  const conditionInput = (): ConditionInput => buildConditionInput(r, flags, settings);
   /**
    * 今の編成（選択サポカ）が現在の条件設定（固定・BAN・レンタルNG・プラン・ステージ用の除外・
    * SP率持ち・タイプ割合・最低/最高ステ）を満たしているか。
@@ -289,49 +269,6 @@ export default function CalcPage() {
    * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
    */
   const currentMeetsConditions = (): boolean => meetsConditions(conditionInput());
-
-  /**
-   * 探索の診断ログ。セーブデータ形式の状態（設定・踏み方・メモリー・発動回数・編成・所持）と
-   * 押す前の評価値、探索結果（編成・踏み方・軸比較・フェーズ別スコア）をまとめる。
-   */
-  const buildDiagLog = (
-    res: AutoOptimizeResult,
-    before: number | null,
-    beforeOk: boolean,
-    applied: boolean,
-  ): string =>
-    JSON.stringify({
-      version: 1,
-      at: new Date().toISOString(),
-      scenario: r.scenario,
-      settings,
-      flags: {
-        pinned: [...flags.pinned],
-        banned: [...flags.banned],
-        rentalNg: [...flags.rentalNg],
-      },
-      snapshot: buildSnapshot(r),
-      current: {
-        rating: before,
-        meetsConditions: beforeOk,
-        issues: formationIssues(conditionInput()),
-        slots: r.selected.slots,
-      },
-      result: {
-        applied,
-        rating: res.rating,
-        slots: res.slots,
-        hif: res.hif ?? null,
-        nia: res.nia ?? null,
-        hatsu: res.hatsu ?? null,
-        axisReport: res.axisReport ?? null,
-        spShortfall: res.spShortfall,
-        evaluated: res.evaluated,
-        elapsedMs: Math.round(res.elapsedMs),
-        phaseScores: res.debug?.phaseScores ?? null,
-        eventOps: res.eventOps ?? null,
-      },
-    });
 
   /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
@@ -363,7 +300,10 @@ export default function CalcPage() {
         // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
         const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
         const notes: string[] = [];
-        if (issues.length > 0) notes.push(`満たせなかった条件: ${issues.join("・")}`);
+        if (issues.length > 0)
+          notes.push(
+            `探索の条件のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
+          );
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない
         if (before !== null && beforeOk && res.rating < before) {
           setLastRun({
@@ -373,7 +313,6 @@ export default function CalcPage() {
             after: res.rating,
             kept: true,
             notes,
-            diagLog: buildDiagLog(res, before, beforeOk, false),
           });
           bumpRun();
           return;
@@ -384,21 +323,21 @@ export default function CalcPage() {
         if (res.hatsu)
           r.hatsuSchedule.setPlan(res.hatsu.lessons, res.hatsu.classTypes);
         selected.setAll(res.slots);
-        // イベント予算で発動しないことにした前イベ・後イベは「提案」として保持し、
-        // 自動ではサポカ設定に反映しない（提案のボタンを押して初めて反映）。
-        const ops = res.eventOps ?? null;
-        const hasOps = !!ops && ops.length > 0;
-        setPendingOps(hasOps ? ops : null);
-        // 取得制限つきの理論評価値を評価値ボックスに一時表示（サポカ設定は未変更）
-        setPreviewRating(hasOps ? res.rating : null);
+        // 取得回数の制限があるときは、探索が決めた前イベ・後イベの取得状況を
+        // そのまま反映する（この育成だけの設定。確認は挟まない）
+        if (settings.eventBudget.enabled) {
+          r.events.applyEventOps(
+            res.slots.map((s) => s.id),
+            res.eventOps ?? [],
+          );
+          const off = (res.eventOps ?? []).length;
+          notes.push(
+            `取得回数の制限（前イベ${settings.eventBudget.pre}枚・後イベ${settings.eventBudget.post}回）に合わせて、前イベ・後イベの取得状況を反映しました${off > 0 ? `（${off}枚を取得しない設定に）` : ""}`,
+          );
+        }
         if (before !== null && !beforeOk && res.rating < before) {
           notes.push(
             "押す前より評価値が下がっていますが、元の編成は探索の条件に合っていなかったため置き換えました",
-          );
-        }
-        if (hasOps) {
-          notes.push(
-            "評価値には前イベ/後イベの取得制限を反映した値を表示しています（提案からサポカ設定にも反映できます）",
           );
         }
         setLastRun({
@@ -407,26 +346,12 @@ export default function CalcPage() {
           before,
           after: res.rating,
           notes,
-          diagLog: buildDiagLog(res, before, beforeOk, true),
         });
         bumpRun();
       } finally {
         setOptBusy(false);
       }
     }, 30);
-  };
-
-  /** 提案された前イベ/後イベの取得制限をサポカ設定（イベント回数）へ反映する */
-  const applyPendingOps = () => {
-    if (!pendingOps) return;
-    for (const op of pendingOps) {
-      if (op.acquire === false) r.events.setAcquire(op.id, false);
-      if (op.pre !== undefined) r.events.set(op.id, "pre", op.pre);
-      if (op.post !== undefined) r.events.set(op.id, "post", op.post);
-    }
-    setPendingOps(null);
-    setPreviewRating(null);
-    setLastRun({ message: "前イベ/後イベの取得制限をサポカ設定に反映しました。" });
   };
 
   /**
@@ -544,61 +469,13 @@ export default function CalcPage() {
           onOpenIdol={() => setIdolPickerOpen(true)}
           onOpenMemory={() => setMemoryOpen(true)}
           onOpenIdolTraining={() => setTrainingOpen(true)}
-          onOpenHifBonus={() => setHifBonusOpen(true)}
+          onOpenDetail={() => setDetailOpen(true)}
           onOpenNiaChallenge={() => setNiaChallengeOpen(true)}
         />
         </div>
 
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         <div className="order-2 min-w-0">{actionPanel}</div>
-
-        {/* 取得制限の提案（探索がイベント予算に合わせて出したもの。反映するまでサポカ設定は変えない） */}
-        {pendingOps && (
-          <div className="order-3 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-slate-600">
-            <p className="font-semibold text-amber-700">
-              予算に合わせた前イベ/後イベの取得制限（提案・{pendingOps.length}枚）
-            </p>
-            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-              {pendingOps.map((op) => (
-                <li key={op.id}>
-                  <span className="text-slate-500">
-                    {CARD_BY_ID.get(op.id)?.name ?? op.id}
-                  </span>
-                  {op.acquire === false && (
-                    <span className="ml-1 font-semibold text-red-600">取得OFF</span>
-                  )}
-                  {op.pre !== undefined && (
-                    <span className="ml-1 font-semibold text-red-600">
-                      前イベ{op.pre}回
-                    </span>
-                  )}
-                  {op.post === 0 && (
-                    <span className="ml-1 font-semibold text-red-600">後イベ✕</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={applyPendingOps}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-amber-500"
-              >
-                サポカ設定に反映する
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPendingOps(null);
-                  setPreviewRating(null);
-                }}
-                className={SMALL_BTN}
-              >
-                反映しない
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* サポカ編成と踏み方（一度に見える） */}
         <div className="order-5 min-w-0">
@@ -607,7 +484,7 @@ export default function CalcPage() {
           flags={flags}
           eventOverrideCount={eventOverrideCount}
           eventOverrideTitle={
-            eventOverrideCount > 0 ? `手で変えているカード: ${eventOverrideNames.join("・")}` : undefined
+            eventOverrideCount > 0 ? `変更中のカード: ${eventOverrideNames.join("・")}` : undefined
           }
           onOpenSlot={(i) => setPickerSlot(i)}
           onDetail={(m) => setDetail(m)}
@@ -626,15 +503,11 @@ export default function CalcPage() {
         id="calc-results"
         className="contents lg:order-2 lg:flex lg:flex-col lg:gap-3 lg:sticky lg:top-14 lg:self-start"
       >
-        {/* 評価値（左にPアイドル。提案中は取得制限を反映した理論値を一時表示）。
+        {/* 評価値（左にPアイドル）。
             数字は key を変えて再マウントし、変わった瞬間に少し大きくなる（手で変えると効くのが分かる） */}
         <div
           className={`order-4 rounded-xl border-2 bg-white p-3 ${
-            !canShowRating
-              ? "border-slate-300"
-              : previewRating !== null
-                ? "border-amber-500"
-                : "border-blue-600"
+            canShowRating ? "border-blue-600" : "border-slate-300"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -647,9 +520,6 @@ export default function CalcPage() {
               <p className="flex items-center justify-center gap-1 text-xs font-semibold text-slate-500">
                 評価値
                 <Hint text={GLOSSARY.rating} />
-                {canShowRating && previewRating !== null && (
-                  <span className="ml-1 text-amber-600">（取得制限を反映）</span>
-                )}
               </p>
               {!canShowRating ? (
                 <p className="mt-2 text-xs text-slate-400">
@@ -659,19 +529,13 @@ export default function CalcPage() {
                 <>
                   <div className="mt-0.5 flex items-baseline justify-center gap-2">
                     <p
-                      key={`${previewRating ?? r.rating}-${runSeq}`}
-                      className={`animate-rating-pop text-4xl font-bold tabular-nums ${
-                        previewRating !== null ? "text-amber-600" : "text-blue-600"
-                      }`}
+                      key={`${r.rating}-${runSeq}`}
+                      className="animate-rating-pop text-4xl font-bold tabular-nums text-blue-600"
                     >
-                      {(previewRating ?? r.rating).toLocaleString()}
+                      {r.rating.toLocaleString()}
                     </p>
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-lg font-black text-white ${
-                        previewRating !== null ? "bg-amber-500" : "bg-blue-600"
-                      }`}
-                    >
-                      {produceRank(previewRating ?? r.rating)}
+                    <span className="rounded-md px-2 py-0.5 text-lg font-black text-white bg-blue-600">
+                      {produceRank(r.rating)}
                     </span>
                   </div>
                   {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
@@ -790,15 +654,19 @@ export default function CalcPage() {
 
       {/* 使い方・計算式ヘルプ */}
       {helpOpen && (
-        <CalcHelpModal scenario={r.scenario} onClose={() => setHelpOpen(false)} />
+        <CalcHelpModal
+          scenario={r.scenario}
+          affection={settings.affection}
+          onClose={() => setHelpOpen(false)}
+        />
       )}
 
       {/* 特訓・才能開花（「設定欄」のアイドル欄から） */}
       {trainingOpen && r.pMaster && (
         <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}
-      {/* H.I.F.ボーナスのレベル調整 */}
-      {hifBonusOpen && <HifBonusModal r={r} onClose={() => setHifBonusOpen(false)} />}
+      {/* 詳細設定（親愛度・H.I.F.ボーナス） */}
+      {detailOpen && <DetailSettingsModal r={r} onClose={() => setDetailOpen(false)} />}
       {/* チャレンジPアイテムの獲得ボーナス（N.I.A.） */}
       {niaChallengeOpen && <NiaChallengeModal r={r} onClose={() => setNiaChallengeOpen(false)} />}
 
