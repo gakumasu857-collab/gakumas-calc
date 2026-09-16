@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
-import { setPlanMatches } from "@/data/abilityCounts";
+import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
@@ -73,6 +73,11 @@ import {
 import { useCalcResult, type SelectedMember } from "@/lib/useCalcResult";
 import { useCardFlags } from "@/lib/useCardFlags";
 import { useOptimizePlan } from "@/lib/useOptimizePlan";
+import {
+  forgetScenarioSets,
+  recallScenarioSet,
+  rememberScenarioSet,
+} from "@/lib/scenarioSetMemory";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
 
 const CARD_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
@@ -141,9 +146,9 @@ export default function CalcPage() {
   const [countsOpen, setCountsOpen] = useState(false);
   /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
-  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダル（設定欄の「調整」から） */
+  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダル（設定欄の「調整」から） */
   const [detailOpen, setDetailOpen] = useState(false);
-  /** チャレンジPアイテムの獲得ボーナスのモーダル（設定欄のファン投票数の下から。N.I.A.） */
+  /** チャレンジPアイテムの獲得ボーナスのモーダル（設定欄のファン投票数の下から。N.I.A） */
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
   /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
   const [pIdolWarn, setPIdolWarn] = useState<(() => void) | null>(null);
@@ -156,6 +161,8 @@ export default function CalcPage() {
   const [runSeq, setRunSeq] = useState(0);
   const bumpRun = () => setRunSeq((n) => n + 1);
   const markRun = () => {
+    // 探索を押したら、シナリオを切り替えたときに覚えておいたプロデュースは捨てる（戻しても復元しない）
+    forgetScenarioSets();
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
@@ -715,9 +722,9 @@ export default function CalcPage() {
       {trainingOpen && r.pMaster && (
         <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}
-      {/* 詳細設定（親愛度・H.I.F.ボーナス） */}
+      {/* 詳細設定（親愛度・H.I.Fボーナス） */}
       {detailOpen && <DetailSettingsModal r={r} onClose={() => setDetailOpen(false)} />}
-      {/* チャレンジPアイテムの獲得ボーナス（N.I.A.） */}
+      {/* チャレンジPアイテムの獲得ボーナス（N.I.A） */}
       {niaChallengeOpen && <NiaChallengeModal r={r} onClose={() => setNiaChallengeOpen(false)} />}
 
       {/* パラボ%→固定値の変換表 */}
@@ -730,10 +737,26 @@ export default function CalcPage() {
         <ScenarioPickerModal
           current={r.scenario}
           onPick={(key) => {
-            // シナリオが変わったら発動回数セットは選び直し（テンプレがシナリオ別のため）
-            if (key !== r.scenario || !r.scenarioStore.chosen)
+            const from = r.scenario;
+            // シナリオが変わったらプロデュースは選び直し（テンプレがシナリオ別のため）。
+            // ただし探索を押す前に元のシナリオへ戻したら、そのとき選んでいたプロデュースに戻す
+            // （上書き保存していない「この育成だけ」の変更はセットごとに残っているので一緒に戻る）
+            if (key !== from || !r.scenarioStore.chosen) {
+              if (r.scenarioStore.chosen && r.ability.selectedSetId)
+                rememberScenarioSet(from, r.ability.selectedSetId);
               r.ability.clearSelected();
+            }
             r.scenarioStore.setScenario(key);
+            if (key !== from) {
+              const backId = recallScenarioSet(key);
+              const back = backId ? r.ability.sets.find((s) => s.id === backId) : undefined;
+              if (
+                back &&
+                setVisibleInScenario(back.id, key) &&
+                setPlanMatches(back.plan, r.pMaster?.plan ?? null)
+              )
+                r.ability.setSelectedSet(back.id);
+            }
           }}
           onClose={() => setScenarioPickerOpen(false)}
         />

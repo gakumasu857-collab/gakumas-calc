@@ -62,8 +62,8 @@ function LevelButtons({
 /**
  * 詳細設定（設定欄の「調整」から）。
  * - 親愛度: 全シナリオ共通。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く
- * - H.I.F.ボーナス: H.I.F.のときだけ。固定値・パラボ・SP率・本戦のステ上限・初期Pポイント
- * どちらも既定は最大（親愛度37＝一番星／H.I.F.ボーナス全部最大）。
+ * - H.I.Fボーナス: H.I.Fのときだけ。固定値・パラボ・SP率・本戦のステ上限・初期Pポイント
+ * どちらも既定は最大（親愛度37＝一番星／H.I.Fボーナス全部最大）。
  */
 export default function DetailSettingsModal({
   r,
@@ -95,7 +95,7 @@ export default function DetailSettingsModal({
       {/* ===== 親愛度（全シナリオ） ===== */}
       <h3 className="text-sm font-bold text-slate-900">親愛度</h3>
       <p className={`mb-2 ${NOTE}`}>
-        育成するアイドルの親愛度Lv。<b>スター性の獲得率</b>（H.I.F.）・<b>初期Pポイント</b>（STEP3）・
+        育成するアイドルの親愛度Lv。<b>スター性の獲得率</b>（H.I.F）・<b>初期Pポイント</b>（STEP3）・
         <b>最大体力</b>が変わります。Lv20以下はどれも0で同じなので1つにまとめています。既定は37。
       </p>
       <div className="flex flex-wrap gap-1">
@@ -138,10 +138,10 @@ export default function DetailSettingsModal({
         </tbody>
       </table>
 
-      {/* ===== H.I.F.ボーナス（H.I.F.のときだけ） ===== */}
+      {/* ===== H.I.Fボーナス（H.I.Fのときだけ） ===== */}
       {isHif && (
         <>
-          <h3 className="mt-5 text-sm font-bold text-slate-900">H.I.F.ボーナス</h3>
+          <h3 className="mt-5 text-sm font-bold text-slate-900">H.I.Fボーナス</h3>
           {TYPE_KEYS.map((type) => (
             <div key={type} className="flex flex-col gap-1.5 border-b border-slate-100 py-2.5">
               <span className="text-sm font-bold text-slate-900">{JP[type]}上昇</span>

@@ -263,7 +263,7 @@ export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => {
 });
 
 // ============================================================
-// N.I.A.用テンプレセット（現行スプシの abilityCountsNIA タブ由来）
+// N.I.A用テンプレセット（現行スプシの abilityCountsNIA タブ由来）
 // ============================================================
 
 const NIA_SET_NAMES: readonly string[] = generatedCounts.nia.setNames;

@@ -7,17 +7,17 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 
 /** 踏み方の要約（レッスン・授業／営業の並び・選抜／オーディション／試験） */
 export type PlanSummary = {
-  /** type=メイン（null=踏まない）、sub=サブ（H.I.F.のみ）、sp=SPレッスン */
+  /** type=メイン（null=踏まない）、sub=サブ（H.I.Fのみ）、sp=SPレッスン */
   lessons: { type: TypeKey | null; sub?: TypeKey; sp: boolean }[];
-  /** 授業（H.I.F. 6コマ／初 4コマ）を順番どおりに */
+  /** 授業（H.I.F 6コマ／初 4コマ）を順番どおりに */
   classes?: TypeKey[];
-  /** 営業（N.I.A.）を順番どおりに */
+  /** 営業（N.I.A）を順番どおりに */
   sales?: TypeKey[];
-  /** H.I.F. 選抜3回のタイプ別スコア（配分の割合を出す）。ステ直接入力の選抜はその上昇量 */
+  /** H.I.F 選抜3回のタイプ別スコア（配分の割合を出す）。ステ直接入力の選抜はその上昇量 */
   exams?: Record<TypeKey, number>[];
   /** 選抜ごとに、ステ直接入力なら true */
   examManual?: boolean[];
-  /** N.I.A. オーディション（1次・2次・最終）の上がるステ（素点）とファン投票数 */
+  /** N.I.A オーディション（1次・2次・最終）の上がるステ（素点）とファン投票数 */
   auditions?: { label: string; stats: Record<TypeKey, number>; votes: number }[];
   /** 初 試験（中間・最終）の順位 */
   ranks?: { mid: number; final: number };

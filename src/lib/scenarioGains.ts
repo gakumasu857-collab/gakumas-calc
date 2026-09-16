@@ -1,7 +1,7 @@
 /**
- * N.I.A.・『初』のスケジュール集計と sheetScore 用コンテキストの組み立て（純関数）。
- * H.I.F. は従来どおり useSchedule / sheetContext を使う。
- * 踏み方はタイプ直接紐づけ。N.I.A.のオーディション式はアイドルの審査基準ランク
+ * N.I.A・『初』のスケジュール集計と sheetScore 用コンテキストの組み立て（純関数）。
+ * H.I.F は従来どおり useSchedule / sheetContext を使う。
+ * 踏み方はタイプ直接紐づけ。N.I.Aのオーディション式はアイドルの審査基準ランク
  * （IDOL_RANKS。1=最重要タイプ）で決まる。
  */
 import {
@@ -129,7 +129,7 @@ export type HatsuStateLike = {
 };
 
 /**
- * N.I.A.の素の獲得量集計。
+ * N.I.Aの素の獲得量集計。
  * - lessons: 自主レッスン（選んだタイプのみ・パラボ有効）
  * - classes: 営業（授業と同じく選んだ1タイプのみ・パラボ無効）
  * - exams: 1次・2次オーディション素点（手入力）＋最終（スコアから導出、またはステ入力）に
@@ -227,7 +227,7 @@ export function computeHatsuGains(state: HatsuStateLike) {
 }
 
 /**
- * N.I.A.用の sheetScore コンテキスト。
+ * N.I.A用の sheetScore コンテキスト。
  * パラボ母数 = タイプの自主レッスン獲得＋オーディション素点（最終はスコア導出またはステ入力。獲得ボーナス込み）。
  */
 export function buildNiaScoreContext(

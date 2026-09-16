@@ -147,12 +147,12 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityCounts.ts` | プロデュース設定ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
-| `affection.ts` | 親愛度Lv（20以下・21〜37）。**スター性ボーナス**（Lv28 から +5% ずつ、36・37 で +50%）・**初期Pポイント**（STEP3。Lv21 から +10〜+30。H.I.F. では選抜の開始時だけで本戦にはかからない）・**最大体力**（Lv22 から +1〜+2）。`starWithAffection(素の値, Lv)` が「素の値 ×(1+ボーナス) の切り捨て」。設定は `settings.affection`（全シナリオ共通。設定欄の「詳細設定」） |
-| `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄の一番下「詳細設定」→ DetailSettingsModal（親愛度と同じモーダル） |
-| `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
-| `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
-| `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
-| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyLabel`＝画面での呼び名（H.I.F.・N.I.A.は「差し入れ」、初レジェンドは「活動支給」）、`supplyPOf`＝差し入れ1回のPポイント（H.I.F. 80／初 180／N.I.A. は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.F.は選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、まだ一度も選んでいないセットだけ回数から推測、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
+| `affection.ts` | 親愛度Lv（20以下・21〜37）。**スター性ボーナス**（Lv28 から +5% ずつ、36・37 で +50%）・**初期Pポイント**（STEP3。Lv21 から +10〜+30。H.I.F では選抜の開始時だけで本戦にはかからない）・**最大体力**（Lv22 から +1〜+2）。`starWithAffection(素の値, Lv)` が「素の値 ×(1+ボーナス) の切り捨て」。設定は `settings.affection`（全シナリオ共通。設定欄の「詳細設定」） |
+| `hifBonus.ts` | H.I.Fボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄の一番下「詳細設定」→ DetailSettingsModal（親愛度と同じモーダル） |
+| `niaChallenge.ts` | N.I.AのチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
+| `scenarios.ts` | 3 シナリオ（H.I.F / N.I.A / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
+| `schedule.ts` | H.I.F の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
+| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyLabel`＝画面での呼び名（H.I.F・N.I.Aは「差し入れ」、初レジェンドは「活動支給」）、`supplyPOf`＝差し入れ1回のPポイント（H.I.F 80／初 180／N.I.A は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.Fは選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、まだ一度も選んでいないセットだけ回数から推測（**週ごとの踏み方のデフォルトを書いた表は無い**。テンプレの回数（スプシ由来）から、差し入れ→相談→おでかけ→特別指導の順に前の週から埋める `INFER_PRIORITY`）、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
 
@@ -163,8 +163,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | ファイル | 何をするか |
 |---|---|
 | `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`（合算%を獲得ごとに切り捨て）、カード1枚のパラボの期待値 `paraboExpected`（切り捨て前。点数を「パラボ以外」と「パラボ」に分ける `sheetScoreSplit`）、発動回数の引き方 `buildCountResolver`、前イベの起動タグ `resolveTriggerCount`（「VocalSPレッスン」＝そのタイプ、「タイプSPレッスン」＝そのカードのタイプ、「SPレッスン」＝全タイプの合算）、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
-| `sheetContext.ts` | H.I.F. の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
-| `scenarioGains.ts` | N.I.A.・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
+| `sheetContext.ts` | H.I.F の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
+| `scenarioGains.ts` | N.I.A・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
 | `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
 | `formation.ts` | **編成の組み方。** カードを点数化 `scoreCard`、6 枚の合計評価 `evaluateTeam`（イベント相互作用と上限込み）、合算パラボ `summedParaboByType`、理想編成の探索でもパラボを合算%で変換するための土台 `ParaboJoint` / `paraboJointOf`、山登りで最良 6 枚を探す `findBestFormation`、条件（SP枚数・最低ステ・最高ステ・割合・固定/BAN・試験補助）の重み |
 | `autoOptimize.ts` | **理想編成の探索（踏み方×編成を同時に）。** 入口は `runFullOptimize`、本体は `OptimizeEngine` クラス。踏み方だけの最適化 `optimizeSteppingForSlots` も |
@@ -173,8 +173,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `buildOptimizeInput.ts` | 計算ページの状態を探索の入力にまとめる。SP枚数条件をタイプに割り当てる `resolveSpMin` |
 | `optimizeReady.ts` | 探索ボタンを押せる条件（シナリオ・アイドル・Pアイドル・発動回数セット・メモリーが選ばれているか） |
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
-| `useSchedule.ts` | H.I.F. の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
-| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A.・初の踏み方の保存。N.I.A.の最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はパラボ込みのステ（獲得ボーナス込み・ログの値）から `niaAuditionBaseFromRise` で逆算できる |
+| `useSchedule.ts` | H.I.F の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
+| `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A・初の踏み方の保存。N.I.Aの最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はパラボ込みのステ（獲得ボーナス込み・ログの値）から `niaAuditionBaseFromRise` で逆算できる |
 | `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
@@ -198,14 +198,14 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 ### 2-6. `src/components/`（画面）
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
-`calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はその場の説明）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.F.は本戦ラウンド点数、N.I.A.はファン投票数・チャレンジPアイテムの「調整」→ `calc/NiaChallengeModal.tsx`、初は試験スコア。一番下に全シナリオ共通の「詳細設定」→ `calc/DetailSettingsModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳。診断ログは /debug へ移した。PC・スマホ共通）、
+`calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はその場の説明）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.Fは本戦ラウンド点数、N.I.Aはファン投票数・チャレンジPアイテムの「調整」→ `calc/NiaChallengeModal.tsx`、初は試験スコア。一番下に全シナリオ共通の「詳細設定」→ `calc/DetailSettingsModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と探索の条件を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳。診断ログは /debug へ移した。PC・スマホ共通）、
 `calc/FormationPlanCard.tsx`（「サポカ編成と踏み方」: サポカ6枚＋踏み方チップ＋開始時のステータス（パラボ変換表）＋SP率＋前イベ調整の折りたたみ）、
-`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合、N.I.A.のオーディションは 1次・2次・最終の上がるステ（素点）と投票数。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
+`calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合、N.I.Aのオーディションは 1次・2次・最終の上がるステ（素点）と投票数。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印、「内訳の数字」の表。開閉は `gakumas:calc:statsBreakdown:v1` に記憶）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
 `calc/MemoryPickerModal.tsx`（計算ページ内でメモリー4枚を選ぶ。「設定欄」のメモリー欄から開く。中身は `memory-manager/MemoryWorkbench.tsx`。「汎用メモリーを入れる」（メインパラボ60点×4）を目立つ枠で上に置き、メインパラボの説明を添える。A/B の枠は廃止）、`calc/CalcCard.tsx`（カード枠・入力欄ラベル）、`calc/PIdolTrainingModal.tsx`（特訓・才能開花のモーダル。「設定欄」のアイドル欄の右のボタンから）、`help/HelpPage.tsx`（/help ヘルプページ: 全体の流れ・ページの構成（計算／探索の設定／表）・使い方（画面の要点を押せない模式図 `Mock` で描く。画面写真は小さくて見づらいので使わない）・操作のヒント・プロデュースと発動回数・用語・よくある質問（オーナー提供の文）・データの保存と注意。`#produce` などのハッシュで見出しへスクロール。計算ページのプロデュースの ⓘ はここへのリンク）、
 `Hint.tsx`（ⓘの説明。**文言は `src/lib/glossary.ts` に集約**し、どのキーが画面のどこに出るかの対応表をそのファイルの先頭コメントに置いている（ヘルプページの「用語」は別の文章）。設定欄のプロデュースの ⓘ もこれ（ヘルプへのリンクではない））、
-`calc/DetailSettingsModal.tsx`（設定欄の一番下「詳細設定」→ 親愛度（全シナリオ）＋ H.I.F.ボーナス（H.I.F.のみ）。旧 HifBonusModal）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
+`calc/DetailSettingsModal.tsx`（設定欄の一番下「詳細設定」→ 親愛度（全シナリオ）＋ H.I.Fボーナス（H.I.Fのみ）。旧 HifBonusModal）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
 左端の縦タブは `calc/SideTabs.tsx`（上＝「プロデュース」（アビリティ発動回数）・下＝「レッスン等の踏み方」。2026-09-15 に画面名を「発動回数」から「プロデュース」に改名（ページのほうは 2026-09-16 に「プロデュース設定」）。ナビ・ページ見出し・モーダル・セーブの要約・ヘルプも同じ。コード上の名前（ability-counts、useAbilityCounts 等）は据え置き）。計算ページのイベント手動指定（`CALC_EVENT_COUNTS_KEY`）は編成から外れたカードの分を `useEventCounts.pruneTo` で消す（「今の編成での調整」。2026-09-16）。`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
@@ -217,7 +217,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
-| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.F.の選抜と N.I.A.のオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.A.の最終はスコア／ステ切り替え。計算ページでは左端のタブ（`calc/SideTabs.tsx`: 上＝発動回数・下＝レッスン等の踏み方。初めて探索したあとは吹き出しで案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`）か踏み方チップから中央のモーダルで開く。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
+| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.Fの選抜と N.I.Aのオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.Aの最終はスコア／ステ切り替え。計算ページでは左端のタブ（`calc/SideTabs.tsx`: 上＝発動回数・下＝レッスン等の踏み方。初めて探索したあとは吹き出しで案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`）か踏み方チップから中央のモーダルで開く。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
 | `calc/AbilityCountDrawer.tsx` | 計算ページ左端の「プロデュース」タブから開くアビリティ発動回数のエディタ（この育成での回数。「上書き保存」でデフォルトへ） |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |
@@ -263,7 +263,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 **(b) 発動回数（何回発動するか）** — `buildCountResolver` が次の順で決めます。
 1. 固定回数表 `src/data/fixedAbilityCounts.ts`（初期値=1、パラメータボーナス=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、
-   試験・オーディション= N.I.A. 3 回／初 2 回／H.I.F. 5 回）
+   試験・オーディション= N.I.A 3 回／初 2 回／H.I.F 5 回）
 2. レッスン系（レッスン／SPレッスン／通常レッスン）は **踏み方から自動**。カードのタイプと同じタイプを
    メインで踏んだ回数だけ数えます（サブ枠で踏んだ分は数えない）。内部では Vo=メイン1、Da=メイン2、Vi=サブ という
    名前で持っています（表示では Vo/Da/Vi に直しています）。
@@ -277,22 +277,22 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 **(c) パラメータボーナス（パラボ）** — `paraboConvert`
 - レッスン 1 回・試験 1 回ごとに「獲得量 × %」を **切り捨て** て合算します（例: 15% で 115・225 なら 17+33=50。合計 340×15%=51 ではない）。
-  2026-09-15 にいったん「合計 × %」へ変えましたが、2026-09-16 にオーナー指摘で元へ戻しました。N.I.A. は 素点 → チャレンジPアイテム → パラボ の順にそれぞれ切り捨てます。
+  2026-09-15 にいったん「合計 × %」へ変えましたが、2026-09-16 にオーナー指摘で元へ戻しました。N.I.A は 素点 → チャレンジPアイテム → パラボ の順にそれぞれ切り捨てます。
   同じ % でも踏み方で価値が変わるのは、母数（獲得量）が踏み方で決まるためです（パラボ変換表モーダルで確認できます）。
 - 6 枚の編成を評価するときは、カードごとに変換せず **メモリー＋Pアイドル＋HIFボーナス 10%＋サポカ全部の % を合算してから 1 回だけ変換** します
   （`formation.ts` の `summedParaboByType`）。個別に変換すると切り捨てが増えて実際より低く出るためです。
 - **カード 1 枚の点数に入れるパラボは、切り捨て前の期待値**（`paraboExpected` = % × 獲得量の合計。2026-09-17）です。
   点数表・サポカ設定の並べ替え・探索の候補出し（ショートリスト・ビーム・入れ替え候補）はこの値を使います。
   合算してから獲得ごとに切り捨てると、1 つの % が増やすステは平均すると切り捨て前の値になります
-  （切り捨てで失う分は合計に 1 回だけかかり、獲得 1 回につき 1 未満。H.I.F. のメインタイプで平均 5 前後）。
-  以前は 1 枚ぶんの % だけで切り捨てていたので、H.I.F. のメインタイプで SR・SSR のパラボ持ちが平均 5〜6（最大 11）低く出ていました。
+  （切り捨てで失う分は合計に 1 回だけかかり、獲得 1 回につき 1 未満。H.I.F のメインタイプで平均 5 前後）。
+  以前は 1 枚ぶんの % だけで切り捨てていたので、H.I.F のメインタイプで SR・SSR のパラボ持ちが平均 5〜6（最大 11）低く出ていました。
   メモリーのパラボは探索でも最初から合算側に入っているので、この問題はありません（パラボ変換表の 1 枠ずつの行だけが最小値を出していた）。
 - 編成の合計は期待値ではなく実際の値で出します。`summedParaboByType` はカードの「パラボ以外の点」（`pointsNoParabo`）に合算%の変換値を足し、
   `findBestFormation` / `evaluateTeam` も `parabo: paraboJointOf(...)` を渡すと同じ足し方を **上限をかける前に** します
   （呼び出し元は CalcPage の理想編成、OptimizeEngine.buildFormation、デバッグページ）。そのため理想編成の合計ステは画面の値と一致します
   （以前は最大 30 ほど低く出ていた）。変換値は土台ごとにカード%（0.1% 刻み）でメモします（`ParaboJoint.convCache`）。
 - パラボ変換表の 1 枠ずつの行は、大きい数字が期待値、かっこ内が最小〜最大です（`paraboRange`）。
-  2026-09-16〜17 までは最大に獲得の数（H.I.F. は常に 11）をそのまま足していた不具合があり、端数が出ない獲得（レッスンを踏まない回など）を除くように直しました。
+  2026-09-16〜17 までは最大に獲得の数（H.I.F は常に 11）をそのまま足していた不具合があり、端数が出ない獲得（レッスンを踏まない回など）を除くように直しました。
 
 **(d) イベント系の値「基本値×(1+率)」** — `eventValue` / `abilitySlotValue`
 - 2026-09 のスプシ仕様では、パラメータイベント・Pポイントイベント・回復イベントの本体はカードの「ステイベ」「前イベ」「後イベ」列で持ち、
@@ -332,15 +332,15 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 - トラブル削除 → 「スキル削除」のみ（A/M なし）
 - チェンジ → 「チェンジ（3回まで）」、Pポイント → ステ点には影響なし（Pポイント集計へ）
 
-**HIF のワッペン／N.I.A. の札**: 前イベ由来の「スキル獲得」回数は、HIF ではワッペン（★15×回数、最大 20 回）、
-N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きます（`useCalcResult.ts` / `autoOptimize.ts` の `extraScore`）。
+**HIF のワッペン／N.I.A の札**: 前イベ由来の「スキル獲得」回数は、HIF ではワッペン（★15×回数、最大 20 回）、
+N.I.A では札（2 枚ごとに 3,000 票）として評価値にも効きます（`useCalcResult.ts` / `autoOptimize.ts` の `extraScore`）。
 
 ### 3-3. 編成 6 枚の評価（`src/lib/formation.ts`）
 
 - `scoreCard`: カード 1 枚を「点数＋アイテム補正」「パラボ%」「回数キー別の効果量」「前イベ・後イベで配る回数」などの形にまとめます。
   アシスト（トレーナー）は枠ごとの効果タイプ（`1タイプ〜6タイプ` 列）に従って Vo/Da/Vi に振り分けます。
 - `evaluateTeam`: 6 枚の「配る回数」を合算 → 各カードの受け手アビリティに掛けてシナジー加点 → タイプごとに合計（`parabo` を渡したときはパラボ以外の点＋合算%の変換値）→
-  **タイプ別上限（H.I.F. 3200／N.I.A. 2600／初 3000）で頭打ち** → 3 タイプ合計が編成の点。溢れた分にペナルティはありません。
+  **タイプ別上限（H.I.F 3200／N.I.A 2600／初 3000）で頭打ち** → 3 タイプ合計が編成の点。溢れた分にペナルティはありません。
 - `findBestFormation`（「理想編成」ボタン・探索の中で使う編成の組み直し）:
   固定カードとレンタル枠（全カードから完凸 1 枚。レンタルNG は除外）を確定 → タイプ別枚数の全分割 × 点数上位取りで種（シード）を作り
   上位 4 つを残す → 1 枠ずつ別のカードに入れ替える山登り（最大 15 周）で相互作用を反映 → 最良を返す。
@@ -348,7 +348,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 ### 3-4. 現在のステと評価値（`src/lib/useCalcResult.ts`）
 
 ```
-現在のステ[タイプ] = 授業（営業）＋ メモリー固定値 ＋ Pアイドル固定値（H.I.F. は +100）
+現在のステ[タイプ] = 授業（営業）＋ メモリー固定値 ＋ Pアイドル固定値（H.I.F は +100）
                    ＋ レッスン ＋ 試験（オーディション）
                    ＋ サポカ点（パラボ抜き＋シナジー）＋ 合算パラボの変換値
 最終ステ = min(シナリオ上限, 現在のステ)
@@ -356,7 +356,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 
 評価値（シナリオ別）:
 
-- **H.I.F.**: `Σ最終ステ × 2 ＋ 切り捨て(合計スター性 × 7.5) ＋ 本戦R1換算 ＋ 本戦R2換算 − 2000`
+- **H.I.F**: `Σ最終ステ × 2 ＋ 切り捨て(合計スター性 × 7.5) ＋ 本戦R1換算 ＋ 本戦R2換算 − 2000`
   - 合計スター性 = ワッペン（素の値 10）× 発動回数（最大 20。回数 = セットの「スキル獲得」＋編成サポカのスキル獲得上乗せ）
     ＋ レッスン★（`schedule.ts` の `LESSONS` の値。SP か非SP かで異なり、小数は切り捨て）＋ 選抜★（`schedule.ts` の `examStar`: スコアの区間ごとに両端のスター性を直線でつなぐ `EXAM_STAR_SEGMENTS`、切り捨て。表はオーナー提供 2026-09。スコア入力は上限に達する `examStarCapScore`（14,001／146,365／390,910）で止める）＋ 本戦固定（180＋225）
   - 本戦R1/R2 は `src/data/schedule.ts` の `FINAL_ROUNDS`（点数は条件設定の既定で上限 140 万／240 万）。
@@ -364,10 +364,10 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
   - **スター性はすべて「素の値 × (1＋親愛度ボーナス) の切り捨て」**（`affection.ts` の `starWithAffection`）。
     `LESSONS` の ★ と `EXAM_STAR_SEGMENTS` は**親愛度37（+50%込み）で観測した値**なので、`starFromObserved` が 1.5 で割ってから掛け直します
     （従来の 150→225・5→7・110→165・30→45 はすべて +50% 込みの値だった、というオーナー確認による）
-- **N.I.A.**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
+- **N.I.A**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
 - **初（レジェンド）**: `切り捨て(Σ最終ステ × 2.1) ＋ 最終順位分（1700/900/500/0）＋ 中間スコア換算 ＋ 最終スコア換算`
 
-Pポイント・体力（H.I.F. は選抜・本戦それぞれの「H.I.F.ボーナスの初期Pポイント」、選抜だけの「親愛度のSTEP3」、差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋H.I.F.ボーナスの初期P＋親愛度＋メモリー＋差し入れ。内訳も同じ行）の2行です。差し入れの呼び名は `supplyLabel`（初レジェンドは「活動支給」）。
+Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボーナスの初期Pポイント」、選抜だけの「親愛度のSTEP3」、差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋レッスン＋H.I.Fボーナスの初期P＋親愛度＋メモリー＋差し入れ＝その育成で手に入る合計。内訳も同じ行）の2行です。差し入れの呼び名は `supplyLabel`（初レジェンドは「活動支給」）。
 
 ### 3-5. 理想編成（全自動最適化）の流れ（`src/lib/autoOptimize.ts` の `runFullOptimize`）
 
@@ -376,9 +376,9 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれの「H.I.F.ボー
 以下に出てくる「何件・何秒」の数字は `autoOptimize.ts` の冒頭にある定数（`GREEDY_PARTS` `TOP_PARTS` `SEARCH_FINALISTS` など）で、
 探索の調整に合わせて変わることがあります（この文書は 2026-09-11 時点の値です。仕組みの流れ自体は変わりません）。
 
-1. **候補出し**（`buildShortlist`）: 代表的な踏み方 4 つ（H.I.F. なら Vo8／Da8／Vi8／3-3-2）で全所持カードを採点し、タイプごとに
+1. **候補出し**（`buildShortlist`）: 代表的な踏み方 4 つ（H.I.F なら Vo8／Da8／Vi8／3-3-2）で全所持カードを採点し、タイプごとに
    「点数上位 12」「配り屋（前イベ・後イベで回数を増やす）上位 6」「SP率持ち上位 3」、レンタル上位 2、アシスト上位 4、固定カードを候補に残します。
-2. **レッスン配分の全列挙**（`lessonPartitions` → `previewPartitions`）: レッスン回数のタイプ別分割を全部（H.I.F. 45 通り／N.I.A. 36／初 21）作り、
+2. **レッスン配分の全列挙**（`lessonPartitions` → `previewPartitions`）: レッスン回数のタイプ別分割を全部（H.I.F 45 通り／N.I.A 36／初 21）作り、
    小さなビームサーチ（幅 30）で編成まで組んで推定点を付けます。授業は上限に余裕があるタイプへ自動配置（`assignClassesByHeadroom`）。
 3. **グリーディ補強**（`deterministicSearch`）: 上位の配分（`GREEDY_PARTS`。現在 6）は `findBestFormation` でも組み、見つかった編成群を全配分で評価し直して順位を補正します
    （削除札・投票札型のカードをビームが取りこぼす対策）。
@@ -624,8 +624,8 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれの「H.I.F.ボー
 | `gakumas:setup:ownershipAck:v1` | 「完凸のままでOK」（所持状況を入力せず全完凸で探索する）を押した印。計算ページの所持状況のステップと初回の確認モーダルが出なくなる | `src/lib/ownershipAck.ts` |
 | `gakumas:calc:memoryPathsDone:v1` | 廃止（メモリー選択のA/Bの枠をやめた。残っていても使わない） | — |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
-| `gakumas:schedule:v1` | H.I.F. の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算する。探索はこの選抜も動かしてよく、スコアを置き換えたら null（スコア入力）に戻す。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
-| `gakumas:niaSchedule:v1` | N.I.A. の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア、最終の素点入力 finalStats） | `src/lib/useNiaSchedule.ts` |
+| `gakumas:schedule:v1` | H.I.F の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算する。探索はこの選抜も動かしてよく、スコアを置き換えたら null（スコア入力）に戻す。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
+| `gakumas:niaSchedule:v1` | N.I.A の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア、最終の素点入力 finalStats） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:pIdols:count:v1` | Pアイドルの所持状況を最後に保存したときのPアイドル数（これ以降に追加された新しいPアイドルは特訓6・開花4で持っている扱い。所持状況の保存・セーブデータにも `pIdolCount` として入る） | `src/lib/useOwnedPIdols.ts` |
 | `gakumas:calc:sideTabsSeen:v1` | 左端タブの案内（初めて探索したあとの吹き出し）を見たか | `src/components/calc/CalcPage.tsx` |
 | `gakumas:hatsuSchedule:v1` | 初の踏み方（レッスン、授業、中間／最終の順位とスコア） | `src/lib/useHatsuSchedule.ts` |
@@ -640,6 +640,7 @@ Pポイント・体力（H.I.F. は選抜・本戦それぞれの「H.I.F.ボー
 | `gakumas:calc:countAdjust:v1` | 計算ページでの「この育成だけ」の回数調整（セット ID → アビリティ → 回数。デフォルトより優先。セーブ用セットに固めたら消える） | 同上 |
 | `gakumas:scheduleChoices:v1` | スケジュールの選択（セット ID → シナリオ → 週の行 id → お出かけ／相談／活動支給／特別指導）。プロデュースごとのデフォルト。回数と食い違うときは回数から推測して表示する | 同上 |
 | `gakumas:calc:scheduleChoiceAdjust:v1` | 計算ページでの「この育成だけ」のスケジュールの選択（同じ形。「上書き保存」でデフォルトへ移る） | 同上 |
+| `gakumas:calc:scenarioSetMemory:v1` | シナリオを切り替えたときに外したプロデュース（シナリオ → セット ID）。探索を押す前に元のシナリオへ戻したら選び直す（この育成だけの変更はセットごとに残っているので一緒に戻る）。探索を押したら消す | `src/lib/scenarioSetMemory.ts` |
 | `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定 | `src/lib/useEventCounts.ts` |
 | `gakumas:calcEventCounts:v1` | 計算ページ専用の同じ設定（サポカ設定と混ざらないよう別キー） | 同上 |
 | `gakumas:ownedLevels:v1` | サポカの所持凸（`card:<名前>` → -1 未所持／0〜4 凸。初回は全カード 4） | `src/lib/useOwnedLevels.ts` |

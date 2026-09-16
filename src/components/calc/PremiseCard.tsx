@@ -39,7 +39,7 @@ const SCENARIO_COLOR: Record<ScenarioKey, string> = {
 /** 欄のラベル（番号の横）。欄の値も同じ text-sm にそろえる */
 const LABEL = "text-sm font-bold text-slate-800";
 
-/** タイプの短い名前（N.I.A.の最終オーディションのスコア欄） */
+/** タイプの短い名前（N.I.Aの最終オーディションのスコア欄） */
 const TYPE_SHORT_JP: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
 
 /**
@@ -66,9 +66,9 @@ export default function PremiseCard({
   onOpenMemory: () => void;
   /** 特訓・才能開花のモーダルを開く（Pアイドルを選んだあと） */
   onOpenIdolTraining: () => void;
-  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダルを開く */
+  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
   onOpenDetail: () => void;
-  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
+  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.Aのとき） */
   onOpenNiaChallenge: () => void;
 }) {
   const { settings } = r.calc;
@@ -274,9 +274,9 @@ function ScenarioScoreCard({
   onOpenNiaChallenge,
 }: {
   r: CalcResult;
-  /** 詳細設定（親愛度・H.I.F.ボーナス）のモーダルを開く */
+  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
   onOpenDetail: () => void;
-  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.A.のとき） */
+  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.Aのとき） */
   onOpenNiaChallenge: () => void;
 }) {
   const { calc } = r;
@@ -362,7 +362,7 @@ function ScenarioScoreCard({
   );
 }
 
-/** 詳細設定（親愛度・H.I.F.ボーナス。既定は最大）の要約と「調整」 */
+/** 詳細設定（親愛度・H.I.Fボーナス。既定は最大）の要約と「調整」 */
 function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
   const { settings } = r.calc;
   const b = hifBonusValues(settings.hifBonus);
@@ -376,7 +376,7 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
       </span>
       {r.scenario === "hif" && (
         <span>
-          ／ H.I.F.ボーナス{" "}
+          ／ H.I.Fボーナス{" "}
           {max
             ? "全部最大"
             : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）／初期P Lv${b.levels.startPSenbatsu}・${b.levels.startPHonsen}（+${b.startP.senbatsu}・+${b.startP.honsen}）`}
@@ -390,7 +390,7 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
 }
 
 /**
- * N.I.A.: 最終オーディションの種類（FINALE／QUARTET）とタイプ別スコアの入力。
+ * N.I.A: 最終オーディションの種類（FINALE／QUARTET）とタイプ別スコアの入力。
  * 「レッスン等の踏み方」タブの最終オーディションと同じ値（どちらで変えても同じ）。
  * 素点を直接入れる「ステ入力」にしているときは、投票数の計算に使う合計スコアだけ入れる。
  */
@@ -480,7 +480,7 @@ function NiaFinalScoreRows({ r }: { r: CalcResult }) {
   );
 }
 
-/** チャレンジPアイテムの獲得ボーナス（N.I.A.。既定は各枠の最大）の要約と「調整」 */
+/** チャレンジPアイテムの獲得ボーナス（N.I.A。既定は各枠の最大）の要約と「調整」 */
 function NiaChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
   const c = normalizeNiaChallenge(r.calc.settings.niaChallenge);
   return (

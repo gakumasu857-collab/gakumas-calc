@@ -12,7 +12,7 @@ import { roleToTypeFromCalcStorage } from "./useSchedule";
 import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 
 /**
- * N.I.A.（マスター）のスケジュール入力状態。
+ * N.I.A（マスター）のスケジュール入力状態。
  * - lessons: 自主レッスン7回の踏みタイプ（単タイプ・サブなし）とSP有無
  * - sales: 営業7回。上げるタイプ＋営業先（リゾートか）＋大成功か
  * - auditions: 1次・2次オーディションのタイプ別「素点」（手入力。獲得ボーナス・パラボ抜き）

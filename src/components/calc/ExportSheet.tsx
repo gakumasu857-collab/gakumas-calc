@@ -645,7 +645,7 @@ const spMark = (on: boolean) =>
     <span style={{ color: FAINT }}>—</span>
   );
 
-/** H.I.F.: レッスン・授業・選抜 */
+/** H.I.F: レッスン・授業・選抜 */
 function HifPlan({ r }: { r: CalcResult }) {
   return (
     <div style={S.card}>

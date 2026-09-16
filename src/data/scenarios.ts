@@ -1,6 +1,6 @@
 /**
  * 育成シナリオのマスターデータ。
- * 既存の H.I.F.（schedule.ts）に加え、N.I.A.（マスター）と 定期公演『初』（レジェンド）を持つ。
+ * 既存の H.I.F（schedule.ts）に加え、N.I.A（マスター）と 定期公演『初』（レジェンド）を持つ。
  * 数値の出典: 学マス攻略wiki（seesaawiki.jp/gakumasu）
  *   - N.I.A/マスター、定期公演『初』/レジェンド、最終プロデュース評価 の各ページ
  */
@@ -10,8 +10,8 @@ export type ScenarioKey = "hif" | "niaMaster" | "hatsuLegend";
 export const SCENARIO_KEYS: ScenarioKey[] = ["hif", "niaMaster", "hatsuLegend"];
 
 export const SCENARIO_LABELS: Record<ScenarioKey, string> = {
-  hif: "H.I.F.（マスター）",
-  niaMaster: "N.I.A.（マスター）",
+  hif: "H.I.F",
+  niaMaster: "N.I.A（マスター）",
   hatsuLegend: "初（レジェンド）",
 };
 
@@ -30,7 +30,7 @@ export const SCENARIO_NOTES: Record<ScenarioKey, string> = {
 };
 
 // ============================================================
-// N.I.A.（マスター）
+// N.I.A（マスター）
 // ============================================================
 
 /** 自主レッスン7回。value は [通常, SP]。選んだ1タイプのみ上昇（パラボ有効） */
@@ -275,7 +275,7 @@ export function niaFanValue(votes: number): number {
   return 0;
 }
 
-/** N.I.A.のパラメータ分の係数（評価値 = floor(Σステ × 2.3) + ファン投票数換算） */
+/** N.I.Aのパラメータ分の係数（評価値 = floor(Σステ × 2.3) + ファン投票数換算） */
 export const NIA_PARAM_RATE = 2.3;
 
 // ============================================================

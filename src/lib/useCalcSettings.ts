@@ -70,7 +70,7 @@ export type CalcSettings = {
   noStageItems: boolean;
   /**
    * 表記外推定SP率（%）。シナリオごと。実際のSP率 = これ + 画面の「SPレッスン率上昇」。
-   * H.I.F.は約10%、N.I.A.と初は約15%（コミュニティ検証。確定値ではないので変更可）。
+   * H.I.Fは約10%、N.I.Aと初は約15%（コミュニティ検証。確定値ではないので変更可）。
    */
   baseSpRate: Record<ScenarioKey, number>;
   /** 探索で、育成後のステータスをこの順（高い→低い）にする（null＝指定なし） */
@@ -80,9 +80,9 @@ export type CalcSettings = {
    * シナリオ共通（Pポイントは全シナリオに関わる）。既定は37（一番星）。
    */
   affection: number;
-  /** H.I.F.ボーナスのレベル（H.I.F.限定。Vo/Da/Viは固定値とパラボが別レベル。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
+  /** H.I.Fボーナスのレベル（H.I.F限定。Vo/Da/Viは固定値とパラボが別レベル。既定は全部最大＝固定+100・パラボ+10%・SP率+5%・上限3200） */
   hifBonus: HifBonusLevels;
-  /** N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（N.I.A.限定。既定は各枠の最大＝15/20/20） */
+  /** N.I.AのチャレンジPアイテム3枠の獲得ボーナス%（N.I.A限定。既定は各枠の最大＝15/20/20） */
   niaChallenge: NiaChallenge;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
@@ -185,7 +185,7 @@ function load<T>(key: string, fallback: T): T {
  * 自動保存の読み込みとセーブデータの読み込みの両方で使う
  * （どちらか片方だけ移行すると、古いセーブでアイドル名が英語キーのままになる）。
  */
-/** 表記外推定SP率: 旧形式（数値1つ）は H.I.F. の値として引き継ぎ、N.I.A.・初は既定（15%） */
+/** 表記外推定SP率: 旧形式（数値1つ）は H.I.F の値として引き継ぎ、N.I.A・初は既定（15%） */
 function normalizeBaseSpRate(raw: unknown): Record<ScenarioKey, number> {
   const def = DEFAULT_SETTINGS.baseSpRate;
   if (typeof raw === "number" && Number.isFinite(raw)) return { ...def, hif: Math.max(0, raw) };

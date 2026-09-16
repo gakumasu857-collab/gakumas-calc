@@ -383,9 +383,9 @@ const SCENARIO_SQUARE: Record<
   ScenarioKey,
   { short: string; grad: string; ring: string }
 > = {
-  hif: { short: "H.I.F.", grad: "from-sky-400 to-sky-600", ring: "ring-sky-500" },
+  hif: { short: "H.I.F", grad: "from-sky-400 to-sky-600", ring: "ring-sky-500" },
   niaMaster: {
-    short: "N.I.A.",
+    short: "N.I.A",
     grad: "from-violet-400 to-purple-600",
     ring: "ring-violet-500",
   },

@@ -15,9 +15,9 @@ import type { ScenarioKey } from "./scenarios";
 /** スケジュール上の行動の種類 */
 export type CalendarEvent =
   | "lesson" // レッスン（Vo/Da/Viの3択が出る日）
-  | "starLesson" // スター性重視の公開レッスン（H.I.F.の☆）
+  | "starLesson" // スター性重視の公開レッスン（H.I.Fの☆）
   | "class" // 授業
-  | "sale" // 営業（N.I.A.）
+  | "sale" // 営業（N.I.A）
   | "date" // おでかけ
   | "meeting" // 相談
   | "supply" // 活動支給・差し入れ
@@ -33,9 +33,9 @@ export type CalendarRow = {
 };
 
 export type ScenarioCalendar = {
-  /** 行番号の単位（H.I.F.=日 / N.I.A.・初=週） */
+  /** 行番号の単位（H.I.F=日 / N.I.A・初=週） */
   unit: "週" | "日";
-  /** セクション（H.I.F.は選抜/本戦の2部構成。他は1つ） */
+  /** セクション（H.I.Fは選抜/本戦の2部構成。他は1つ） */
   sections: { title: string | null; rows: CalendarRow[] }[];
 };
 
@@ -199,7 +199,7 @@ export type ChoiceEvent = "date" | "meeting" | "supply" | "lecture";
 export const CHOICE_EVENTS: readonly ChoiceEvent[] = ["date", "meeting", "supply", "lecture"];
 
 export type ChoiceRow = {
-  /** 行の識別子（H.I.F.は選抜と本戦で日番号が重なるのでセクション番号を付ける） */
+  /** 行の識別子（H.I.Fは選抜と本戦で日番号が重なるのでセクション番号を付ける） */
   id: string;
   sectionIndex: number;
   sectionTitle: string | null;
@@ -213,14 +213,14 @@ export type ChoiceRow = {
 /** 行id → 選んだ行動（null＝何も選ばない） */
 export type ScheduleChoices = Record<string, ChoiceEvent | null>;
 
-/** 画面での呼び名（H.I.F.・N.I.A.は「差し入れ」、初レジェンドは「活動支給」。オーナー指定 2026-09-16） */
+/** 画面での呼び名（H.I.F・N.I.Aは「差し入れ」、初レジェンドは「活動支給」。オーナー指定 2026-09-16） */
 export function supplyLabel(scenario: ScenarioKey): string {
   return scenario === "hatsuLegend" ? "活動支給" : "差し入れ";
 }
 
 /**
  * 差し入れ（活動支給）1回のPポイント（オーナー提供 2026-09-16）。
- * H.I.F. 80 ／ 初レジェンド 180 ／ N.I.A. は18週目から90・それより前は80に、ボーナス+30を足した値（110／120）。
+ * H.I.F 80 ／ 初レジェンド 180 ／ N.I.A は18週目から90・それより前は80に、ボーナス+30を足した値（110／120）。
  */
 export function supplyPOf(scenario: ScenarioKey, label: string): number {
   if (scenario === "hatsuLegend") return 180;
@@ -268,7 +268,7 @@ export function countsFromChoices(
   return counts;
 }
 
-/** 選んだ差し入れ（活動支給）のPポイント（合計とセクション別。H.I.F.は選抜・本戦） */
+/** 選んだ差し入れ（活動支給）のPポイント（合計とセクション別。H.I.Fは選抜・本戦） */
 export function supplyPFromChoices(
   scenario: ScenarioKey,
   choices: ScheduleChoices,
@@ -335,7 +335,7 @@ const inferCache = new Map<string, ScheduleChoices>();
  * 回数から選択を推測する（保存された選択が無い・回数と合わないとき）。
  * できるだけ多くの回数を満たす組み合わせを探す（週は多くても9つなので総当たりで十分速い）。
  * 同じだけ満たせるなら、前の週から差し入れ→相談→おでかけ→特別指導の順に埋めたものを採る
- * （N.I.A.の差し入れは早い週＝110P から埋まる）。
+ * （N.I.Aの差し入れは早い週＝110P から埋まる）。
  */
 export function inferChoices(
   scenario: ScenarioKey,

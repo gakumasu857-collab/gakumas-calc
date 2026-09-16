@@ -2,8 +2,8 @@
  * 計算ページの左端タブ「レッスン等の踏み方」（か踏み方チップ）から開く、レッスン・授業（営業）・選抜エディタ。
  * レッスンページと同じストアを共有していて、どちらで編集しても同期する。
  * シナリオごとに内容が変わる:
- * - H.I.F.: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
- * - N.I.A.: 自主レッスン（単タイプ＋SP）・営業（営業先/成功度）・オーディション
+ * - H.I.F: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
+ * - N.I.A: 自主レッスン（単タイプ＋SP）・営業（営業先/成功度）・オーディション
  * - 初: レジェンドレッスン（単タイプ＋SP＋パーフェクト）・授業・試験
  */
 import { useState, type ReactNode } from "react";
@@ -210,7 +210,7 @@ export default function PlanEditDrawer({
   );
 }
 
-/** H.I.F.: 公開レッスン（メイン＋サブ切替＋SP）・授業・選抜スコア */
+/** H.I.F: 公開レッスン（メイン＋サブ切替＋SP）・授業・選抜スコア */
 function HifEditor({ r }: { r: CalcResult }) {
   const schedule = r.schedule;
   return (
@@ -480,7 +480,7 @@ function HifEditor({ r }: { r: CalcResult }) {
   );
 }
 
-/** N.I.A.: 自主レッスン・営業・オーディション（1次2次＋最終） */
+/** N.I.A: 自主レッスン・営業・オーディション（1次2次＋最終） */
 function NiaEditor({ r }: { r: CalcResult }) {
   const nia = r.niaSchedule;
   const tag: NiaTag = r.ranks?.tag === "特化" ? "skew" : "flat";
@@ -954,16 +954,19 @@ function PieceTable({
   );
 }
 
-/** [上限, 倍率, 固定値] の換算表 → 表の行（範囲・式・その区間の上限での値） */
+/** 式の切片の表示（0 なら出さない、負なら −） */
+const intercept = (c: number) =>
+  c === 0 ? "" : c > 0 ? ` ＋ ${fmtNum(c)}` : ` − ${fmtNum(-c)}`;
+
+/** [上限, 倍率, 固定値] の換算表 → 表の行（範囲・式「X×倍率＋切片」・その区間の上限での値） */
 function bracketRows(
   brackets: readonly (readonly [number, number, number])[],
-  unit: string,
 ): (string | number)[][] {
   let from = 0;
   return brackets.map(([cap, rate, fixed]) => {
     const range =
       cap === Infinity ? `${fmtNum(from)}〜` : `${fmtNum(from)}〜${fmtNum(cap)}`;
-    const formula = `${unit}×${rate}${fixed ? ` ＋ ${fmtNum(fixed)}` : ""}`;
+    const formula = `X×${rate}${intercept(fixed)}`;
     const end = cap === Infinity ? "—" : fmtNum(Math.floor(cap * rate + fixed));
     from = cap;
     return [range, formula, end];
@@ -1054,13 +1057,14 @@ function HifNumbers({ affection }: { affection: number }) {
 
       <h3 className="mb-1 text-xs font-bold text-slate-700">本戦の点数評価値</h3>
       <PieceTable
-        caption="区間ごとに「その区間の下限からの超過分 × 倍率 ＋ ベース」（小数点以下は切り捨て）。"
+        caption="X＝そのラウンドのスコア。区間ごとに「X×倍率＋切片」（小数点以下は切り捨て）。"
         headers={["ラウンド", "スコア", "式", "区間の上限での値"]}
         rows={FINAL_ROUNDS.flatMap((round, ri) =>
           round.brackets.map(([cap, base, rate, add], bi) => [
             bi === 0 ? `ラウンド${ri + 1}` : "",
             `〜${fmtNum(cap)}`,
-            `${add ? `${fmtNum(add)} ＋ ` : ""}(X−${fmtNum(base)})×${rate}`,
+            // ベース＋(X−下限)×倍率 を X×倍率＋(ベース−下限×倍率) に直して見せる（値は同じ）
+            `X×${rate}${intercept(add - base * rate)}`,
             fmtNum(add + Math.floor((cap - base) * rate)),
           ]),
         )}
@@ -1121,7 +1125,7 @@ const NUM_TH = "border border-slate-300 bg-slate-100 px-2 py-1";
 const NUM_TD = "border border-slate-200 px-2 py-1";
 const NUM_TDC = `${NUM_TD} text-center`;
 
-/** N.I.A.（マスター）の数値表と計算式 */
+/** N.I.A（マスター）の数値表と計算式 */
 function NiaNumbers() {
   return (
     <>
@@ -1202,8 +1206,9 @@ function NiaNumbers() {
       </p>
       <h3 className="mb-1 text-xs font-bold text-slate-700">ファン投票数→評価値</h3>
       <PieceTable
+        caption="X＝ファン投票数。区間ごとに「X×倍率＋切片」（小数点以下は切り捨て）。"
         headers={["投票数", "式", "区間の上限での値"]}
-        rows={bracketRows(NIA_FAN_BRACKETS, "票")}
+        rows={bracketRows(NIA_FAN_BRACKETS)}
       />
       <div className="mb-2 text-xs leading-relaxed text-slate-600">
         <p>札（スキルカード獲得）2枚ごとに+3,000票（端数の1枚は無効）。</p>
@@ -1288,9 +1293,17 @@ function HatsuNumbers() {
         最終順位分（1位1,700／2位900／3位500）＋ 試験スコア換算。
       </p>
       <h3 className="mb-1 text-xs font-bold text-slate-700">中間試験のスコア→評価値</h3>
-      <PieceTable headers={["スコア", "式", "区間の上限での値"]} rows={bracketRows(HATSU_MID_BRACKETS, "点")} />
+      <PieceTable
+        caption="X＝中間試験のスコア。区間ごとに「X×倍率＋切片」（小数点以下は切り捨て）。"
+        headers={["スコア", "式", "区間の上限での値"]}
+        rows={bracketRows(HATSU_MID_BRACKETS)}
+      />
       <h3 className="mb-1 text-xs font-bold text-slate-700">最終試験のスコア→評価値</h3>
-      <PieceTable headers={["スコア", "式", "区間の上限での値"]} rows={bracketRows(HATSU_FINAL_BRACKETS, "点")} />
+      <PieceTable
+        caption="X＝最終試験のスコア。区間ごとに「X×倍率＋切片」（小数点以下は切り捨て）。"
+        headers={["スコア", "式", "区間の上限での値"]}
+        rows={bracketRows(HATSU_FINAL_BRACKETS)}
+      />
     </>
   );
 }
@@ -1511,7 +1524,7 @@ function CapBadge({ label }: { label: string }) {
 }
 
 /**
- * N.I.A.のオーディションの素点入力（2段）。
+ * N.I.Aのオーディションの素点入力（2段）。
  * 上の段はパラボ込みのステ（ゲームのログの値。獲得ボーナス＋パラボ込み）。入れると今の編成のパラボ%と
  * チャレンジPアイテムの獲得ボーナス%で素点に逆算して保存する。
  * 下の段はパラボ抜きのステ＝素点そのもの（計算に使う値。上限＝流行順位別の上限）。

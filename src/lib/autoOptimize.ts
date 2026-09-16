@@ -177,7 +177,7 @@ export type AutoOptimizeInput = {
     examStats?: (ExamScores | null)[];
   };
   nia: NiaStateLike;
-  /** N.I.A.: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる。省略＝0） */
+  /** N.I.A: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる。省略＝0） */
   niaChallengePct?: number;
   hatsu: HatsuStateLike & { midScore: number; finalScore: number };
   /** メモリースロット4枚（パラボ追従は踏み方ごとにここから展開する） */
@@ -188,7 +188,7 @@ export type AutoOptimizeInput = {
   } | null;
   plan: string | null;
   statCap: number;
-  /** H.I.F.ボーナス（固定・パラボ%。無ければ最大＝+100/+10%） */
+  /** H.I.Fボーナス（固定・パラボ%。無ければ最大＝+100/+10%） */
   hifBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
   tag: NiaTag;
   /** タイプ→審査基準ランク（NIAのオーディション式に使用） */
@@ -236,7 +236,7 @@ export type AutoOptimizeInput = {
   maxStats?: Record<TypeKey, number>;
   /** 育成後のステータスをこの順（高い→低い）にする。必須条件（違反した候補は勝たせない） */
   statOrder?: TypeKey[] | null;
-  /** H.I.F.の本戦ラウンドの点数（スター性と点数評価値がここから決まる） */
+  /** H.I.Fの本戦ラウンドの点数（スター性と点数評価値がここから決まる） */
   round1: number;
   round2: number;
   /** 親愛度Lv（スター性ボーナス。既定は37＝+50%） */
@@ -1695,7 +1695,7 @@ export class OptimizeEngine {
     const baseNoConv = {} as Record<TypeKey, number>;
     const basePct = {} as Record<TypeKey, number>;
     const baseStats = {} as Record<TypeKey, number>;
-    // H.I.F.ボーナス（既定は全タイプ固定+100・パラボ+10%。設定で下げられる）はHIFシナリオ限定
+    // H.I.Fボーナス（既定は全タイプ固定+100・パラボ+10%。設定で下げられる）はHIFシナリオ限定
     const hifFixedOf = (t: TypeKey) =>
       input.scenario === "hif" ? (input.hifBonus?.fixed[t] ?? 100) : 0;
     const hifPctOf = (t: TypeKey) =>

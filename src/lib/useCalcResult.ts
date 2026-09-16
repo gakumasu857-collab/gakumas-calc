@@ -4,8 +4,8 @@
  * 現在のステ[type] = 授業(営業) + メモリー(固定+%変換) + Pアイドル(固定+100 + %変換)
  *                  + レッスン + 試験(オーディション) + 選択サポカ6枠（イベント相互作用込み）
  * 評価値はシナリオ別:
- *   H.I.F.: Σmin(3200, ステ)×2 + floor(合計スター性×7.5) + 本戦評価値 − 2000（スプシ検証済み）
- *   N.I.A.: floor(Σmin(2600, ステ)×2.3) + ファン投票数換算
+ *   H.I.F: Σmin(3200, ステ)×2 + floor(合計スター性×7.5) + 本戦評価値 − 2000（スプシ検証済み）
+ *   N.I.A: floor(Σmin(2600, ステ)×2.3) + ファン投票数換算
  *   初レジェンド: floor(Σmin(3000, ステ)×2.1) + 最終順位分 + 試験スコア換算
  *
  * ロール概念は廃止。サポカは自タイプの踏み回数を参照し、
@@ -147,7 +147,7 @@ export function useCalcResult() {
       : null;
     const ranks = IDOL_RANKS[settings.idol];
     const typeRanks = typeRanksOf(settings.idol);
-    // H.I.F.ボーナス（レベルは設定欄で調整。既定は全部最大）
+    // H.I.Fボーナス（レベルは設定欄で調整。既定は全部最大）
     const hifBonus = hifBonusValues(settings.hifBonus);
     const statCap = scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario];
 
@@ -162,7 +162,7 @@ export function useCalcResult() {
     let schedGains: Record<TypeKey, number>;
     let hifStar = { lessonStar: 0, examStar: 0 };
     let niaVotesBase = { sales: 0, auditions: 0, finale: 0, base: 0 };
-    // N.I.A.: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる）
+    // N.I.A: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる）
     const niaChallengePct = niaChallengeTotal(settings.niaChallenge);
     let niaAuditionBase: Record<TypeKey, number>[] = [];
     let ctx;
@@ -316,9 +316,9 @@ export function useCalcResult() {
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
     const resources = (() => {
-      // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.F.ボーナスの初期Pポイント。STEP3は選抜だけ）と
+      // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.Fボーナスの初期Pポイント。STEP3は選抜だけ）と
       // 差し入れ（踏んだ週ごとのPポイント）。
-      // 画面には「サポカ分」と「サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ」の2行を出す。
+      // 画面には「サポカ分」と「サポカ＋H.I.Fボーナス＋親愛度＋メモリー＋差し入れ」の2行を出す。
       // サポカ固定P・メモリーは選抜期間に計上し、レッスンP率・タイプSPレッスンP率の
       // 換算は対象レッスンの期間（選抜/本戦）に入れる
       const isHifP = scenario === "hif";
@@ -364,14 +364,14 @@ export function useCalcResult() {
       const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
       // 差し入れ（活動支給）のPポイントは、どの週（日）で踏んだかで変わる
-      // （スケジュールの選択から。H.I.F.は選抜・本戦に分けて計上する）
+      // （スケジュールの選択から。H.I.Fは選抜・本戦に分けて計上する）
       const supply = selectedSet
         ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet))
         : { total: 0, bySection: [] as number[] };
-      // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.F.は選抜の開始時だけで本戦にはかからない
+      // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.Fは選抜の開始時だけで本戦にはかからない
       const stepP = affectionStepP(settings.affection);
       const pAffection = stepP;
-      // H.I.F.ボーナスの初期Pポイント増加（【選抜試験】と【本戦】の2枠）
+      // H.I.Fボーナスの初期Pポイント増加（【選抜試験】と【本戦】の2枠）
       const pHifBonus = isHifP
         ? hifBonus.startP.senbatsu + hifBonus.startP.honsen
         : 0;
@@ -387,6 +387,8 @@ export function useCalcResult() {
         pFixedSenbatsu + lessonPSenbatsu + mem.P + pCardsSenbatsu;
       const pHonsen = pFixedHonsen + lessonPHonsen + pCardsHonsen;
       const pCards = isHifP ? pCardsSenbatsu + pCardsHonsen : cardP + rateP;
+      // 合計に入れるレッスンのP（H.I.Fは選抜・本戦のレッスンを期間別に数えた合計と同じ）
+      const pLessonTotal = isHifP ? lessonPSenbatsu + lessonPHonsen : lessonP;
       return {
         /** 合計Pポイント（開始時・差し入れ・レッスン・メモリー・サポカの全部） */
         pTotal: isHifP
@@ -395,11 +397,13 @@ export function useCalcResult() {
         pLesson: lessonP,
         pMemory: mem.P,
         pCards,
-        /** 画面の「Pポイント」＝サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ（レッスン分は入れない） */
-        pBase: pCards + pHifBonus + pAffection + mem.P + supply.total,
-        /** H.I.F.ボーナスの初期Pポイント（他シナリオは0） */
+        /** 画面の「Pポイント」＝サポカ＋レッスン＋H.I.Fボーナス＋親愛度＋メモリー＋差し入れ（＝その育成で手に入る合計。pTotal と同じ値） */
+        pBase: pCards + pLessonTotal + pHifBonus + pAffection + mem.P + supply.total,
+        /** 「Pポイント」の内訳に出すレッスンのP */
+        pLessonTotal,
+        /** H.I.Fボーナスの初期Pポイント（他シナリオは0） */
         pHifBonus,
-        /** 親愛度の初期Pポイント（STEP3。H.I.F.も選抜の1回だけ） */
+        /** 親愛度の初期Pポイント（STEP3。H.I.Fも選抜の1回だけ） */
         pAffection,
         /** 差し入れ（活動支給）で増えるPポイント（踏んだ週から） */
         pSupply: supply.total,
@@ -435,8 +439,8 @@ export function useCalcResult() {
         const sp = cardSpRate(db, m.level);
         for (const t of TYPE_KEYS) bonus[t] += sp[t];
       }
-      // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計（H.I.F.はさらにH.I.F.ボーナスのSP率、既定+5%）。
-      // N.I.A.・初にはこの上乗せは無い（SSRのPアイドルなら 10%/10%/10% と表示される）。
+      // ゲーム内の「SPレッスン率上昇」表示は、サポカ＋Pアイドルの合計（H.I.FはさらにH.I.FボーナスのSP率、既定+5%）。
+      // N.I.A・初にはこの上乗せは無い（SSRのPアイドルなら 10%/10%/10% と表示される）。
       // 画面もそれに合わせて出し（shown）、実際の確率は「表示＋表記外推定SP率（シナリオ別）」とする
       // （例: 表示 +71%・表記外10% → 81%。Da（サブVi=75%）のSP踏み6回連続 = (0.81×0.75)^6 ≈ 5.0%）
       const SHOWN_OFFSET = scenario === "hif" ? hifBonus.spRate : 0;
@@ -625,9 +629,9 @@ export function useCalcResult() {
       paraboDetail: adj,
       // NIAの理想編成用（他シナリオではundefined）
       niaFudaExtra,
-      /** N.I.A.: オーディション（1次・2次・最終）のタイプ別素点（上限クランプ済み・獲得ボーナス前）。他シナリオでは空 */
+      /** N.I.A: オーディション（1次・2次・最終）のタイプ別素点（上限クランプ済み・獲得ボーナス前）。他シナリオでは空 */
       niaAuditionBase,
-      /** N.I.A.: チャレンジPアイテムの獲得ボーナス合計% */
+      /** N.I.A: チャレンジPアイテムの獲得ボーナス合計% */
       niaChallengePct,
     };
   }, [

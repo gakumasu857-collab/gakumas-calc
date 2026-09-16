@@ -87,7 +87,7 @@ export function buildInput(): AutoOptimizeInput {
   };
   const scenario = (localStorage.getItem("gakumas:scenario:v1") ??
     "hif") as ScenarioKey;
-  // H.I.F.ボーナスのレベル（計算ページの設定。無ければ最大）
+  // H.I.Fボーナスのレベル（計算ページの設定。無ければ最大）
   const hifBonus = hifBonusValues(
     loadJson<{ hifBonus?: Parameters<typeof hifBonusValues>[0] }>("gakumas:calcSettings:v1", {})
       .hifBonus,

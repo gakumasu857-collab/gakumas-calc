@@ -1,9 +1,10 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowDown,
   ArrowRight,
   CalendarCheck,
   ChevronDown,
+  ChevronRight,
   Info,
   LayoutGrid,
   ListOrdered,
@@ -189,15 +190,50 @@ function Tip({ icon, title, children }: { icon: ReactNode; title: string; childr
   );
 }
 
-/** 用語の1項目（id はページ内リンク用） */
+/**
+ * 用語の1項目（id はページ内リンク用）。説明が長いので閉じておき、言葉を押すと開く。
+ * ページ内リンク（#term-flags など）で来たときは開いておく。
+ */
 function Term({ id, name, children }: { id?: string; name: string; children: React.ReactNode }) {
+  const { hash } = useLocation();
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (id && hash === `#${id}` && ref.current) ref.current.open = true;
+  }, [hash, id]);
   return (
-    <div
-      id={id}
-      className="flex scroll-mt-20 flex-col gap-0.5 border-b border-slate-100 py-2 last:border-b-0 sm:flex-row sm:gap-3"
-    >
-      <dt className="shrink-0 text-sm font-bold text-slate-900 sm:w-40">{name}</dt>
-      <dd className={P}>{children}</dd>
+    <details ref={ref} id={id} className="group scroll-mt-20 border-b border-slate-100 last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 py-2 text-sm font-bold text-slate-900 hover:text-blue-700 [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          size={14}
+          className="shrink-0 text-slate-400 transition group-open:rotate-90"
+        />
+        {name}
+      </summary>
+      <div className={`pb-2.5 pl-5 ${P}`}>{children}</div>
+    </details>
+  );
+}
+
+/** 用語をまとめて開く・閉じる */
+function TermsToggle() {
+  const setAll = (open: boolean) => {
+    document
+      .querySelectorAll<HTMLDetailsElement>("#terms-list details")
+      .forEach((d) => {
+        d.open = open;
+      });
+  };
+  const btn =
+    "rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-700";
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <span>言葉を押すと説明が開きます。</span>
+      <button type="button" onClick={() => setAll(true)} className={btn}>
+        すべて開く
+      </button>
+      <button type="button" onClick={() => setAll(false)} className={btn}>
+        すべて閉じる
+      </button>
     </div>
   );
 }
@@ -207,7 +243,7 @@ function TermGroup({ title, children }: { title: string; children: ReactNode }) 
   return (
     <div className={CARD}>
       <p className="mb-1 text-xs font-black tracking-wide text-slate-400">{title}</p>
-      <dl>{children}</dl>
+      <div>{children}</div>
     </div>
   );
 }
@@ -354,7 +390,7 @@ export default function HelpPage() {
           </p>
           <Mock title="設定欄">
             <div className="grid gap-x-3 sm:grid-cols-2">
-              <MockRow no={1} label="育成シナリオ" value="H.I.F.（マスター）" />
+              <MockRow no={1} label="育成シナリオ" value="H.I.F" />
               <MockRow
                 no={2}
                 label="アイドル・Pアイドル"
@@ -625,7 +661,7 @@ export default function HelpPage() {
           用語の横の ⓘ を押すと、その項目の説明が出ます。計算式は計算ページ右上の「計算式・数値表」にあります。
         </Tip>
         <Tip icon={<SlidersHorizontal size={16} />} title="詳細設定">
-          設定欄の一番下の「調整」から、<b>親愛度</b>（スター性・初期Pポイント・最大体力）と、H.I.F.では<b>H.I.F.ボーナス</b>のレベルを変えられます。どちらも既定は最大です。
+          設定欄の一番下の「調整」から、<b>親愛度</b>（スター性・初期Pポイント・最大体力）と、H.I.Fでは<b>H.I.Fボーナス</b>のレベルを変えられます。どちらも既定は最大です。
         </Tip>
       </div>
 
@@ -636,13 +672,14 @@ export default function HelpPage() {
       <p className={`mb-3 ${P}`}>
         画面に出てくる言葉の説明です。画面の ⓘ を押すと、その場でも説明が出ます。
       </p>
-      <div className="flex flex-col gap-3">
+      <TermsToggle />
+      <div id="terms-list" className="flex flex-col gap-3">
         <TermGroup title="設定欄と探索">
           <Term id="term-premise" name="設定欄">
             計算ページの左上にある、育成の前提を入れる欄。育成シナリオ・アイドル（Pアイドル）・プロデュース・メモリー・所持状況と、本戦や試験の点数。黄色い欄が未選択で、1〜4がそろうと探索のボタンが押せます。
           </Term>
           <Term name="育成シナリオ">
-            H.I.F.（マスター）・N.I.A.（マスター）・初（レジェンド）の3つ。試験の種類や評価値の式がシナリオごとに違います（式は計算ページ右上の「計算式・数値表」）。
+            H.I.F・N.I.A（マスター）・初（レジェンド）の3つ。試験の種類や評価値の式がシナリオごとに違います（式は計算ページ右上の「計算式・数値表」）。
           </Term>
           <Term id="term-produce" name="プロデュース">
             サポカのアビリティが何回発動する想定かの設定（＝アビリティ発動回数）。「センス花ロボ（黄）」などは育成スタイルの通称で、選んだPアイドルのプランで使えるものだけ選べます（
@@ -718,7 +755,7 @@ export default function HelpPage() {
             トレーナーなど、Vo/Da/Viのタイプを持たないサポカ。タイプ割合では自由枠に入り、「全タイプSPレッスン率」持ちは全タイプの1枚として数えます。
           </Term>
           <Term name="ワッペン">
-            H.I.F.の用語。スキルカードを1枚取るごとにスター性+15（最大20回）されます。プロデュースの「スキル獲得」＋編成サポカの前イベ・後イベ分で発動回数が決まります。
+            H.I.Fの用語。スキルカードを1枚取るごとにスター性+15（最大20回）されます。プロデュースの「スキル獲得」＋編成サポカの前イベ・後イベ分で発動回数が決まります。
           </Term>
         </TermGroup>
 
@@ -730,13 +767,13 @@ export default function HelpPage() {
             レッスンはメインのタイプが大きく上がり、サブのタイプも少し上がります。SPレッスンは上昇が大きいレッスン、通常レッスンはSPでないレッスン。大きい四角がメイン、右下の小さい印がサブ、薄い点線の枠がSPなし。
           </Term>
           <Term id="term-sprate" name="SPレッスン率・表記外推定SP率・実現確率">
-            SPレッスン率はゲーム内の表示と同じ値（サポカ＋Pアイドル。H.I.F.はH.I.F.ボーナスの+5%込み）。実際にSPレッスンが出る確率は、これに表記外推定SP率（既定: H.I.F. 10%、N.I.A.と初 15%。「サポカ編成と踏み方」で変えられます）を足したものとして計算します。実現確率は、表示している踏み方通りにSP（とサブのタイプ）が出る確率です。
+            SPレッスン率はゲーム内の表示と同じ値（サポカ＋Pアイドル。H.I.FはH.I.Fボーナスの+5%込み）。実際にSPレッスンが出る確率は、これに表記外推定SP率（既定: H.I.F 10%、N.I.Aと初 15%。「サポカ編成と踏み方」で変えられます）を足したものとして計算します。実現確率は、表示している踏み方通りにSP（とサブのタイプ）が出る確率です。
           </Term>
           <Term name="授業・営業">
-            レッスン以外に、選んだ1タイプのステが上がる週（H.I.F.は授業、N.I.A.は営業。パラボは掛かりません）。
+            レッスン以外に、選んだ1タイプのステが上がる週（H.I.Fは授業、N.I.Aは営業。パラボは掛かりません）。
           </Term>
           <Term name="選抜・オーディション・試験・本戦">
-            シナリオごとの試験。H.I.F.は選抜（3回）と本戦、N.I.A.はオーディション（1次・2次・最終。最終はFINALEかQUARTET）、初は中間試験と最終試験。スコアや順位を入れると、上がるステと評価値の加点が決まります。
+            シナリオごとの試験。H.I.Fは選抜（3回）と本戦、N.I.Aはオーディション（1次・2次・最終。最終はFINALEかQUARTET）、初は中間試験と最終試験。スコアや順位を入れると、上がるステと評価値の加点が決まります。
           </Term>
           <Term name="パラボ込みのステ・パラボ抜きのステ（素点）">
             試験で上がるステの入れ方。ゲームのログに出る上昇幅はパラボ込みなので、「パラボ込みのステ」に入れると今の編成のパラボ%で素点（パラボ抜きのステ＝計算に使う値）に逆算します。素点を直接入れることもできます。
@@ -745,16 +782,16 @@ export default function HelpPage() {
             試験のスコアは、これ以上入れても結果が伸びない所で止まります。上限に達すると欄の横に「ステ上限」「★上限」「投票上限」の印が出ます。
           </Term>
           <Term name="スター性">
-            H.I.F.の評価値の加点。選抜のスコア（★）・レッスン・ワッペン・本戦から決まります。本戦のスター性はラウンドの点数で変わります。親愛度のボーナスが全部に掛かります。
+            H.I.Fの評価値の加点。選抜のスコア（★）・レッスン・ワッペン・本戦から決まります。本戦のスター性はラウンドの点数で変わります。親愛度のボーナスが全部に掛かります。
           </Term>
           <Term id="term-affection" name="親愛度">
             育成するアイドルの親愛度Lv。<b>スター性</b>（Lv28から+5%ずつ、36・37で+50%）・<b>初期Pポイント</b>（STEP3。Lv21から+10〜+30）・<b>最大体力</b>（Lv22から+1〜+2）が変わります。設定欄の「詳細設定」で変えられます（既定は37）。Lv20以下はどれも0で同じなので1つにまとめています。
           </Term>
-          <Term name="H.I.F.ボーナス">
+          <Term name="H.I.Fボーナス">
             H.I.Fボーナスのレベル（Vo/Da/Viの固定値とパラボ、SP率、本戦のステ上限）。設定欄の「詳細設定」で親愛度と一緒に変えられます（既定は全部最大）。
           </Term>
           <Term name="ファン投票数・獲得ボーナス・FINALE/QUARTET">
-            N.I.A.の用語。ファン投票数はオーディションのスコアと営業、札取得枚数で決まり、評価値に換算されます（育成後のステータスの下に合計と内訳）。獲得ボーナスはチャレンジPアイテム3枠の%で、オーディションの素点に上乗せします（設定欄の「調整」。既定は各枠の最大）。最終オーディションはFINALEとQUARTETを選択できます。
+            N.I.Aの用語。ファン投票数はオーディションのスコアと営業、札取得枚数で決まり、評価値に換算されます（育成後のステータスの下に合計と内訳）。獲得ボーナスはチャレンジPアイテム3枠の%で、オーディションの素点に上乗せします（設定欄の「調整」。既定は各枠の最大）。最終オーディションはFINALEとQUARTETを選択できます。
           </Term>
           <Term name="パーフェクト・クリア（初のレッスン）">
             初のレッスンは、レッスン中の点数で入力します。上限がパーフェクトで、クリアラインを超えた分は残りの2タイプにも入ります。
@@ -772,7 +809,7 @@ export default function HelpPage() {
             レッスン・試験で上がるステに割合で上乗せされる分。ステが上がるたび（レッスン1回・試験1回ごと）に「獲得ステ×パラボ」を切り捨てて合算します。「パラボ変換表」（開始時のステータスの右）で、今の踏み方だとパラボ+1%が何点のステになるかを見られます。
           </Term>
           <Term name="Pポイント">
-            その育成で手に入るPポイントの合計です。1行目の「Pポイント（サポカ分）」はサポカ由来（固定P・前イベP・レッスンのP率換算）だけ、2行目の「Pポイント」はそこにH.I.F.ボーナスの初期Pポイント・親愛度（STEP3。H.I.F.は選抜の開始時だけ）・メモリー・差し入れ（初レジェンドは活動支給）を足した値です。差し入れ1回の量はH.I.F. 80・初レジェンド（活動支給）180で、N.I.A.だけ踏む週で変わります（17週目まで110・18週目から120）。プロデュースの「スケジュール」で選んだ週（日）から計算します。
+            その育成で手に入るPポイントの合計です。1行目の「Pポイント（サポカ分）」はサポカ由来（固定P・前イベP・レッスンのP率換算）だけ、2行目の「Pポイント」はそこにレッスン・H.I.Fボーナスの初期Pポイント・親愛度（STEP3。H.I.Fは選抜の開始時だけ）・メモリー・差し入れ（初レジェンドは活動支給）を足した値です。差し入れ1回の量はH.I.F 80・初レジェンド（活動支給）180で、N.I.Aだけ踏む週で変わります（17週目まで110・18週目から120）。プロデュースの「スケジュール」で選んだ週（日）から計算します。
           </Term>
           <Term name="セーブデータ・画像に出力・計算式・数値表">
             セーブデータ（右上）は今の育成の状態をまるごと保存し、読み込めば評価値まで同じ状態に戻ります。画像に出力（評価値の下）は評価値・編成・踏み方・アビリティ発動回数を1枚の画像にします。計算式・数値表（右上）は評価値やステの式と数値表です。

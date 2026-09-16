@@ -630,7 +630,7 @@ export function eventBudgetScales(
 export type ParaboJoint = {
   /** パラボ変換前のタイプ別ステ（授業・レッスン・試験・メモリー固定・Pアイドル固定など） */
   baseNoConv: Record<TypeKey, number>;
-  /** サポカ抜きのパラボ%（メモリー＋Pアイドル＋H.I.F.ボーナス） */
+  /** サポカ抜きのパラボ%（メモリー＋Pアイドル＋H.I.Fボーナス） */
   basePct: Record<TypeKey, number>;
   /** タイプ別のパラボ母数（レッスン・試験の獲得1回ごと）。ロール未割当のタイプは無し（変換0） */
   gains: Partial<Record<TypeKey, { lessons: number[]; exams: number[] }>>;
@@ -913,7 +913,7 @@ export function effectiveMaxStats(
   return out;
 }
 
-/** 上限までの空きがこの割合（シナリオ上限に対して）未満なら「上限に達している」とみなす（1%。H.I.F.なら32） */
+/** 上限までの空きがこの割合（シナリオ上限に対して）未満なら「上限に達している」とみなす（1%。H.I.Fなら32） */
 export const MAX_STAT_FULL_RATIO = 0.01;
 
 /**

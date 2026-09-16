@@ -89,9 +89,10 @@ export function ScheduleCard({
         className={`relative flex aspect-square items-center justify-center bg-linear-to-br text-white shadow-sm transition ${box} ${s.grad} ${ring} ${fade}`}
       >
         <Icon size={size === "sm" ? 20 : 26} strokeWidth={2.2} />
+        {/* 選んだ印: 白い縁取りの緑丸＋白いチェック（白地にも色付きのカードにも埋もれないように） */}
         {selected && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-600 shadow">
-            <Check size={13} strokeWidth={3} />
+          <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-2 ring-white">
+            <Check size={14} strokeWidth={3.5} />
           </span>
         )}
       </span>

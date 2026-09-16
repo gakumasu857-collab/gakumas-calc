@@ -10,7 +10,7 @@ import {
 import type { useCalcResult } from "@/lib/useCalcResult";
 
 /**
- * N.I.A.のチャレンジPアイテムの「獲得ボーナス」を枠ごとに選ぶモーダル
+ * N.I.AのチャレンジPアイテムの「獲得ボーナス」を枠ごとに選ぶモーダル
  * （設定欄のファン投票数の下の「調整」から）。アイテム名ではなく%で選ぶ。既定は各枠の最大。
  */
 export default function NiaChallengeModal({
@@ -30,7 +30,7 @@ export default function NiaChallengeModal({
   return (
     <Modal title="チャレンジPアイテムの獲得ボーナス" onClose={onClose} widthClass="max-w-lg">
       <p className={`mb-2 ${NOTE}`}>
-        N.I.A.のチャレンジPアイテム3枠の「獲得ボーナス」（%）を枠ごとに選びます。
+        N.I.AのチャレンジPアイテム3枠の「獲得ボーナス」（%）を枠ごとに選びます。
         獲得ボーナスはオーディションのステ上昇（素点）に掛かるパラボで、その上に通常のパラボが掛かります。
         アイテム名は関係なく、使っているアイテムの%を選んでください。
       </p>

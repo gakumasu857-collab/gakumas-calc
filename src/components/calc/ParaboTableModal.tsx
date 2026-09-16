@@ -93,7 +93,7 @@ export default function ParaboTableModal({
           <tr>
             <td className={tdLabel}>
               合計（メモリー＋サポカ＋Pアイドル
-              {r.scenario === "hif" ? "＋H.I.F.10%" : ""}）
+              {r.scenario === "hif" ? "＋H.I.Fボーナス" : ""}）
             </td>
             {TYPE_KEYS.map((type) => (
               <td key={type} className={tdValue(type)}>

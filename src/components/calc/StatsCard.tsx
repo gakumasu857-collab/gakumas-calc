@@ -265,7 +265,7 @@ export default function StatsCard({
             合計スター性: <b className="text-violet-600">{r.totalStar}</b>
           </p>
         )}
-        {/* N.I.A.: ファン投票数の合計と評価値換算（内訳は設定欄にも） */}
+        {/* N.I.A: ファン投票数の合計と評価値換算（内訳は設定欄にも） */}
         {r.scenario === "niaMaster" && (
           <p className="flex flex-wrap items-center gap-x-1">
             ファン投票数:{" "}
@@ -286,13 +286,14 @@ export default function StatsCard({
           <b className="text-cyan-700">{Math.round(r.resources.pCards).toLocaleString()}</b>
           <Hint text={GLOSSARY.pCards} />
         </p>
-        {/* サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ（初は活動支給）を1行に */}
+        {/* サポカ＋H.I.Fボーナス＋親愛度＋メモリー＋差し入れ（初は活動支給）を1行に */}
         <p className="flex flex-wrap items-center gap-x-1">
           Pポイント:{" "}
           <b className="text-cyan-700">{Math.round(r.resources.pBase).toLocaleString()}</b>
           <span className="text-xs text-slate-400">
-            （サポカ {Math.round(r.resources.pCards).toLocaleString()}
-            {r.scenario === "hif" && `・HIFボーナス ${r.resources.pHifBonus}`}・親愛度{" "}
+            （サポカ {Math.round(r.resources.pCards).toLocaleString()}・レッスン{" "}
+            {r.resources.pLessonTotal.toLocaleString()}
+            {r.scenario === "hif" && `・H.I.Fボーナス ${r.resources.pHifBonus}`}・親愛度{" "}
             {r.resources.pAffection}・メモリー{" "}
             {Math.round(r.resources.pMemory).toLocaleString()}・{supplyLabel(r.scenario)}{" "}
             {r.resources.pSupply.toLocaleString()}）
