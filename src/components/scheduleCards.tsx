@@ -23,15 +23,17 @@ export const EVENT_CARD: Record<
   CalendarEvent | "exam",
   { label: string; grad: string; ring: string; icon: IconType }
 > = {
+  // レッスンは普通のものとスター性重視（☆）で同じ色。アイコンと名前で見分ける
   lesson: { label: "レッスン", grad: "from-sky-400 to-blue-500", ring: "ring-blue-500", icon: Music },
   starLesson: {
     label: "☆レッスン",
-    grad: "from-amber-300 to-yellow-500",
-    ring: "ring-amber-500",
+    grad: "from-sky-400 to-blue-500",
+    ring: "ring-blue-500",
     icon: Sparkles,
   },
-  class: { label: "授業", grad: "from-indigo-400 to-blue-600", ring: "ring-indigo-500", icon: School },
-  sale: { label: "営業", grad: "from-slate-400 to-slate-600", ring: "ring-slate-500", icon: Store },
+  // 授業と営業は同じ紫。アイコンと名前で見分ける
+  class: { label: "授業", grad: "from-violet-400 to-purple-600", ring: "ring-purple-500", icon: School },
+  sale: { label: "営業", grad: "from-violet-400 to-purple-600", ring: "ring-purple-500", icon: Store },
   date: { label: "おでかけ", grad: "from-cyan-300 to-teal-500", ring: "ring-teal-500", icon: MapPin },
   meeting: {
     label: "相談",
@@ -39,7 +41,8 @@ export const EVENT_CARD: Record<
     ring: "ring-green-500",
     icon: MessagesSquare,
   },
-  supply: { label: "活動支給", grad: "from-amber-400 to-orange-500", ring: "ring-orange-500", icon: Gift },
+  // 名前はシナリオで変わる（差し入れ／活動支給。supplyLabel）ので、使う側が label で渡す
+  supply: { label: "差し入れ", grad: "from-amber-400 to-orange-500", ring: "ring-orange-500", icon: Gift },
   lecture: {
     label: "特別指導",
     grad: "from-lime-500 to-green-700",
@@ -61,10 +64,13 @@ export function ScheduleCard({
   sub,
   size = "md",
   title,
+  label,
 }: {
   kind: CalendarEvent | "exam";
   selected?: boolean;
   onClick?: () => void;
+  /** 名前を差し替える（差し入れ／活動支給などシナリオで呼び名が変わるもの） */
+  label?: string;
   /** 名前の下に添える小さな表示（差し入れのPポイントなど） */
   sub?: ReactNode;
   /** md: 選択画面（幅いっぱい）／sm: スケジュール表（小さめ固定幅） */
@@ -94,7 +100,7 @@ export function ScheduleCard({
           size === "sm" ? "text-[10px]" : "text-[11px]"
         } ${dim ? "text-slate-400" : "text-slate-800"}`}
       >
-        {s.label}
+        {label ?? s.label}
       </span>
       {sub}
     </>

@@ -316,9 +316,9 @@ export function useCalcResult() {
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
     const resources = (() => {
-      // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.F.ボーナスの初期Pポイント＋STEP3）と
-      // 差し入れ（活動支給。踏んだ週ごとのPポイント）。
-      // 画面には「サポカ分」と「サポカ＋H.I.F.ボーナス＋親愛度＋メモリー」＋差し入れを出す。
+      // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.F.ボーナスの初期Pポイント。STEP3は選抜だけ）と
+      // 差し入れ（踏んだ週ごとのPポイント）。
+      // 画面には「サポカ分」と「サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ」の2行を出す。
       // サポカ固定P・メモリーは選抜期間に計上し、レッスンP率・タイプSPレッスンP率の
       // 換算は対象レッスンの期間（選抜/本戦）に入れる
       const isHifP = scenario === "hif";
@@ -368,9 +368,9 @@ export function useCalcResult() {
       const supply = selectedSet
         ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet))
         : { total: 0, bySection: [] as number[] };
-      // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.F.は選抜・本戦の2回ぶん
+      // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.F.は選抜の開始時だけで本戦にはかからない
       const stepP = affectionStepP(settings.affection);
-      const pAffection = isHifP ? stepP * 2 : stepP;
+      const pAffection = stepP;
       // H.I.F.ボーナスの初期Pポイント増加（【選抜試験】と【本戦】の2枠）
       const pHifBonus = isHifP
         ? hifBonus.startP.senbatsu + hifBonus.startP.honsen
@@ -379,7 +379,7 @@ export function useCalcResult() {
         ? hifBonus.startP.senbatsu + stepP + (supply.bySection[0] ?? 0)
         : 0;
       const pFixedHonsen = isHifP
-        ? hifBonus.startP.honsen + stepP + (supply.bySection[1] ?? 0)
+        ? hifBonus.startP.honsen + (supply.bySection[1] ?? 0)
         : 0;
       const pCardsSenbatsu = cardP + ratePSen;
       const pCardsHonsen = ratePHon;
@@ -395,11 +395,11 @@ export function useCalcResult() {
         pLesson: lessonP,
         pMemory: mem.P,
         pCards,
-        /** 画面の「Pポイント」＝サポカ＋H.I.F.ボーナス＋親愛度＋メモリー（レッスン分は入れない） */
-        pBase: pCards + pHifBonus + pAffection + mem.P,
+        /** 画面の「Pポイント」＝サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ（レッスン分は入れない） */
+        pBase: pCards + pHifBonus + pAffection + mem.P + supply.total,
         /** H.I.F.ボーナスの初期Pポイント（他シナリオは0） */
         pHifBonus,
-        /** 親愛度の初期Pポイント（H.I.F.は選抜・本戦の2回ぶん） */
+        /** 親愛度の初期Pポイント（STEP3。H.I.F.も選抜の1回だけ） */
         pAffection,
         /** 差し入れ（活動支給）で増えるPポイント（踏んだ週から） */
         pSupply: supply.total,

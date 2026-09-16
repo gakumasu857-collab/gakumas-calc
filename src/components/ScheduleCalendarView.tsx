@@ -1,6 +1,6 @@
 import { ScheduleCard } from "@/components/scheduleCards";
 import { SCENARIO_LABELS, type ScenarioKey } from "@/data/scenarios";
-import { SCENARIO_CALENDARS, supplyPOf } from "@/data/scheduleCalendar";
+import { SCENARIO_CALENDARS, supplyLabel, supplyPOf } from "@/data/scheduleCalendar";
 
 /**
  * シナリオの育成スケジュール（何日/週に何があるか）を正方形のカードで並べる表示。
@@ -50,6 +50,7 @@ export default function ScheduleCalendarView({
                         key={e}
                         kind={e}
                         size="sm"
+                        label={e === "supply" ? supplyLabel(scenario) : undefined}
                         sub={
                           e === "supply" ? (
                             <span className="text-[9px] font-bold tabular-nums text-cyan-700">

@@ -16,6 +16,11 @@ type Props = {
    * 出し方。center＝画面中央（既定）。left＝左端から出す引き出し。
    */
   side?: "center" | "left";
+  /**
+   * true にすると高さを固定し（中央は画面の85%）、中身は flex の縦並びで残りの高さを使う。
+   * 中身が自分でスクロール域を持つとき用（モーダル全体がスクロールしない）。
+   */
+  fill?: boolean;
 };
 
 /** 共通モーダル。背景クリックか×で閉じる。 */
@@ -26,6 +31,7 @@ export default function Modal({
   widthClass = "max-w-2xl",
   toolbar,
   side = "center",
+  fill = false,
 }: Props) {
   const header = (
     <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -56,7 +62,15 @@ export default function Modal({
         >
           {header}
           {bar}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+          <div
+            className={
+              fill
+                ? "flex min-h-0 flex-1 flex-col p-4"
+                : "min-h-0 flex-1 overflow-y-auto p-4"
+            }
+          >
+            {children}
+          </div>
         </div>
       </div>
     );
@@ -68,12 +82,18 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className={`flex max-h-[85vh] w-full flex-col rounded-xl bg-white shadow-xl ${widthClass}`}
+        className={`flex w-full flex-col rounded-xl bg-white shadow-xl ${fill ? "h-[85vh]" : "max-h-[85vh]"} ${widthClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {header}
         {bar}
-        <div className="min-h-0 overflow-y-auto p-4">{children}</div>
+        <div
+          className={
+            fill ? "flex min-h-0 flex-1 flex-col p-4" : "min-h-0 overflow-y-auto p-4"
+          }
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

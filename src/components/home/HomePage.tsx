@@ -28,8 +28,9 @@ const TOOLS: {
     description:
       "育成画面をキャプチャして、サポカイベント（前イベ・後イベ・ステイベ）の発生を自動で記録し、発生率を集計するツール（PC専用）。編成サポカの読み取りからイベント判定・統計・CSV出力まで全自動です。",
     icon: <Camera size={28} />,
-    ready: true,
-    badge: "β版",
+    // 開発中のため入口は押せない（ページ自体は /event-counter に残っている）
+    ready: false,
+    badge: "開発中",
   },
 ];
 
@@ -84,7 +85,9 @@ export default function HomePage() {
           ) : (
             <div
               key={tool.title}
-              className="flex items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5"
+              aria-disabled="true"
+              title="開発中のため、まだ使えません"
+              className="flex cursor-not-allowed select-none items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5"
             >
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-300 text-white">
                 {tool.icon}
@@ -93,7 +96,7 @@ export default function HomePage() {
                 <span className="flex items-center gap-2 text-base font-bold text-slate-400">
                   {tool.title}
                   <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                    準備中
+                    {tool.badge ?? "準備中"}
                   </span>
                 </span>
                 <span className="mt-1 block text-xs leading-relaxed text-slate-400">

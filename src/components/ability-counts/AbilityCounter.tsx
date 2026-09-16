@@ -9,7 +9,7 @@ type Props = {
   count: number;
   /** 編成サポカの前イベ・後イベによる上乗せ回数（表示のみ・緑） */
   extraCount?: number;
-  /** この育成だけの調整が入っている（計算ページ。黄色い枠で光らせる） */
+  /** この育成だけの調整が入っている（計算ページ。薄い黄色の背景と「変更」の印。外側に枠を出すと隣とくっつくので出さない） */
   adjusted?: boolean;
   /** 調整しているときにツールチップで出すデフォルトの回数 */
   defaultCount?: number;
@@ -30,10 +30,8 @@ export default function AbilityCounter({
 
   return (
     <div
-      className={`rounded-lg border bg-white p-2 transition ${
-        adjusted
-          ? "border-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.45)]"
-          : "border-slate-200"
+      className={`rounded-lg border p-2 transition ${
+        adjusted ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
       }`}
       title={
         adjusted && defaultCount !== undefined
@@ -45,6 +43,11 @@ export default function AbilityCounter({
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
           {ABILITY_NAMES[abilityKey]}
         </span>
+        {adjusted && (
+          <span className="shrink-0 rounded bg-amber-400 px-1 text-[10px] font-bold text-amber-950">
+            変更{defaultCount !== undefined ? `（元${defaultCount}）` : ""}
+          </span>
+        )}
       </div>
       <div className="mt-1.5 flex items-center justify-center gap-1">
         {[-10, -1].map((step) => (

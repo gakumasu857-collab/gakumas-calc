@@ -4,6 +4,7 @@ import { Card } from "@/components/calc/CalcCard";
 import Hint from "@/components/Hint";
 import { BTN_GHOST, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
+import { supplyLabel } from "@/data/scheduleCalendar";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -285,7 +286,7 @@ export default function StatsCard({
           <b className="text-cyan-700">{Math.round(r.resources.pCards).toLocaleString()}</b>
           <Hint text={GLOSSARY.pCards} />
         </p>
-        {/* サポカ＋H.I.F.ボーナス＋親愛度＋メモリー。差し入れは踏む週で変わるので別表記 */}
+        {/* サポカ＋H.I.F.ボーナス＋親愛度＋メモリー＋差し入れ（初は活動支給）を1行に */}
         <p className="flex flex-wrap items-center gap-x-1">
           Pポイント:{" "}
           <b className="text-cyan-700">{Math.round(r.resources.pBase).toLocaleString()}</b>
@@ -293,10 +294,9 @@ export default function StatsCard({
             （サポカ {Math.round(r.resources.pCards).toLocaleString()}
             {r.scenario === "hif" && `・HIFボーナス ${r.resources.pHifBonus}`}・親愛度{" "}
             {r.resources.pAffection}・メモリー{" "}
-            {Math.round(r.resources.pMemory).toLocaleString()}）
+            {Math.round(r.resources.pMemory).toLocaleString()}・{supplyLabel(r.scenario)}{" "}
+            {r.resources.pSupply.toLocaleString()}）
           </span>
-          ＋差し入れ（活動支給）{" "}
-          <b className="text-cyan-700">{r.resources.pSupply.toLocaleString()}</b>
           <Hint text={GLOSSARY.pTotal} />
         </p>
         <p>

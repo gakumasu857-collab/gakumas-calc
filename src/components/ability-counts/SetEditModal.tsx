@@ -11,6 +11,7 @@ import {
 import type { AbilityName } from "@/data/constants";
 import {
   isChoiceAbilityKey,
+  supplyLabel,
   type ChoiceEvent,
   type ScheduleChoices,
 } from "@/data/scheduleCalendar";
@@ -125,10 +126,11 @@ export default function SetEditModal({
       onClose={onClose}
       widthClass={side === "left" ? "max-w-3xl" : "max-w-4xl"}
       side={side}
+      fill
     >
       {/* デフォルト（プロデュース設定ページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
           <span>
             <b>今の評価値に適応されている回数</b>です。ここでの変更を次回以降の探索に適用する場合は「上書き保存」
           </span>
@@ -154,15 +156,21 @@ export default function SetEditModal({
               </button>
             )}
           </span>
+          {/* 上書き保存に入るのは素の回数だけ（緑＝サポカのイベントによる上乗せは入らない） */}
+          <span className="w-full text-[11px] leading-relaxed text-slate-600">
+            上書き保存されるのは<b>プロデュースの回数だけ</b>です。
+            <b className="text-emerald-700">緑の数字（サポカのイベントによる上乗せ）</b>
+            は含まずに保存します。
+          </span>
         </div>
       ) : (
-        <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
+        <div className="mb-3 shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
           <b>このプロデュース（セット）のデフォルトの回数</b>です。サポカ編成を決めたあとの、この育成だけの調整は計算ページ左端の「プロデュース」タブで（そこで変えても、「上書き保存」を押さない限りここは変わりません）。
         </div>
       )}
       {/* ユーザーセットは名前・プランを変更できる */}
       {deletable ? (
-        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3 text-xs text-slate-500">
           <label className="flex min-w-52 flex-1 items-center gap-2">
             セット名:
             <input
@@ -194,14 +202,15 @@ export default function SetEditModal({
           )}
         </div>
       ) : (
-        <p className="mb-3 text-xs text-slate-400">
+        <p className="mb-3 shrink-0 text-xs text-slate-400">
           プラン: <b className="text-slate-600">{set.plan || "なし"}</b>
           （テンプレのプランはセット名から自動で決まります）
         </p>
       )}
 
-      {/* 分類を切り替えてもモーダルの大きさが変わらないよう高さを固定 */}
-      <div className="flex h-[65vh] flex-col gap-3 sm:h-[28rem] sm:flex-row">
+      {/* モーダルの高さは固定（Modal の fill）。この枠が残りの高さを使い、右側だけがスクロールする
+          （枠の高さを決め打ちすると、上の帯の分だけモーダル全体がスクロールしてしまうため） */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
         {/* 左: 分類ボタン（スマホでは横並び折り返し） */}
         <div className="flex shrink-0 flex-row flex-wrap gap-1.5 sm:w-48 sm:flex-col">
           {ABILITY_CATEGORIES.map((c) => (
@@ -285,6 +294,21 @@ export default function SetEditModal({
             {/* スケジュール: 週（日）ごとに1つ選ぶ正方形カード。選んだ回数がそのまま発動回数になる */}
             {showChoiceGrid && choices && (
               <div className="md:col-span-2">
+                {/* デフォルトの決め方（この育成だけの選択との違い） */}
+                <p className="mb-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-600">
+                  {mode === "run" ? (
+                    <>
+                      ここで選ぶのは<b>この育成だけ</b>のスケジュールです。デフォルトは
+                      プロデュース設定ページで、セット名を押して「スケジュール」を開くか、表のお出かけ・相談・
+                      {supplyLabel(scenario)}・特別指導の行を押して選べます。ここで変えた分は「上書き保存」でデフォルトにできます。
+                    </>
+                  ) : (
+                    <>
+                      このプロデュースの<b>デフォルト</b>のスケジュールです（探索の条件になります）。計算ページ左端の
+                      「プロデュース」タブでは、この育成だけ選び直せます。
+                    </>
+                  )}
+                </p>
                 <ScheduleChoiceGrid
                   scenario={scenario}
                   choices={choices}

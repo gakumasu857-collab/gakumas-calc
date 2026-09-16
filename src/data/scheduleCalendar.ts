@@ -213,6 +213,11 @@ export type ChoiceRow = {
 /** 行id → 選んだ行動（null＝何も選ばない） */
 export type ScheduleChoices = Record<string, ChoiceEvent | null>;
 
+/** 画面での呼び名（H.I.F.・N.I.A.は「差し入れ」、初レジェンドは「活動支給」。オーナー指定 2026-09-16） */
+export function supplyLabel(scenario: ScenarioKey): string {
+  return scenario === "hatsuLegend" ? "活動支給" : "差し入れ";
+}
+
 /**
  * 差し入れ（活動支給）1回のPポイント（オーナー提供 2026-09-16）。
  * H.I.F. 80 ／ 初レジェンド 180 ／ N.I.A. は18週目から90・それより前は80に、ボーナス+30を足した値（110／120）。
