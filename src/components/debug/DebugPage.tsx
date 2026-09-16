@@ -8,6 +8,7 @@ import { buildAutoOptimizeInput, resolveSpMin } from "@/lib/buildOptimizeInput";
 import {
   effectiveMaxStats,
   findBestFormation,
+  paraboJointOf,
   scoreOwnedCards,
   scoreRentalCandidates,
   type Formation,
@@ -97,6 +98,8 @@ export default function DebugPage() {
       cap: r.statCap,
       maxTargets: effectiveMaxStats(r.statCap, r.calc.settings.maxStats),
       extraScore: r.niaFudaExtra,
+      // 計算ページの理想編成と同じく、パラボは全ソース合算で1回だけ変換する
+      parabo: paraboJointOf(searchCtx, r.roles.typeRole, r.baseNoConv, r.basePct),
     });
     const elapsedMs = performance.now() - start;
     const topOwned = {} as Record<TypeKey, ScoredCard[]>;
@@ -246,7 +249,7 @@ export default function DebugPage() {
               <TRow label="サポカ%込み合算（totalPct）" get={(t) => `${r.paraboDetail[t].totalPct}%`} />
               <TRow label="パラボ変換（conv）" get={(t) => num(r.paraboDetail[t].conv)} />
               <TRow label="サポカ点（パラボ抜き＋シナジー）" get={(t) => num(r.paraboDetail[t].support)} />
-              <TRow label="サポカ点（個別変換・参考値）" get={(t) => num(r.perType[t].supportPoints)} />
+              <TRow label="サポカ点（パラボは1枚ずつの期待値・参考値）" get={(t) => num(r.perType[t].supportPoints)} />
               <TRow label="= 現在のステ" get={(t) => num(r.perType[t].current)} strong />
               <TRow label="上限適用後" get={(t) => num(r.perType[t].capped)} strong />
               <TRow label="サポカ抜き基礎ステ（baseStats）" get={(t) => num(r.baseStats[t])} />
@@ -389,7 +392,7 @@ export default function DebugPage() {
                   </table>
                 </div>
                 <p className="text-xs tabular-nums text-slate-600">
-                  探索時の到達値（ベース込み・カード個別パラボの近似）:{" "}
+                  探索時の到達値（パラボは全ソース合算で変換）:{" "}
                   {TYPE_KEYS.map(
                     (t) =>
                       `${TYPE_LABELS[t]} ${num(formation.best!.totals[t].raw)}→min(${r.statCap})=${num(formation.best!.totals[t].capped)}`,

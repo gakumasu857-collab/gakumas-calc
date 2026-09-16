@@ -2,6 +2,7 @@ import Modal from "@/components/Modal";
 import { TYPE_SOLID } from "@/components/ui";
 import {
   CARD_PARABO_ROWS,
+  formatExpected,
   formatRange,
   MEMORY_PARABO_PCTS,
   paraboGainsByType,
@@ -50,15 +51,26 @@ export default function ParaboTableModal({
     </tr>
   );
 
+  /** 1枠ぶんの変換値（大きい数字＝平均、かっこ内＝最小〜最大。幅が無ければ数字1つ） */
+  const pctCell = (pct: number, type: TypeKey) => {
+    const range = paraboRange(pct, gains[type]);
+    return (
+      <td key={type} className={tdValue(type)}>
+        {formatExpected(range)}
+        {range.min !== range.max && (
+          <span className="ml-1 text-xs font-semibold text-slate-500">
+            ({formatRange(range)})
+          </span>
+        )}
+      </td>
+    );
+  };
+
   /** %の行（ラベル＋Vo/Da/Viの変換値） */
   const pctRow = (pct: number, key: string) => (
     <tr key={key}>
       <td className={tdLabel}>+{pct}%</td>
-      {TYPE_KEYS.map((type) => (
-        <td key={type} className={tdValue(type)}>
-          {formatRange(paraboRange(pct, gains[type]))}
-        </td>
-      ))}
+      {TYPE_KEYS.map((type) => pctCell(pct, type))}
     </tr>
   );
 
@@ -69,8 +81,8 @@ export default function ParaboTableModal({
         パラボはレッスン・試験の獲得ごとに「獲得量×%」を切り捨てて足します。
         <b className="text-slate-600">合計</b>
         は全部の%を合算してから1回で変換するので値が1つに決まります（＝実際にステへ足されている値）。
-        1枠ずつの表は「その枠を足したときに増える量」で、他のパラボと重なると端数が繰り上がるため
-        幅が出ます（最小＝端数が全て切り捨てされたとき／最大＝端数が全部繰り上がったとき）。
+        1枠ずつの表は「その枠を足したときに増える量」で、大きい数字は平均（サポカの点数もこの値で数えます）、
+        かっこ内は他のパラボと重なると端数が繰り上がるために出る幅です（最小＝端数が全て切り捨てされたとき／最大＝端数が全部繰り上がったとき）。
         レッスンや選抜スコアを変えると素のステが変わるので、この表の値も変わります。
       </p>
 
@@ -138,19 +150,12 @@ export default function ParaboTableModal({
                   </td>
                 )}
                 <td className={tdLabel}>+{pct}%</td>
-                {TYPE_KEYS.map((type) => (
-                  <td key={type} className={tdValue(type)}>
-                    {formatRange(paraboRange(pct, gains[type]))}
-                  </td>
-                ))}
+                {TYPE_KEYS.map((type) => pctCell(pct, type))}
               </tr>
             )),
           )}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-slate-400">
-        ※ 1枠ずつの幅はごくたまにずれることがあります。
-      </p>
     </Modal>
   );
 }

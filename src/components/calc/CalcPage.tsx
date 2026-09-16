@@ -43,6 +43,7 @@ import {
   effectiveMaxStats,
   examStyleTags,
   findBestFormation,
+  paraboJointOf,
   scoreOwnedCards,
   scoreRentalCandidates,
   sumEventContrib,
@@ -209,8 +210,10 @@ export default function CalcPage() {
         const owned = scoreOwnedCards(r.getLevel, searchCtx, r.roles.typeRole, opts);
         const rentals = scoreRentalCandidates(searchCtx, r.roles.typeRole, opts);
         // ベースはサポカ抜きの現在ステ（レッスン・メモリー・Pアイドル込み）。上限溢れを考慮して選ぶ。
+        // パラボはメモリー・Pアイドル・サポカの%を合算してから変換する（画面の最終ステと同じ式）。
         // NIAでは札（スキルカード獲得→ファン投票数）の価値もステ換算で加点する
         const best = findBestFormation(owned, rentals, r.baseStats, {
+          parabo: paraboJointOf(searchCtx, r.roles.typeRole, r.baseNoConv, r.basePct),
           pinned: flags.pinned,
           spMin: resolveSpMin(r, settings),
           cap: r.statCap,
@@ -255,6 +258,7 @@ export default function CalcPage() {
           alloc.ops,
         );
         bumpRun();
+        // 合計ステ: 取得回数の制限ありは割り当て後の正確な値、なしは探索の値（パラボ合算込みで画面の合計と同じ）
         setLastRun({
           message:
             `今の踏み方でサポカ編成を組み直しました（合計ステ ${Math.round(alloc.cappedSum ?? best.score).toLocaleString()}）` +

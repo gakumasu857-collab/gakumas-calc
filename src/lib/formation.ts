@@ -25,7 +25,7 @@ import {
   paraboConvert,
   postEventActivations,
   postEventStatRelevant,
-  sheetScore,
+  sheetScoreSplit,
   slotAbilityEntry,
   type SheetRole,
   type SheetScoreContext,
@@ -57,8 +57,17 @@ export type ScoredCard = {
   valuesByKeyByType?: Record<TypeKey, Record<string, number>>;
   /** 凸数(0〜4) */
   level: number;
-  /** ステータス貢献（sheetScore＋アイテム補正。イベント相互作用は含まない） */
+  /**
+   * ステータス貢献（sheetScore＋アイテム補正。イベント相互作用は含まない）。
+   * パラボは切り捨て前の期待値で入っている（sheetScore.paraboExpected）ので小数になりうる
+   */
   points: number;
+  /**
+   * points から自前パラボ（期待値）を除いた分（パラボ以外のアビリティ＋アイテム補正）。
+   * 編成のステはパラボを全ソース合算%で変換し直すので、その土台に使う
+   * （points − パラボ の引き算をしないので、整数の合計が浮動小数の誤差でずれない）
+   */
+  pointsNoParabo: number;
   /** うちアイテム補正分 */
   itemBonus: number;
   /** このカードが持つパラメータボーナス%（凸考慮後） */
@@ -148,6 +157,8 @@ function scoreCard(
   if (!role) return null; // ロール未割当のタイプ
 
   let base: number;
+  /** base のうちパラボ以外（アシストはパラボを持たないので base と同じ） */
+  let baseNoParabo: number;
   let pointsByType: Record<TypeKey, number> | undefined;
   let valuesByKeyByType: Record<TypeKey, Record<string, number>> | undefined;
   let valuesByKey: Record<string, number>;
@@ -169,10 +180,12 @@ function scoreCard(
         (valuesByKey[entry.countKey] ?? 0) + entry.value;
     }
     base = TYPE_LIST.reduce((sum, t) => sum + pointsByType![t], 0);
+    baseNoParabo = base;
   } else {
-    const score = sheetScore(card, level, role, ctx);
+    const score = sheetScoreSplit(card, level, role, ctx);
     if (score === null) return null; // ティア表なし等、計算不能
-    base = score;
+    base = score.other + score.parabo;
+    baseNoParabo = score.other;
     valuesByKey = abilityValuesByCountKey(card, level, role);
   }
   const itemBonus = itemCorrectionAuto(card, role, ctx)?.points ?? 0;
@@ -222,6 +235,7 @@ function scoreCard(
     valuesByKeyByType,
     level,
     points: base + itemBonus,
+    pointsNoParabo: baseNoParabo + itemBonus,
     itemBonus,
     bonusPercent: cardBonusPercent(card, level),
     rental,
@@ -515,7 +529,7 @@ export function spConditionShortfall(
 /**
  * パラメータボーナスを「全ソース合算→1回で変換」し直したタイプ別のサポカ合計。
  * ゲームはパラボを合算してからイベントごとに切り捨てるため、
- * カードごとに個別変換（スプシ方式・編成探索で使用）より正確。
+ * カードごとの点数（パラボは期待値）を足すより正確。
  * @param basePct メモリー＋Pアイドル由来の%（タイプ別）。変換結果 conv に含まれる
  * @returns タイプ別 { support: パラボ抜きサポカ点＋シナジー, conv: 合算%の変換値, totalPct }
  */
@@ -545,13 +559,9 @@ export function summedParaboByType(
       acc[m.type].support += m.points - assigned;
       return;
     }
-    const role = typeRole[m.type];
-    const g = role ? ctx.gains[role] : undefined;
-    // 各カードの点数から自前のパラボ変換分を抜く（あとで合算して変換し直す）
-    const ownParabo = g
-      ? paraboConvert(m.bonusPercent / 100, g.lessons, g.exams)
-      : 0;
-    acc[m.type].support += m.points - ownParabo + (synergies[i] ?? 0);
+    // 各カードの点数から自前のパラボ（期待値）を抜いた分を足す（あとで合算して変換し直す）。
+    // 引き算せず、点数計算の時点で分けて持っている pointsNoParabo を使う
+    acc[m.type].support += m.pointsNoParabo + (synergies[i] ?? 0);
     acc[m.type].pct += m.bonusPercent;
   });
   const out = {} as Record<
@@ -613,15 +623,52 @@ export function eventBudgetScales(
 }
 
 /**
+ * 編成のステをパラボ合算で出すための土台（理想編成の探索用）。
+ * 渡すと evaluateTeam は「パラボ変換前の土台＋カードのパラボ抜き点＋シナジー＋
+ * 合算%（土台の%＋カードの%）の変換値」を上限の前に足す＝計算ページの表示と同じ式になる。
+ */
+export type ParaboJoint = {
+  /** パラボ変換前のタイプ別ステ（授業・レッスン・試験・メモリー固定・Pアイドル固定など） */
+  baseNoConv: Record<TypeKey, number>;
+  /** サポカ抜きのパラボ%（メモリー＋Pアイドル＋H.I.F.ボーナス） */
+  basePct: Record<TypeKey, number>;
+  /** タイプ別のパラボ母数（レッスン・試験の獲得1回ごと）。ロール未割当のタイプは無し（変換0） */
+  gains: Partial<Record<TypeKey, { lessons: number[]; exams: number[] }>>;
+  /**
+   * 変換値のメモ（タイプ → カード由来%×10 → 変換値）。basePct と gains はこの土台で固定なので、
+   * カード%（0.1%刻み）が同じなら変換値も同じ。探索では同じ組み合わせを何千回も評価するので使い回す
+   */
+  convCache: Record<TypeKey, number[]>;
+};
+
+/** 計算コンテキストとサポカ抜きの土台から ParaboJoint を組む */
+export function paraboJointOf(
+  ctx: SheetScoreContext,
+  typeRole: Partial<Record<TypeKey, SheetRole>>,
+  baseNoConv: Record<TypeKey, number>,
+  basePct: Record<TypeKey, number>,
+): ParaboJoint {
+  const gains: ParaboJoint["gains"] = {};
+  for (const type of TYPE_LIST) {
+    const role = typeRole[type];
+    if (role) gains[type] = ctx.gains[role];
+  }
+  return { baseNoConv, basePct, gains, convCache: { vocal: [], dance: [], visual: [] } };
+}
+
+/**
  * 編成の合計を評価する（イベント相互作用込み・タイプ上限はシナリオ依存）。選択サポカの評価にも使う。
  * @param budget 前イベ取得数（カード1枚=1）・後イベ発動数の上限（理論評価値用）。
  *   超過分は比例配分でスケールし、前イベ由来のアイテム補正も同率で目減りさせる。
+ * @param parabo 渡すとパラボを全ソース合算%で1回だけ変換して上限の前に足す（base は使わない）。
+ *   省略時は base ＋ カードの点数（パラボは1枚ずつの期待値）。
  */
 export function evaluateTeam(
   members: ScoredCard[],
   base: Record<TypeKey, number>,
   cap: StatCaps = STAT_CAP,
   budget?: EventBudget,
+  parabo?: ParaboJoint,
 ): EvalResult {
   const scales = eventBudgetScales(members, budget);
   const extra: Record<string, number> = {};
@@ -633,11 +680,14 @@ export function evaluateTeam(
       extra[key] = (extra[key] ?? 0) + m.postContrib[key] * scales.post;
     }
   }
+  const start = parabo ? parabo.baseNoConv : base;
   const raw: Record<TypeKey, number> = {
-    vocal: base.vocal,
-    dance: base.dance,
-    visual: base.visual,
+    vocal: start.vocal,
+    dance: start.dance,
+    visual: start.visual,
   };
+  /** カード由来のパラボ%（タイプ別。parabo 指定時のみ使う） */
+  const cardPct: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const synergiesByType: (Record<TypeKey, number> | null)[] = [];
   const synergies = members.map((m) => {
     // アシストは枠ごとのタイプ別にシナジーを分けて数える
@@ -678,10 +728,32 @@ export function evaluateTeam(
       }
       // points に含まれるアイテム補正分（points − タイプ別合計）と予算調整は type 側へ
       raw[m.type] += m.points - assigned + itemAdj;
+    } else if (parabo) {
+      // 自前パラボ（期待値）を抜いた点を足し、%はタイプ別に合算してあとで1回だけ変換する
+      // （summedParaboByType と同じ足し方。引き算しないので整数の合計がずれない）
+      raw[m.type] += m.pointsNoParabo + synergies[i] + itemAdj;
+      cardPct[m.type] += m.bonusPercent;
     } else {
       raw[m.type] += m.points + synergies[i] + itemAdj;
     }
   });
+  if (parabo) {
+    // 合算%の変換は上限の前に入れる（上限の後で補正すると溢れているタイプで過大・過小になる）
+    for (const type of TYPE_LIST) {
+      const g = parabo.gains[type];
+      if (!g) continue;
+      // カード%は 0.1% 刻み（cardBonusPercent）なので ×10 の整数でメモを引ける
+      const key = Math.round(cardPct[type] * 10);
+      const memo = parabo.convCache[type];
+      let conv = memo[key];
+      if (conv === undefined) {
+        const totalPct = (parabo.basePct[type] ?? 0) + cardPct[type];
+        conv = paraboConvert(totalPct / 100, g.lessons, g.exams);
+        memo[key] = conv;
+      }
+      raw[type] += conv;
+    }
+  }
   const totals = {} as Formation["totals"];
   let score = 0;
   for (const type of TYPE_LIST) {
@@ -741,6 +813,11 @@ export type FindBestOptions = {
   maxTargets?: Record<TypeKey, number>;
   /** ステの高さの順（高い→低い）。指定があれば必須条件として扱う */
   statOrder?: TypeKey[] | null;
+  /**
+   * パラボを全ソース合算%で変換する土台（計算ページの表示と同じ式で選ぶ）。
+   * 渡すと base 引数の代わりにこれを使う。省略時は base ＋ カードの点数（パラボは1枚ずつの期待値）
+   */
+  parabo?: ParaboJoint;
 };
 
 /**
@@ -1136,6 +1213,7 @@ function climbFormation(
 
 /**
  * 合計（各タイプ上限3200・イベント相互作用込み）が最大になる6枚を探す。
+ * opts.parabo を渡すとパラボは合算%で変換して評価する（score は計算ページの合計ステと同じ値）。
  * - レンタル候補があれば必ず1枠はレンタル（完凸）
  * - 固定カード（pinned）は必ず採用。未所持の固定はレンタル枠を使う（1枚まで）
  * - SP最低枚数条件は最優先（満たせない場合は spShortfall > 0 で返す）
@@ -1150,7 +1228,7 @@ export function findBestFormation(
   const cap = opts?.cap ?? STAT_CAP;
   const spMin = opts?.spMin;
   const evalPenalized = (members: ScoredCard[]) => {
-    const team = evaluateTeam(members, base, cap, opts?.eventBudget);
+    const team = evaluateTeam(members, base, cap, opts?.eventBudget, opts?.parabo);
     const capped: Record<TypeKey, number> = {
       vocal: team.totals.vocal.capped,
       dance: team.totals.dance.capped,
@@ -1242,7 +1320,7 @@ export function findBestFormation(
   });
 
   // ---- 結果の組み立て ----
-  const result = evaluateTeam(members, base, cap, opts?.eventBudget);
+  const result = evaluateTeam(members, base, cap, opts?.eventBudget, opts?.parabo);
   const picks: FormationPick[] = members
     .map((m, i) => ({ ...m, synergy: result.synergies[i] }))
     .sort(

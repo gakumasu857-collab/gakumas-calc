@@ -117,7 +117,7 @@ export default function ScoreDetailModal({
                       )}
                       {item.kind === "parabo" && (
                         <span className="text-slate-500">
-                          レッスン・試験の獲得ステに適用（切り捨て）
+                          レッスン・試験の獲得ステに適用（他のパラボと合算して切り捨て。点数は平均）
                         </span>
                       )}
                       {item.kind === "excluded" && "—"}

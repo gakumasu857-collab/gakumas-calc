@@ -62,6 +62,7 @@ import {
   RATIO_PENALTY,
   SP_PENALTY,
   minStatShortfall,
+  paraboJointOf,
   statOrderShortfall,
   spConditionShortfall,
   scoreOwnedCards,
@@ -358,7 +359,8 @@ export type OptimizeDebug = {
  * - ctx: シート式の計算コンテキスト（発動回数・パラボ母数）
  * - baseNoConv: パラボ変換前のタイプ別ステ（授業・レッスン・選抜・メモリー・Pアイドル）
  * - basePct: サポカ抜きのパラボ%（メモリー＋Pアイドル＋基礎10%）
- * - baseStats: 理想編成を選ぶときの土台（baseNoConv＋パラボ変換）
+ * - baseStats: サポカ抜きの土台（baseNoConv＋パラボ変換）。理想編成の探索は baseNoConv と basePct から
+ *   パラボを合算%で変換し直す（buildFormation）
  */
 type Ectx = {
   ctx: SheetScoreContext;
@@ -2785,6 +2787,8 @@ export class OptimizeEngine {
     // 組み直すときの主コストがここ。62ms→十数msに短縮）
     const { owned, rentals } = this.scorePool(ectx);
     return findBestFormation(owned, rentals, ectx.baseStats, {
+      // パラボは全ソース合算%で変換して選ぶ（preciseMembers・計算ページの表示と同じ式）
+      parabo: paraboJointOf(ectx.ctx, TYPE_SHEET_ROLE, ectx.baseNoConv, ectx.basePct),
       pinned: input.flags.pinned,
       spMin: ectx.spMin,
       cap: this.caps,

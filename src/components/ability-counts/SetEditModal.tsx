@@ -11,7 +11,6 @@ import {
 import type { AbilityName } from "@/data/constants";
 import {
   isChoiceAbilityKey,
-  supplyLabel,
   type ChoiceEvent,
   type ScheduleChoices,
 } from "@/data/scheduleCalendar";
@@ -294,21 +293,6 @@ export default function SetEditModal({
             {/* スケジュール: 週（日）ごとに1つ選ぶ正方形カード。選んだ回数がそのまま発動回数になる */}
             {showChoiceGrid && choices && (
               <div className="md:col-span-2">
-                {/* デフォルトの決め方（この育成だけの選択との違い） */}
-                <p className="mb-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-600">
-                  {mode === "run" ? (
-                    <>
-                      ここで選ぶのは<b>この育成だけ</b>のスケジュールです。デフォルトは
-                      プロデュース設定ページで、セット名を押して「スケジュール」を開くか、表のお出かけ・相談・
-                      {supplyLabel(scenario)}・特別指導の行を押して選べます。ここで変えた分は「上書き保存」でデフォルトにできます。
-                    </>
-                  ) : (
-                    <>
-                      このプロデュースの<b>デフォルト</b>のスケジュールです（探索の条件になります）。計算ページ左端の
-                      「プロデュース」タブでは、この育成だけ選び直せます。
-                    </>
-                  )}
-                </p>
                 <ScheduleChoiceGrid
                   scenario={scenario}
                   choices={choices}

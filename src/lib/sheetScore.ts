@@ -7,7 +7,7 @@
  * 点数(凸, ロール) = Σ アビリティ1,2,4,5,6:            ※アビリティ3は計算対象外
  *   ティア = 強化段階[レアリティ×枠][凸]（Ⅰ〜Ⅴ）
  *   効果量 = アビリティ性能[レアリティ×アビ名]のティア列
- *   パラメータボーナス → paraboConvert(ロール, %値) で固定値化
+ *   パラメータボーナス → paraboExpected(ロール, %値) で固定値化（切り捨て前の期待値）
  *   それ以外          → 効果量 × 発動回数[ロール別回数キー]
  */
 import perfData from "@/data/generated/abilityPerf.json";
@@ -133,6 +133,25 @@ export function paraboConvert(
   for (const g of lessonGains) total += Math.floor(g * pct + 1e-9);
   for (const g of examGains) total += Math.floor(g * pct + 1e-9);
   return total;
+}
+
+/**
+ * パラボ%1つぶんの「期待値」（切り捨て前の値 = % × 獲得の合計）。
+ * ゲームはパラボを全ソース（メモリー・Pアイドル・H.I.F.ボーナス・サポカ）で合算してから
+ * 獲得ごとに切り捨てる。合算して獲得ごとに切り捨てると、1つの%の寄与は平均で切り捨て前の値になる
+ * （単独で切り捨てた値 paraboConvert(pct) は最小値で、実際より低く出る）。
+ * カード1枚の点数（点数表・並べ替え・探索の候補順）にはこれを使い、
+ * 編成全体のステは合算%を paraboConvert で1回だけ変換する。
+ */
+export function paraboExpected(
+  pct: number,
+  lessonGains: number[],
+  examGains: number[],
+): number {
+  let sum = 0;
+  for (const g of lessonGains) sum += g;
+  for (const g of examGains) sum += g;
+  return pct * sum;
 }
 
 /** ティア表示用（tier index 0..4 → Ⅰ..Ⅴ） */
@@ -824,7 +843,7 @@ export function abilitySlotValue(
 }
 
 /**
- * カード1枚の点数（スプシ準拠・検証済み）。
+ * カード1枚の点数（スプシ準拠・検証済み。パラボ枠だけは切り捨て前の期待値）。
  * @returns 計算不能（ティア表なし等）は null
  */
 export function sheetScore(
@@ -833,10 +852,27 @@ export function sheetScore(
   role: SheetRole,
   ctx: SheetScoreContext,
 ): number | null {
+  const split = sheetScoreSplit(card, tsuki, role, ctx);
+  return split === null ? null : split.other + split.parabo;
+}
+
+/**
+ * sheetScore をパラボ枠とそれ以外に分けて返す（点数 = other + parabo）。
+ * 編成のステはパラボを合算%で変換し直すので、カードの点数から自前パラボを引き算せずに
+ * 済むよう other を別に持つ（浮動小数の引き算で整数の合計がずれないように）。
+ * @returns other: パラボ以外のアビリティ・ステイベ・前イベの点 / parabo: パラボの期待値
+ */
+export function sheetScoreSplit(
+  card: SupportCardData,
+  tsuki: number,
+  role: SheetRole,
+  ctx: SheetScoreContext,
+): { other: number; parabo: number } | null {
   const tiers = SLOT_TIER[card.rarity as Rarity];
   if (!tiers) return null; // ティア表の無いレアリティは点数計算の対象外
 
   let total = 0;
+  let parabo = 0;
   // アビリティ3(index2)は対象外
   for (const slotIndex of [0, 1, 3, 4, 5]) {
     const slot = card.abilities[slotIndex];
@@ -861,7 +897,8 @@ export function sheetScore(
     if (abiName === "パラメータボーナス") {
       if (typeof value !== "number") continue;
       const g = ctx.gains[role];
-      total += paraboConvert(value, g.lessons, g.exams);
+      // 他のパラボと合算して切り捨てるので、1枚ぶんは切り捨て前の期待値で数える
+      parabo += paraboExpected(value, g.lessons, g.exams);
     } else {
       const countKey = perf[role];
       if (countKey === null) continue;
@@ -882,7 +919,7 @@ export function sheetScore(
       (eventValue(card, tsuki, STAT_EVENT_KEY) ?? 0) *
       preParamActivations(card, ctx);
   }
-  return total;
+  return { other: total, parabo };
 }
 
 export type ScoreBreakdownItem = {
@@ -892,7 +929,7 @@ export type ScoreBreakdownItem = {
   /** 0..4（Ⅰ..Ⅴ）。ティア表なしは null */
   tier: number | null;
   /**
-   * count: 効果量 × 回数 / parabo: % → 固定値変換 /
+   * count: 効果量 × 回数 / parabo: % → 固定値（切り捨て前の期待値） /
    * excluded: 計算対象外（アビリティ3） / none: 回数キーなし等で0点
    */
   kind: "count" | "parabo" | "excluded" | "none";
@@ -979,7 +1016,8 @@ export function sheetScoreBreakdown(
         continue;
       }
       const g = ctx.gains[role];
-      const points = paraboConvert(value, g.lessons, g.exams);
+      // sheetScore と同じく切り捨て前の期待値（合算して切り捨てるときの1枚ぶんの平均）
+      const points = paraboExpected(value, g.lessons, g.exams);
       abilityTotal += points;
       items.push({ ...base, tier, kind: "parabo", value, points });
     } else {

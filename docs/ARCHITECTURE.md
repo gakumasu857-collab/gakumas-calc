@@ -147,12 +147,12 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `abilityCounts.ts` | プロデュース設定ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
-| `affection.ts` | 親愛度Lv（20以下・21〜37）。**スター性ボーナス**（Lv28 から +5% ずつ、36・37 で +50%）・**初期Pポイント**（STEP3。Lv21 から +10〜+30）・**最大体力**（Lv22 から +1〜+2）。`starWithAffection(素の値, Lv)` が「素の値 ×(1+ボーナス) の切り捨て」。設定は `settings.affection`（全シナリオ共通。設定欄の「詳細設定」） |
+| `affection.ts` | 親愛度Lv（20以下・21〜37）。**スター性ボーナス**（Lv28 から +5% ずつ、36・37 で +50%）・**初期Pポイント**（STEP3。Lv21 から +10〜+30。H.I.F. では選抜の開始時だけで本戦にはかからない）・**最大体力**（Lv22 から +1〜+2）。`starWithAffection(素の値, Lv)` が「素の値 ×(1+ボーナス) の切り捨て」。設定は `settings.affection`（全シナリオ共通。設定欄の「詳細設定」） |
 | `hifBonus.ts` | H.I.F.ボーナスのレベル表（Vo/Da/Vi 上昇は固定値とパラボが別のレベル。各 Lv0〜5＝固定+20L／パラボ+2L%、SPレッスン率 Lv0〜5＝+L%、本戦上限 Lv0〜6＝3000+50/80/110/140/170/200）と `hifBonusValues`。既定は全部最大（＝従来の +100/+10%/+5%/3200）。設定は `settings.hifBonus`（`{fixed:{vocal..}, pct:{..}, spRate, finalCap}`。旧形式のタイプごと1レベルは両方に読み替え）、調整は設定欄の一番下「詳細設定」→ DetailSettingsModal（親愛度と同じモーダル） |
 | `niaChallenge.ts` | N.I.A.のチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F. / N.I.A. / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A. のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F. の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
-| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyPOf`＝差し入れ1回のPポイント（H.I.F. 80／初 180／N.I.A. は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.F.は選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、まだ一度も選んでいないセットだけ回数から推測、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
+| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyLabel`＝画面での呼び名（H.I.F.・N.I.A.は「差し入れ」、初レジェンドは「活動支給」）、`supplyPOf`＝差し入れ1回のPポイント（H.I.F. 80／初 180／N.I.A. は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.F.は選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、まだ一度も選んでいないセットだけ回数から推測、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
 
@@ -162,11 +162,11 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 | ファイル | 何をするか |
 |---|---|
-| `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`、発動回数の引き方 `buildCountResolver`、前イベの起動タグ `resolveTriggerCount`（「VocalSPレッスン」＝そのタイプ、「タイプSPレッスン」＝そのカードのタイプ、「SPレッスン」＝全タイプの合算）、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
+| `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`（合算%を獲得ごとに切り捨て）、カード1枚のパラボの期待値 `paraboExpected`（切り捨て前。点数を「パラボ以外」と「パラボ」に分ける `sheetScoreSplit`）、発動回数の引き方 `buildCountResolver`、前イベの起動タグ `resolveTriggerCount`（「VocalSPレッスン」＝そのタイプ、「タイプSPレッスン」＝そのカードのタイプ、「SPレッスン」＝全タイプの合算）、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
 | `sheetContext.ts` | H.I.F. の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
 | `scenarioGains.ts` | N.I.A.・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
 | `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
-| `formation.ts` | **編成の組み方。** カードを点数化 `scoreCard`、6 枚の合計評価 `evaluateTeam`（イベント相互作用と上限込み）、合算パラボ `summedParaboByType`、山登りで最良 6 枚を探す `findBestFormation`、条件（SP枚数・最低ステ・最高ステ・割合・固定/BAN・試験補助）の重み |
+| `formation.ts` | **編成の組み方。** カードを点数化 `scoreCard`、6 枚の合計評価 `evaluateTeam`（イベント相互作用と上限込み）、合算パラボ `summedParaboByType`、理想編成の探索でもパラボを合算%で変換するための土台 `ParaboJoint` / `paraboJointOf`、山登りで最良 6 枚を探す `findBestFormation`、条件（SP枚数・最低ステ・最高ステ・割合・固定/BAN・試験補助）の重み |
 | `autoOptimize.ts` | **理想編成の探索（踏み方×編成を同時に）。** 入口は `runFullOptimize`、本体は `OptimizeEngine` クラス。踏み方だけの最適化 `optimizeSteppingForSlots` も |
 | `optimize/stepping.ts` | 「踏み方」の表し方と近傍（1 箇所だけ変えた候補）の列挙、選抜スコアの整数比プリセット |
 | `optimize/climb.ts` | 踏み方の山登り `climbStepping`（乱数なし。1箇所ずつ良い方へ動かす） |
@@ -190,7 +190,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `config.ts` | 画像URLの組み立て `imageUrl`（`.env.local` の `VITE_IMAGE_BASE_URL` が土台） |
 | `cardSearch.ts` | カード検索（名前・読み仮名・検索ワード） |
 | `ownershipCsv.ts` | 所持状況の CSV 書き出し／読み込み |
-| `paraboTable.ts` / `produceRank.ts` | パラボ変換表モーダル用の計算、評価値→ランク（S5 など）の表 |
+| `paraboTable.ts` / `produceRank.ts` | パラボ変換表モーダル用の計算（`paraboRange`: 1枠ぶんの期待値と最小〜最大。最大は「端数が出る獲得の数」だけ上）、評価値→ランク（S5 など）の表 |
 | `devHarness.ts` | 開発検証用（画面からは使わない） |
 | `cardImport/` | 画面キャプチャから所持サポカを読み取る照合ロジック（Web Worker で動く） |
 | `eventCounter/` | イベントカウンター（画面判定・育成の追跡・統計・保存） |
@@ -234,7 +234,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `event-counter/` | `/event-counter` イベントカウンター（別ツール） |
 | `EventControls.tsx` | 前イベ「取得」トグル、強化／削除の A/M 割り振り、任意スキル獲得の分類ピッカー、後イベ M/A/✕ ボタン、ステイベ 〇/✕（計算ページとサポカ設定ページで共用） |
 | `ScoreDetailModal.tsx` | サポカ 1 枚の点数内訳モーダル |
-| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
+| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル（`fill` で高さを画面の85%に固定し、中身が自分でスクロールする出し方。プロデュース設定モーダルで使う）、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`。授業・営業は同じ紫、レッスン・☆レッスンは同じ青で、アイコンと名前で見分ける、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
 
 ---
 
@@ -246,7 +246,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 ```
 カードの点数 = 枠1・2・4・5・6 の（効果量 × 発動回数）の合計        ※枠3 は点数に入れない
-             ＋ パラボ枠は「レッスン・試験の獲得量の合計 × %」を切り捨て（2026-09 変更）
+             ＋ パラボ枠は「レッスン・試験の獲得量の合計 × %」（切り捨て前の期待値。2026-09-17 変更。下の (c)）
              ＋ ステイベ（パラメータイベント）の値 × 発動したか（0 か 1）
              ＋ 前イベ＝パラメータ（R サポカ）の値 × 前イベ発動回数
 アイテム補正 = 切り捨て（パラメータ上昇値 × 前イベ発動回数）      ※パラメ系 P アイテムを持つカードだけ
@@ -281,6 +281,18 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
   同じ % でも踏み方で価値が変わるのは、母数（獲得量）が踏み方で決まるためです（パラボ変換表モーダルで確認できます）。
 - 6 枚の編成を評価するときは、カードごとに変換せず **メモリー＋Pアイドル＋HIFボーナス 10%＋サポカ全部の % を合算してから 1 回だけ変換** します
   （`formation.ts` の `summedParaboByType`）。個別に変換すると切り捨てが増えて実際より低く出るためです。
+- **カード 1 枚の点数に入れるパラボは、切り捨て前の期待値**（`paraboExpected` = % × 獲得量の合計。2026-09-17）です。
+  点数表・サポカ設定の並べ替え・探索の候補出し（ショートリスト・ビーム・入れ替え候補）はこの値を使います。
+  合算してから獲得ごとに切り捨てると、1 つの % が増やすステは平均すると切り捨て前の値になります
+  （切り捨てで失う分は合計に 1 回だけかかり、獲得 1 回につき 1 未満。H.I.F. のメインタイプで平均 5 前後）。
+  以前は 1 枚ぶんの % だけで切り捨てていたので、H.I.F. のメインタイプで SR・SSR のパラボ持ちが平均 5〜6（最大 11）低く出ていました。
+  メモリーのパラボは探索でも最初から合算側に入っているので、この問題はありません（パラボ変換表の 1 枠ずつの行だけが最小値を出していた）。
+- 編成の合計は期待値ではなく実際の値で出します。`summedParaboByType` はカードの「パラボ以外の点」（`pointsNoParabo`）に合算%の変換値を足し、
+  `findBestFormation` / `evaluateTeam` も `parabo: paraboJointOf(...)` を渡すと同じ足し方を **上限をかける前に** します
+  （呼び出し元は CalcPage の理想編成、OptimizeEngine.buildFormation、デバッグページ）。そのため理想編成の合計ステは画面の値と一致します
+  （以前は最大 30 ほど低く出ていた）。変換値は土台ごとにカード%（0.1% 刻み）でメモします（`ParaboJoint.convCache`）。
+- パラボ変換表の 1 枠ずつの行は、大きい数字が期待値、かっこ内が最小〜最大です（`paraboRange`）。
+  2026-09-16〜17 までは最大に獲得の数（H.I.F. は常に 11）をそのまま足していた不具合があり、端数が出ない獲得（レッスンを踏まない回など）を除くように直しました。
 
 **(d) イベント系の値「基本値×(1+率)」** — `eventValue` / `abilitySlotValue`
 - 2026-09 のスプシ仕様では、パラメータイベント・Pポイントイベント・回復イベントの本体はカードの「ステイベ」「前イベ」「後イベ」列で持ち、
@@ -327,7 +339,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 
 - `scoreCard`: カード 1 枚を「点数＋アイテム補正」「パラボ%」「回数キー別の効果量」「前イベ・後イベで配る回数」などの形にまとめます。
   アシスト（トレーナー）は枠ごとの効果タイプ（`1タイプ〜6タイプ` 列）に従って Vo/Da/Vi に振り分けます。
-- `evaluateTeam`: 6 枚の「配る回数」を合算 → 各カードの受け手アビリティに掛けてシナジー加点 → タイプごとに合計 →
+- `evaluateTeam`: 6 枚の「配る回数」を合算 → 各カードの受け手アビリティに掛けてシナジー加点 → タイプごとに合計（`parabo` を渡したときはパラボ以外の点＋合算%の変換値）→
   **タイプ別上限（H.I.F. 3200／N.I.A. 2600／初 3000）で頭打ち** → 3 タイプ合計が編成の点。溢れた分にペナルティはありません。
 - `findBestFormation`（「理想編成」ボタン・探索の中で使う編成の組み直し）:
   固定カードとレンタル枠（全カードから完凸 1 枚。レンタルNG は除外）を確定 → タイプ別枚数の全分割 × 点数上位取りで種（シード）を作り
@@ -355,7 +367,7 @@ N.I.A. では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 - **N.I.A.**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
 - **初（レジェンド）**: `切り捨て(Σ最終ステ × 2.1) ＋ 最終順位分（1700/900/500/0）＋ 中間スコア換算 ＋ 最終スコア換算`
 
-Pポイント・体力（H.I.F. は選抜・本戦それぞれ「H.I.F.ボーナスの初期Pポイント＋親愛度のSTEP3」と差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋H.I.F.ボーナスの初期P＋親愛度＋メモリー）＋`pSupply`（差し入れ）の2行です。
+Pポイント・体力（H.I.F. は選抜・本戦それぞれの「H.I.F.ボーナスの初期Pポイント」、選抜だけの「親愛度のSTEP3」、差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋H.I.F.ボーナスの初期P＋親愛度＋メモリー＋差し入れ。内訳も同じ行）の2行です。差し入れの呼び名は `supplyLabel`（初レジェンドは「活動支給」）。
 
 ### 3-5. 理想編成（全自動最適化）の流れ（`src/lib/autoOptimize.ts` の `runFullOptimize`）
 
