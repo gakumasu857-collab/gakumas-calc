@@ -18,7 +18,8 @@ type Props = {
   side?: "center" | "left";
   /**
    * true にすると高さを固定し（中央は画面の85%）、中身は flex の縦並びで残りの高さを使う。
-   * 中身が自分でスクロール域を持つとき用（モーダル全体がスクロールしない）。
+   * 中身が自分でスクロール域を持つとき用。ふつうの高さではモーダル全体はスクロールせず、
+   * 中身が最小の高さ（中身側の min-h）に収まらない低い画面でだけ全体がスクロールする。
    */
   fill?: boolean;
 };
@@ -65,7 +66,7 @@ export default function Modal({
           <div
             className={
               fill
-                ? "flex min-h-0 flex-1 flex-col p-4"
+                ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-4"
                 : "min-h-0 flex-1 overflow-y-auto p-4"
             }
           >
@@ -89,7 +90,7 @@ export default function Modal({
         {bar}
         <div
           className={
-            fill ? "flex min-h-0 flex-1 flex-col p-4" : "min-h-0 overflow-y-auto p-4"
+            fill ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-4" : "min-h-0 overflow-y-auto p-4"
           }
         >
           {children}

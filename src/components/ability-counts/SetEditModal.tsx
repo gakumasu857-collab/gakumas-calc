@@ -209,9 +209,11 @@ export default function SetEditModal({
 
       {/* モーダルの高さは固定（Modal の fill）。この枠が残りの高さを使い、右側だけがスクロールする
           （枠の高さを決め打ちすると、上の帯の分だけモーダル全体がスクロールしてしまうため） */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
-        {/* 左: 分類ボタン（スマホでは横並び折り返し） */}
-        <div className="flex shrink-0 flex-row flex-wrap gap-1.5 sm:w-48 sm:flex-col">
+      {/* 低い画面（スマホ・横向き）では最小の高さを保ち、足りない分はモーダル本体がスクロールする
+          （最小を持たせないと右のカードが細い帯になり、左のボタンが右の下に回り込んで押せなくなる） */}
+      <div className="flex min-h-[22rem] flex-1 flex-col gap-3 sm:min-h-[18rem] sm:flex-row">
+        {/* 左: 分類ボタン（スマホでは横並び折り返し。PC幅では列の中で縦に収め、あふれたら列の中だけスクロール） */}
+        <div className="flex shrink-0 flex-row flex-wrap gap-1.5 sm:w-48 sm:flex-col sm:flex-nowrap sm:overflow-y-auto">
           {ABILITY_CATEGORIES.map((c) => (
             <button
               key={c.key}

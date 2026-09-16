@@ -294,21 +294,22 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
 
   /** この育成だけの調整が入っているか（スケジュールの4種は選択の違いを見る） */
   const isRunAdjusted = useCallback(
+    // 調整が残っていても、あとでデフォルトを同じ値にしたら「変更」ではない（値で比べる）
     (set: AbilityCountSet, key: AbilityName): boolean =>
-      isChoiceAbilityKey(key)
-        ? getRunCount(set, key) !== getCount(set, key)
-        : adjust[set.id]?.[key] !== undefined,
-    [adjust, getRunCount, getCount],
+      getRunCount(set, key) !== getCount(set, key),
+    [getRunCount, getCount],
   );
 
   /**
-   * この育成だけの調整の件数。スケジュールの選択は「変えた週の数」で数える
-   * （同じ回数のまま週だけ入れ替えた場合も、上書き保存できるように）。
+   * この育成だけの調整の件数。デフォルトと値が違うものだけ数える（同じ値になった調整は数えない）。
+   * スケジュールの選択は「変えた週の数」で数える（同じ回数のまま週だけ入れ替えた場合も、上書き保存できるように）。
    */
   const runAdjustCount = useCallback(
     (set: AbilityCountSet): number => {
       const plain = Object.keys(adjust[set.id] ?? {}).filter(
-        (k) => !isChoiceAbilityKey(k),
+        (k) =>
+          !isChoiceAbilityKey(k) &&
+          getRunCount(set, k as AbilityName) !== getCount(set, k as AbilityName),
       ).length;
       const run = getRunChoices(set);
       const def = getChoices(set);
@@ -318,7 +319,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
       }
       return plain + rows;
     },
-    [adjust, getRunChoices, getChoices],
+    [adjust, getRunCount, getCount, getRunChoices, getChoices],
   );
 
   /** この育成だけの調整をすべて消してデフォルトに戻す */

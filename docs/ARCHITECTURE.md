@@ -234,7 +234,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `event-counter/` | `/event-counter` イベントカウンター（別ツール） |
 | `EventControls.tsx` | 前イベ「取得」トグル、強化／削除の A/M 割り振り、任意スキル獲得の分類ピッカー、後イベ M/A/✕ ボタン、ステイベ 〇/✕（計算ページとサポカ設定ページで共用） |
 | `ScoreDetailModal.tsx` | サポカ 1 枚の点数内訳モーダル |
-| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル（`fill` で高さを画面の85%に固定し、中身が自分でスクロールする出し方。プロデュース設定モーダルで使う）、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`。授業・営業は同じ紫、レッスン・☆レッスンは同じ青で、アイコンと名前で見分ける、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
+| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル（`fill` で高さを画面の85%に固定し、中身が自分でスクロールする出し方。プロデュース設定モーダルで使う。中身に最小の高さを持たせ、低い画面（スマホ・横向き）ではモーダル全体がスクロールする）、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`。授業・営業は同じ紫、レッスン・☆レッスンは同じ青で、アイコンと名前で見分ける、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
 
 ---
 
