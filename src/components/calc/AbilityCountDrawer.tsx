@@ -59,7 +59,7 @@ export default function AbilityCountDrawer({
     const out = new Set<string>();
     if (!set) return out;
     for (const row of scheduleChoiceRows(r.scenario)) {
-      if (r.ability.isRunChoiceAdjusted(set, r.scenario, row.id)) out.add(row.id);
+      if (r.ability.isRunChoiceAdjusted(set, row.id)) out.add(row.id);
     }
     return out;
   }, [set, r.scenario, r.ability]);
@@ -81,11 +81,10 @@ export default function AbilityCountDrawer({
             onCommitAdjust={() => r.ability.commitRunAdjust(set)}
             formationKeys={formationKeys}
             eventExtras={eventExtras}
-            choices={r.ability.getRunChoices(set, r.scenario)}
-            onPickChoice={(rowId, event) =>
-              r.ability.setRunChoice(set, r.scenario, rowId, event)
-            }
+            choices={r.ability.getRunChoices(set)}
+            onPickChoice={(rowId, event) => r.ability.setRunChoice(set, rowId, event)}
             choiceAdjustedRowIds={choiceAdjustedRowIds}
+            choiceNote={r.ability.choiceFitNote(set, true)}
             onDelete={() => r.ability.deleteSet(set.id)}
             onRename={(name) => r.ability.renameSet(set.id, name)}
             onSetPlan={

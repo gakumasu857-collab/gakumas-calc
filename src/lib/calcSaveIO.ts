@@ -40,6 +40,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
       auditionVotes: r.niaSchedule.auditionVotes,
       finalScores: r.niaSchedule.finalScores,
       finalStats: r.niaSchedule.finalStats,
+      finalTotalScore: r.niaSchedule.finalTotalScore,
       finalKind: r.niaSchedule.finalKind,
     },
     hatsu: {
@@ -54,7 +55,7 @@ export function buildSnapshot(r: CalcResult): CalcSaveSnapshot {
     abilityCounts: selectedSet ? r.ability.snapshotCounts(selectedSet) : {},
     abilitySetName: selectedSet?.name ?? "",
     abilitySetPlan: selectedSet?.plan ?? "",
-    scheduleChoices: selectedSet ? r.ability.getRunChoices(selectedSet, r.scenario) : undefined,
+    scheduleChoices: selectedSet ? r.ability.getRunChoices(selectedSet) : undefined,
     slots: [...r.selected.slots],
     eventCounts: { ...r.events.map },
     ownedLevels: { ...r.ownedLevels.levels },

@@ -67,8 +67,8 @@ type ActiveCell = {
  * ここで編集するのはプロデュースごとのデフォルトの回数。編成後の「この育成での回数」は計算ページ側（adjust）。
  */
 export default function AbilityCountManager() {
-  const store = useAbilityCounts();
   const { scenario } = useScenario();
+  const store = useAbilityCounts(scenario);
   const selectedSupports = useSelectedSupports();
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [activeCell, setActiveCell] = useState<ActiveCell>(null);
@@ -436,10 +436,9 @@ export default function AbilityCountManager() {
         >
           <ScheduleChoiceGrid
             scenario={scenario}
-            choices={store.getChoices(choiceSet, scenario)}
-            onPick={(rowId, event) =>
-              store.setChoice(choiceSet, scenario, rowId, event)
-            }
+            choices={store.getChoices(choiceSet)}
+            onPick={(rowId, event) => store.setChoice(choiceSet, rowId, event)}
+            note={store.choiceFitNote(choiceSet, false)}
           />
         </Modal>
       )}
@@ -533,10 +532,9 @@ export default function AbilityCountManager() {
           getCount={store.getCount}
           setCount={store.setCount}
           formationKeys={onlyFormation ? formationAbilities : undefined}
-          choices={store.getChoices(editingSet, scenario)}
-          onPickChoice={(rowId, event) =>
-            store.setChoice(editingSet, scenario, rowId, event)
-          }
+          choices={store.getChoices(editingSet)}
+          onPickChoice={(rowId, event) => store.setChoice(editingSet, rowId, event)}
+          choiceNote={store.choiceFitNote(editingSet, false)}
           onDelete={() => store.deleteSet(editingSet.id)}
           onRename={(name) => store.renameSet(editingSet.id, name)}
           onSetPlan={

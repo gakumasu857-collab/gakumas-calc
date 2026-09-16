@@ -38,6 +38,11 @@ export type NiaState = {
   auditionVotes: number[];
   finalScores: Record<TypeKey, number>;
   finalStats: Record<TypeKey, number> | null;
+  /**
+   * ステ入力のときの合計スコア（ファン投票数の導出だけに使う。null＝タイプ別スコアの合計）。
+   * ステ入力中にタイプ別スコアを書き換えると「スコア」に戻したとき別物のステになるので、別に持つ。
+   */
+  finalTotalScore: number | null;
   finalKind: NiaFinalKind;
 };
 
@@ -54,6 +59,7 @@ const DEFAULT_STATE: NiaState = {
     visual: NIA_FINAL_SCORE_DEFAULT,
   },
   finalStats: null,
+  finalTotalScore: null,
   finalKind: "finale",
 };
 
@@ -127,6 +133,11 @@ export function loadNiaState(): NiaState {
           visual: orDefault(finalRaw.visual, NIA_FINAL_SCORE_DEFAULT),
         },
         finalStats: parseFinalStats(stored.finalStats),
+        // 旧データには無い（＝タイプ別スコアの合計を使う）
+        finalTotalScore:
+          typeof stored.finalTotalScore === "number"
+            ? Math.max(0, Math.round(stored.finalTotalScore))
+            : null,
         finalKind: stored.finalKind === "quartet" ? "quartet" : "finale",
       };
     }
@@ -236,6 +247,8 @@ export function useNiaSchedule() {
           mode === "score"
             ? null
             : (prev.finalStats ?? initial ?? { vocal: 0, dance: 0, visual: 0 }),
+        // 「スコア」に戻したら合計はタイプ別スコアの合計に戻す
+        finalTotalScore: mode === "score" ? null : prev.finalTotalScore,
       }));
     },
     [],
@@ -253,19 +266,22 @@ export function useNiaSchedule() {
   }, []);
 
   /**
-   * 最終の合計スコアだけを変える（ステ入力のとき、投票数の導出用）。
-   * タイプ別の内訳は今の比率を保つ（内訳が0なら素点が一番大きいタイプに入れる）。
+   * 最終の合計スコアだけを変える（投票数の導出用）。
+   * ステ入力のときはタイプ別スコアを触らず、この合計だけを持つ
+   * （触ると「スコア」に戻したときに入力前と違うステになるため）。
+   * スコア入力のときは今の比率を保って内訳に配る（内訳が0なら1タイプに入れる）。
    */
   const setFinalTotalScore = useCallback((total: number) => {
     setState((prev) => {
       const t = Math.max(0, Math.round(total));
+      if (prev.finalStats) return { ...prev, finalTotalScore: t };
       const cur = TYPE_KEYS.reduce((sum, k) => sum + prev.finalScores[k], 0);
       const next: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       if (cur <= 0) {
         const st = prev.finalStats;
         const top = st ? TYPE_KEYS.reduce((a, b) => (st[b] > st[a] ? b : a)) : "vocal";
         next[top] = t;
-        return { ...prev, finalScores: next };
+        return { ...prev, finalScores: next, finalTotalScore: null };
       }
       let used = 0;
       TYPE_KEYS.forEach((k, idx) => {
@@ -275,7 +291,7 @@ export function useNiaSchedule() {
             : Math.floor((prev.finalScores[k] * t) / cur);
         used += next[k];
       });
-      return { ...prev, finalScores: next };
+      return { ...prev, finalScores: next, finalTotalScore: null };
     });
   }, []);
 
@@ -326,6 +342,11 @@ export function useNiaSchedule() {
       ),
       finalScores: { ...DEFAULT_STATE.finalScores, ...snapshot.finalScores },
       finalStats: parseFinalStats(snapshot.finalStats),
+      // 旧セーブには無い（＝タイプ別スコアの合計を使う）
+      finalTotalScore:
+        typeof snapshot.finalTotalScore === "number"
+          ? Math.max(0, Math.round(snapshot.finalTotalScore))
+          : null,
       finalKind: snapshot.finalKind === "quartet" ? "quartet" : "finale",
     });
   }, []);

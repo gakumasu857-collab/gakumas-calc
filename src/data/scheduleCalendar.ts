@@ -322,20 +322,6 @@ export function choiceTargets(
   };
 }
 
-function matchesTargets(
-  scenario: ScenarioKey,
-  choices: ScheduleChoices,
-  t: Record<ChoiceEvent, number>,
-): boolean {
-  const c = countsFromChoices(scenario, choices);
-  return (
-    c.date === t.date &&
-    c.meeting === t.meeting &&
-    c.supply === t.supply &&
-    Math.min(c.lecture, 3) === t.lecture
-  );
-}
-
 /** 推測で先に埋める行動の順（差し入れはPポイントに効くので最優先） */
 const INFER_PRIORITY: ChoiceEvent[] = ["supply", "meeting", "date", "lecture"];
 const inferCache = new Map<string, ScheduleChoices>();
@@ -392,19 +378,39 @@ export function inferChoices(
   return out;
 }
 
-/** 保存された選択が回数と合っていればそれを使い、合わなければ回数から推測する */
+/**
+ * 画面と計算に使う選択。
+ * 保存された選択があればそれが正（回数はこの選択から決まるので、回数との突き合わせはしない）。
+ * まだ一度も選んでいないセットだけ、昔の回数から推測して埋める。
+ */
 export function resolveChoices(
   scenario: ScenarioKey,
   stored: ScheduleChoices | undefined,
   targets: Record<ChoiceEvent, number>,
 ): ScheduleChoices {
-  if (stored && matchesTargets(scenario, stored, targets)) {
-    const out: ScheduleChoices = {};
-    for (const r of scheduleChoiceRows(scenario)) {
-      const ev = stored[r.id];
-      out[r.id] = ev && r.options.includes(ev) ? ev : null;
-    }
-    return out;
+  if (!stored) return inferChoices(scenario, targets);
+  const out: ScheduleChoices = {};
+  for (const r of scheduleChoiceRows(scenario)) {
+    const ev = stored[r.id];
+    out[r.id] = ev && r.options.includes(ev) ? ev : null;
   }
-  return inferChoices(scenario, targets);
+  return out;
+}
+
+/**
+ * 推測した選択が昔の回数に届かなかった分（週数が足りない・同じ週に重なる等で
+ * そのシナリオでは実現できない回数だった場合）。画面で知らせるために使う。
+ */
+export function choiceShortfall(
+  scenario: ScenarioKey,
+  choices: ScheduleChoices,
+  targets: Record<ChoiceEvent, number>,
+): { event: ChoiceEvent; from: number; to: number }[] {
+  const c = countsFromChoices(scenario, choices);
+  const got: Record<ChoiceEvent, number> = { ...c, lecture: Math.min(c.lecture, 3) };
+  const out: { event: ChoiceEvent; from: number; to: number }[] = [];
+  for (const ev of CHOICE_EVENTS) {
+    if (got[ev] < targets[ev]) out.push({ event: ev, from: targets[ev], to: got[ev] });
+  }
+  return out;
 }

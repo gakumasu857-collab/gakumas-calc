@@ -397,7 +397,9 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
 function NiaFinalScoreRows({ r }: { r: CalcResult }) {
   const nia = r.niaSchedule;
   const tag: NiaTag = r.ranks?.tag === "特化" ? "skew" : "flat";
-  const total = TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
+  // ステ入力のときは投票数用の合計、スコア入力のときはタイプ別スコアの合計
+  const total =
+    nia.finalTotalScore ?? TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
   const votesCap = niaFinalVotesCapScore(nia.finalKind);
   return (
     <div className="flex flex-col gap-1.5">

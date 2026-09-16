@@ -116,14 +116,15 @@ export function typeRanksOf(idol: string): TypeRanks {
 
 export function useCalcResult() {
   const calc = useCalcSettings();
-  const ability = useAbilityCounts();
+  // シナリオは発動回数ストアより先に読む（スケジュールの選択で決まる回数がシナリオで変わるため）
+  const scenarioStore = useScenario();
+  const ability = useAbilityCounts(scenarioStore.scenario);
   const schedule = useSchedule();
   const memoryStore = useMemoryStore();
   const pIdols = useOwnedPIdols();
   const selected = useSelectedSupports();
   // 計算ページの前イベ・後イベ設定はサポカ設定と混ざらないよう専用ストアを使う
   const events = useEventCounts(CALC_EVENT_COUNTS_KEY);
-  const scenarioStore = useScenario();
   const niaSchedule = useNiaSchedule();
   const hatsuSchedule = useHatsuSchedule();
   const ownedLevels = useOwnedLevels();
@@ -365,7 +366,7 @@ export function useCalcResult() {
       // 差し入れ（活動支給）のPポイントは、どの週（日）で踏んだかで変わる
       // （スケジュールの選択から。H.I.F.は選抜・本戦に分けて計上する）
       const supply = selectedSet
-        ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet, scenario))
+        ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet))
         : { total: 0, bySection: [] as number[] };
       // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.F.は選抜・本戦の2回ぶん
       const stepP = affectionStepP(settings.affection);

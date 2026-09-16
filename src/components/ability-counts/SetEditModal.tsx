@@ -57,6 +57,8 @@ type Props = {
    */
   choices?: ScheduleChoices;
   onPickChoice?: (rowId: string, event: ChoiceEvent | null) => void;
+  /** 保存されていた回数がスケジュールに入りきらなかった分（あれば注意書きを出す） */
+  choiceNote?: { event: ChoiceEvent; from: number; to: number }[];
   /** run のとき: この育成だけ変えた週（黄色い枠） */
   choiceAdjustedRowIds?: ReadonlySet<string>;
   /** 出し方（計算ページからは左の引き出し） */
@@ -84,6 +86,7 @@ export default function SetEditModal({
   onClose,
   choices,
   onPickChoice,
+  choiceNote,
   choiceAdjustedRowIds,
   side,
 }: Props) {
@@ -287,6 +290,7 @@ export default function SetEditModal({
                   choices={choices}
                   onPick={onPickChoice}
                   adjustedRowIds={choiceAdjustedRowIds}
+                  note={choiceNote}
                 />
                 <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-bold text-slate-600">
                   そのほかのスケジュールの回数

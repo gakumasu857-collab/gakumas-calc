@@ -494,7 +494,9 @@ function NiaEditor({ r }: { r: CalcResult }) {
   const finalDerived = Object.fromEntries(
     TYPE_KEYS.map((t) => [t, niaFinaleStat(tag, r.typeRanks[t], nia.finalScores[t], nia.finalKind)]),
   ) as Record<TypeKey, number>;
-  const finalTotal = TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
+  // ステ入力のときは投票数用の合計、スコア入力のときはタイプ別スコアの合計
+  const finalTotal =
+    nia.finalTotalScore ?? TYPE_KEYS.reduce((s, t) => s + nia.finalScores[t], 0);
   const modeBtn = (mode: "score" | "stat", label: string) => (
     <button
       type="button"

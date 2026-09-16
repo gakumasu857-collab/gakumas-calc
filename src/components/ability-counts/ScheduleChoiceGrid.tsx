@@ -21,6 +21,7 @@ export default function ScheduleChoiceGrid({
   choices,
   onPick,
   adjustedRowIds,
+  note,
 }: {
   scenario: ScenarioKey;
   choices: ScheduleChoices;
@@ -28,6 +29,8 @@ export default function ScheduleChoiceGrid({
   onPick?: (rowId: string, event: ChoiceEvent | null) => void;
   /** この育成だけ変えた週（黄色い枠） */
   adjustedRowIds?: ReadonlySet<string>;
+  /** 保存されていた回数がこのシナリオのスケジュールに入りきらなかった分 */
+  note?: { event: ChoiceEvent; from: number; to: number }[];
 }) {
   const cal = SCENARIO_CALENDARS[scenario];
   const rows = scheduleChoiceRows(scenario);
@@ -55,6 +58,16 @@ export default function ScheduleChoiceGrid({
           差し入れ（活動支給）+{supply.total}P
         </span>
       </div>
+      {note && note.length > 0 && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
+          前に入れていた回数は、このシナリオのスケジュールに入りきらないので
+          <b>入る分だけ</b>にしています（
+          {note
+            .map((n) => `${EVENT_CARD[n.event].label} ${n.from}→${n.to}回`)
+            .join("・")}
+          ）。下のカードで選び直せます。
+        </p>
+      )}
       {onPick && (
         <p className="text-[11px] leading-relaxed text-slate-500">
           各{cal.unit === "週" ? "週" : "日"}で選んだものを1つ押します（もう一度押すと外れます）。選んだ回数がこのプロデュースの

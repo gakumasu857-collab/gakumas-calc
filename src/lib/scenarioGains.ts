@@ -62,6 +62,8 @@ export type NiaStateLike = {
   finalScores: Record<TypeKey, number>;
   /** 最終オーディションの素点を直接入力するとき（null／省略＝スコアから導出） */
   finalStats?: Record<TypeKey, number> | null;
+  /** ステ入力のときの合計スコア（投票数の導出用。null／省略＝タイプ別スコアの合計） */
+  finalTotalScore?: number | null;
   /** 最終オーディションの種類（省略＝FINALE） */
   finalKind?: NiaFinalKind;
 };
@@ -108,10 +110,14 @@ export function niaAuditionBaseStats(
   ];
 }
 
-/** 最終オーディションの合計スコア（ファン投票数の導出元） */
+/**
+ * 最終オーディションの合計スコア（ファン投票数の導出元）。
+ * ステ入力のときは別に持っている合計（finalTotalScore）を使う。
+ */
 export function niaFinaleTotalScore(
-  state: Pick<NiaStateLike, "finalScores">,
+  state: Pick<NiaStateLike, "finalScores" | "finalTotalScore">,
 ): number {
+  if (typeof state.finalTotalScore === "number") return state.finalTotalScore;
   return TYPE_KEYS.reduce((sum, type) => sum + state.finalScores[type], 0);
 }
 

@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useSaveNotifier } from "./storeSync";
+import { useScenario } from "./useScenario";
 import type { AbilityName } from "@/data/constants";
 import {
   ABILITY_CATEGORIES,
@@ -13,7 +14,7 @@ import {
 import type { ScenarioKey } from "@/data/scenarios";
 import {
   abilityCountsFromChoices,
-  CHOICE_ABILITY_KEYS,
+  choiceShortfall,
   choiceTargets,
   isChoiceAbilityKey,
   resolveChoices,
@@ -40,9 +41,10 @@ const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
 /**
  * スケジュールの選択（セットID → シナリオ → 週の行id → 選んだ行動）。
- * おでかけ・相談・活動支給・特別指導の回数はこの選択から決まり、選ぶたびに回数へ書き戻す
- * （回数を読む側はこれまでどおり回数だけを見ればよい）。ユーザーセットは全シナリオで出るのでシナリオ別に持つ。
- * 保存した選択が回数と合わない（テンプレ・旧データ・セーブの読み込み）ときは回数から推測して表示する。
+ * おでかけ・相談・活動支給・特別指導（と「(N回まで)」版）の回数は、**この選択から導き出す**
+ * （回数として保存し直さない）。ユーザーセットは3シナリオすべてに出るので、選択も回数も
+ * シナリオごとに別々になる必要があり、回数側へ書き戻すと別のシナリオの分を壊してしまうため。
+ * まだ一度も選んでいないセットだけ、保存されている回数から選択を推測して表示する。
  */
 const CHOICES_KEY = "gakumas:scheduleChoices:v1";
 /** 計算ページでの「この育成だけ」の選択（同じ形） */
@@ -74,7 +76,12 @@ function loadJson<T>(key: string, fallback: T): T {
   return fallback;
 }
 
-export function useAbilityCounts() {
+/**
+ * @param scenarioArg 表示中のシナリオ。スケジュールの選択で決まる回数はシナリオごとに変わるので、
+ *   シナリオを持っている画面（計算ページ・プロデュース設定ページ）は必ず渡す。
+ *   省略すると自前のストアから読むが、その実体は別画面での切り替えに追従しない。
+ */
+export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   const [overrides, setOverrides] = useState<Overrides>(() =>
     loadJson<Overrides>(STORAGE_KEY, {}),
   );
@@ -98,6 +105,9 @@ export function useAbilityCounts() {
     }
   });
 
+  const { scenario: ownScenario } = useScenario();
+  const scenario = scenarioArg ?? ownScenario;
+
   const notifySave = useSaveNotifier();
   useEffect(() => {
     try {
@@ -117,13 +127,42 @@ export function useAbilityCounts() {
   const defaultFor = (set: AbilityCountSet, key: AbilityName): number =>
     set.defaults[key] ?? 0;
 
-  /** 現在の回数（上書きがあればそれ、なければデフォルト） */
+  /**
+   * 保存されている回数そのもの（スケジュールの選択で決まる4種＋「(N回まで)」版については、
+   * まだ一度も選んでいないセットの推測の材料としてだけ使う値）。
+   */
+  const rawCount = useCallback(
+    (set: AbilityCountSet, key: AbilityName): number =>
+      clamp(overrides[set.id]?.[key] ?? defaultFor(set, key), abilityMax(key)),
+    [overrides],
+  );
+
+  /**
+   * スケジュールの選択（セットのデフォルト）。保存された選択があればそれが正で、
+   * まだ一度も選んでいないセットだけ保存されている回数から推測する。
+   */
+  const getChoices = useCallback(
+    (set: AbilityCountSet): ScheduleChoices =>
+      resolveChoices(
+        scenario,
+        choices[set.id]?.[scenario],
+        choiceTargets((k) => rawCount(set, k)),
+      ),
+    [choices, scenario, rawCount],
+  );
+
+  /**
+   * 現在の回数（上書きがあればそれ、なければデフォルト）。
+   * お出かけ・相談・活動支給・特別指導（と「(N回まで)」版）は、今のシナリオの
+   * スケジュールの選択から導き出す（回数は選択の写しなので、別シナリオの選択に影響されない）。
+   */
   const getCount = useCallback(
     (set: AbilityCountSet, key: AbilityName): number => {
-      const value = overrides[set.id]?.[key] ?? defaultFor(set, key);
-      return clamp(value, abilityMax(key));
+      if (isChoiceAbilityKey(key))
+        return abilityCountsFromChoices(scenario, getChoices(set))[key];
+      return clamp(overrides[set.id]?.[key] ?? defaultFor(set, key), abilityMax(key));
     },
-    [overrides],
+    [overrides, scenario, getChoices],
   );
 
   /** ユーザーが値を変更しているか（デフォルトと異なるか） */
@@ -152,16 +191,36 @@ export function useAbilityCounts() {
     [],
   );
 
+  /** この育成だけの調整を含む、保存されている回数（推測の材料） */
+  const rawRunCount = useCallback(
+    (set: AbilityCountSet, key: AbilityName): number =>
+      clamp(adjust[set.id]?.[key] ?? rawCount(set, key), abilityMax(key)),
+    [adjust, rawCount],
+  );
+
+  /** この育成でのスケジュールの選択（この育成だけの選択があればそれ、無ければデフォルト） */
+  const getRunChoices = useCallback(
+    (set: AbilityCountSet): ScheduleChoices =>
+      resolveChoices(
+        scenario,
+        runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario],
+        choiceTargets((k) => rawRunCount(set, k)),
+      ),
+    [runChoices, choices, scenario, rawRunCount],
+  );
+
   /**
    * 計算ページで使う「この育成での回数」。この育成だけの調整（adjust）があればそれ、
    * なければセットのデフォルト（プロデュース設定ページの値）。
+   * スケジュールの選択で決まる4種は、この育成での選択から導き出す。
    */
   const getRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName): number => {
-      const value = adjust[set.id]?.[key] ?? getCount(set, key);
-      return clamp(value, abilityMax(key));
+      if (isChoiceAbilityKey(key))
+        return abilityCountsFromChoices(scenario, getRunChoices(set))[key];
+      return clamp(adjust[set.id]?.[key] ?? getCount(set, key), abilityMax(key));
     },
-    [adjust, getCount],
+    [adjust, getCount, scenario, getRunChoices],
   );
 
   /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュース設定ページの値は変えない */
@@ -181,88 +240,85 @@ export function useAbilityCounts() {
     [getCount],
   );
 
-  /** スケジュールの選択（セットのデフォルト）。保存した選択が回数と合わなければ回数から推測する */
-  const getChoices = useCallback(
-    (set: AbilityCountSet, scenario: ScenarioKey): ScheduleChoices =>
-      resolveChoices(
-        scenario,
-        choices[set.id]?.[scenario],
-        choiceTargets((k) => getCount(set, k)),
-      ),
-    [choices, getCount],
-  );
-
-  /** スケジュールの選択を変える（デフォルト）。選択から決まる回数もセットへ書き戻す */
+  /** スケジュールの選択を変える（デフォルト）。回数はこの選択から導くので書き戻さない */
   const setChoice = useCallback(
-    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string, event: ChoiceEvent | null) => {
-      const next: ScheduleChoices = { ...getChoices(set, scenario), [rowId]: event };
+    (set: AbilityCountSet, rowId: string, event: ChoiceEvent | null) => {
+      const next: ScheduleChoices = { ...getChoices(set), [rowId]: event };
       setChoices((prev) => ({
         ...prev,
         [set.id]: { ...(prev[set.id] ?? {}), [scenario]: next },
       }));
-      const counts = abilityCountsFromChoices(scenario, next);
-      for (const key of CHOICE_ABILITY_KEYS) setCount(set, key, counts[key]);
     },
-    [getChoices, setCount],
+    [getChoices, scenario],
   );
 
-  /** この育成でのスケジュールの選択（この育成だけの選択があればそれ、無ければデフォルト） */
-  const getRunChoices = useCallback(
-    (set: AbilityCountSet, scenario: ScenarioKey): ScheduleChoices =>
-      resolveChoices(
-        scenario,
-        runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario],
-        choiceTargets((k) => getRunCount(set, k)),
-      ),
-    [runChoices, choices, getRunCount],
-  );
-
-  /** この育成だけのスケジュールの選択を変える（回数はこの育成だけの調整に書く） */
+  /** この育成だけのスケジュールの選択を変える（デフォルトは変えない） */
   const setRunChoice = useCallback(
-    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string, event: ChoiceEvent | null) => {
-      const next: ScheduleChoices = { ...getRunChoices(set, scenario), [rowId]: event };
+    (set: AbilityCountSet, rowId: string, event: ChoiceEvent | null) => {
+      const next: ScheduleChoices = { ...getRunChoices(set), [rowId]: event };
       setRunChoices((prev) => ({
         ...prev,
         [set.id]: { ...(prev[set.id] ?? {}), [scenario]: next },
       }));
-      const counts = abilityCountsFromChoices(scenario, next);
-      for (const key of CHOICE_ABILITY_KEYS) setRunCount(set, key, counts[key]);
     },
-    [getRunChoices, setRunCount],
+    [getRunChoices, scenario],
   );
 
   /** この育成だけの選択がデフォルトと違う週か（黄色い枠） */
   const isRunChoiceAdjusted = useCallback(
-    (set: AbilityCountSet, scenario: ScenarioKey, rowId: string): boolean =>
-      (getRunChoices(set, scenario)[rowId] ?? null) !== (getChoices(set, scenario)[rowId] ?? null),
+    (set: AbilityCountSet, rowId: string): boolean =>
+      (getRunChoices(set)[rowId] ?? null) !== (getChoices(set)[rowId] ?? null),
     [getRunChoices, getChoices],
   );
 
-  /** この育成だけの調整が入っているか */
+  /**
+   * まだ一度も選んでいないセットで、保存されていた回数が今のシナリオのスケジュールに
+   * 入りきらなかった分（「入る分だけにしました」と画面で知らせる）。
+   * 一度でも選べば選択そのものが正になるので、以後は出ない。
+   */
+  const choiceFitNote = useCallback(
+    (set: AbilityCountSet, run: boolean): { event: ChoiceEvent; from: number; to: number }[] => {
+      const stored = run
+        ? (runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario])
+        : choices[set.id]?.[scenario];
+      if (stored) return [];
+      const raw = run ? rawRunCount : rawCount;
+      return choiceShortfall(
+        scenario,
+        run ? getRunChoices(set) : getChoices(set),
+        choiceTargets((k) => raw(set, k)),
+      );
+    },
+    [runChoices, choices, scenario, rawRunCount, rawCount, getRunChoices, getChoices],
+  );
+
+  /** この育成だけの調整が入っているか（スケジュールの4種は選択の違いを見る） */
   const isRunAdjusted = useCallback(
     (set: AbilityCountSet, key: AbilityName): boolean =>
-      adjust[set.id]?.[key] !== undefined,
-    [adjust],
+      isChoiceAbilityKey(key)
+        ? getRunCount(set, key) !== getCount(set, key)
+        : adjust[set.id]?.[key] !== undefined,
+    [adjust, getRunCount, getCount],
   );
 
   /**
-   * この育成だけの調整の件数。スケジュールの選択で決まる回数は「変えた週の数」で数える
+   * この育成だけの調整の件数。スケジュールの選択は「変えた週の数」で数える
    * （同じ回数のまま週だけ入れ替えた場合も、上書き保存できるように）。
    */
   const runAdjustCount = useCallback(
     (set: AbilityCountSet): number => {
-      const keys = Object.keys(adjust[set.id] ?? {});
-      const plain = keys.filter((k) => !isChoiceAbilityKey(k)).length;
+      const plain = Object.keys(adjust[set.id] ?? {}).filter(
+        (k) => !isChoiceAbilityKey(k),
+      ).length;
+      const run = getRunChoices(set);
+      const def = getChoices(set);
       let rows = 0;
-      for (const sc of Object.keys(runChoices[set.id] ?? {}) as ScenarioKey[]) {
-        const run = getRunChoices(set, sc);
-        const def = getChoices(set, sc);
-        for (const id of Object.keys(run)) if ((run[id] ?? null) !== (def[id] ?? null)) rows++;
+      for (const id of Object.keys(run)) {
+        if ((run[id] ?? null) !== (def[id] ?? null)) rows++;
       }
-      const choiceKeys = keys.filter((k) => isChoiceAbilityKey(k)).length;
-      return plain + (rows > 0 ? rows : choiceKeys);
+      return plain + rows;
     },
-    [adjust, runChoices, getRunChoices, getChoices],
+    [adjust, getRunChoices, getChoices],
   );
 
   /** この育成だけの調整をすべて消してデフォルトに戻す */
@@ -580,6 +636,7 @@ export function useAbilityCounts() {
     getRunChoices,
     setRunChoice,
     isRunChoiceAdjusted,
+    choiceFitNote,
     resetSets,
     resetEverything,
     clearSelected,
