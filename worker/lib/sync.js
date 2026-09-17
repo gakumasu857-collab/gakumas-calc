@@ -15,7 +15,7 @@ const JSON_META = {
 };
 
 /** 行配列 → オブジェクト配列。空ヘッダー列は捨て、全セル空の行はスキップ */
-function rowsToRecords(rows) {
+export function rowsToRecords(rows) {
   const header = rows[0].map((h) => String(h).trim());
   const records = [];
   for (const row of rows.slice(1)) {
@@ -31,13 +31,16 @@ function rowsToRecords(rows) {
 
 /**
  * 生グリッド（行列そのまま）で保存するタブ。
- * 発動回数タブは1行目がプランのタグ行（左上セルが空）になり、
+ * 発動回数タブ・スケジュールタブは1行目がプランのタグ行（左上セルが空）になり、
  * ヘッダー→オブジェクト変換だとアビリティ名列が落ちる・プラン名の重複で列が潰れるため。
  */
-const GRID_TABS = new Set([
+export const GRID_TABS = new Set([
   "abilityCountsHIF",
   "abilityCountsNIA",
   "abilityCountsHajime",
+  "scheduleHIF",
+  "scheduleNIA",
+  "scheduleHajime",
 ]);
 
 /**

@@ -27,7 +27,7 @@ crons = ["0 18 * * *"]  # 毎日3時(JST)の保険同期。通常は gen:all が
 # 秘密でない設定。SHEET_ID はURLに出る値、SHEET_TABS は同期するタブ名。
 [vars]
 SHEET_ID = "1Hcl8izrBVL82XF4nGd2vi3QeONhDqYGZXom_7p-29Ow"
-SHEET_TABS = "supMaster,abilityValues,pidleName,pidleStatus,idleTypes,abilityCountsHIF,abilityCountsNIA,abilityCountsHajime,abilityEvolutions"
+SHEET_TABS = "supMaster,abilityValues,pidleName,pidleStatus,idleTypes,abilityCountsHIF,abilityCountsNIA,abilityCountsHajime,scheduleHIF,scheduleNIA,scheduleHajime,abilityEvolutions"
 
 # 秘密（wrangler secret put で設定。ここには書かない）:
 #   GS_CLIENT_EMAIL / GS_PRIVATE_KEY / SYNC_SECRET

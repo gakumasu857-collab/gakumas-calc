@@ -139,6 +139,7 @@ npm run gen:all && npm run release
 | supMaster の列名・列の追加/削除 | `src/data/supportCardsDb.ts` | `HEADER_ALIASES`（日本語ヘッダー→内部キー）と `convert()`（列から `SupportCardData` を組み立てる部分） |
 | 新しいアビリティ名（カードの n アビ / abilityValues の行） | `src/data/constants.ts` → `src/data/abilityCounts.ts` | `ABILITY_NAMES` にキーとラベルを追加（表記ゆれは `ABILITY_LABEL_ALIASES`）。発動回数の分類（`CATEGORIES`）にキーを追加。未登録だと回数が結び付かず点数0になる（gen:perf が「perf に無い」警告を出す） |
 | 発動回数タブ（abilityCounts*）の行名 | `src/data/constants.ts` | ラベルが `ABILITY_NAMES` と一致すればそのまま通る。違う表記は `ABILITY_LABEL_ALIASES` に追記 |
+| スケジュールタブ（schedule*）の中身 | 直すところ無し（スプシだけでよい） | プロデュースごとの「どの週（日）に何を踏むか」。セルは お出かけ／相談／差し入れ（初は活動支給）／特別指導／休む・空欄。列は発動回数タブと同じ並びにする。おかしいと `gen:counts` が場所を名指しして止まる。お出かけ・相談・差し入れ・特別指導・休むの回数はこのタブから数えるので、発動回数タブの同じ5行はテンプレでは使われない |
 | アビリティ名・前イベ起動タグの改名（例: 基本チェンジ→基本スキルチェンジ） | `src/data/constants.ts` | `ABILITY_NAMES` の日本語名を書き換えるだけ（内部キーは変えない）。直さないと該当アビリティが点数0になる。`gen:all` 末尾の `check:labels` が未登録の名前を列挙して止まる。詳細は docs/ARCHITECTURE.md 4-1 C-2 |
 | 「〜(N回まで)」のような上限違いの派生アビリティ | `src/data/abilityCounts.ts` | `DERIVED_CAPS`（基の回数から上限付きの回数を作る） |
 | アビリティの値の意味（率で補正する等） | `src/lib/sheetScore.ts` | `abilitySlotValue()`（枠の値の解釈）、`cardResources()`（Pポイント・回復・体力） |

@@ -5,6 +5,8 @@ import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   ABILITY_CATEGORIES,
   abilityAppliesTo,
+  autoCountNote,
+  isAutoCountKey,
   SET_PLAN_OPTIONS,
   type AbilityCountSet,
   type CategoryKey,
@@ -26,9 +28,12 @@ type Props = {
    * run: 計算ページ（この育成だけの回数。デフォルトは変えない）
    */
   mode?: "default" | "run";
-  /** run のとき: デフォルトの回数（黄色い枠のツールチップ用） */
-  defaultCount?: (set: AbilityCountSet, key: AbilityName) => number;
-  /** run のとき: この育成だけの調整が入っているか */
+  /**
+   * 変更前の回数（「元◯」の表示用）。
+   * run＝プロデュースのデフォルト、default＝スプレッドシート由来の最初の回数（自分で追加したセットは null）
+   */
+  defaultCount?: (set: AbilityCountSet, key: AbilityName) => number | null;
+  /** 変更が入っているか（run＝この育成だけの調整、default＝最初の回数からの変更） */
   isAdjusted?: (set: AbilityCountSet, key: AbilityName) => boolean;
   /** run のとき: 調整の件数 */
   adjustedCount?: number;
@@ -54,7 +59,7 @@ type Props = {
   onClose: () => void;
   /**
    * スケジュールの選択（週・日ごとに1つ）。渡すと「スケジュール」分類が正方形カードの選択UIになり、
-   * おでかけ・相談・活動支給・特別指導の回数はカードで決まる（数のカウンターは出さない）
+   * お出かけ・相談・活動支給・特別指導・休むの回数はカードで決まる（数のカウンターは出さない）
    */
   choices?: ScheduleChoices;
   onPickChoice?: (rowId: string, event: ChoiceEvent | null) => void;
@@ -104,7 +109,7 @@ export default function SetEditModal({
   const [schedOpen, setSchedOpen] = useState(false);
   const { scenario } = useScenario();
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
-  // スケジュール分類は、選択カードで決まるアビリティ（おでかけ・相談・活動支給・特別指導）を
+  // スケジュール分類は、選択カードで決まるアビリティ（お出かけ・相談・活動支給・特別指導・休む）を
   // カウンターでは出さない（カードで1つ選ぶと回数が決まるため）
   const showChoiceGrid = category === "schedule" && !!choices;
   // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する。
@@ -318,18 +323,30 @@ export default function SetEditModal({
                 この分類には編成中のアビリティがありません。
               </p>
             ) : (
-              visibleAbilities.map((key) => (
-                <AbilityCounter
-                  key={key}
-                  abilityKey={key}
-                  scenario={scenario}
-                  count={getCount(set, key)}
-                  extraCount={withEvents ? (eventExtras?.[key] ?? 0) : 0}
-                  adjusted={isAdjusted ? isAdjusted(set, key) : false}
-                  defaultCount={defaultCount ? defaultCount(set, key) : undefined}
-                  onChange={(value) => setCount(set, key, value)}
-                />
-              ))
+              visibleAbilities.map((key) => {
+                const before = defaultCount?.(set, key) ?? undefined;
+                return (
+                  <AbilityCounter
+                    key={key}
+                    abilityKey={key}
+                    scenario={scenario}
+                    count={getCount(set, key)}
+                    extraCount={withEvents ? (eventExtras?.[key] ?? 0) : 0}
+                    adjusted={isAdjusted ? isAdjusted(set, key) : false}
+                    defaultCount={before}
+                    defaultHint={
+                      before === undefined
+                        ? undefined
+                        : mode === "run"
+                          ? `デフォルトは${before}回（「上書き保存」でこの値をデフォルトにできます）`
+                          : `最初の回数は${before}回です`
+                    }
+                    readOnly={isAutoCountKey(key)}
+                    readOnlyNote={autoCountNote(key)}
+                    onChange={(value) => setCount(set, key, value)}
+                  />
+                );
+              })
             )}
           </div>
         </div>

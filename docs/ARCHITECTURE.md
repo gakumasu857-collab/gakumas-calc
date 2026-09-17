@@ -87,7 +87,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 - `GET /api/master?name=<タブ名>`: R2 に保存したタブの JSON を返す（gen スクリプトがこれを読む）。
 - `POST /api/sync`: 合言葉（`SYNC_SECRET`）が合えばスプシ→R2 の同期を実行。cron（`wrangler.toml` の `crons = ["0 18 * * *"]` = 日本時間3時）でも同じ同期が走ります。
 
-同期する対象タブは `wrangler.toml` の `SHEET_TABS` に列挙されています（現在 9 タブ）。
+同期する対象タブは `wrangler.toml` の `SHEET_TABS` に列挙されています（現在 12 タブ）。
 
 ---
 
@@ -118,7 +118,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `syncMaster.mjs` | `POST /api/sync` を叩いてスプシ→R2 を今すぐ同期（`SYNC_SECRET` が無ければスキップ） |
 | `generateSupportCards.mjs`（gen:cards） | `supMaster` タブをそのまま `generated/supportCards.json` に書く（変換はしない） |
 | `generateAbilityPerf.mjs`（gen:perf） | `abilityValues`（効果量 level1〜5 と `trigger_tag`）＋`abilityEvolutions`（凸→ティア）を `generated/abilityPerf.json` に。カードが使っているのに `abilityValues` に無いアビリティを警告 |
-| `generateAbilityCounts.mjs`（gen:counts） | `abilityCountsHIF/NIA/Hajime` の表（プラン行＋「アビリティ」ヘッダー行＋回数）を `generated/abilityCounts.json` に |
+| `generateAbilityCounts.mjs`（gen:counts） | `abilityCountsHIF/NIA/Hajime` の表（プラン行＋「アビリティ」ヘッダー行＋回数）と `scheduleHIF/NIA/Hajime` の表（週ごとに踏むもの）を `generated/abilityCounts.json` に。スケジュールは行の名前・選べる行動・プロデュースの列をアプリの定義と突き合わせ、食い違いはここで止める（黙って無視すると回数の合わないプロデュースが静かに出来るため） |
+| `_sheet.mjs` / `_sheetDirect.mjs` | gen スクリプト共通のタブ取得。R2（`/api/master`）を見て、まだ無いタブだけ `service-account.json` でスプシから直接読む（同期するタブを足した直後、その Worker を本番に出す前でも gen が通るようにするため） |
 | `generatePIdols.mjs`（gen:pidols） | `pidleName`（Pアイドル一覧）＋`pidleStatus`（成長段階ごとの数値）＋`idleTypes`（審査基準）を `generated/pIdols.json` に |
 | `generateCardSprite.mjs`（gen:sprite） | R2 のサポカ画像を集めて `public/card-import/sprite.png`（一覧画像）と `generated/cardSprite.json`（並び順）を作る。画面キャプチャ所持入力用。画像が無いカードは一覧に出して飛ばす |
 | `generatePreEventImages.mjs`（gen:preevents） | `supMaster` の「前イベ名」を候補に、R2 の `preEvent/<名前>.webp` が実在するものだけ `generated/preEventImages.json` に書く |
@@ -130,7 +131,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | ファイル | 何をするか |
 |---|---|
 | `index.js` | 配信・`/api/master`・`/api/sync`・cron の入口（1-4 参照） |
-| `lib/sync.js` | スプシの全タブを 1 回の API 呼び出しで取り、先頭行を見出しにした JSON へ変換して R2 に保存。空のタブは上書きしない。発動回数タブ 3 つ（`GRID_TABS`）だけは見出し変換せず表のまま保存 |
+| `lib/sync.js` | スプシの全タブを 1 回の API 呼び出しで取り、先頭行を見出しにした JSON へ変換して R2 に保存。空のタブは上書きしない。発動回数タブ 3 つとスケジュールタブ 3 つ（`GRID_TABS`）だけは見出し変換せず表のまま保存 |
 | `lib/google-auth.js` | Google のサービスアカウントで認証トークンを作る（外部ライブラリなし） |
 
 ### 2-4. `src/data/`（スプシ由来のデータと、その読み替え）
@@ -152,7 +153,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `niaChallenge.ts` | N.I.AのチャレンジPアイテム3枠の獲得ボーナス%（枠ごとの選択肢 5/10/15、10/15/20、5/10/15/20。既定は各枠の最大＝合計+55%）。`niaChallengeApply`（オーディションの素点に掛ける。その上に通常のパラボ）、ログの上昇幅との相互変換 `niaAuditionRise`／`niaAuditionBaseFromRise`。設定は `settings.niaChallenge`、調整は設定欄（ファン投票数の下）の NiaChallengeModal |
 | `scenarios.ts` | 3 シナリオ（H.I.F / N.I.A / 初）の上限ステ `SCENARIO_CAPS`（3200/2600/3000）、N.I.A のレッスン・営業・投票換算（1 次・2 次の投票上限 12,000／17,998、最終の投票は種類別の式×1.5＝`niaFinaleVotes(score, kind)`、上限 FINALE 49,002／QUARTET 38,001）、最終オーディションのスコア→ステ式は FINALE／QUARTET の 2 種（`NIA_FINAL_STAT`、上限 `NIA_FINAL_CAPS`、`niaFinaleStat(tag, rank, score, kind)`）、初のレッスン・授業・試験換算 |
 | `schedule.ts` | H.I.F の公開レッスン 8 回・授業 6 回・選抜 3 回・本戦 2 ラウンドの数値と、選抜の分配式・スター性の式、選抜の上昇ステ（パラボ抜き）とゲームのログに出る上昇幅（パラボ込み）の相互変換 `examRiseWithParabo`／`examBaseFromRise`。**選抜の式を直すときは `EXAMS`（基準値・固定・配分・★上限）／`examStar`（スコア→スター性）／`distributeExam`（スコア→ステ分配）の 3 か所（ファイル内の★コメント）。直したら `calc/PlanEditDrawer.tsx` の HifNumbers の説明文も合わせる** |
-| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyLabel`＝画面での呼び名（H.I.F・N.I.Aは「差し入れ」、初レジェンドは「活動支給」）、`supplyPOf`＝差し入れ1回のPポイント（H.I.F 80／初 180／N.I.A は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.Fは選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、まだ一度も選んでいないセットだけ回数から推測（**週ごとの踏み方のデフォルトを書いた表は無い**。テンプレの回数（スプシ由来）から、差し入れ→相談→おでかけ→特別指導の順に前の週から埋める `INFER_PRIORITY`）、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
+| `scheduleCalendar.ts` | 各シナリオの「何日目／何週目に何があるか」の表。お出かけ・相談・差し入れなどの最大回数の根拠。**週（日）ごとに1つ選ぶ「スケジュールの選択」**もここ（`scheduleChoiceRows`＝選択のある週の一覧、`countsFromChoices` / `abilityCountsFromChoices`＝選択→発動回数、`supplyLabel`＝画面での呼び名（H.I.F・N.I.Aは「差し入れ」、初レジェンドは「活動支給」）、`supplyPOf`＝差し入れ1回のPポイント（H.I.F 80／初 180／N.I.A は18週目から120・それより前110。ボーナス+30込み）、`supplyPFromChoices`＝選んだ差し入れの合計（H.I.Fは選抜・本戦別）、`inferChoices` / `resolveChoices`＝保存された選択があればそれが正、次にテンプレの踏み方（スプシの `scheduleXXX` タブ＝`TEMPLATE_CHOICES`）、どちらも無いセット（自分で追加したもの）だけ回数から推測（差し入れ→相談→お出かけ→特別指導の順に前の週から埋める `INFER_PRIORITY`）、`restFromChoices`＝**何も踏まない週（日）の数＝「休む」の回数**（ゲームではレッスン・授業の踏み忘れも休むになるが、探索は全部踏む前提なので数えない。オーナー指定 2026-09-18）、`choiceShortfall`＝推測が昔の回数に届かなかった分（画面の注意書き）） |
 | `supportCardCatalog.ts` | 所持状況ページ向けの一覧（画像は `<カード名>.webp` で解決） |
 | `cardReadings.json` | カード名の読み仮名（手作業で管理。検索でひらがな入力を効かせるため。無くても名前・検索ワードでは引ける） |
 
@@ -180,7 +181,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
 | `useCalcSettings.ts` | 計算ページの設定（アイドル・Pアイドル・条件設定・本戦点数など）とセーブ一覧のストア |
 | `useOwnedLevels.ts` / `useOwnedPIdols.ts` / `useOwnedSaves.ts` | 所持状況（サポカ凸・Pアイドル特訓/開花）とその名前つき保存 |
-| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存＝プロデュースごとのデフォルト）、計算ページで使うセットの選択、計算ページでの「この育成だけ」の調整レイヤー `adjust`（`getRunCount`／`setRunCount`／`isRunAdjusted`／`resetRunAdjust`。デフォルトは変えず、計算・探索・セーブはこちらを使う。セーブ用セットを作るときは調整込みで固めて調整を消す）。**スケジュールの選択**（`getChoices` / `setChoice` / `getRunChoices` / `setRunChoice` / `isRunChoiceAdjusted` / `choiceFitNote`）も同じ2層で持つ。お出かけ・相談・活動支給・特別指導（と「(N回まで)」版）の回数は**この選択から導き出す**（回数として保存し直さない）ので、`getCount` / `getRunCount` はそのキーだけ `abilityCountsFromChoices(表示中のシナリオ, 選択)` を返す。回数を読む側（計算・探索・セーブ・書き出し）はこれまでどおり回数だけを見ればよい。**選択はシナリオごと・回数はセット単位**なので、回数へ書き戻すと別シナリオの分を壊す（ユーザーセットは3シナリオすべてに出る）。そのため `useAbilityCounts(scenario)` は表示中のシナリオを引数で受け取る（`useScenario` は他の実体の切り替えに追従しないため、シナリオを持つ画面は必ず渡す） |
+| `useAbilityCounts.ts` | 発動回数セット（テンプレとの差分だけ保存＝プロデュースごとのデフォルト）、計算ページで使うセットの選択、計算ページでの「この育成だけ」の調整レイヤー `adjust`（`getRunCount`／`setRunCount`／`isRunAdjusted`／`resetRunAdjust`。デフォルトは変えず、計算・探索・セーブはこちらを使う。セーブ用セットを作るときは調整込みで固めて調整を消す）。**スケジュールの選択**（`getChoices` / `setChoice` / `getRunChoices` / `setRunChoice` / `isRunChoiceAdjusted` / `choiceFitNote`）も同じ2層で持つ。お出かけ・相談・活動支給・特別指導・**休む**（と「(N回まで)」版）の回数は**この選択から導き出す**（回数として保存し直さない）ので、`getCount` / `getRunCount` はそのキーだけ `abilityCountsFromChoices(表示中のシナリオ, 選択)` を返す。テンプレの踏み方 `TEMPLATE_CHOICES` はシナリオ付きで持ち、**別シナリオでは使わない**（週の番号が噛み合わず全部「休む」になるため）。`templateCount` / `isChangedFromTemplate`＝そのプロデュースの「最初の回数」（スプシ由来。自分で追加したセットは null）で、プロデュース設定ページの「元◯」に使う。**自動で決まる回数**（`isAutoCountKey`）は手では変えられない: `スキル強化`＝Aスキル強化＋Mスキル強化（`DERIVED_SUMS`。オーナー指定 2026-09-18）、`◯◯(N回まで)`＝元の回数の頭打ち（`DERIVED_CAP_OF`。以前は生成時に固めた値を持っていたので、ドリンク獲得を変えても(10回まで)が追従しなかった）。`ドリンク交換`を変えると `LINKED_COUNTS` で `ドリンク獲得`も同じだけ動く（逆はしない）。「元◯に戻す」は `resetToTemplate`＝差分を消す（連動する回数も一緒に消す。片方だけ戻すと、戻すボタンしか押していないのに元より減るため）。回数を読む側（計算・探索・セーブ・書き出し）はこれまでどおり回数だけを見ればよい。**選択はシナリオごと・回数はセット単位**なので、回数へ書き戻すと別シナリオの分を壊す（ユーザーセットは3シナリオすべてに出る）。そのため `useAbilityCounts(scenario)` は表示中のシナリオを引数で受け取る（`useScenario` は他の実体の切り替えに追従しないため、シナリオを持つ画面は必ず渡す） |
 | `useEventCounts.ts` | カードごとの前イベ・後イベ・ステイベの手動設定 |
 | `useMemoryStore.ts` | スロット 4 枠の中身（保存していないメモリーもそのまま持つ。`gakumas:memorySlots:v2`）・保存したメモリー（ライブラリ）・メモリーセット（4 枠の中身のスナップショット）。枠の保存状態 `slotStatus`（空／テンプレ／未保存／保存済み／変更あり）、`saveSlot`（新規／上書き）、`pickIntoSlot`（一覧から枠へコピー）、`fillSlots`（4 枠すべて同じテンプレ） |
 | `useSelectedSupports.ts` | 計算ページの「選択サポカ」6 枠 |
@@ -230,6 +231,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `ability-counts/` | `/ability-counts` 画面名は「プロデュース設定」（ナビの「自動編成機能の設定」の中・見出し。2026-09-15 に「発動回数」→「プロデュース」、2026-09-16 に「プロデュース設定」）。アビリティ発動回数＝プロデュースごとの**デフォルトの回数**（ページ上部に「プロデュース＝アビリティ発動回数」の1行と、前イベ・後イベ分を含めない赤い注意）。セットの表（「計算ページで使用中」列）・編集モーダル `SetEditModal.tsx`（`mode`: default＝ページ／run＝計算ページ。run では「この育成での回数」の帯・「調整中 N件」・すべてデフォルトに戻す）・1 件の入力 `AbilityCounter.tsx`（調整中の印） |
 | `card-settings/CardSettingsPage.tsx` | `/card-settings` サポカ設定（前イベ・後イベ・ステイベの手動設定、BAN／固定／レンタルNG） |
 | `card-scores/CardScoreTable.tsx` | `/card-scores` サポカ点数表（スマホでは左の名前・イラスト列を固定せず、文字と余白を小さくする。データベース・サポカ設定の表も同じ。PC は左2列を固定） |
+| `ability-counts/AbilityCountManager.tsx` | `/ability-counts` プロデュース設定。**最初の回数（スプシ由来）から変えたマスは黄色＋左下に「元◯」**、ポップオーバーに「元◯に戻す」（`templateCount`。自分で追加したセットは元が無いので出ない。オーナー要望 2026-09-18）。自動で決まる回数（スキル強化・「(N回まで)」）は「自動」の印を付けて押せなくする |
 | `database/DatabasePage.tsx` | `/database` データベース（サポカ・Pアイドルの一覧閲覧。スプシの見た目に近い） |
 | `debug/DebugPage.tsx` | `/debug` 探索の中身を数値で開示 |
 | `event-counter/` | `/event-counter` イベントカウンター（別ツール） |
@@ -448,7 +450,8 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `supMaster` | `generateSupportCards.mjs` → `supportCardsDb.ts` | `id` `サポカ名` `レアリティ` `タイプ` `プラン` `1タイプ`〜`6タイプ` `1アビ`〜`6アビ` `前イベ` `後イベ` `ステイベ` `前イベ名` `強さ` `おすすめプラン` `前イベ起動タグ` `最大発動回数` `パラメータ` `スキル獲得` `Aスキル獲得` `Mスキル獲得` `好調スキル獲得` `集中スキル獲得` `好印象スキル獲得` `やる気スキル獲得` `強気スキル獲得` `温存スキル獲得` `全力スキル獲得` `元気スキル獲得` `SSRスキル獲得` `任意スキル獲得` `スキル強化` `Aスキル強化` `Mスキル強化` `任意スキル強化` `スキル削除` `Aスキル削除` `Mスキル削除` `任意スキル削除` `チェンジ` `ドリンク獲得` `Pアイテム獲得` `Pポイント` `回復` `検索ワード` |
 | `abilityValues` | `generateAbilityPerf.mjs` | `name` `rarity`（SSR／配布SSR／SR／R） `level1`〜`level5` `trigger_tag` |
 | `abilityEvolutions` | `generateAbilityPerf.mjs` | `レアリティ` `アビリティ`（ability1〜6） `0凸`〜`4凸`（ティア番号 1〜5） |
-| `abilityCountsHIF` / `abilityCountsNIA` / `abilityCountsHajime` | `generateAbilityCounts.mjs` → `abilityCounts.ts` | 1 行目: プラン行（左上は空）、2 行目: 左端が `アビリティ`、右にセット名、以降: アビリティ名＋回数 |
+| `abilityCountsHIF` / `abilityCountsNIA` / `abilityCountsHajime` | `generateAbilityCounts.mjs` → `abilityCounts.ts` | 1 行目: プラン行（左上は空）、2 行目: 左端が `アビリティ`、右にセット名、以降: アビリティ名＋回数。**お出かけ・相談・活動支給・差し入れ・特別指導・休むの行はテンプレでは使わない**（スケジュールタブから数える。食い違うと gen:counts がお知らせを出す） |
+| `scheduleHIF` / `scheduleNIA` / `scheduleHajime` | 同上 → `TEMPLATE_CHOICES` | 開発側が決めるテンプレの踏み方（2026-09-18 にオーナーが作成）。1 行目: プラン行、2 行目: 左端が `スケジュール`、次が `選べる行動`（人が見るだけ。コードは読み飛ばす）、右に発動回数タブと**同じ並びの**プロデュース名（同名の列が並ぶので、プラン行＋名前で突き合わせる）。以降: A 列が週（日）の名前（`選抜1日目` `本戦3日目` `3週目`）、セルは `お出かけ` `相談` `差し入れ`（初は `活動支給`）`特別指導` `休む`／空欄。読み込み時に週の行idが今のスケジュール定義と噛み合わなければそのテンプレは使わない（`registerChoices`。gen:counts を回し忘れると全部「休む」になるのを防ぐ） |
 | `pidleName` | `generatePIdols.mjs` | `固有スキル名` `名前` `カード名` `レアリティ` `プラン` `おすすめ効果` `名前カード名` `成長タグ` |
 | `pidleStatus` | `generatePIdols.mjs` | `成長タグ` `段階` `体力` `Vo初期値` `Da初期値` `Vi初期値` `Voパラボ` `Daパラボ` `Viパラボ` `VoSP率` `DaSP率` `ViSP率` |
 | `idleTypes` | `generatePIdols.mjs` | `名前` `Vocal` `Dance` `Visual`（審査基準 1〜3） `型`（バランス／特化） |
@@ -612,6 +615,7 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 #### J. 同期するタブを増やす・減らす
 
 1. `wrangler.toml` の `SHEET_TABS` にタブ名を足す（カンマ区切り）。表のまま保存したい（1 行目が見出しでない）タブは `worker/lib/sync.js` の `GRID_TABS` にも。
+   足したタブが R2 に入るのは**その Worker を本番に出したあと**だが、gen スクリプトはローカルの `service-account.json` で直接読むので（`scripts/_sheetDirect.mjs`）、本番反映前でも `update-all.cmd` は通る。
 2. 読む側のスクリプトを `scripts/` に用意し、`package.json` の `gen:all` に加える。
 3. **順番に注意**: 同期は Worker の中で動くので、先に `release.cmd`（Worker を更新）→ その後 `update-all.cmd`。
    `update-all.cmd` だけだと 2 段目の `gen:all` が古い Worker に同期を頼むことになり、新タブが取れません。
@@ -650,7 +654,7 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `gakumas:abilityUserSets:v1` | 利用者が追加した発動回数セット（名前・プラン。セーブ由来は `saveId` 付き） | 同上 |
 | `gakumas:abilitySelectedSet:v1` | 計算ページで使うセット（プロデュース）の ID | 同上 |
 | `gakumas:calc:countAdjust:v1` | 計算ページでの「この育成だけ」の回数調整（セット ID → アビリティ → 回数。デフォルトより優先。セーブ用セットに固めたら消える） | 同上 |
-| `gakumas:scheduleChoices:v1` | スケジュールの選択（セット ID → シナリオ → 週の行 id → お出かけ／相談／活動支給／特別指導）。プロデュースごとのデフォルト。回数と食い違うときは回数から推測して表示する | 同上 |
+| `gakumas:scheduleChoices:v1` | スケジュールの選択（セット ID → シナリオ → 週の行 id → お出かけ／相談／活動支給／特別指導。null＝休む）。プロデュースごとのデフォルト。**一度も選んでいないテンプレはスプシのスケジュールタブの値を使う**（保存はしない） | 同上 |
 | `gakumas:calc:scheduleChoiceAdjust:v1` | 計算ページでの「この育成だけ」のスケジュールの選択（同じ形。「上書き保存」でデフォルトへ移る） | 同上 |
 | `gakumas:calc:scenarioSetMemory:v1` | シナリオを切り替えたときに外したプロデュース（シナリオ → セット ID）。探索を押す前に元のシナリオへ戻したら選び直す（この育成だけの変更はセットごとに残っているので一緒に戻る）。探索を押したら消す | `src/lib/scenarioSetMemory.ts` |
 | `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定 | `src/lib/useEventCounts.ts` |

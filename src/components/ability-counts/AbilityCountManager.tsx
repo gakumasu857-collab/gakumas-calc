@@ -12,7 +12,9 @@ import {
   ABILITY_CATEGORIES,
   abilityAppliesTo,
   abilityMax,
+  autoCountNote,
   DEFAULT_MAX,
+  isAutoCountKey,
   SET_PLAN_OPTIONS,
   setVisibleInScenario,
   type AbilityCountSet,
@@ -128,8 +130,15 @@ export default function AbilityCountManager() {
         プロデュース＝サポカのアビリティが<b>何回発動する想定か</b>（アビリティ発動回数）の設定です。ここで決めた回数を探索と評価値の計算に使います。編成を決めたあとの、この育成だけの回数は計算ページ左端の「プロデュース」タブで変えられます。
       </p>
       {/* ここで決める回数の注意（前イベ・後イベの発動分は計算ページで編成に合わせて自動で上乗せされる） */}
-      <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">
+      <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">
         ⚠ ここの回数には、サポカの前イベ・後イベによる発動分は含めないでください（前イベ・後イベは計算ページで編成に合わせて自動で上乗せされます）。
+      </p>
+      {/* 最初の回数（配布時の値）がどこで見えるかの説明。オーナー要望 2026-09-18 */}
+      <p className="mb-3 text-xs leading-relaxed text-slate-600">
+        最初から入っているプロデュースの回数を変えると、そのマスが
+        <b className="mx-0.5 rounded bg-amber-50 px-1 text-amber-900">黄色</b>
+        になり、左下に<b>元◯</b>（変えるまでの回数）が出ます。数を直接変えるマスは、押すと「元◯に戻す」で戻せます
+        （スケジュールで決まる回数はカードで選び直し、「自動」の回数は元になる回数を戻すと戻ります）。
       </p>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p>
@@ -314,8 +323,10 @@ export default function AbilityCountManager() {
           <tbody>
             {visibleAbilities.map((ability) => {
               const max = abilityMax(ability, scenario);
-              // おでかけ・相談・活動支給・特別指導はスケジュールの選択（カード）で決める
+              // お出かけ・相談・活動支給・特別指導・休むはスケジュールの選択（カード）で決める
               const choiceRow = isChoiceAbilityKey(ability);
+              // ほかの回数から自動で決まる回数（スキル強化＝A＋M、「(N回まで)」）は押して変えられない
+              const derived = isAutoCountKey(ability);
               return (
                 <tr key={ability}>
                   {/* アビリティ名（左固定）。スケジュールの選択で決まる行は押すとカードのUIが開く */}
@@ -334,6 +345,16 @@ export default function AbilityCountManager() {
                           {ABILITY_NAMES[ability]}
                         </span>
                       </button>
+                    ) : isAutoCountKey(ability) ? (
+                      <span
+                        className="flex items-center gap-1"
+                        title={autoNoteOf(ability)}
+                      >
+                        <span className="min-w-0 truncate">{ABILITY_NAMES[ability]}</span>
+                        <span className="shrink-0 rounded bg-slate-200 px-1 text-[9px] font-bold text-slate-500">
+                          自動
+                        </span>
+                      </span>
                     ) : (
                       ABILITY_NAMES[ability]
                     )}
@@ -352,6 +373,8 @@ export default function AbilityCountManager() {
                       <>
                         <button
                           type="button"
+                          disabled={derived}
+                          title={derived ? autoNoteOf(ability) : undefined}
                           onClick={() =>
                             choiceRow
                               ? setChoiceSetId(selectedSet.id)
@@ -364,23 +387,28 @@ export default function AbilityCountManager() {
                                   })
                           }
                           className={`w-full transition ${
-                            activeCell?.ref && activeCell.ability === ability
-                              ? "bg-blue-100"
-                              : "hover:bg-blue-100"
+                            derived
+                              ? "cursor-default"
+                              : activeCell?.ref && activeCell.ability === ability
+                                ? "bg-blue-100"
+                                : "hover:bg-blue-100"
                           }`}
                         >
                           <CountValue
                             count={store.getCount(selectedSet, ability)}
                             max={max}
+                            original={store.templateCount(selectedSet, ability)}
                           />
                         </button>
                         {activeCell?.ref && activeCell.ability === ability && !choiceRow && (
                           <CountPopover
                             count={store.getCount(selectedSet, ability)}
                             max={max}
+                            original={store.templateCount(selectedSet, ability)}
                             onChange={(value) =>
                               store.setCount(selectedSet, ability, value)
                             }
+                            onReset={() => store.resetToTemplate(selectedSet, ability)}
                           />
                         )}
                       </>
@@ -395,6 +423,9 @@ export default function AbilityCountManager() {
                       max={max}
                       highlighted={set.id === store.selectedSetId}
                       count={store.getCount(set, ability)}
+                      original={store.templateCount(set, ability)}
+                      readOnly={derived}
+                      readOnlyNote={autoNoteOf(ability)}
                       isActive={
                         activeCell?.setId === set.id &&
                         activeCell?.ability === ability &&
@@ -405,6 +436,7 @@ export default function AbilityCountManager() {
                       }
                       onClose={() => setActiveCell(null)}
                       onChange={(value) => store.setCount(set, ability, value)}
+                      onReset={() => store.resetToTemplate(set, ability)}
                       onOpenModal={choiceRow ? () => setChoiceSetId(set.id) : undefined}
                     />
                   ))}
@@ -508,7 +540,7 @@ export default function AbilityCountManager() {
               <span>
                 テンプレ非表示
                 <span className="block text-xs text-slate-400">
-                  テンプレセット（スプシ由来）を隠して、自分で追加したセットだけを表示します。
+                  最初から入っているセットを隠して、自分で追加したセットだけを表示します。
                 </span>
               </span>
             </label>
@@ -537,6 +569,8 @@ export default function AbilityCountManager() {
           deletable={store.isUserSet(editingSet.id)}
           getCount={store.getCount}
           setCount={store.setCount}
+          defaultCount={store.templateCount}
+          isAdjusted={store.isChangedFromTemplate}
           formationKeys={onlyFormation ? formationAbilities : undefined}
           choices={store.getChoices(editingSet)}
           onPickChoice={(rowId, event) => store.setChoice(editingSet, rowId, event)}
@@ -728,7 +762,7 @@ function DeleteResetModal({
             onClick={() => {
               if (
                 window.confirm(
-                  `選択した${checked.size}件の回数を初期値に戻します。よろしいですか？（テンプレはスプシの初期値、追加セットは全て0に戻ります）`,
+                  `選択した${checked.size}件の回数を初期値に戻します。よろしいですか？（最初から入っているセットは最初の回数、自分で追加したセットは全て0に戻ります）`,
                 )
               ) {
                 onReset([...checked]);
@@ -764,11 +798,33 @@ function DeleteResetModal({
   );
 }
 
-/** 回数の表示（回数を主役に、上限は右下に薄く。値による色分けはしない） */
-function CountValue({ count, max }: { count: number; max: number }) {
+/**
+ * 回数の表示（回数を主役に、上限は右下に薄く）。
+ * 最初の回数（スプレッドシート由来）から変えたマスは黄色にして、左下に「元◯」を出す。
+ */
+function CountValue({
+  count,
+  max,
+  original,
+}: {
+  count: number;
+  max: number;
+  /** 最初の回数（自分で追加したセットなど、元が無ければ null） */
+  original?: number | null;
+}) {
+  const changed = original != null && original !== count;
   return (
-    <div className="relative w-full py-1.5 text-center text-base font-semibold text-slate-900">
+    <div
+      className={`relative w-full py-1.5 text-center text-base font-semibold ${
+        changed ? "bg-amber-50 text-amber-900" : "text-slate-900"
+      }`}
+    >
       {count}
+      {changed && (
+        <span className="absolute bottom-0.5 left-1 text-[8px] font-bold text-amber-500">
+          元{original}
+        </span>
+      )}
       {max !== DEFAULT_MAX && (
         <span className="absolute bottom-0.5 right-1 text-[8px] font-normal text-slate-300">
           {max}
@@ -778,38 +834,62 @@ function CountValue({ count, max }: { count: number; max: number }) {
   );
 }
 
-/** 回数編集のポップオーバー（±1/±10） */
+/** 回数編集のポップオーバー（±1/±10。最初の回数から変えていれば戻すボタンも） */
+/** ほかの回数から自動で決まる回数の説明（例: スキル強化＝Mスキル強化＋Aスキル強化） */
+function autoNoteOf(key: AbilityName): string | undefined {
+  const note = autoCountNote(key);
+  return note && `${note}です（ここでは変えられません）`;
+}
+
 function CountPopover({
   count,
   max,
+  original,
   onChange,
+  onReset,
 }: {
   count: number;
   max: number;
+  original?: number | null;
   onChange: (value: number) => void;
+  /** 「元◯に戻す」（連動する回数も一緒に戻す） */
+  onReset?: () => void;
 }) {
+  const changed = original != null && original !== count;
   return (
-    <div className="absolute left-1/2 top-full z-30 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1.5 shadow-lg">
-      {[-10, -1].map((step) => (
-        <StepButton
-          key={step}
-          step={step}
-          disabled={count <= 0}
-          onClick={() => onChange(count + step)}
-        />
-      ))}
-      <span className="min-w-12 text-center tabular-nums">
-        <span className="text-lg font-semibold text-slate-800">{count}</span>
-        <span className="ml-0.5 text-[10px] text-slate-400">/{max}</span>
-      </span>
-      {[+1, +10].map((step) => (
-        <StepButton
-          key={step}
-          step={step}
-          disabled={count >= max}
-          onClick={() => onChange(count + step)}
-        />
-      ))}
+    <div className="absolute left-1/2 top-full z-30 mt-1 flex -translate-x-1/2 flex-col items-center gap-1 rounded-lg border border-slate-300 bg-white p-1.5 shadow-lg">
+      <div className="flex items-center gap-1">
+        {[-10, -1].map((step) => (
+          <StepButton
+            key={step}
+            step={step}
+            disabled={count <= 0}
+            onClick={() => onChange(count + step)}
+          />
+        ))}
+        <span className="min-w-12 text-center tabular-nums">
+          <span className="text-lg font-semibold text-slate-800">{count}</span>
+          <span className="ml-0.5 text-[10px] text-slate-400">/{max}</span>
+        </span>
+        {[+1, +10].map((step) => (
+          <StepButton
+            key={step}
+            step={step}
+            disabled={count >= max}
+            onClick={() => onChange(count + step)}
+          />
+        ))}
+      </div>
+      {changed && (
+        <button
+          type="button"
+          onClick={onReset ?? (() => onChange(original))}
+          title="この回数（と、一緒に動く回数）を最初の値に戻します"
+          className="w-full whitespace-nowrap rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 transition hover:bg-amber-100"
+        >
+          元{original}に戻す
+        </button>
+      )}
     </div>
   );
 }
@@ -818,20 +898,31 @@ function CountCell({
   max,
   highlighted,
   count,
+  original,
+  readOnly = false,
+  readOnlyNote,
   isActive,
   onOpen,
   onClose,
   onChange,
+  onReset,
   onOpenModal,
 }: {
   /** 最大回数（ラベルの(N回まで)とシナリオのスケジュール回数の小さい方） */
   max: number;
   highlighted: boolean;
   count: number;
+  /** 最初の回数（スプレッドシート由来。自分で追加したセットは null） */
+  original?: number | null;
+  /** ほかの回数から自動で決まる回数（押しても編集しない） */
+  readOnly?: boolean;
+  readOnlyNote?: string;
   isActive: boolean;
   onOpen: () => void;
   onClose: () => void;
   onChange: (value: number) => void;
+  /** 「元◯に戻す」（連動する回数も一緒に戻す） */
+  onReset?: () => void;
   /** 渡すと数の直接入力ではなく、これを呼ぶ（スケジュールの選択のモーダル） */
   onOpenModal?: () => void;
 }) {
@@ -843,16 +934,31 @@ function CountCell({
     >
       <button
         type="button"
+        disabled={readOnly}
         onClick={onOpenModal ?? (isActive ? onClose : onOpen)}
-        title={onOpenModal ? "週（日）ごとに踏むものを選ぶ画面を開きます" : undefined}
-        className={`w-full transition ${isActive ? "bg-blue-100" : "hover:bg-blue-50"}`}
+        title={
+          readOnly
+            ? readOnlyNote
+            : onOpenModal
+              ? "週（日）ごとに踏むものを選ぶ画面を開きます"
+              : undefined
+        }
+        className={`w-full transition ${
+          readOnly ? "cursor-default" : isActive ? "bg-blue-100" : "hover:bg-blue-50"
+        }`}
       >
-        <CountValue count={count} max={max} />
+        <CountValue count={count} max={max} original={original} />
       </button>
 
       {/* 編集ポップオーバー */}
-      {isActive && !onOpenModal && (
-        <CountPopover count={count} max={max} onChange={onChange} />
+      {isActive && !onOpenModal && !readOnly && (
+        <CountPopover
+          count={count}
+          max={max}
+          original={original}
+          onChange={onChange}
+          onReset={onReset}
+        />
       )}
     </td>
   );

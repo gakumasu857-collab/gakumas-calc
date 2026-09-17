@@ -30,11 +30,11 @@
   ],
   "rows": {
    "スキル獲得": [
-    20,
-    20,
-    20,
-    20,
     19,
+    19,
+    20,
+    20,
+    20,
     20,
     20,
     18,
@@ -58,8 +58,8 @@
     4
    ],
    "Mスキル獲得": [
-    12,
-    12,
+    10,
+    10,
     15,
     15,
     15,
@@ -73,7 +73,7 @@
    ],
    "好調スキル獲得": [
     6,
-    10,
+    6,
     0,
     0,
     0,
@@ -87,7 +87,7 @@
    ],
    "集中スキル獲得": [
     10,
-    6,
+    10,
     0,
     0,
     0,
@@ -172,9 +172,9 @@
    "元気スキル獲得": [
     0,
     0,
-    0,
-    0,
-    0,
+    2,
+    2,
+    2,
     15,
     15,
     15,
@@ -192,10 +192,10 @@
     10,
     10,
     10,
-    9,
-    9,
-    9,
-    9
+    8,
+    8,
+    7,
+    7
    ],
    "集中8枚以上スキル獲得（4回まで）": [
     4,
@@ -247,7 +247,7 @@
     3,
     0,
     0,
-    6,
+    3,
     0,
     0,
     0,
@@ -275,7 +275,7 @@
     3,
     0,
     0,
-    6,
+    3,
     0,
     0,
     0,
@@ -381,6 +381,7 @@
    ],
    "お出かけ": [
     1,
+    0,
     1,
     1,
     1,
@@ -388,8 +389,7 @@
     1,
     1,
     1,
-    1,
-    1,
+    0,
     1,
     1
    ],
@@ -409,6 +409,7 @@
    ],
    "相談": [
     3,
+    4,
     3,
     3,
     3,
@@ -416,8 +417,7 @@
     3,
     3,
     3,
-    3,
-    3,
+    4,
     3,
     3
    ],
@@ -450,32 +450,32 @@
     0
    ],
    "Pドリンク交換": [
-    15,
     16,
+    20,
     3,
     3,
     3,
     3,
     3,
     3,
-    13,
     16,
-    13,
+    20,
+    16,
     16
    ],
    "Pドリンク獲得": [
-    33,
-    32,
+    35,
+    34,
     23,
     19,
     19,
     23,
     19,
     19,
-    33,
-    32,
-    33,
-    32
+    35,
+    34,
+    35,
+    35
    ],
    "20枚以上SPレッスン（4回まで）": [
     4,
@@ -533,7 +533,141 @@
     5,
     5
    ]
-  }
+  },
+  "choices": [
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "meeting",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "meeting",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   },
+   {
+    "0-1": "supply",
+    "0-5": "date",
+    "0-8": "supply",
+    "0-12": "meeting",
+    "0-14": "supply",
+    "0-16": "supply",
+    "0-19": "meeting",
+    "1-3": "supply",
+    "1-6": "meeting"
+   }
+  ]
  },
  "nia": {
   "setNames": [
@@ -1069,7 +1203,141 @@
     3,
     3
    ]
-  }
+  },
+  "choices": [
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "date"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "date"
+   },
+   {
+    "0-3": "date",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "date",
+    "0-13": "date",
+    "0-16": null,
+    "0-18": "date",
+    "0-21": null,
+    "0-25": "date"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": "lecture",
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": "lecture",
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "date"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": "lecture",
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": "lecture",
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   },
+   {
+    "0-3": "date",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "date",
+    "0-13": "date",
+    "0-16": null,
+    "0-18": "date",
+    "0-21": null,
+    "0-25": "date"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": "lecture",
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": "lecture",
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "date"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": "lecture",
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": "lecture",
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-6": "meeting",
+    "0-8": null,
+    "0-10": "supply",
+    "0-13": "supply",
+    "0-16": null,
+    "0-18": "supply",
+    "0-21": "supply",
+    "0-25": "meeting"
+   }
+  ]
  },
  "hajime": {
   "setNames": [
@@ -1415,6 +1683,71 @@
     2,
     2
    ]
-  }
+  },
+  "choices": [
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   },
+   {
+    "0-3": "supply",
+    "0-5": "supply",
+    "0-8": "meeting",
+    "0-9": "lecture",
+    "0-11": "supply",
+    "0-13": "supply",
+    "0-17": "meeting"
+   }
+  ]
  }
 }

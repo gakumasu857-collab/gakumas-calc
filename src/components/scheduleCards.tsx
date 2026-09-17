@@ -34,7 +34,7 @@ export const EVENT_CARD: Record<
   // 授業と営業は同じ紫。アイコンと名前で見分ける
   class: { label: "授業", grad: "from-violet-400 to-purple-600", ring: "ring-purple-500", icon: School },
   sale: { label: "営業", grad: "from-violet-400 to-purple-600", ring: "ring-purple-500", icon: Store },
-  date: { label: "おでかけ", grad: "from-cyan-300 to-teal-500", ring: "ring-teal-500", icon: MapPin },
+  date: { label: "お出かけ", grad: "from-cyan-300 to-teal-500", ring: "ring-teal-500", icon: MapPin },
   meeting: {
     label: "相談",
     grad: "from-emerald-300 to-green-500",

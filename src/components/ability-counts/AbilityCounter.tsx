@@ -9,10 +9,16 @@ type Props = {
   count: number;
   /** 編成サポカの前イベ・後イベによる上乗せ回数（表示のみ・緑） */
   extraCount?: number;
-  /** この育成だけの調整が入っている（計算ページ。薄い黄色の背景と「変更」の印。外側に枠を出すと隣とくっつくので出さない） */
+  /** 変更が入っている（薄い黄色の背景と「変更」の印。外側に枠を出すと隣とくっつくので出さない） */
   adjusted?: boolean;
-  /** 調整しているときにツールチップで出すデフォルトの回数 */
+  /** 変更しているときに「元◯」として出す、変更前の回数 */
   defaultCount?: number;
+  /** 「元◯」のツールチップ（省略時は計算ページ向けの文） */
+  defaultHint?: string;
+  /** ほかの回数から自動で決まる回数（スキル強化＝A＋M）。押して変えられなくする */
+  readOnly?: boolean;
+  /** 自動の回数のときの説明 */
+  readOnlyNote?: string;
   onChange: (value: number) => void;
 };
 
@@ -24,6 +30,9 @@ export default function AbilityCounter({
   extraCount = 0,
   adjusted = false,
   defaultCount,
+  defaultHint,
+  readOnly = false,
+  readOnlyNote,
   onChange,
 }: Props) {
   const max = abilityMax(abilityKey, scenario);
@@ -35,8 +44,11 @@ export default function AbilityCounter({
       }`}
       title={
         adjusted && defaultCount !== undefined
-          ? `デフォルトは${defaultCount}回（「上書き保存」でこの値をデフォルトにできます）`
-          : undefined
+          ? (defaultHint ??
+            `デフォルトは${defaultCount}回（「上書き保存」でこの値をデフォルトにできます）`)
+          : readOnly
+            ? readOnlyNote
+            : undefined
       }
     >
       <div className="flex items-center gap-1">
@@ -48,16 +60,22 @@ export default function AbilityCounter({
             変更{defaultCount !== undefined ? `（元${defaultCount}）` : ""}
           </span>
         )}
+        {readOnly && !adjusted && (
+          <span className="shrink-0 rounded bg-slate-200 px-1 text-[10px] font-bold text-slate-500">
+            自動
+          </span>
+        )}
       </div>
       <div className="mt-1.5 flex items-center justify-center gap-1">
-        {[-10, -1].map((step) => (
-          <StepButton
-            key={step}
-            step={step}
-            disabled={count <= 0}
-            onClick={() => onChange(count + step)}
-          />
-        ))}
+        {!readOnly &&
+          [-10, -1].map((step) => (
+            <StepButton
+              key={step}
+              step={step}
+              disabled={count <= 0}
+              onClick={() => onChange(count + step)}
+            />
+          ))}
         {/* 回数を大きく・上限は小さく薄く */}
         <span className="min-w-14 text-center tabular-nums">
           {extraCount > 0 ? (
@@ -72,15 +90,21 @@ export default function AbilityCounter({
           )}
           <span className="ml-0.5 text-[10px] text-slate-400">/{max}</span>
         </span>
-        {[+1, +10].map((step) => (
-          <StepButton
-            key={step}
-            step={step}
-            disabled={count >= max}
-            onClick={() => onChange(count + step)}
-          />
-        ))}
+        {!readOnly &&
+          [+1, +10].map((step) => (
+            <StepButton
+              key={step}
+              step={step}
+              disabled={count >= max}
+              onClick={() => onChange(count + step)}
+            />
+          ))}
       </div>
+      {readOnly && readOnlyNote && (
+        <p className="mt-1 text-center text-[10px] leading-tight text-slate-400">
+          {readOnlyNote}
+        </p>
+      )}
     </div>
   );
 }

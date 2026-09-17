@@ -3,6 +3,7 @@ import type { ScenarioKey } from "@/data/scenarios";
 import {
   CHOICE_EVENTS,
   countsFromChoices,
+  restFromChoices,
   SCENARIO_CALENDARS,
   scheduleChoiceRows,
   supplyLabel,
@@ -37,6 +38,7 @@ export default function ScheduleChoiceGrid({
   const cal = SCENARIO_CALENDARS[scenario];
   const rows = scheduleChoiceRows(scenario);
   const counts = countsFromChoices(scenario, choices);
+  const rest = restFromChoices(scenario, choices);
   const supply = supplyPFromChoices(scenario, choices);
   const unitLabel = cal.unit === "週" ? "週目" : "日目";
   const supplyName = supplyLabel(scenario);
@@ -58,6 +60,9 @@ export default function ScheduleChoiceGrid({
             <b className="tabular-nums text-slate-900">{counts[ev]}</b>回
           </span>
         ))}
+        <span className="whitespace-nowrap" title="何も選ばなかった週（日）の数。「休む」のアビリティはこの回数で発動します">
+          休む <b className="tabular-nums text-slate-900">{rest}</b>回
+        </span>
         <span className="whitespace-nowrap rounded bg-cyan-400 px-1.5 py-0.5 font-bold tabular-nums text-cyan-950">
           {supplyName} +{supply.total}P
         </span>
@@ -75,7 +80,8 @@ export default function ScheduleChoiceGrid({
       {onPick && (
         <p className="text-[11px] leading-relaxed text-slate-500">
           各{cal.unit === "週" ? "週" : "日"}で選んだものを1つ押します（もう一度押すと外れます）。選んだ回数がこのプロデュースの
-          おでかけ・相談・{supplyName}・特別指導の回数になります。
+          お出かけ・相談・{supplyName}・特別指導の回数になります。何も選ばなかった{cal.unit === "週" ? "週" : "日"}は
+          <b>休む</b>の回数になります。
         </p>
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6">

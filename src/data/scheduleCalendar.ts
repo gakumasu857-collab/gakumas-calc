@@ -5,6 +5,7 @@
  * 用途:
  * - スケジュール表の表示（数値表・発動回数モーダル・プロデュース設定ページ）
  * - お出かけ・相談・差し入れ等の「シナリオ別の最大回数」の導出（calendarEventCounts）
+ * - テンプレの既定の踏み方はスプレッドシートのスケジュールのタブ（generated/abilityCounts.json の choices）
  * - 週（日）ごとに1つ選ぶ「スケジュールの選択」（scheduleChoiceRows ほか。プロデュースの回数と差し入れのPポイントになる）
  *
  * 既存マスタとの整合（レッスン・授業の日付）は schedule.ts / scenarios.ts と一致済み。
@@ -18,7 +19,7 @@ export type CalendarEvent =
   | "starLesson" // スター性重視の公開レッスン（H.I.Fの☆）
   | "class" // 授業
   | "sale" // 営業（N.I.A）
-  | "date" // おでかけ
+  | "date" // お出かけ
   | "meeting" // 相談
   | "supply" // 活動支給・差し入れ
   | "lecture"; // 特別指導
@@ -160,7 +161,7 @@ export const CALENDAR_EVENT_LABELS: Record<CalendarEvent, string> = {
   starLesson: "☆レッスン",
   class: "授業",
   sale: "営業",
-  date: "おでかけ",
+  date: "お出かけ",
   meeting: "相談",
   supply: "活動支給・差し入れ",
   lecture: "特別指導",
@@ -210,7 +211,7 @@ export type ChoiceRow = {
   supplyP: number;
 };
 
-/** 行id → 選んだ行動（null＝何も選ばない） */
+/** 行id → 選んだ行動（null＝何も踏まない＝「休む」） */
 export type ScheduleChoices = Record<string, ChoiceEvent | null>;
 
 /** 画面での呼び名（H.I.F・N.I.Aは「差し入れ」、初レジェンドは「活動支給」。オーナー指定 2026-09-16） */
@@ -255,6 +256,23 @@ export function scheduleChoiceRows(scenario: ScenarioKey): ChoiceRow[] {
   return out;
 }
 
+/**
+ * 何も踏まない週（日）の数＝「休む」の回数（オーナー提供 2026-09-18）。
+ * ゲームでは、レッスン・授業で何も踏まなかった分も休むになるが、
+ * 探索はレッスン・授業を全部踏む前提で動かすので、ここでは数えない。
+ */
+export function restFromChoices(
+  scenario: ScenarioKey,
+  choices: ScheduleChoices,
+): number {
+  let rest = 0;
+  for (const row of scheduleChoiceRows(scenario)) {
+    const ev = choices[row.id];
+    if (!ev || !row.options.includes(ev)) rest++;
+  }
+  return rest;
+}
+
 /** 選択から行動ごとの回数 */
 export function countsFromChoices(
   scenario: ScenarioKey,
@@ -282,7 +300,7 @@ export function supplyPFromChoices(
   return { total: bySection.reduce((a, b) => a + b, 0), bySection };
 }
 
-/** 選択で決まるアビリティ（プロデュースの回数に書き戻す7つ） */
+/** 選択で決まるアビリティ（週ごとの選択から導き出す。回数としては保存しない） */
 export const CHOICE_ABILITY_KEYS = [
   "date",
   "meeting",
@@ -291,6 +309,8 @@ export const CHOICE_ABILITY_KEYS = [
   "date_ut2",
   "meeting_ut2",
   "supply_ut2",
+  // 何も踏まない週の数（休む）
+  "rest",
 ] as const satisfies readonly AbilityName[];
 export type ChoiceAbilityKey = (typeof CHOICE_ABILITY_KEYS)[number];
 
@@ -312,6 +332,7 @@ export function abilityCountsFromChoices(
     date_ut2: Math.min(c.date, 2),
     meeting_ut2: Math.min(c.meeting, 2),
     supply_ut2: Math.min(c.supply, 2),
+    rest: restFromChoices(scenario, choices),
   };
 }
 
@@ -334,7 +355,7 @@ const inferCache = new Map<string, ScheduleChoices>();
 /**
  * 回数から選択を推測する（保存された選択が無い・回数と合わないとき）。
  * できるだけ多くの回数を満たす組み合わせを探す（週は多くても9つなので総当たりで十分速い）。
- * 同じだけ満たせるなら、前の週から差し入れ→相談→おでかけ→特別指導の順に埋めたものを採る
+ * 同じだけ満たせるなら、前の週から差し入れ→相談→お出かけ→特別指導の順に埋めたものを採る
  * （N.I.Aの差し入れは早い週＝110P から埋まる）。
  */
 export function inferChoices(

@@ -410,7 +410,7 @@ export default function CardScoreTable() {
 
       <p className="mt-2 text-[11px] text-slate-400">
         ※
-        点数はスプレッドシート準拠のエンジンで計算しています。点数のセルをクリックすると計算の内訳が見られます。レッスン系アビリティは自タイプの踏み回数を参照します。並べ替えは保存されます。前イベ・後イベの回数やBAN・固定・レンタルNGは
+        点数は検算済みの計算式で出しています。点数のセルをクリックすると計算の内訳が見られます。レッスン系アビリティは自タイプの踏み回数を参照します。並べ替えは保存されます。前イベ・後イベの回数やBAN・固定・レンタルNGは
         <Link to="/card-settings" className="text-blue-600 underline">
           サポカ設定
         </Link>

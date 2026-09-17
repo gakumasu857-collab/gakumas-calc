@@ -7,7 +7,12 @@
 import generatedCounts from "./generated/abilityCounts.json";
 import { ABILITY_NAMES, abilityKeyFromLabel, type AbilityName } from "./constants";
 import { SCENARIO_KEYS, type ScenarioKey } from "./scenarios";
-import { calendarEventCounts, type CalendarEvent } from "./scheduleCalendar";
+import {
+  calendarEventCounts,
+  scheduleChoiceRows,
+  type CalendarEvent,
+  type ScheduleChoices,
+} from "./scheduleCalendar";
 
 /** 4つの分類とそこに属するアビリティ（表示順のまま） */
 export const ABILITY_CATEGORIES = [
@@ -88,6 +93,59 @@ export type CategoryKey = (typeof ABILITY_CATEGORIES)[number]["key"];
 
 /** 「(N回まで)」の明記がないアビリティのデフォルト最大発動回数 */
 export const DEFAULT_MAX = 99;
+
+/**
+ * 「(N回まで)」の回数はスプシに独立した行が無いので、基準の回数を上限Nで頭打ちにして作る
+ *   （例: ドリンク獲得(10回まで) = min(ドリンク獲得, 10)）。
+ * お出かけ・相談・活動支給の「(2回まで)」はスケジュールの選択から直接決まる（そちらが優先）。
+ */
+const DERIVED_CAPS = [
+  { key: "date_ut2", base: "date", cap: 2 }, // お出かけ(2回まで)
+  { key: "meeting_ut2", base: "meeting", cap: 2 }, // 相談(2回まで)
+  { key: "supply_ut2", base: "supply", cap: 2 }, // 活動支給・差し入れ(2回まで)
+  { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
+  { key: "drink_get_ut10", base: "drink_get", cap: 10 }, // ドリンク獲得(10回まで)
+] as const satisfies readonly { key: AbilityName; base: AbilityName; cap: number }[];
+
+/**
+ * 足し算で決まる回数（オーナー指定 2026-09-18）。
+ * 「スキル強化」はMスキル強化とAスキル強化の合計。画面では自動の値として出し、手では変えられない
+ * （削除など、ほかの○○系は今まで通り別々の回数のまま）。
+ */
+export const DERIVED_SUMS: Partial<Record<AbilityName, readonly AbilityName[]>> = {
+  skill_enhance: ["A_skill_enhance", "M_skill_enhance"],
+};
+
+/**
+ * ほかの回数の「上限つきの写し」（例: ドリンク獲得(10回まで) ＝ min(ドリンク獲得, 10)）。
+ * 元の回数を変えたらこちらも動くよう、画面に出すときはその場で計算する
+ * （DERIVED_CAPS と同じ中身。テンプレの初期値づくりにも使う）。
+ */
+export const DERIVED_CAP_OF: Partial<Record<AbilityName, { base: AbilityName; cap: number }>> =
+  Object.fromEntries(DERIVED_CAPS.map(({ key, base, cap }) => [key, { base, cap }]));
+
+/** その回数がほかの回数から自動で決まるか（画面で手入力させない） */
+export function isAutoCountKey(key: AbilityName): boolean {
+  return DERIVED_SUMS[key] !== undefined || DERIVED_CAP_OF[key] !== undefined;
+}
+
+/** 自動で決まる回数の説明（無ければ undefined） */
+export function autoCountNote(key: AbilityName): string | undefined {
+  const parts = DERIVED_SUMS[key];
+  if (parts) return `${parts.map((p) => ABILITY_NAMES[p]).join("＋")}の合計`;
+  const capped = DERIVED_CAP_OF[key];
+  if (capped) return `${ABILITY_NAMES[capped.base]}の回数（${capped.cap}回まで）`;
+  return undefined;
+}
+
+/**
+ * 連動して動く回数（オーナー指定 2026-09-18）。
+ * 「ドリンク交換」は実際にはドリンク獲得にも反応するので、交換を1増やすと獲得も1増える（減らせば減る）。
+ * 逆向き（獲得を変えても交換は動かない）にはしない。
+ */
+export const LINKED_COUNTS: Partial<Record<AbilityName, AbilityName>> = {
+  drink_exchange: "drink_get",
+};
 
 /**
  * スケジュール（scheduleCalendar）由来のシナリオ別上限を持つアビリティ。
@@ -213,27 +271,59 @@ export function setPlanMatches(
   return family ? family.includes(setPlan) : setPlan === idolPlan;
 }
 
-/**
- * 発動回数の元データは現行スプシの発動回数タブ（generated/abilityCounts.json、gen:counts で生成）。
- * ラベル→アプリのキー変換は constants に集約（abilityKeyFromLabel）。
- * 「(N回まで)」スロットはタブに独立行が無いので、基準アビリティの回数を上限Nでクランプして派生させる
- *   （例: 活動支給・差し入れ(2回まで) = min(活動支給・差し入れ, 2)）。
- * スプシに行・列を足せばそのまま反映される。
- */
-const DERIVED_CAPS = [
-  { key: "date_ut2", base: "date", cap: 2 }, // お出かけ(2回まで)
-  { key: "meeting_ut2", base: "meeting", cap: 2 }, // 相談(2回まで)
-  { key: "supply_ut2", base: "supply", cap: 2 }, // 活動支給・差し入れ(2回まで)
-  { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
-  { key: "drink_get_ut10", base: "drink_get", cap: 10 }, // ドリンク獲得(10回まで)
-] as const satisfies readonly { key: AbilityName; base: AbilityName; cap: number }[];
-
 type CountTable = {
   setNames: string[];
   /** セットごとのプラン（スプシのプラン行。旧データ・未記入は""） */
   plans?: string[];
   rows: Record<string, number[]>;
+  /**
+   * セットごとの「週（日）ごとに何を踏むか」（スケジュールのタブ。無い＝回数からの推測に任せる）。
+   * JSONから読むので値は文字列。行動として正しいかは生成時（generateAbilityCounts.mjs）に確かめている。
+   */
+  choices?: Record<string, string | null>[];
 };
+
+/**
+ * テンプレの「週（日）ごとに何を踏むか」（セットID → シナリオと選択）。
+ * 元はスプシのスケジュールのタブで、お出かけ・相談・差し入れ（活動支給）・特別指導・休む の回数は
+ * ここから決まる（発動回数のタブの同じ5行はテンプレでは使わない）。
+ * 利用者が画面で選び直した分は、今まで通りそちらが優先。
+ *
+ * 週（日）の番号はシナリオごとに違うので、どのシナリオの踏み方かも一緒に持つ
+ * （別のシナリオで使うと噛み合わず、全部「休む」になってしまうため）。
+ */
+export const TEMPLATE_CHOICES: Record<
+  string,
+  { scenario: ScenarioKey; choices: ScheduleChoices }
+> = {};
+
+/**
+ * 生成テーブルの choices を setId 付きで TEMPLATE_CHOICES に登録する。
+ * 週（日）の行idは生成時のスケジュール定義から作られているので、こちらの定義と噛み合わない
+ * （＝スケジュール定義を直して gen:counts を回していない）ときは登録しない。
+ * 登録してしまうと、そのテンプレの踏み方が黙って全部「休む」になるため。
+ */
+function registerChoices(
+  table: CountTable,
+  scenario: ScenarioKey,
+  idOf: (index: number) => string,
+): void {
+  const known = new Set(scheduleChoiceRows(scenario).map((r) => r.id));
+  (table.choices ?? []).forEach((choices, i) => {
+    const id = idOf(i) as string | undefined;
+    if (!choices || !id) return;
+    const ids = Object.keys(choices);
+    if (ids.length !== known.size || ids.some((rowId) => !known.has(rowId))) {
+      if (import.meta.env?.DEV) {
+        console.warn(
+          `[abilityCounts] ${scenario} のスケジュールが今の定義と合いません（npm run gen:counts が必要）: ${id}`,
+        );
+      }
+      return;
+    }
+    TEMPLATE_CHOICES[id] = { scenario, choices: choices as ScheduleChoices };
+  });
+}
 
 /** per-setではなくシナリオ固定回数(FIXED_COUNTS)で扱うため、この表からは除外するキー */
 const FIXED_COUNT_KEYS = new Set<AbilityName>(["stage_finish"]);
@@ -251,6 +341,14 @@ function toCountTable(table: CountTable): Partial<Record<AbilityName, number[]>>
   for (const { key, base, cap } of DERIVED_CAPS) {
     const b = out[base];
     if (b) out[key] = b.map((n) => Math.min(n, cap));
+  }
+  // 足し算で決まる回数（スキル強化＝A＋M）はタブの行があってもこちらを正とする
+  for (const [key, parts] of Object.entries(DERIVED_SUMS)) {
+    const length = parts.map((p) => out[p]?.length ?? 0).reduce((a, b) => Math.max(a, b), 0);
+    if (length === 0) continue;
+    out[key as AbilityName] = Array.from({ length }, (_, i) =>
+      parts.reduce((sum, p) => sum + (out[p]?.[i] ?? 0), 0),
+    );
   }
   if (unknown.length > 0 && process.env.NODE_ENV !== "production") {
     console.warn("[abilityCounts] 発動回数タブの未知ラベル（constants未登録）:", unknown);
@@ -288,6 +386,8 @@ export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => {
   };
 });
 
+registerChoices(generatedCounts.hif, "hif", (i) => DEFAULT_SETS[i].id);
+
 // ============================================================
 // N.I.A用テンプレセット（現行スプシの abilityCountsNIA タブ由来）
 // ============================================================
@@ -314,6 +414,8 @@ export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
   },
 );
 
+registerChoices(generatedCounts.nia, "niaMaster", (i) => NIA_DEFAULT_SETS[i].id);
+
 // ============================================================
 // 定期公演『初』用テンプレセット（現行スプシの abilityCountsHajime タブ由来）
 // ============================================================
@@ -338,6 +440,8 @@ export const HATSU_DEFAULT_SETS: AbilityCountSet[] = HATSU_SET_NAMES.map(
     };
   },
 );
+
+registerChoices(generatedCounts.hajime, "hatsuLegend", (i) => HATSU_DEFAULT_SETS[i].id);
 
 /**
  * セットが現在のシナリオで表示対象か。

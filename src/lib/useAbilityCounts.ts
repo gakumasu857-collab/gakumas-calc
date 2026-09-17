@@ -7,9 +7,14 @@ import {
   abilityAppliesTo,
   abilityMax,
   DEFAULT_SETS,
+  DERIVED_CAP_OF,
+  DERIVED_SUMS,
   HATSU_DEFAULT_SETS,
+  isAutoCountKey,
+  LINKED_COUNTS,
   NIA_DEFAULT_SETS,
   planFromSetName,
+  TEMPLATE_CHOICES,
   type AbilityCountSet,
 } from "@/data/abilityCounts";
 import type { ScenarioKey } from "@/data/scenarios";
@@ -42,7 +47,7 @@ const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
 /**
  * スケジュールの選択（セットID → シナリオ → 週の行id → 選んだ行動）。
- * おでかけ・相談・活動支給・特別指導（と「(N回まで)」版）の回数は、**この選択から導き出す**
+ * お出かけ・相談・活動支給・特別指導・休む（と「(N回まで)」版）の回数は、**この選択から導き出す**
  * （回数として保存し直さない）。ユーザーセットは3シナリオすべてに出るので、選択も回数も
  * シナリオごとに別々になる必要があり、回数側へ書き戻すと別のシナリオの分を壊してしまうため。
  * まだ一度も選んでいないセットだけ、保存されている回数から選択を推測して表示する。
@@ -64,6 +69,42 @@ type UserSet = { id: string; name: string; plan?: string; saveId?: string };
 
 function clamp(value: number, max: number): number {
   return Math.min(max, Math.max(0, value));
+}
+
+/**
+ * ほかの回数から自動で決まる回数を解く（合計＝スキル強化、上限つきの写し＝「(N回まで)」）。
+ * 自動でないキーは undefined を返す。
+ */
+function autoCountOf(
+  key: AbilityName,
+  of: (key: AbilityName) => number,
+): number | undefined {
+  const parts = DERIVED_SUMS[key];
+  if (parts) return clamp(parts.reduce((sum, k) => sum + of(k), 0), abilityMax(key));
+  const capped = DERIVED_CAP_OF[key];
+  if (capped) return Math.min(of(capped.base), capped.cap);
+  return undefined;
+}
+
+/**
+ * 1つの回数を変えたときに、実際に書き込む回数の一覧。
+ * - 足し算で決まる回数（スキル強化）は手では変えられないので何も書かない
+ * - ドリンク交換を増やすと、その分ドリンク獲得も増える（減らせば減る。獲得側を変えても交換は動かない）
+ */
+function linkedChanges(
+  key: AbilityName,
+  value: number,
+  current: (key: AbilityName) => number,
+): [AbilityName, number][] {
+  if (isAutoCountKey(key)) return [];
+  const next = clamp(value, abilityMax(key));
+  const changes: [AbilityName, number][] = [[key, next]];
+  const linked = LINKED_COUNTS[key];
+  const delta = next - current(key);
+  if (linked && delta !== 0) {
+    changes.push([linked, clamp(current(linked) + delta, abilityMax(linked))]);
+  }
+  return changes;
 }
 
 /** localStorageから同期読み込み（SPAなので初期値で直接読む） */
@@ -129,8 +170,19 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     set.defaults[key] ?? 0;
 
   /**
-   * 保存されている回数そのもの（スケジュールの選択で決まる4種＋「(N回まで)」版については、
-   * まだ一度も選んでいないセットの推測の材料としてだけ使う値）。
+   * テンプレの「週（日）ごとに何を踏むか」（スプシのスケジュールのタブ）。
+   * まだ一度も選び直していないテンプレは、これがそのまま既定の踏み方になる。
+   * ユーザーが追加したセット・別シナリオのテンプレには無いので undefined
+   * （＝昔通り、回数から推測する）。
+   */
+  const templateChoices = (set: AbilityCountSet): ScheduleChoices | undefined => {
+    const template = TEMPLATE_CHOICES[set.id];
+    return template?.scenario === scenario ? template.choices : undefined;
+  };
+
+  /**
+   * 保存されている回数そのもの（スケジュールの選択で決まる分＝お出かけ・相談・活動支給・特別指導・休む
+   * ＋「(N回まで)」版については、まだ一度も選んでいないセットの推測の材料としてだけ使う値）。
    */
   const rawCount = useCallback(
     (set: AbilityCountSet, key: AbilityName): number =>
@@ -146,7 +198,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     (set: AbilityCountSet): ScheduleChoices =>
       resolveChoices(
         scenario,
-        choices[set.id]?.[scenario],
+        choices[set.id]?.[scenario] ?? templateChoices(set),
         choiceTargets((k) => rawCount(set, k)),
       ),
     [choices, scenario, rawCount],
@@ -154,7 +206,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
 
   /**
    * 現在の回数（上書きがあればそれ、なければデフォルト）。
-   * お出かけ・相談・活動支給・特別指導（と「(N回まで)」版）は、今のシナリオの
+   * お出かけ・相談・活動支給・特別指導・休む（と「(N回まで)」版）は、今のシナリオの
    * スケジュールの選択から導き出す（回数は選択の写しなので、別シナリオの選択に影響されない）。
    */
   const getCount = useCallback(
@@ -163,7 +215,10 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
         return abilityCountsFromChoices(scenario, getChoices(set))[key];
       // そのシナリオで意味を持たない回数（Pポイント営業は N.I.A だけ）は 0
       if (!abilityAppliesTo(key, scenario)) return 0;
-      return clamp(overrides[set.id]?.[key] ?? defaultFor(set, key), abilityMax(key));
+      const raw = (k: AbilityName) =>
+        clamp(overrides[set.id]?.[k] ?? defaultFor(set, k), abilityMax(k));
+      // 自動で決まる回数（スキル強化＝A＋M、「(N回まで)」＝元の回数の頭打ち）
+      return autoCountOf(key, raw) ?? raw(key);
     },
     [overrides, scenario, getChoices],
   );
@@ -175,23 +230,77 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     [overrides],
   );
 
-  /** 回数を設定（0〜maxにクランプ。デフォルトと同値なら差分を削除） */
+  /**
+   * そのプロデュースの「最初の回数」（スプシの発動回数・スケジュールのタブの値）。
+   * 自分で追加したセットは元になる値が無いので null（画面では「元◯」を出さない）。
+   */
+  const templateCount = useCallback(
+    (set: AbilityCountSet, key: AbilityName): number | null => {
+      if (set.id.startsWith("uset-")) return null;
+      if (isChoiceAbilityKey(key)) {
+        return abilityCountsFromChoices(
+          scenario,
+          resolveChoices(
+            scenario,
+            templateChoices(set),
+            choiceTargets((k) => clamp(defaultFor(set, k), abilityMax(k))),
+          ),
+        )[key];
+      }
+      if (!abilityAppliesTo(key, scenario)) return 0;
+      const raw = (k: AbilityName) => clamp(defaultFor(set, k), abilityMax(k));
+      return autoCountOf(key, raw) ?? raw(key);
+    },
+    [scenario],
+  );
+
+  /**
+   * その回数を「最初の回数」に戻す（プロデュース設定ページの「元◯に戻す」）。
+   * 差分を消すだけでよい（消せばテンプレの値に戻る）。連動する回数（ドリンク獲得）も一緒に戻す
+   * （片方だけ戻すと、戻すボタンしか押していないのに元より減ってしまうため）。
+   */
+  const resetToTemplate = useCallback((set: AbilityCountSet, key: AbilityName) => {
+    const linked = LINKED_COUNTS[key];
+    setOverrides((prev) => {
+      if (!prev[set.id]) return prev;
+      const forSet = { ...prev[set.id] };
+      delete forSet[key];
+      if (linked) delete forSet[linked];
+      const result = { ...prev, [set.id]: forSet };
+      if (Object.keys(forSet).length === 0) delete result[set.id];
+      return result;
+    });
+  }, []);
+
+  /** 今の回数が「最初の回数」と違うか（プロデュース設定ページの「変更」の印） */
+  const isChangedFromTemplate = useCallback(
+    (set: AbilityCountSet, key: AbilityName): boolean => {
+      const base = templateCount(set, key);
+      return base !== null && base !== getCount(set, key);
+    },
+    [templateCount, getCount],
+  );
+
+  /** 回数を設定（0〜maxにクランプ。デフォルトと同値なら差分を削除）。連動する回数も一緒に書く */
   const setCount = useCallback(
     (set: AbilityCountSet, key: AbilityName, value: number) => {
-      const next = clamp(value, abilityMax(key));
+      const changes = linkedChanges(key, value, (k) => getCount(set, k));
+      if (changes.length === 0) return;
       setOverrides((prev) => {
         const forSet = { ...(prev[set.id] ?? {}) };
-        if (next === defaultFor(set, key)) {
-          delete forSet[key]; // デフォルトに一致→差分を持たない
-        } else {
-          forSet[key] = next;
+        for (const [k, v] of changes) {
+          if (v === defaultFor(set, k)) {
+            delete forSet[k]; // デフォルトに一致→差分を持たない
+          } else {
+            forSet[k] = v;
+          }
         }
         const result = { ...prev, [set.id]: forSet };
         if (Object.keys(forSet).length === 0) delete result[set.id];
         return result;
       });
     },
-    [],
+    [getCount],
   );
 
   /** この育成だけの調整を含む、保存されている回数（推測の材料） */
@@ -206,7 +315,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     (set: AbilityCountSet): ScheduleChoices =>
       resolveChoices(
         scenario,
-        runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario],
+        runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario] ?? templateChoices(set),
         choiceTargets((k) => rawRunCount(set, k)),
       ),
     [runChoices, choices, scenario, rawRunCount],
@@ -215,14 +324,16 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   /**
    * 計算ページで使う「この育成での回数」。この育成だけの調整（adjust）があればそれ、
    * なければセットのデフォルト（プロデュース設定ページの値）。
-   * スケジュールの選択で決まる4種は、この育成での選択から導き出す。
+   * スケジュールの選択で決まる分は、この育成での選択から導き出す。
    */
   const getRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName): number => {
       if (isChoiceAbilityKey(key))
         return abilityCountsFromChoices(scenario, getRunChoices(set))[key];
       if (!abilityAppliesTo(key, scenario)) return 0;
-      return clamp(adjust[set.id]?.[key] ?? getCount(set, key), abilityMax(key));
+      const raw = (k: AbilityName) =>
+        clamp(adjust[set.id]?.[k] ?? getCount(set, k), abilityMax(k));
+      return autoCountOf(key, raw) ?? raw(key);
     },
     [adjust, getCount, scenario, getRunChoices],
   );
@@ -230,18 +341,20 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュース設定ページの値は変えない */
   const setRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName, value: number) => {
-      const next = clamp(value, abilityMax(key));
-      const base = getCount(set, key);
+      const changes = linkedChanges(key, value, (k) => getRunCount(set, k));
+      if (changes.length === 0) return;
       setAdjust((prev) => {
         const forSet = { ...(prev[set.id] ?? {}) };
-        if (next === base) delete forSet[key];
-        else forSet[key] = next;
+        for (const [k, v] of changes) {
+          if (v === getCount(set, k)) delete forSet[k];
+          else forSet[k] = v;
+        }
         const result = { ...prev, [set.id]: forSet };
         if (Object.keys(forSet).length === 0) delete result[set.id];
         return result;
       });
     },
-    [getCount],
+    [getCount, getRunCount],
   );
 
   /** スケジュールの選択を変える（デフォルト）。回数はこの選択から導くので書き戻さない */
@@ -283,8 +396,8 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   const choiceFitNote = useCallback(
     (set: AbilityCountSet, run: boolean): { event: ChoiceEvent; from: number; to: number }[] => {
       const stored = run
-        ? (runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario])
-        : choices[set.id]?.[scenario];
+        ? (runChoices[set.id]?.[scenario] ?? choices[set.id]?.[scenario] ?? templateChoices(set))
+        : (choices[set.id]?.[scenario] ?? templateChoices(set));
       if (stored) return [];
       const raw = run ? rawRunCount : rawCount;
       return choiceShortfall(
@@ -296,7 +409,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     [runChoices, choices, scenario, rawRunCount, rawCount, getRunChoices, getChoices],
   );
 
-  /** この育成だけの調整が入っているか（スケジュールの4種は選択の違いを見る） */
+  /** この育成だけの調整が入っているか（スケジュールで決まる回数は選択の違いを見る） */
   const isRunAdjusted = useCallback(
     // 調整が残っていても、あとでデフォルトを同じ値にしたら「変更」ではない（値で比べる）
     (set: AbilityCountSet, key: AbilityName): boolean =>
@@ -313,6 +426,9 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
       const plain = Object.keys(adjust[set.id] ?? {}).filter(
         (k) =>
           !isChoiceAbilityKey(k) &&
+          // 自動で決まる回数（スキル強化・「(N回まで)」）は手で変えられないので数えない
+          // （昔の保存データに残っていることがある）
+          !isAutoCountKey(k as AbilityName) &&
           getRunCount(set, k as AbilityName) !== getCount(set, k as AbilityName),
       ).length;
       const run = getRunChoices(set);
@@ -475,9 +591,15 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
       }
       return { ...prev, [id]: counts };
     });
-    // スケジュールの選択もコピー
-    setChoices((prev) => (prev[source.id] ? { ...prev, [id]: { ...prev[source.id] } } : prev));
-  }, []);
+    // スケジュールの選択もコピーする。まだ選び直していないテンプレは保存された選択を持たないので、
+    // 今出ている選択（＝スプレッドシートのスケジュールの値）をこのシナリオの分として書き写す
+    // （複製先はテンプレではないので、写さないと回数からの推測になって元と違う踏み方になる）
+    const copied = getChoices(source);
+    setChoices((prev) => ({
+      ...prev,
+      [id]: { ...(prev[source.id] ?? {}), [scenario]: copied },
+    }));
+  }, [getChoices, scenario]);
 
   /** 参照用に選択するセット（チェックボックス）。同じIDを渡すと解除 */
   const selectSet = useCallback((setId: string) => {
@@ -630,6 +752,9 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     getCount,
     setCount,
     isOverridden,
+    templateCount,
+    isChangedFromTemplate,
+    resetToTemplate,
     getRunCount,
     setRunCount,
     isRunAdjusted,
