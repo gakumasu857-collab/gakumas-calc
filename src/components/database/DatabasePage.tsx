@@ -29,15 +29,16 @@ const PLAN_CHIP: Record<string, string> = {
   フリー: "bg-slate-100 text-slate-600",
 };
 
+// スマホ: 文字と余白を小さくし、左の名前列は固定しない（固定すると右の列がほとんど見えない）。PC: 名前列を固定
 const TABLE =
-  "min-w-max border-separate border-spacing-0 border-2 border-l-0 border-slate-500 text-[13px] tabular-nums";
+  "min-w-max border-separate border-spacing-0 border-2 border-l-0 border-slate-500 text-[11px] tabular-nums sm:text-[13px]";
 const TH =
-  "whitespace-nowrap border-b-2 border-r border-slate-400 bg-slate-100 px-2 py-2 font-bold text-slate-700";
+  "whitespace-nowrap border-b-2 border-r border-slate-400 bg-slate-100 px-1.5 py-1.5 font-bold text-slate-700 sm:px-2 sm:py-2";
 const TH_STICKY =
-  "sticky left-0 z-10 border-b-2 border-l-2 border-r-2 border-slate-400 border-l-slate-500 bg-slate-100 px-2 py-2 text-left font-bold text-slate-800";
-const TD = "border-b border-r border-slate-200 px-1.5 py-1 text-center";
+  "border-b-2 border-l-2 border-r-2 border-slate-400 border-l-slate-500 bg-slate-100 px-1.5 py-1.5 text-left font-bold text-slate-800 sm:sticky sm:left-0 sm:z-10 sm:px-2 sm:py-2";
+const TD = "border-b border-r border-slate-200 px-1 py-1 text-center sm:px-1.5";
 const TD_STICKY =
-  "sticky left-0 z-10 max-w-52 truncate border-b border-l-2 border-r-2 border-b-slate-200 border-l-slate-500 border-r-slate-400 bg-white px-2 py-1 text-left text-slate-700";
+  "max-w-32 break-words border-b border-l-2 border-r-2 border-b-slate-200 border-l-slate-500 border-r-slate-400 bg-white px-1.5 py-1 text-left leading-tight text-slate-700 sm:sticky sm:left-0 sm:z-10 sm:max-w-52 sm:truncate sm:px-2 sm:leading-normal";
 
 /** サポカ・Pアイドルの情報閲覧ページ（切り替え式） */
 export default function DatabasePage() {
@@ -191,10 +192,10 @@ function SupportInfoTable() {
                         src={url}
                         alt={card.name}
                         loading="lazy"
-                        className="mx-auto h-9 w-20 rounded object-cover"
+                        className="mx-auto h-7 w-14 rounded object-cover sm:h-9 sm:w-20"
                       />
                     ) : (
-                      <div className="h-9 w-20" />
+                      <div className="h-7 w-14 sm:h-9 sm:w-20" />
                     )}
                   </td>
                   <td className={`${TD} text-slate-600`}>
@@ -386,10 +387,10 @@ function PIdolInfoRow({
             src={url}
             alt={master.cardName}
             loading="lazy"
-            className={`mx-auto h-9 w-20 rounded object-cover ${ownership ? "" : "grayscale opacity-60"}`}
+            className={`mx-auto h-7 w-14 rounded object-cover sm:h-9 sm:w-20 ${ownership ? "" : "grayscale opacity-60"}`}
           />
         ) : (
-          <div className="h-9 w-20" />
+          <div className="h-7 w-14 sm:h-9 sm:w-20" />
         )}
       </td>
       <td className={`${TD} whitespace-nowrap text-slate-600`}>{master.idol}</td>

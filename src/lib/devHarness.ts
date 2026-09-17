@@ -55,7 +55,7 @@ function loadJson<T>(key: string, fallback: T): T {
 
 type HifState = {
   lessons: LessonPick[];
-  classTypes: TypeKey[];
+  classTypes: (TypeKey | null)[];
   examScores: ExamScores[];
   examStats: (ExamScores | null)[];
 };
@@ -293,7 +293,7 @@ export function runOnce() {
 export type ComboSpec = {
   names: string[];
   lessons: LessonPick[];
-  classTypes: TypeKey[];
+  classTypes: (TypeKey | null)[];
   examScores: ExamScores[];
   /**
    * 選抜ごとのステ直接入力（null＝スコアから）。省略すると保存してある踏み方の値を使う。

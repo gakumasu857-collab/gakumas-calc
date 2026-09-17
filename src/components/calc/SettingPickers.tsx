@@ -312,9 +312,41 @@ export function TheorySettingsModal({
                       onChange={(e) => onUpdate({ examConfirm: e.target.checked })}
                       className="accent-blue-600"
                     />
-                    選抜の点数配分を手で変えていたら、探索の前に確認する
+                    選抜の点数配分設定をそのままにするかどうかの確認を挟む
                     <Hint text={GLOSSARY.examConfirm} />
                   </label>
+                  {/* 確認を挟まないときの、手で変えた点数配分の扱い（確認の「次回以降表示しない」で選んだほうが入る） */}
+                  <div
+                    className={`mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-xs ${
+                      settings.examConfirm ? "opacity-40" : ""
+                    }`}
+                  >
+                    <span className="text-slate-600">確認を挟まないとき:</span>
+                    <span className="inline-flex overflow-hidden rounded-lg border border-slate-300">
+                      {(
+                        [
+                          [false, "探索で決め直す"],
+                          [true, "手で変えた配分のまま探索"],
+                        ] as const
+                      ).map(([keep, label], i) => (
+                        <button
+                          key={label}
+                          type="button"
+                          disabled={settings.examConfirm}
+                          onClick={() => onUpdate({ examKeepManual: keep })}
+                          className={`px-2 py-1 font-semibold transition disabled:cursor-not-allowed ${
+                            i > 0 ? "border-l border-slate-300" : ""
+                          } ${
+                            settings.examKeepManual === keep
+                              ? "bg-blue-600 text-white"
+                              : "bg-white text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
                 </section>
                 <section className="border-t border-slate-100 pt-3">
                   <label className="flex items-center gap-1.5 font-semibold">
@@ -324,7 +356,7 @@ export function TheorySettingsModal({
                       onChange={(e) => onUpdate({ examAllIn: e.target.checked })}
                       className="accent-blue-600"
                     />
-                    選抜は3つとも極振りで探索する
+                    選抜試験の点数を全て1つのタイプに分配する
                     <Hint text={GLOSSARY.examAllIn} />
                   </label>
                 </section>

@@ -58,6 +58,7 @@ import {
   niaChallengeTotal,
   normalizeNiaChallenge,
 } from "@/data/niaChallenge";
+import { P_SALE_POINTS } from "@/data/abilityCounts";
 import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { useOptimizePlan } from "@/lib/useOptimizePlan";
@@ -228,14 +229,11 @@ function HifEditor({ r }: { r: CalcResult }) {
             { label: "授業一括", onPick: (t) => schedule.applyAllClasses(t) },
           ]}
         />
-        <button
-          type="button"
-          onClick={() => schedule.clearAllLessons()}
-          title="全レッスンを踏まない"
-          className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
-        >
-          レッスン全休み
-        </button>
+        <ResetButton
+          label="レッスン・授業リセット"
+          title="レッスンを全部「踏まない」、授業を全部「未選択」に戻します（選抜はそのまま）"
+          onClick={() => schedule.resetLessonsAndClasses()}
+        />
       </div>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         <MiniTable
@@ -298,7 +296,14 @@ function HifEditor({ r }: { r: CalcResult }) {
                 type={type}
                 selected={schedule.classTypes[i] === type}
                 value={schedule.classTypes[i] === type ? cls.gain : 0}
-                onClick={() => schedule.setClassType(i, type)}
+                title={
+                  schedule.classTypes[i] === type
+                    ? "もう一度クリックで「未選択」に戻す"
+                    : undefined
+                }
+                onClick={() =>
+                  schedule.setClassType(i, schedule.classTypes[i] === type ? null : type)
+                }
               />
             )),
           ])}
@@ -532,12 +537,19 @@ function NiaEditor({ r }: { r: CalcResult }) {
   );
   return (
     <div className="flex flex-col gap-4">
-      <BulkRow
-        groups={[
-          { label: "レッスン一括", onPick: (t) => nia.applyAllMain(t) },
-          { label: "営業一括", onPick: (t) => nia.applyAllSales(t) },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <BulkRow
+          groups={[
+            { label: "レッスン一括", onPick: (t) => nia.applyAllMain(t) },
+            { label: "営業一括", onPick: (t) => nia.applyAllSales(t) },
+          ]}
+        />
+        <ResetButton
+          label="レッスン・営業リセット"
+          title="レッスンを全部「踏まない」、営業を全部「未選択」に戻します（オーディションはそのまま）"
+          onClick={() => nia.resetLessonsAndSales()}
+        />
+      </div>
       <div className="flex flex-wrap gap-x-8 gap-y-4">
         <MiniTable
           head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP"]}
@@ -582,7 +594,10 @@ function NiaEditor({ r }: { r: CalcResult }) {
                   type={type}
                   selected={pick.type === type}
                   value={pick.type === type ? sale.value : 0}
-                  onClick={() => nia.setSale(i, { type })}
+                  title={
+                    pick.type === type ? "もう一度クリックで「未選択」に戻す" : undefined
+                  }
+                  onClick={() => nia.setSale(i, { type: pick.type === type ? null : type })}
                 />
               )),
               <MiniToggle
@@ -604,6 +619,29 @@ function NiaEditor({ r }: { r: CalcResult }) {
             ];
           })}
         />
+      </div>
+      {/* 営業先で「Pポイント営業」を踏む回数（プロデュースの回数。この育成だけの値を変える） */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <b className="text-slate-700">Pポイント営業を踏む回数</b>
+        <NumberField
+          value={r.selectedSet ? r.ability.getRunCount(r.selectedSet, "p_sale") : 0}
+          onChange={(v) => {
+            if (r.selectedSet) r.ability.setRunCount(r.selectedSet, "p_sale", v);
+          }}
+          max={NIA_SALES.length}
+          sliderMax={NIA_SALES.length}
+          disabled={!r.selectedSet}
+          className="w-14"
+        />
+        <span>／{NIA_SALES.length}回</span>
+        <span className="text-cyan-700">
+          ＋{r.resources.pSales.toLocaleString()}P
+        </span>
+        <span className="w-full text-[11px] leading-relaxed text-slate-400 sm:w-auto">
+          営業先でPポイント営業を選ぶと1回につきPポイント+{P_SALE_POINTS}。プロデュースごとの回数で、ここで変えた値はこの育成だけに効きます
+          （デフォルトは「プロデュース設定」の「スケジュール」で変えられます）。
+          {!r.selectedSet && "プロデュースを選ぶと入力できます。"}
+        </span>
       </div>
 
       {/* オーディション（1次・2次は素点、最終はスコアか素点。素点はパラボ込みのステ（ログの値）からも逆算） */}
@@ -745,12 +783,19 @@ function HatsuEditor({ r }: { r: CalcResult }) {
   const hatsu = r.hatsuSchedule;
   return (
     <div className="flex flex-col gap-4">
-      <BulkRow
-        groups={[
-          { label: "レッスン一括", onPick: (t) => hatsu.applyAllMain(t) },
-          { label: "授業一括", onPick: (t) => hatsu.applyAllClasses(t) },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <BulkRow
+          groups={[
+            { label: "レッスン一括", onPick: (t) => hatsu.applyAllMain(t) },
+            { label: "授業一括", onPick: (t) => hatsu.applyAllClasses(t) },
+          ]}
+        />
+        <ResetButton
+          label="レッスン・授業リセット"
+          title="レッスンを全部「踏まない」、授業を全部「未選択」に戻します（試験はそのまま）"
+          onClick={() => hatsu.resetLessonsAndClasses()}
+        />
+      </div>
       <p className="text-[11px] leading-relaxed text-slate-500">
         初のレッスンは、レッスン中に出した点数がそのまま踏んだタイプの素ステになります（上限まで出せばパーフェクト）。
         クリアライン（数値表の「クリア」）を超えた分は残り2タイプにも同じだけ入ります。どちらもパラボが掛かります。
@@ -817,7 +862,12 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                 type={type}
                 selected={hatsu.classTypes[i] === type}
                 value={hatsu.classTypes[i] === type ? cls.gain : 0}
-                onClick={() => hatsu.setClassType(i, type)}
+                title={
+                  hatsu.classTypes[i] === type ? "もう一度クリックで「未選択」に戻す" : undefined
+                }
+                onClick={() =>
+                  hatsu.setClassType(i, hatsu.classTypes[i] === type ? null : type)
+                }
               />
             )),
           ])}
@@ -1329,6 +1379,28 @@ function HatsuNumbers() {
 }
 
 /** 一括選択の行（グループごとにタイプ3ボタン） */
+/** レッスンと授業（営業）をまとめて「踏まない／未選択」に戻すボタン（さらの状態から入れ直す用） */
+function ResetButton({
+  label,
+  title,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="whitespace-nowrap rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+    >
+      {label}
+    </button>
+  );
+}
+
 function BulkRow({
   groups,
 }: {

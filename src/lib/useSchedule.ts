@@ -20,7 +20,7 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  * 審査基準ランクの対応でタイプ間の入れ替え（remapTypes）を行う）。
  *
  * - lessons: 各公開レッスンの メイン/サブ タイプとSP有無
- * - classTypes: 各授業で上げるタイプ
+ * - classTypes: 各授業で上げるタイプ（null＝未選択。上昇なし。「レッスン・授業リセット」で全部 null になる）
  * - examScores: 選抜ごとのタイプ別スコア
  */
 const STORAGE_KEY = "gakumas:schedule:v1";
@@ -51,7 +51,7 @@ export function subAppearProb(
 
 export type ScheduleState = {
   lessons: LessonPick[];
-  classTypes: TypeKey[];
+  classTypes: (TypeKey | null)[];
   examScores: ExamScores[];
   /**
    * 選抜ごとの上昇ステの直接入力（パラメータボーナス%は含まない値）。
@@ -145,7 +145,7 @@ export function roleToTypeFromCalcStorage(): Record<string, TypeKey> {
 export function computeScheduleGains(
   state: {
     lessons: LessonPick[];
-    classTypes: TypeKey[];
+    classTypes: (TypeKey | null)[];
     examScores: ExamScores[];
     examStats?: (ExamScores | null)[];
   },
@@ -176,6 +176,7 @@ export function computeScheduleGains(
 
   CLASSES.forEach((cls, i) => {
     const type = state.classTypes[i];
+    if (!type) return; // 未選択の授業（上昇なし）
     gains[type] += cls.gain; // 授業には%は乗らない
     classGains[type] += cls.gain;
   });
@@ -246,8 +247,9 @@ export function loadScheduleState(): ScheduleState {
       const classTypesRaw = (stored.classTypes ??
         stored.classRoles ??
         []) as unknown[];
-      const classTypes: TypeKey[] = CLASSES.map((_, i) =>
-        toType(classTypesRaw[i], "visual"),
+      // null（未選択）は保存値をそのまま復元する
+      const classTypes: (TypeKey | null)[] = CLASSES.map((_, i) =>
+        classTypesRaw[i] === null ? null : toType(classTypesRaw[i], "visual"),
       );
 
       // 選抜スコア: タイプキー or ロールキーを吸収
@@ -386,11 +388,12 @@ export function useSchedule() {
     }));
   }, []);
 
-  /** 全レッスンを「踏まない」に戻す（さらの状態） */
-  const clearAllLessons = useCallback(() => {
+  /** レッスンを全部「踏まない」、授業を全部「未選択」に戻す（さらの状態から入れ直す用。選抜はそのまま） */
+  const resetLessonsAndClasses = useCallback(() => {
     setState((prev) => ({
       ...prev,
       lessons: prev.lessons.map((l) => ({ ...l, main: null })),
+      classTypes: prev.classTypes.map(() => null),
     }));
   }, []);
 
@@ -438,7 +441,8 @@ export function useSchedule() {
     }));
   }, []);
 
-  const setClassType = useCallback((index: number, type: TypeKey) => {
+  /** 授業のタイプを変える（null＝未選択に戻す） */
+  const setClassType = useCallback((index: number, type: TypeKey | null) => {
     setState((prev) => ({
       ...prev,
       classTypes: prev.classTypes.map((v, i) => (i === index ? type : v)),
@@ -462,7 +466,7 @@ export function useSchedule() {
   const setPlan = useCallback(
     (
       lessons: LessonPick[],
-      classTypes: TypeKey[],
+      classTypes: (TypeKey | null)[],
       examScores?: ExamScores[],
       examStats?: (ExamScores | null)[],
     ) => {
@@ -597,7 +601,7 @@ export function useSchedule() {
         main: l.main ? map[l.main] : null,
         sub: map[l.sub],
       })),
-      classTypes: prev.classTypes.map((t) => map[t]),
+      classTypes: prev.classTypes.map((t) => (t ? map[t] : null)),
       examScores: prev.examScores.map(remapScores),
       examStats: prev.examStats.map((s) => (s ? remapScores(s) : null)),
       // 手で変える前の配分の控えも同じ入れ替えをする（入れ替えただけで「手で変えた」にならないように）
@@ -629,8 +633,9 @@ export function useSchedule() {
       lessons: LESSONS.map(
         (_, i) => snapshot.lessons[i] ?? DEFAULT_STATE.lessons[i],
       ),
-      classTypes: CLASSES.map(
-        (_, i) => snapshot.classTypes[i] ?? DEFAULT_STATE.classTypes[i],
+      // null（未選択）はそのまま。件数が足りない分だけ既定で埋める
+      classTypes: CLASSES.map((_, i) =>
+        snapshot.classTypes[i] === undefined ? DEFAULT_STATE.classTypes[i] : snapshot.classTypes[i],
       ),
       examScores,
       examStats,
@@ -651,7 +656,7 @@ export function useSchedule() {
     replaceAll,
     setLessonMain,
     clearLessonMain,
-    clearAllLessons,
+    resetLessonsAndClasses,
     setLessonSub,
     toggleLessonSp,
     applyAllMain,

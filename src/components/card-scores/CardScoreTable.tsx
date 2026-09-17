@@ -277,13 +277,14 @@ export default function CardScoreTable() {
       <div className="overflow-x-auto">
         {/* border-collapse だと固定列の枠線がスクロールで置いていかれるため border-separate。
             左端の枠線は表ではなく固定列セルに持たせる（スクロールで置いていかれないように） */}
-        <table className="w-full min-w-max border-separate border-spacing-0 border-2 border-l-0 border-slate-500 text-sm tabular-nums">
+        {/* スマホ: 文字を小さくし、左の列は固定しない（固定すると数字の列がほとんど見えない）。PC: 左2列を固定 */}
+        <table className="w-full min-w-max border-separate border-spacing-0 border-2 border-l-0 border-slate-500 text-xs tabular-nums sm:text-sm">
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 w-44 min-w-44 max-w-44 border-b-2 border-l-2 border-r border-slate-400 border-l-slate-500 bg-slate-100 px-2 py-2 text-left font-bold text-slate-800">
+              <th className="w-28 min-w-28 max-w-28 border-b-2 border-l-2 border-r border-slate-400 border-l-slate-500 bg-slate-100 px-1.5 py-1.5 text-left font-bold text-slate-800 sm:sticky sm:left-0 sm:z-10 sm:w-44 sm:min-w-44 sm:max-w-44 sm:px-2 sm:py-2">
                 サポートカード
               </th>
-              <th className="sticky left-44 z-10 whitespace-nowrap border-b-2 border-r-2 border-slate-400 bg-slate-100 px-2 py-2 font-bold text-slate-700">
+              <th className="whitespace-nowrap border-b-2 border-r-2 border-slate-400 bg-slate-100 px-1.5 py-1.5 font-bold text-slate-700 sm:sticky sm:left-44 sm:z-10 sm:px-2 sm:py-2">
                 イラスト
               </th>
               <Th>レアリティ</Th>
@@ -311,23 +312,24 @@ export default function CardScoreTable() {
               const url = imageUrl(row.image);
               return (
                 <tr key={row.id} className="bg-white">
+                  {/* スマホは幅が狭いので名前を折り返す（PCは1行で省略） */}
                   <td
-                    className="sticky left-0 z-10 w-44 min-w-44 max-w-44 truncate border-b border-l-2 border-r border-b-slate-300 border-l-slate-500 border-r-slate-200 bg-white px-2 py-1 font-medium text-slate-900"
+                    className="w-28 min-w-28 max-w-28 break-words border-b border-l-2 border-r border-b-slate-300 border-l-slate-500 border-r-slate-200 bg-white px-1.5 py-1 font-medium leading-tight text-slate-900 sm:sticky sm:left-0 sm:z-10 sm:w-44 sm:min-w-44 sm:max-w-44 sm:truncate sm:px-2 sm:leading-normal"
                     title={row.name}
                   >
                     {row.name}
                   </td>
-                  {/* 画像はサポカ設定ページと同じ表示（h-9 w-20・角丸） */}
-                  <td className="sticky left-44 z-10 border-b border-r-2 border-b-slate-300 border-r-slate-400 bg-white p-0.5">
+                  {/* 画像はサポカ設定ページと同じ表示（PCは h-9 w-20・角丸。スマホは一回り小さく） */}
+                  <td className="border-b border-r-2 border-b-slate-300 border-r-slate-400 bg-white p-0.5 sm:sticky sm:left-44 sm:z-10">
                     {url ? (
                       <img
                         src={url}
                         alt={row.name}
                         loading="lazy"
-                        className="mx-auto h-9 w-20 rounded object-cover"
+                        className="mx-auto h-7 w-14 rounded object-cover sm:h-9 sm:w-20"
                       />
                     ) : (
-                      <div className="h-9 w-20" />
+                      <div className="h-7 w-14 sm:h-9 sm:w-20" />
                     )}
                   </td>
                   <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center text-slate-800">
@@ -468,7 +470,7 @@ function Th({
   return (
     <th
       title={title}
-      className="whitespace-nowrap border-b-2 border-r border-slate-400 bg-slate-100 px-2 py-2 font-bold text-slate-700"
+      className="whitespace-nowrap border-b-2 border-r border-slate-400 bg-slate-100 px-1.5 py-1.5 font-bold text-slate-700 sm:px-2 sm:py-2"
     >
       {children}
     </th>
@@ -492,7 +494,7 @@ function SortTh({
       <button
         type="button"
         onClick={() => onToggle(sortKey)}
-        className={`flex w-full items-center justify-center gap-0.5 px-2 py-2 font-bold hover:bg-slate-200 ${
+        className={`flex w-full items-center justify-center gap-0.5 px-1.5 py-1.5 font-bold hover:bg-slate-200 sm:px-2 sm:py-2 ${
           active ? "text-blue-700" : "text-slate-700"
         }`}
         title="クリックで並べ替え（降順→昇順→解除）"

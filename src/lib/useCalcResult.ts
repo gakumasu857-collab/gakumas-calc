@@ -26,6 +26,7 @@ import {
   HATSU_RANK_VALUES,
   hatsuExamValue,
   NIA_LESSONS,
+  NIA_SALES,
   NIA_PARAM_RATE,
   niaFanValue,
   niaFudaVotes,
@@ -69,6 +70,7 @@ import { useHatsuSchedule } from "./useHatsuSchedule";
 import { useMemoryStore } from "./useMemoryStore";
 import { hifBonusValues } from "@/data/hifBonus";
 import { supplyPFromChoices } from "@/data/scheduleCalendar";
+import { P_SALE_POINTS } from "@/data/abilityCounts";
 import { useNiaSchedule } from "./useNiaSchedule";
 import { niaChallengeTotal } from "@/data/niaChallenge";
 import { useOwnedLevels } from "./useOwnedLevels";
@@ -376,6 +378,12 @@ export function useCalcResult() {
       const supply = selectedSet
         ? supplyPFromChoices(scenario, ability.getRunChoices(selectedSet))
         : { total: 0, bySection: [] as number[] };
+      // N.I.A: 営業先で「Pポイント営業」を踏んだ回数ぶん（1回 +50P）。回数はプロデュースの回数（営業の数まで）
+      const pSales =
+        scenario === "niaMaster" && selectedSet
+          ? P_SALE_POINTS *
+            Math.min(NIA_SALES.length, ability.getRunCount(selectedSet, "p_sale"))
+          : 0;
       // 親愛度の初期Pポイント（STEP3。21〜で+10〜+30）。H.I.Fは選抜の開始時だけで本戦にはかからない
       const stepP = affectionStepP(settings.affection);
       const pAffection = stepP;
@@ -401,12 +409,14 @@ export function useCalcResult() {
         /** 合計Pポイント（開始時・差し入れ・レッスン・メモリー・サポカの全部） */
         pTotal: isHifP
           ? pSenbatsu + pHonsen
-          : lessonP + mem.P + pCards + pAffection + supply.total,
+          : lessonP + mem.P + pCards + pAffection + supply.total + pSales,
         pLesson: lessonP,
         pMemory: mem.P,
         pCards,
         /** 画面の「Pポイント」＝サポカ＋レッスン＋H.I.Fボーナス＋親愛度＋メモリー＋差し入れ（＝その育成で手に入る合計。pTotal と同じ値） */
-        pBase: pCards + pLessonTotal + pHifBonus + pAffection + mem.P + supply.total,
+        pBase: pCards + pLessonTotal + pHifBonus + pAffection + mem.P + supply.total + pSales,
+        /** N.I.A: Pポイント営業で増えるPポイント（他シナリオは0） */
+        pSales,
         /** 「Pポイント」の内訳に出すレッスンのP */
         pLessonTotal,
         /** H.I.Fボーナスの初期Pポイント（他シナリオは0） */

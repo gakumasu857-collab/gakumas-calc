@@ -82,7 +82,8 @@ export function paraboAssignFromGains(
 
 export type ScheduleStateLike = {
   lessons: LessonPick[];
-  classTypes: TypeKey[];
+  /** null＝未選択の授業（上昇なし） */
+  classTypes: (TypeKey | null)[];
   examScores: ExamScores[];
   /** 選抜ごとの上昇ステの直接入力（null=スコアから分配） */
   examStats?: (ExamScores | null)[];

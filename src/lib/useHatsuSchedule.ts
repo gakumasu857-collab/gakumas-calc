@@ -9,7 +9,7 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
  * - lessons: レジェンドレッスン5回の踏みタイプ・SP有無・レッスン中の点数
  *   （点数がそのまま踏んだタイプの素ステ。クリアラインを超えた分は残り2タイプにも入る。
  *    score が無い＝上限まで出した＝パーフェクト）
- * - classTypes: 授業4回のタイプ
+ * - classTypes: 授業4回のタイプ（null＝未選択。上昇なし）
  * - midRank/finalRank: 中間・最終試験の順位（1始まり。最終の4=4位以下）
  * - midScore/finalScore: 試験スコア（評価値換算に使用）
  * すべてタイプ直接紐づけ（ロール概念なし）。アイドル切替時は remapTypes で入れ替える。
@@ -26,7 +26,7 @@ export type HatsuLessonPick = {
 
 export type HatsuState = {
   lessons: HatsuLessonPick[];
-  classTypes: TypeKey[];
+  classTypes: (TypeKey | null)[];
   midRank: number;
   finalRank: number;
   midScore: number;
@@ -86,7 +86,10 @@ export function loadHatsuState(): HatsuState {
             ...(score === undefined ? {} : { score }),
           };
         }),
-        classTypes: HATSU_CLASSES.map((_, i) => toType(classesRaw[i], "visual")),
+        // null（未選択）は保存値をそのまま復元する
+        classTypes: HATSU_CLASSES.map((_, i) =>
+          classesRaw[i] === null ? null : toType(classesRaw[i], "visual"),
+        ),
         midRank: (stored.midRank as number | undefined) ?? 1,
         finalRank: (stored.finalRank as number | undefined) ?? 1,
         midScore: Math.min((stored.midScore as number | undefined) ?? 0, 200000),
@@ -166,7 +169,17 @@ export function useHatsuSchedule() {
     }));
   }, []);
 
-  const setClassType = useCallback((index: number, type: TypeKey) => {
+  /** レッスンを全部「踏まない」、授業を全部「未選択」に戻す（さらの状態から入れ直す用。試験はそのまま） */
+  const resetLessonsAndClasses = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l) => ({ ...l, main: null })),
+      classTypes: prev.classTypes.map(() => null),
+    }));
+  }, []);
+
+  /** 授業のタイプを変える（null＝未選択に戻す） */
+  const setClassType = useCallback((index: number, type: TypeKey | null) => {
     setState((prev) => ({
       ...prev,
       classTypes: prev.classTypes.map((v, i) => (i === index ? type : v)),
@@ -182,7 +195,7 @@ export function useHatsuSchedule() {
 
   /** 踏み方・授業の一括適用（全自動最適化用） */
   const setPlan = useCallback(
-    (lessons: HatsuLessonPick[], classTypes: TypeKey[]) => {
+    (lessons: HatsuLessonPick[], classTypes: (TypeKey | null)[]) => {
       setState((prev) => ({ ...prev, lessons, classTypes }));
     },
     [],
@@ -196,7 +209,7 @@ export function useHatsuSchedule() {
         ...l,
         main: l.main ? map[l.main] : null,
       })),
-      classTypes: prev.classTypes.map((t) => map[t]),
+      classTypes: prev.classTypes.map((t) => (t ? map[t] : null)),
     }));
   }, []);
 
@@ -230,8 +243,9 @@ export function useHatsuSchedule() {
         }
         return rest;
       }),
-      classTypes: HATSU_CLASSES.map(
-        (_, i) => snapshot.classTypes[i] ?? DEFAULT_STATE.classTypes[i],
+      // null（未選択）はそのまま。件数が足りない分だけ既定で埋める
+      classTypes: HATSU_CLASSES.map((_, i) =>
+        snapshot.classTypes[i] === undefined ? DEFAULT_STATE.classTypes[i] : snapshot.classTypes[i],
       ),
     });
   }, []);
@@ -243,6 +257,7 @@ export function useHatsuSchedule() {
     setLessonScore,
     toggleLessonPerfect,
     applyAllMain,
+    resetLessonsAndClasses,
     setClassType,
     applyAllClasses,
     setPlan,

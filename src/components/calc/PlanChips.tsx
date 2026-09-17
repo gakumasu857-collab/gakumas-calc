@@ -9,10 +9,10 @@ type CalcResult = ReturnType<typeof useCalcResult>;
 export type PlanSummary = {
   /** type=メイン（null=踏まない）、sub=サブ（H.I.Fのみ）、sp=SPレッスン */
   lessons: { type: TypeKey | null; sub?: TypeKey; sp: boolean }[];
-  /** 授業（H.I.F 6コマ／初 4コマ）を順番どおりに */
-  classes?: TypeKey[];
-  /** 営業（N.I.A）を順番どおりに */
-  sales?: TypeKey[];
+  /** 授業（H.I.F 6コマ／初 4コマ）を順番どおりに（null＝未選択） */
+  classes?: (TypeKey | null)[];
+  /** 営業（N.I.A）を順番どおりに（null＝未選択） */
+  sales?: (TypeKey | null)[];
   /** H.I.F 選抜3回のタイプ別スコア（配分の割合を出す）。ステ直接入力の選抜はその上昇量 */
   exams?: Record<TypeKey, number>[];
   /** 選抜ごとに、ステ直接入力なら true */
@@ -65,11 +65,14 @@ export function formatProb(p: number): string {
 function TypeBlock({
   type,
   muted,
+  emptyLabel = "休",
   className = "",
 }: {
   type: TypeKey | null;
   /** SPなし（通常レッスン）: 薄くして点線の枠 */
   muted?: boolean;
+  /** type が null のときの文字（レッスン＝休、授業・営業＝—） */
+  emptyLabel?: string;
   className?: string;
 }) {
   return (
@@ -78,7 +81,7 @@ function TypeBlock({
         type ? TYPE_SOLID[type] : "bg-slate-200 text-slate-500"
       } ${muted ? "opacity-55 outline-2 outline-dashed outline-slate-400 outline-offset-1" : ""} ${className}`}
     >
-      {type ? TYPE_SHORT[type] : "休"}
+      {type ? TYPE_SHORT[type] : emptyLabel}
     </span>
   );
 }
@@ -187,8 +190,8 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       {plan.classes && plan.classes.length > 0 && (
         <Row label="授業">
           {plan.classes.map((t, i) => (
-            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`}>
-              <TypeBlock type={t} />
+            <span key={i} title={`${i + 1}回目: ${t ? TYPE_SHORT[t] : "未選択"}`}>
+              <TypeBlock type={t} emptyLabel="—" />
             </span>
           ))}
         </Row>
@@ -196,8 +199,8 @@ export function PlanChips({ plan }: { plan: PlanSummary }) {
       {plan.sales && plan.sales.length > 0 && (
         <Row label="営業">
           {plan.sales.map((t, i) => (
-            <span key={i} title={`${i + 1}回目: ${TYPE_SHORT[t]}`}>
-              <TypeBlock type={t} />
+            <span key={i} title={`${i + 1}回目: ${t ? TYPE_SHORT[t] : "未選択"}`}>
+              <TypeBlock type={t} emptyLabel="—" />
             </span>
           ))}
         </Row>

@@ -612,7 +612,9 @@ function PlanTable({
   );
 }
 
-function TypeValue({ type, value }: { type: TypeKey; value?: number }) {
+function TypeValue({ type, value }: { type: TypeKey | null; value?: number }) {
+  // 未選択の授業・営業
+  if (!type) return <span style={{ color: "#94a3b8" }}>—</span>;
   return (
     <span
       style={{

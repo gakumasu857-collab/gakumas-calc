@@ -12,3 +12,4 @@ Vite + React 19 + React Router + Tailwind CSS v4 + TypeScript の SPA（2026-07 
 - マスタは Google スプシ(非公開) → R2 バケット `gakumas-master` に同期して配信。
   フロントはビルド時同梱の `src/data/generated/*.json` を使用（反映は update-all.cmd）。
 - 仕組みと修正箇所の解説: docs/ARCHITECTURE.md
+- 自動探索のしくみ（非エンジニア向けのやさしい説明）: docs/SEARCH_GUIDE.md

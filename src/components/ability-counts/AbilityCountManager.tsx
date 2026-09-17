@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   ABILITY_CATEGORIES,
+  abilityAppliesTo,
   abilityMax,
   DEFAULT_MAX,
   SET_PLAN_OPTIONS,
@@ -109,9 +110,13 @@ export default function AbilityCountManager() {
     return keys;
   }, [selectedSupports.slots]);
 
-  const visibleAbilities = onlyFormation
-    ? ALL_ABILITIES.filter((key) => formationAbilities.has(key))
-    : ALL_ABILITIES;
+  // Pポイント営業は N.I.A だけの回数なので、ほかのシナリオでは行ごと出さない。
+  // サポカのアビリティではないので「編成中のアビリティのみ」でも残す
+  const visibleAbilities = (
+    onlyFormation
+      ? ALL_ABILITIES.filter((key) => key === "p_sale" || formationAbilities.has(key))
+      : ALL_ABILITIES
+  ).filter((key) => abilityAppliesTo(key, scenario));
 
   // 「絞り込み中」はセットや行を隠しているときだけ（セーブ用の追加表示は絞り込みではない）
   const filterActive = onlyFormation || hideTemplates;
@@ -134,12 +139,13 @@ export default function AbilityCountManager() {
             </b>
           )}
         </p>
-        <div className="ml-auto flex items-center gap-1.5">
+        {/* スマホでは幅が足りないので、ボタンごと次の行へ折り返す（ボタンの中の文字は2行にしない） */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
           <button
             type="button"
             onClick={() => setSchedOpen(true)}
             title="このシナリオの育成スケジュール（何週/日に何があるか）を見る"
-            className="flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-100"
           >
             <CalendarDays size={13} />
             スケジュール
@@ -148,7 +154,7 @@ export default function AbilityCountManager() {
             type="button"
             onClick={() => setAddOpen(true)}
             title="セットを新しく作る／既存のセットを複製する"
-            className="flex items-center gap-1 rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-blue-600 px-2.5 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
           >
             <Plus size={13} />
             追加
@@ -157,7 +163,7 @@ export default function AbilityCountManager() {
             type="button"
             onClick={() => setDelResetOpen(true)}
             title="セットの削除・初期値へのリセット・全初期化"
-            className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
           >
             <Trash2 size={13} />
             削除&リセット
@@ -166,7 +172,7 @@ export default function AbilityCountManager() {
             type="button"
             onClick={() => setOtherOpen(true)}
             title="表示の絞り込み（編成中のアビリティのみ・テンプレ非表示）"
-            className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+            className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
               filterActive
                 ? "border-blue-600 bg-blue-600 text-white"
                 : "border-slate-300 text-slate-500 hover:bg-slate-100"
@@ -575,7 +581,6 @@ function AddSetModal({
           <div className="flex flex-wrap items-center gap-1.5">
             <input
               type="text"
-              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onCreate(name.trim(), plan)}

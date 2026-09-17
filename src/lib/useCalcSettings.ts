@@ -76,11 +76,17 @@ export type CalcSettings = {
   /** 探索で、育成後のステータスをこの順（高い→低い）にする（null＝指定なし） */
   statOrder: TypeKey[] | null;
   /**
-   * H.I.F: 選抜の点数配分を手で変えていたら、探索の前に「このまま固定して探索するか・探索で決め直すか」を聞く。
-   * OFF なら聞かずに、いつも探索が決め直す（既定は ON）
+   * H.I.F: 選抜の点数配分を手で変えていたら、探索の前に「このまま固定して探索するか・探索で決め直すか」を聞く
+   * （既定は ON。確認の「次回以降表示しない」で OFF になる）
    */
   examConfirm: boolean;
-  /** H.I.F: 選抜は3つとも1タイプへの極振りだけで探索する（細かい比率を試さない。既定は OFF） */
+  /**
+   * H.I.F: 確認を挟まない（examConfirm が OFF）ときの、手で変えた点数配分の扱い。
+   * true＝手で変えた配分のまま固定して探索する／false＝探索が決め直す（既定）。
+   * 確認の「次回以降表示しない」にチェックして選ぶと、選んだほうがここに入る
+   */
+  examKeepManual: boolean;
+  /** H.I.F: 選抜試験の点数を全て1つのタイプに分配する（選抜ごとに1タイプへの極振りだけで探索する。既定は OFF） */
   examAllIn: boolean;
 /**
    * 親愛度Lv（20以下＝20、21〜37）。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く。
@@ -112,6 +118,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   baseSpRate: { hif: 10, niaMaster: 15, hatsuLegend: 15 },
   statOrder: null,
   examConfirm: true,
+  examKeepManual: false,
   examAllIn: false,
   affection: AFFECTION_DEFAULT,
   hifBonus: hifBonusMax(),
@@ -241,6 +248,10 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     // 真偽値以外（壊れた値・旧データ）は既定に戻す
     examConfirm:
       typeof stored.examConfirm === "boolean" ? stored.examConfirm : DEFAULT_SETTINGS.examConfirm,
+    examKeepManual:
+      typeof stored.examKeepManual === "boolean"
+        ? stored.examKeepManual
+        : DEFAULT_SETTINGS.examKeepManual,
     examAllIn: typeof stored.examAllIn === "boolean" ? stored.examAllIn : DEFAULT_SETTINGS.examAllIn,
   };
 }

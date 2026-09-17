@@ -4,6 +4,7 @@ import { useScenario } from "./useScenario";
 import type { AbilityName } from "@/data/constants";
 import {
   ABILITY_CATEGORIES,
+  abilityAppliesTo,
   abilityMax,
   DEFAULT_SETS,
   HATSU_DEFAULT_SETS,
@@ -160,6 +161,8 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     (set: AbilityCountSet, key: AbilityName): number => {
       if (isChoiceAbilityKey(key))
         return abilityCountsFromChoices(scenario, getChoices(set))[key];
+      // そのシナリオで意味を持たない回数（Pポイント営業は N.I.A だけ）は 0
+      if (!abilityAppliesTo(key, scenario)) return 0;
       return clamp(overrides[set.id]?.[key] ?? defaultFor(set, key), abilityMax(key));
     },
     [overrides, scenario, getChoices],
@@ -218,6 +221,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     (set: AbilityCountSet, key: AbilityName): number => {
       if (isChoiceAbilityKey(key))
         return abilityCountsFromChoices(scenario, getRunChoices(set))[key];
+      if (!abilityAppliesTo(key, scenario)) return 0;
       return clamp(adjust[set.id]?.[key] ?? getCount(set, key), abilityMax(key));
     },
     [adjust, getCount, scenario, getRunChoices],

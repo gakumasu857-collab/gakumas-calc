@@ -4,6 +4,7 @@ import Modal from "@/components/Modal";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   ABILITY_CATEGORIES,
+  abilityAppliesTo,
   SET_PLAN_OPTIONS,
   type AbilityCountSet,
   type CategoryKey,
@@ -106,14 +107,17 @@ export default function SetEditModal({
   // スケジュール分類は、選択カードで決まるアビリティ（おでかけ・相談・活動支給・特別指導）を
   // カウンターでは出さない（カードで1つ選ぶと回数が決まるため）
   const showChoiceGrid = category === "schedule" && !!choices;
-  // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する
+  // 「スキル獲得」はワッペン・札の枚数入力に使うので、絞り込み中もどのサポカでも表示する。
+  // 「Pポイント営業」（N.I.A だけ）もサポカのアビリティではないので、絞り込み中も表示する
   const visibleAbilities = (
     onlyFormation && formationKeys
       ? current.abilities.filter(
-          (key) => key === "skill_ac" || formationKeys.has(key),
+          (key) => key === "skill_ac" || key === "p_sale" || formationKeys.has(key),
         )
       : [...current.abilities]
-  ).filter((key) => !(showChoiceGrid && isChoiceAbilityKey(key)));
+  )
+    .filter((key) => !(showChoiceGrid && isChoiceAbilityKey(key)))
+    .filter((key) => abilityAppliesTo(key, scenario));
 
   return (
     <Modal

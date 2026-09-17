@@ -22,8 +22,10 @@ const TYPE_CHIP: Record<TypeKey, string> = {
  *
  * 実際の試験では思った通りに寄せられないことがあるので、選抜の点数配分を手で直してから
  * 探索し直すと、その配分が探索の結果で上書きされてしまう。手で変えた配分が残っているとき
- * （useSchedule の examTouched＝変える前の配分の控え examBaseline がある）は、探索の前に「このまま固定して探索する」か
- * 「探索で決め直す」かを選んでもらう。確認は「探索の条件」で OFF にできる（OFF＝いつも探索が決め直す）。
+ * （useSchedule の examTouched＝変える前の配分の控え examBaseline がある）は、探索の前に「探索で決め直す」か
+ * 「このまま固定して探索する」かを選んでもらう。確認は最初だけでよいので「次回以降表示しない」を付けてあり、
+ * チェックして選ぶと確認が OFF になって、選んだほうが「確認を挟まないときの扱い」（examKeepManual）に入る。
+ * あとは「探索の条件」で変える。
  *
  * ask(scope, run): 確認が要らなければすぐ run(方針) を呼ぶ。要るときはモーダルを出し、選んだ方針で run を呼ぶ。
  * modal は呼び出し側で描画する（踏み方エディタの中でも使うので、それぞれの画面に置く）。
@@ -39,8 +41,11 @@ export function useExamGuard(r: CalcResult) {
 
   const ask = (scope: SearchScope, run: (policy: ExamPolicy) => void) => {
     if (r.scenario !== "hif") return run("free");
-    if (settings.examConfirm && r.schedule.examTouched) setPending({ scope, run });
-    else run(searchPolicy);
+    // 手で変えていなければ、いつも探索が決める
+    if (!r.schedule.examTouched) return run(searchPolicy);
+    if (settings.examConfirm) setPending({ scope, run });
+    // 確認を挟まない設定: 「探索の条件」で選んだ扱いに従う
+    else run(settings.examKeepManual ? "fixed" : searchPolicy);
   };
 
   const modal = pending ? (
@@ -48,9 +53,12 @@ export function useExamGuard(r: CalcResult) {
       r={r}
       scope={pending.scope}
       searchPolicy={searchPolicy}
-      onPick={(policy) => {
+      onPick={(policy, dontAskAgain) => {
         const { run } = pending;
         setPending(null);
+        // 「次回以降表示しない」: 確認を OFF にして、今回選んだほうを次からの扱いにする
+        if (dontAskAgain)
+          r.calc.update({ examConfirm: false, examKeepManual: policy === "fixed" });
         run(policy);
       }}
       onClose={() => setPending(null)}
@@ -70,9 +78,11 @@ function ExamPolicyModal({
   r: CalcResult;
   scope: SearchScope;
   searchPolicy: ExamPolicy;
-  onPick: (policy: ExamPolicy) => void;
+  /** dontAskAgain＝「次回以降表示しない」にチェックして選んだ */
+  onPick: (policy: ExamPolicy, dontAskAgain: boolean) => void;
   onClose: () => void;
 }) {
+  const [dontAskAgain, setDontAskAgain] = useState(false);
   const { examScores, examStats, examBaseline } = r.schedule;
   /** 手で変える前（最後に探索が書いた配分か初期値）と違う選抜か */
   const changedAt = (i: number) =>
@@ -113,34 +123,47 @@ function ExamPolicyModal({
         </ul>
       </div>
 
+      {/* 色の意味（オーナー指定）: 探索の配分にする＝青（主）、手で変えた配分を反映する＝白 */}
       <div className="mt-3 flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => onPick("fixed")}
+          onClick={() => onPick(searchPolicy, dontAskAgain)}
           className="rounded-lg bg-blue-600 px-3 py-2 text-left text-white transition hover:bg-blue-500"
         >
-          <span className="block text-sm font-bold">このままの点数配分で探索する</span>
+          <span className="block text-sm font-bold">点数配分も探索で決め直す</span>
           <span className="block text-xs opacity-90">
+            今の点数配分は探索の結果で上書きされます
+            {searchPolicy === "single" ? "（選抜試験の点数は全て1つのタイプに分配）" : ""}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onPick("fixed", dontAskAgain)}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-slate-700 transition hover:bg-slate-100"
+        >
+          <span className="block text-sm font-bold">このままの点数配分で探索する</span>
+          <span className="block text-xs text-slate-500">
             点数配分は固定して、
             {scope === "full" ? "サポカ編成・レッスン・授業" : "レッスン・授業"}
             だけ探索します
           </span>
         </button>
-        <button
-          type="button"
-          onClick={() => onPick(searchPolicy)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-slate-700 transition hover:bg-slate-100"
-        >
-          <span className="block text-sm font-bold">点数配分も探索で決め直す</span>
-          <span className="block text-xs text-slate-500">
-            今の点数配分は探索の結果で上書きされます
-            {searchPolicy === "single" ? "（選抜は3つとも極振りで探索）" : ""}
-          </span>
-        </button>
       </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
-        この確認は「探索の条件」→「選抜の点数配分を手で変えていたら、探索の前に確認する」でOFFにできます（OFFのときは、いつも探索が決め直します）。
-      </p>
+      {/* 確認は最初だけでよい: チェックして選ぶと、次からは選んだほうで探索する（「探索の条件」で変えられる） */}
+      <label className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-slate-600">
+        <input
+          type="checkbox"
+          checked={dontAskAgain}
+          onChange={(e) => setDontAskAgain(e.target.checked)}
+          className="mt-0.5 accent-blue-600"
+        />
+        <span>
+          次回以降表示しない
+          <span className="block text-[11px] text-slate-400">
+            次からは、ここで選んだほうで探索します。あとから「探索の条件」→「選抜の点数配分設定をそのままにするかどうかの確認を挟む」で変えられます。
+          </span>
+        </span>
+      </label>
     </Modal>
   );
 }

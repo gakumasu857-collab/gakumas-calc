@@ -14,7 +14,7 @@ import { TYPE_KEYS, type TypeKey } from "./useCalcSettings";
 /**
  * N.I.A（マスター）のスケジュール入力状態。
  * - lessons: 自主レッスン7回の踏みタイプ（単タイプ・サブなし）とSP有無
- * - sales: 営業7回。上げるタイプ＋営業先（リゾートか）＋大成功か
+ * - sales: 営業7回。上げるタイプ（null＝未選択。上昇もファン投票数もなし）＋営業先（リゾートか）＋大成功か
  * - auditions: 1次・2次オーディションのタイプ別「素点」（手入力。獲得ボーナス・パラボ抜き）
  * - auditionVotes: 1次・2次のファン投票数（手入力）
  * - finalScores: 最終オーディションのタイプ別スコア
@@ -29,7 +29,8 @@ const STORAGE_KEY = "gakumas:niaSchedule:v1";
 
 /** main: null = このレッスンを踏まない */
 export type NiaLessonPick = { main: TypeKey | null; sp: boolean };
-export type NiaSalePick = { type: TypeKey; resort: boolean; great: boolean };
+/** type: null = この営業を未選択（上昇もファン投票数もなし） */
+export type NiaSalePick = { type: TypeKey | null; resort: boolean; great: boolean };
 
 export type NiaState = {
   lessons: NiaLessonPick[];
@@ -115,7 +116,11 @@ export function loadNiaState(): NiaState {
           sp: (lessonsRaw[i]?.sp as boolean | undefined) ?? true,
         })),
         sales: NIA_SALES.map((_, i) => ({
-          type: toType(salesRaw[i]?.type ?? salesRaw[i]?.role, "visual"),
+          // null（未選択）は保存値をそのまま復元する
+          type:
+            salesRaw[i]?.type === null
+              ? null
+              : toType(salesRaw[i]?.type ?? salesRaw[i]?.role, "visual"),
           resort: (salesRaw[i]?.resort as boolean | undefined) ?? false,
           great: (salesRaw[i]?.great as boolean | undefined) ?? false,
         })),
@@ -180,6 +185,15 @@ export function useNiaSchedule() {
     setState((prev) => ({
       ...prev,
       lessons: prev.lessons.map((l) => ({ ...l, main })),
+    }));
+  }, []);
+
+  /** レッスンを全部「踏まない」、営業を全部「未選択」に戻す（さらの状態から入れ直す用。オーディションはそのまま） */
+  const resetLessonsAndSales = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((l) => ({ ...l, main: null })),
+      sales: prev.sales.map((s) => ({ ...s, type: null })),
     }));
   }, []);
 
@@ -316,7 +330,7 @@ export function useNiaSchedule() {
         ...l,
         main: l.main ? map[l.main] : null,
       })),
-      sales: prev.sales.map((s) => ({ ...s, type: map[s.type] })),
+      sales: prev.sales.map((s) => ({ ...s, type: s.type ? map[s.type] : null })),
       auditions: prev.auditions.map(remapRecord),
       finalScores: remapRecord(prev.finalScores),
       finalStats: prev.finalStats ? remapRecord(prev.finalStats) : null,
@@ -356,6 +370,7 @@ export function useNiaSchedule() {
     setLessonMain,
     toggleLessonSp,
     applyAllMain,
+    resetLessonsAndSales,
     setSale,
     applyAllSales,
     setAudition,

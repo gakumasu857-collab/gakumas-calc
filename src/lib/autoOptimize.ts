@@ -182,7 +182,8 @@ export type AutoOptimizeInput = {
   /** 探索の起点になる現在の踏み方（ストアの状態そのまま） */
   hif: {
     lessons: LessonPick[];
-    classTypes: TypeKey[];
+    /** null＝未選択の授業（上昇なし） */
+    classTypes: (TypeKey | null)[];
     examScores: ExamScores[];
     /**
      * 選抜ごとの上昇ステの直接入力（null=スコアから）。今の踏み方の評価にはこの値を使う。
@@ -260,13 +261,14 @@ export type AutoOptimizeInput = {
 export type SteppingResult = {
   hif?: {
     lessons: LessonPick[];
-    classTypes: TypeKey[];
+    /** 探索の結果は必ずタイプが入る。今の踏み方を残したときだけ null（未選択）があり得る */
+    classTypes: (TypeKey | null)[];
     examScores: ExamScores[];
     /** 選抜ごとのステ直接入力（null=スコア入力。探索がスコアを置き換えた選抜は null） */
     examStats: (ExamScores | null)[];
   };
   nia?: { lessons: NiaLessonPick[]; sales: NiaSalePick[] };
-  hatsu?: { lessons: HatsuLessonPick[]; classTypes: TypeKey[] };
+  hatsu?: { lessons: HatsuLessonPick[]; classTypes: (TypeKey | null)[] };
 };
 
 export type AutoOptimizeResult = SteppingResult & {
@@ -764,6 +766,8 @@ export class OptimizeEngine {
   deadline = Infinity;
   private extraScore?: (cards: ScoredCard[]) => number;
   private votesBase = 0;
+  /** N.I.A: 営業を除いたファン投票数（1次・2次＋最終。札は別） */
+  private votesNoSales = 0;
   private fudaBase = 0;
   /** 最低ステータス条件（審査基準の高いタイプから優先して満たす） */
   private minStatCond?: MinStatCondition;
@@ -832,10 +836,16 @@ export class OptimizeEngine {
         ),
       };
     }
-    // NIAの固定部分（踏み方・編成で変わらない投票と、札のステ換算）
+    // NIAの固定部分（踏み方・編成で変わらない投票と、札のステ換算）。
+    // 営業の投票数は「踏んだ営業」だけ入る（未選択は0票）。探索の候補は全部の営業を踏むので、
+    // 編成選びに使う votesBase は全部踏んだ前提で出す。今の踏み方に未選択があるときの評価値は
+    // fullRating が踏み方から数え直す（votesNoSales＋salesVotesOf）
     if (input.scenario === "niaMaster") {
-      this.votesBase = computeNiaGains(input.nia, input.tag, input.ranks, input.niaChallengePct ?? 0).votes
-        .base;
+      const votes = computeNiaGains(input.nia, input.tag, input.ranks, input.niaChallengePct ?? 0).votes;
+      this.votesNoSales = votes.base - votes.sales;
+      this.votesBase =
+        this.votesNoSales +
+        this.salesVotesOf(input.nia.sales.map((s) => ({ ...s, type: s.type ?? ("visual" as TypeKey) })));
       this.fudaBase = input.manual("スキル獲得") ?? 0;
       this.extraScore = (cards) => {
         const withVotes =
@@ -858,6 +868,16 @@ export class OptimizeEngine {
         return ((withCards - without) * wappenStar * 7.5) / 2;
       };
     }
+  }
+
+  /** N.I.A: 営業のファン投票数（未選択の営業は0票。営業先・成功度は入力のまま） */
+  private salesVotesOf(sales: readonly NiaSalePick[]): number {
+    let total = 0;
+    NIA_SALES.forEach((sale, i) => {
+      const pick = sales[i];
+      if (pick?.type) total += sale.votes[pick.resort ? "resort" : "other"][pick.great ? 1 : 0];
+    });
+    return total;
   }
 
   supportFudaOf(cards: ScoredCard[]): number {
@@ -2365,7 +2385,8 @@ export class OptimizeEngine {
           main: mains[i] ?? null,
           sp: true,
         })),
-        sales: sales.map((sale) => ({ ...sale })),
+        // 今の営業が未選択（null）なら既定のタイプで埋める（探索の候補は必ずタイプが入った形にする）
+        sales: sales.map((sale) => ({ ...sale, type: sale.type ?? ("visual" as TypeKey) })),
       };
     }
     if (this.input.scenario === "hatsuLegend") {
@@ -2969,8 +2990,12 @@ export class OptimizeEngine {
   ): number {
     const { input } = this;
     if (input.scenario === "niaMaster") {
+      // 営業の投票数はこの踏み方で踏んでいる営業だけ数える（未選択は0票＝計算ページと同じ）
+      const salesVotes =
+        stepping.kind === "nia" ? this.salesVotesOf(stepping.sales) : this.votesBase - this.votesNoSales;
       const totalVotes =
-        this.votesBase +
+        this.votesNoSales +
+        salesVotes +
         niaFudaVotes(this.fudaBase + this.supportFudaOf(members));
       return Math.floor(cappedSum * NIA_PARAM_RATE) + niaFanValue(totalVotes);
     }
@@ -3034,7 +3059,7 @@ export class OptimizeEngine {
       const lessonMains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       for (const l of stepping.lessons) if (l.main) lessonMains[l.main]++;
       const classTypes: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      for (const c of stepping.classTypes) classTypes[c]++;
+      for (const c of stepping.classTypes) if (c) classTypes[c]++;
       const examBias = stepping.examScores.map((e) => {
         const total = e.vocal + e.dance + e.visual;
         if (total <= 0) return "均等" as const;

@@ -78,6 +78,8 @@ export const ABILITY_NAMES = {
   skill_del_ut4: "スキル削除(4回まで)",
   change_ut3: "チェンジ(3回まで)",
   study: "授業・営業",
+  // N.I.A の営業先「Pポイント営業」を踏む回数（サポカのアビリティではなく、プロデュースの回数として持つ。1回 +50P）
+  p_sale: "Pポイント営業",
   date: "お出かけ",
   date_ut2: "お出かけ(2回まで)",
   meeting: "相談",

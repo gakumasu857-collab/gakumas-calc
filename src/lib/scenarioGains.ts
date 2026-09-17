@@ -123,7 +123,7 @@ export function niaFinaleTotalScore(
 
 export type HatsuStateLike = {
   lessons: HatsuLessonPick[];
-  classTypes: TypeKey[];
+  classTypes: (TypeKey | null)[];
   midRank: number;
   finalRank: number;
 };
@@ -156,6 +156,7 @@ export function computeNiaGains(
   let salesVotes = 0;
   NIA_SALES.forEach((sale, i) => {
     const pick = state.sales[i];
+    if (!pick.type) return; // 未選択の営業（上昇もファン投票数もなし）
     classes[pick.type] += sale.value;
     salesVotes += sale.votes[pick.resort ? "resort" : "other"][pick.great ? 1 : 0];
   });
@@ -213,7 +214,8 @@ export function computeHatsuGains(state: HatsuStateLike) {
     pPoints += lesson.p;
   });
   HATSU_CLASSES.forEach((cls, i) => {
-    classes[state.classTypes[i]] += cls.gain;
+    const type = state.classTypes[i];
+    if (type) classes[type] += cls.gain; // null＝未選択の授業（上昇なし）
   });
   const midGain = HATSU_EXAMS[0].rankGains[state.midRank - 1] ?? 0;
   const finalGain = HATSU_EXAMS[1].rankGains[state.finalRank - 1] ?? 0;

@@ -18,7 +18,8 @@ export type Stepping =
   | {
       kind: "hif";
       lessons: LessonPick[];
-      classTypes: TypeKey[];
+      /** null＝未選択の授業（今の踏み方にだけあり得る。探索が作る候補は必ずタイプが入る） */
+      classTypes: (TypeKey | null)[];
       /** 選抜試験のタイプ別スコア（分配も最適化対象）。 */
       examScores: ExamScores[];
       /**
@@ -29,7 +30,7 @@ export type Stepping =
       examStats?: (ExamScores | null)[];
     }
   | { kind: "nia"; lessons: NiaLessonPick[]; sales: NiaSalePick[] }
-  | { kind: "hatsu"; lessons: HatsuLessonPick[]; classTypes: TypeKey[] };
+  | { kind: "hatsu"; lessons: HatsuLessonPick[]; classTypes: (TypeKey | null)[] };
 
 type HifStepping = Extract<Stepping, { kind: "hif" }>;
 type NiaStepping = Extract<Stepping, { kind: "nia" }>;
@@ -355,8 +356,25 @@ export function uniformStepping(
  * 現在の踏み方＋一様踏み全パターン＋レッスンのタイプ別枚数の全分割。
  * 分割まで入れることで「どのタイプに何回振るか」を初期値に依らず一通り見る。
  */
-export function buildSeeds(current: Stepping): Stepping[] {
-  const seeds: Stepping[] = [current];
+/**
+ * 未選択（null）の授業・営業を既定のタイプ（visual）で埋めた踏み方。
+ * 探索の候補は必ずタイプが入った形で作る（未選択のままだと、そのタイプが上限のときに
+ * 「未選択のほうが同点」で残ってしまい、営業のファン投票数や授業の上昇を取りこぼす）。
+ * 埋めたあとの細部は山登り・授業の総当たりが決める。
+ */
+export function fillUnchosen(s: Stepping): Stepping {
+  if (s.kind === "nia") {
+    if (s.sales.every((x) => x.type)) return s;
+    return { ...s, sales: s.sales.map((x) => (x.type ? x : { ...x, type: "visual" as TypeKey })) };
+  }
+  if (s.classTypes.every((t) => t)) return s;
+  return { ...s, classTypes: s.classTypes.map((t) => t ?? ("visual" as TypeKey)) };
+}
+
+export function buildSeeds(start: Stepping): Stepping[] {
+  // 1つ目のシードは渡された踏み方そのまま（未選択もそのまま評価する）。それ以外は未選択を埋めた形から作る
+  const seeds: Stepping[] = [start];
+  const current = fillUnchosen(start);
   const lessonPartitionSeeds = (toSeed: (mains: TypeKey[]) => Stepping) =>
     partitions3(current.lessons.length).forEach((part) =>
       seeds.push(toSeed(typesFromPartition(part))),

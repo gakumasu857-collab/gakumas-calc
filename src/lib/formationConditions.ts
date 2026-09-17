@@ -129,7 +129,7 @@ export function formationIssues(input: ConditionInput): string[] {
   ))
     issues.push(`${TYPE_JA[t]}が最高ステ超過`);
   // 選抜は極振り（設定ONのH.I.Fだけ。今の点数配分が極振りでなければ、探索結果が低くても置き換える）
-  if (input.examSingle === false) issues.push("選抜が極振りになっていない");
+  if (input.examSingle === false) issues.push("選抜の点数が1つのタイプに分配されていない");
   return issues;
 }
 
@@ -238,9 +238,9 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
   // 選抜は極振り（設定ONのH.I.Fだけ）
   if (input.examSingle != null) {
     out.push({
-      label: "選抜は極振り",
+      label: "選抜は1タイプに分配",
       ok: input.examSingle,
-      detail: input.examSingle ? undefined : "極振りでない選抜がある",
+      detail: input.examSingle ? undefined : "1タイプに分配していない選抜がある",
     });
   }
   // ステージ用BAN（固定したカードは除く）

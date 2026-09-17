@@ -296,7 +296,8 @@ export default function StatsCard({
             {r.scenario === "hif" && `・H.I.Fボーナス ${r.resources.pHifBonus}`}・親愛度{" "}
             {r.resources.pAffection}・メモリー{" "}
             {Math.round(r.resources.pMemory).toLocaleString()}・{supplyLabel(r.scenario)}{" "}
-            {r.resources.pSupply.toLocaleString()}）
+            {r.resources.pSupply.toLocaleString()}
+            {r.scenario === "niaMaster" && `・Pポイント営業 ${r.resources.pSales.toLocaleString()}`}）
           </span>
           <Hint text={GLOSSARY.pTotal} />
         </p>

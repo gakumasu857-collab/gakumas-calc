@@ -51,6 +51,7 @@ export const ABILITY_CATEGORIES = [
     label: "スケジュール",
     abilities: [
       "study",
+      "p_sale",
       "date",
       "rest",
       "meeting",
@@ -101,6 +102,8 @@ const SCHEDULE_CAP_EVENTS: Partial<Record<AbilityName, CalendarEvent[]>> = {
   supply_ut2: ["supply"],
   extra_lecture_ut3: ["lecture"],
   study: ["class", "sale"],
+  // Pポイント営業は営業の回数まで（N.I.A の7回。営業の無いシナリオは0）
+  p_sale: ["sale"],
 };
 
 /** シナリオ別のスケジュール上限表（アビリティ→回数）。モジュール読み込み時に1回だけ数える */
@@ -128,6 +131,29 @@ export function abilityMax(key: AbilityName, scenario?: ScenarioKey): number {
   const scheduleCap =
     (scenario ? SCHEDULE_CAPS[scenario][key] : undefined) ?? DEFAULT_MAX;
   return Math.min(labelCap, scheduleCap);
+}
+
+/** Pポイント営業1回でもらえるPポイント（オーナー提供 2026-09-18） */
+export const P_SALE_POINTS = 50;
+
+/**
+ * その回数がシナリオで意味を持つか。Pポイント営業は N.I.A だけ
+ * （ほかのシナリオでは画面に出さず、回数も 0 として扱う）。
+ */
+export function abilityAppliesTo(key: AbilityName, scenario: ScenarioKey): boolean {
+  return key !== "p_sale" || scenario === "niaMaster";
+}
+
+/**
+ * N.I.A テンプレの「Pポイント営業」の既定の回数（スプシの abilityCountsNIA に「Pポイント営業」の行が無いとき用。
+ * 行を足せばスプシの値が優先される）。オーナー指定 2026-09-18:
+ *   名前に「ドリンク」とあるプロデュースは踏まない（0）／ロジック（好印象・やる気）の「M強化」は 5回／それ以外は全部（7回）
+ */
+function defaultPSaleCount(name: string, plan: string): number {
+  if (name.includes("ドリンク")) return 0;
+  const logic = PLAN_FAMILY["ロジック"].includes(plan);
+  if (logic && name.includes("M強化")) return 5;
+  return 7;
 }
 
 /**
@@ -274,16 +300,17 @@ const NIA_SET_PLANS: readonly string[] = generatedCounts.nia.plans ?? [];
 export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
   (name, i) => {
     const plan = NIA_SET_PLANS[i] || planFromSetName(name);
-    return {
-      id: `nia:${plan}${name}`,
-      name,
-      plan,
-      defaults: Object.fromEntries(
-        Object.entries(NIA_DEFAULT_COUNTS)
-          .map(([key, values]) => [key, values[i]])
-          .filter(([, value]) => value !== 0),
-      ) as Partial<Record<AbilityName, number>>,
-    };
+    const defaults = Object.fromEntries(
+      Object.entries(NIA_DEFAULT_COUNTS)
+        .map(([key, values]) => [key, values[i]])
+        .filter(([, value]) => value !== 0),
+    ) as Partial<Record<AbilityName, number>>;
+    // Pポイント営業: スプシに行が無ければ、名前とプランから決めた既定を入れる
+    if (!NIA_DEFAULT_COUNTS.p_sale) {
+      const n = defaultPSaleCount(name, plan);
+      if (n > 0) defaults.p_sale = n;
+    }
+    return { id: `nia:${plan}${name}`, name, plan, defaults };
   },
 );
 

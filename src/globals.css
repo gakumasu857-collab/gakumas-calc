@@ -6,6 +6,25 @@
   --foreground: #1e293b;
 }
 
+/*
+ * スマホ（幅 640px 未満）だけ、大きめの文字を一段小さくする。
+ * Tailwind v4 の文字サイズは --text-◯ の変数なので、ここで上書きすれば text-sm 以上を使っている所が
+ * まとめて変わる（text-4xl まで。行の高さは比率なのでそのまま追従する）。
+ * いちばん小さい段（text-xs＝12px と、text-[11px] などの直接指定）は読めなくなるので変えない。
+ * 大きい文字ほど大きく縮める: 36→30 / 30→25 / 24→20 / 20→17 / 18→16 / 16→14 / 14→13（px）
+ */
+@media (max-width: 639px) {
+  :root {
+    --text-sm: 0.8125rem;
+    --text-base: 0.875rem;
+    --text-lg: 1rem;
+    --text-xl: 1.0625rem;
+    --text-2xl: 1.25rem;
+    --text-3xl: 1.5625rem;
+    --text-4xl: 1.875rem;
+  }
+}
+
 html,
 body {
   height: 100%;
