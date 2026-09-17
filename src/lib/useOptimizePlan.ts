@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { optimizeSteppingForSlots, type ExamPolicy } from "./autoOptimize";
 import { buildAutoOptimizeInput } from "./buildOptimizeInput";
+import { examsAllSingle } from "./optimize/stepping";
 import type { SelectedSlot } from "./formation";
 import type { useCalcResult } from "./useCalcResult";
 
@@ -72,7 +73,14 @@ export function useOptimizePlan(r: CalcResult) {
           (statToScore
             ? "。ステ入力にしていた選抜を、探索したスコアの入力に切り替えました"
             : "") +
-          (hif && keepExams ? "。選抜の点数配分はそのままにして、レッスン・授業だけ探索しました" : "");
+          (hif && keepExams ? "。選抜の点数配分はそのままにして、レッスン・授業だけ探索しました" : "") +
+          // 「1タイプに分配」とぶつかったときは、どちらを優先したかを出す
+          (hif &&
+          keepExams &&
+          r.calc.settings.examAllIn &&
+          !examsAllSingle(r.schedule.examScores, r.schedule.examStats)
+            ? "。「選抜試験の点数を全て1つのタイプに分配する」より、今の点数配分を優先しました"
+            : "");
         setMsg(message);
         onDone?.(message);
       } finally {

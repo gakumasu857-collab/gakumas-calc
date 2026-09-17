@@ -38,6 +38,7 @@ import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
 import { allocateEventsForSlots, runFullOptimize, type ExamPolicy } from "@/lib/autoOptimize";
 import { buildConditionInput } from "@/lib/diagLog";
+import { examsAllSingle } from "@/lib/optimize/stepping";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
 import {
@@ -304,8 +305,25 @@ export default function CalcPage() {
    * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
    * 点数配分を固定して探索するときは、「選抜は極振り」の条件は見ない（固定を選んだのは利用者なので）。
    */
-  const conditionInputFor = (examPolicy: ExamPolicy): ConditionInput =>
-    examPolicy === "fixed" ? { ...conditionInput(), examSingle: null } : conditionInput();
+  const conditionInputFor = (examPolicy: ExamPolicy): ConditionInput => {
+    const base = conditionInput();
+    if (examPolicy === "fixed") return { ...base, examSingle: null };
+    // 点数配分を探索が決め直すときは、「手で変えているから優先」は関係ない。
+    // 1タイプに分配できていない今の編成は条件外＝評価値が下がっても置き換える
+    return base.examSingle === "kept" ? { ...base, examSingle: false } : base;
+  };
+
+  /**
+   * 「選抜試験の点数を全て1つのタイプに分配する」がONなのに、点数配分をそのままにして探索したせいで
+   * 1タイプへの分配になっていないときの知らせ（どちらを優先したかを書く）。
+   * ぶつかっていなければ null。
+   */
+  const examPriorityNote = (): string | null =>
+    r.scenario === "hif" &&
+    settings.examAllIn &&
+    !examsAllSingle(r.schedule.examScores, r.schedule.examStats)
+      ? "「選抜試験の点数を全て1つのタイプに分配する」より、今の点数配分を優先しました"
+      : null;
 
   /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
@@ -352,7 +370,7 @@ export default function CalcPage() {
         const notes: string[] = [];
         if (issues.length > 0)
           notes.push(
-            `探索の条件のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
+            `条件設定のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
           );
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない。
         // 手で前イベ・後イベを変えていたときは、比べた前提（全部発動）に合わせて全部発動に戻す
@@ -379,6 +397,8 @@ export default function CalcPage() {
             // 点数配分を固定して探索した: 選抜は書き換えない（手で変えた印も残るので、次の探索でもまた聞く）
             r.schedule.setPlan(hif.lessons, hif.classTypes);
             notes.push("選抜の点数配分はそのままにして、サポカ編成・レッスン・授業だけ探索しました");
+            // 「選抜試験の点数を全て1つのタイプに分配する」とぶつかったときは、どちらを採ったかを出す
+            if (examPriorityNote()) notes.push(examPriorityNote()!);
           } else {
             // ステ入力にしていた選抜を、探索がスコア入力へ切り替えたら知らせる
             const statToScore = r.schedule.examStats.some(
@@ -408,7 +428,7 @@ export default function CalcPage() {
         }
         if (before !== null && !beforeOk && res.rating < before) {
           notes.push(
-            "押す前より評価値が下がっていますが、元の編成は探索の条件に合っていなかったため置き換えました",
+            "押す前より評価値が下がっていますが、元の編成は条件設定に合っていなかったため置き換えました",
           );
         }
         setLastRun({
@@ -545,7 +565,7 @@ export default function CalcPage() {
         />
         </div>
 
-        {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
+        {/* 操作（求める▾・条件設定・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         <div className="order-2 min-w-0">{actionPanel}</div>
 
         {/* サポカ編成と踏み方（一度に見える） */}
@@ -609,7 +629,7 @@ export default function CalcPage() {
                       {produceRank(r.rating)}
                     </span>
                   </div>
-                  {/* 探索の条件を設定しているときは、今の編成での達成状況を出す */}
+                  {/* 条件設定をしているときは、今の編成での達成状況を出す */}
                   {conditionChips.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
                       {conditionChips.map((c) => (
@@ -718,7 +738,7 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 探索の条件モーダル */}
+      {/* 条件設定モーダル */}
       {theoryOpen && (
         <TheorySettingsModal
           settings={settings}

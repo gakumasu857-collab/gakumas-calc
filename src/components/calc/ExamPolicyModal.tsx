@@ -25,7 +25,7 @@ const TYPE_CHIP: Record<TypeKey, string> = {
  * （useSchedule の examTouched＝変える前の配分の控え examBaseline がある）は、探索の前に「探索で決め直す」か
  * 「このまま固定して探索する」かを選んでもらう。確認は最初だけでよいので「次回以降表示しない」を付けてあり、
  * チェックして選ぶと確認が OFF になって、選んだほうが「確認を挟まないときの扱い」（examKeepManual）に入る。
- * あとは「探索の条件」で変える。
+ * あとは「条件設定」で変える。
  *
  * ask(scope, run): 確認が要らなければすぐ run(方針) を呼ぶ。要るときはモーダルを出し、選んだ方針で run を呼ぶ。
  * modal は呼び出し側で描画する（踏み方エディタの中でも使うので、それぞれの画面に置く）。
@@ -44,7 +44,7 @@ export function useExamGuard(r: CalcResult) {
     // 手で変えていなければ、いつも探索が決める
     if (!r.schedule.examTouched) return run(searchPolicy);
     if (settings.examConfirm) setPending({ scope, run });
-    // 確認を挟まない設定: 「探索の条件」で選んだ扱いに従う
+    // 確認を挟まない設定: 「条件設定」で選んだ扱いに従う
     else run(settings.examKeepManual ? "fixed" : searchPolicy);
   };
 
@@ -88,9 +88,9 @@ function ExamPolicyModal({
   const changedAt = (i: number) =>
     !!examBaseline && !sameExamAt(examBaseline, { examScores, examStats }, i);
   return (
-    <Modal title="選抜の点数配分を手で変えています" onClose={onClose} widthClass="max-w-md">
+    <Modal title="選抜の点数配分が変更されています" onClose={onClose} widthClass="max-w-md">
       <p className="text-sm leading-relaxed text-slate-700">
-        選抜の点数配分が、手で変えたままになっています。今回の探索でどう扱うか選んでください。
+        今回の探索でどう扱うか選択してください。
       </p>
 
       {/* 今の点数配分（ステ入力の選抜は、入力したパラボ抜きのステ） */}
@@ -141,7 +141,7 @@ function ExamPolicyModal({
           onClick={() => onPick("fixed", dontAskAgain)}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-slate-700 transition hover:bg-slate-100"
         >
-          <span className="block text-sm font-bold">このままの点数配分で探索する</span>
+          <span className="block text-sm font-bold">今の点数配分のまま探索する</span>
           <span className="block text-xs text-slate-500">
             点数配分は固定して、
             {scope === "full" ? "サポカ編成・レッスン・授業" : "レッスン・授業"}
@@ -149,7 +149,7 @@ function ExamPolicyModal({
           </span>
         </button>
       </div>
-      {/* 確認は最初だけでよい: チェックして選ぶと、次からは選んだほうで探索する（「探索の条件」で変えられる） */}
+      {/* 確認は最初だけでよい: チェックして選ぶと、次からは選んだほうで探索する（「条件設定」で変えられる） */}
       <label className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-slate-600">
         <input
           type="checkbox"
@@ -160,7 +160,7 @@ function ExamPolicyModal({
         <span>
           次回以降表示しない
           <span className="block text-[11px] text-slate-400">
-            次からは、ここで選んだほうで探索します。あとから「探索の条件」→「選抜の点数配分設定をそのままにするかどうかの確認を挟む」で変えられます。
+            「条件設定」→「選抜の点数配分設定をそのままにするかどうかの確認を挟む」で変えられます。
           </span>
         </span>
       </label>

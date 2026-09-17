@@ -32,12 +32,24 @@ export function buildConditionInput(
     },
     statCap: r.statCap,
     getLevel: r.getLevel,
-    // 「選抜は極振りで探索する」が ON の H.I.F だけ見る
-    examSingle:
-      r.scenario === "hif" && settings.examAllIn
-        ? examsAllSingle(r.schedule.examScores, r.schedule.examStats)
-        : null,
+    // 「選抜試験の点数を全て1つのタイプに分配する」が ON の H.I.F だけ見る。
+    // 点数配分を手で変えているときは、1タイプへの分配よりそちらを優先するので "kept"
+    // （どちらを採るかの確認で「今の点数配分のまま探索する」を選べる設定なので、条件違反にはしない）
+    examSingle: examSingleState(r, settings),
   };
+}
+
+/**
+ * 「選抜試験の点数を全て1つのタイプに分配する」の達成状況。
+ * true=全部1タイプ／false=そうでない／"kept"=点数配分を手で変えているのでそちらを優先／null=見ない
+ */
+function examSingleState(
+  r: CalcResult,
+  settings: CalcSettings,
+): boolean | "kept" | null {
+  if (r.scenario !== "hif" || !settings.examAllIn) return null;
+  if (examsAllSingle(r.schedule.examScores, r.schedule.examStats)) return true;
+  return r.schedule.examTouched ? "kept" : false;
 }
 
 /**

@@ -44,10 +44,11 @@ export type ConditionInput = {
   /** 所持凸（-1=未所持）。固定カードを編成に入れられるかの判定に使う */
   getLevel: (id: string) => number;
   /**
-   * 「選抜は極振りで探索する」（H.I.F）を今の踏み方が満たしているか。
+   * 「選抜試験の点数を全て1つのタイプに分配する」（H.I.F）を今の踏み方が満たしているか。
+   * "kept"＝点数配分を手で変えているので、1タイプへの分配よりそちらを優先している（ぶつかったとき）。
    * null／省略＝この条件は見ない（設定OFF・H.I.F以外・点数配分を固定して探索したとき）
    */
-  examSingle?: boolean | null;
+  examSingle?: boolean | "kept" | null;
 };
 
 /** 編成に入れられる固定カード（プランが合い、所持かレンタル可）のID */
@@ -128,7 +129,8 @@ export function formationIssues(input: ConditionInput): string[] {
     input.statCap,
   ))
     issues.push(`${TYPE_JA[t]}が最高ステ超過`);
-  // 選抜は極振り（設定ONのH.I.Fだけ。今の点数配分が極振りでなければ、探索結果が低くても置き換える）
+  // 1タイプに分配（設定ONのH.I.Fだけ。満たしていなければ、探索結果が低くても置き換える）。
+  // 点数配分を手で変えているとき（"kept"）は、そちらを優先しているので条件から外す
   if (input.examSingle === false) issues.push("選抜の点数が1つのタイプに分配されていない");
   return issues;
 }
@@ -235,13 +237,21 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
           : undefined,
     });
   }
-  // 選抜は極振り（設定ONのH.I.Fだけ）
+  // 1タイプに分配（設定ONのH.I.Fだけ）。手で変えた点数配分とぶつかるときは、そちらを優先したことを出す
   if (input.examSingle != null) {
-    out.push({
-      label: "選抜は1タイプに分配",
-      ok: input.examSingle,
-      detail: input.examSingle ? undefined : "1タイプに分配していない選抜がある",
-    });
+    out.push(
+      input.examSingle === "kept"
+        ? {
+            label: "選抜は今の点数配分を優先",
+            ok: true,
+            detail: "「1タイプに分配」より、手で変えた点数配分を優先しています",
+          }
+        : {
+            label: "選抜は1タイプに分配",
+            ok: input.examSingle,
+            detail: input.examSingle ? undefined : "1タイプに分配していない選抜がある",
+          },
+    );
   }
   // ステージ用BAN（固定したカードは除く）
   if (settings.noStageItems) {

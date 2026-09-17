@@ -263,7 +263,7 @@ function ExportSheet({
               Produced by {settings.userName}
             </div>
           )}
-          {/* 探索の条件を設定しているときだけ1行で出す（結果カードの「条件」と同じ内容） */}
+          {/* 条件設定をしているときだけ1行で出す（結果カードの「条件」と同じ内容） */}
           {(() => {
             const short: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
             const parts: string[] = [];
@@ -287,7 +287,7 @@ function ExportSheet({
               parts.push(`ステの順 ${settings.statOrder.map((t) => short[t]).join("＞")}`);
             }
             return parts.length ? (
-              <div style={{ color: SUB, fontSize: 11 }}>探索の条件: {parts.join(" ／ ")}</div>
+              <div style={{ color: SUB, fontSize: 11 }}>条件設定: {parts.join(" ／ ")}</div>
             ) : null;
           })()}
         </div>

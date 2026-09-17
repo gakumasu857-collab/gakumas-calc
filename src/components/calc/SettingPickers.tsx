@@ -104,9 +104,10 @@ function TypeSlotAllocator({
 }
 
 /**
- * 探索の条件（理論評価値を求めるときの前提）をまとめるモーダル。
- * 「基本」（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN）と
- * 「詳細」（最低/最高ステ・取得回数）の2タブ。説明は ⓘ に寄せる。
+ * 条件設定（理論評価値を求めるときの前提）をまとめるモーダル。
+ * SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN・ステの高さの順・選抜の点数配分（H.I.F）・
+ * 最低/最高ステ・取得回数を1つの画面に並べる（2タブに分けていたのをやめた。オーナー指定 2026-09-18）。
+ * 説明は ⓘ に寄せる。
  */
 export function TheorySettingsModal({
   settings,
@@ -120,22 +121,8 @@ export function TheorySettingsModal({
   onUpdate: (patch: Partial<CalcSettings>) => void;
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"basic" | "advanced">("basic");
   const budget = settings.eventBudget;
   const ratio = settings.typeRatio;
-  const tabBtn = (key: "basic" | "advanced", label: string) => (
-    <button
-      type="button"
-      onClick={() => setTab(key)}
-      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-        tab === key
-          ? "bg-blue-600 text-white"
-          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-      }`}
-    >
-      {label}
-    </button>
-  );
   const statRow = (
     values: Record<TypeKey, number>,
     onChange: (type: TypeKey, v: number) => void,
@@ -161,282 +148,271 @@ export function TheorySettingsModal({
   );
 
   return (
-    <Modal title="探索の条件" onClose={onClose} widthClass="max-w-lg">
-      <div className="mb-3 flex items-center gap-1.5">
-        {tabBtn("basic", "基本")}
-        {tabBtn("advanced", "詳細")}
-        <span className="ml-auto text-[11px] text-slate-400">変更はすぐ保存されます</span>
-      </div>
+    <Modal title="条件設定" onClose={onClose} widthClass="max-w-lg">
+      <p className="mb-3 text-right text-[11px] text-slate-400">変更はすぐ保存されます</p>
       <div className="flex flex-col gap-4 text-sm text-slate-700">
-        {tab === "basic" ? (
-          <>
-            {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
-            <section>
-              <p className="flex items-center gap-1 font-semibold">
-                SPレッスン率アップ持ちの最低枚数
-                <Hint text={GLOSSARY.spHolders} />
-              </p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                {(
-                  [
-                    ["first", "レッスンを1番多く踏むタイプ"],
-                    ["second", "2番目に多く踏むタイプ"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-slate-600">{label}</span>
-                    <span className="inline-flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white">
-                      <button
-                        type="button"
-                        aria-label="1枚減らす"
-                        disabled={settings.spTop[key] <= 0}
-                        onClick={() =>
-                          onUpdate({
-                            spTop: { ...settings.spTop, [key]: Math.max(0, settings.spTop[key] - 1) },
-                          })
-                        }
-                        className={STEP_BTN}
-                      >
-                        −
-                      </button>
-                      <span className="min-w-16 px-1 text-center text-sm font-bold tabular-nums text-slate-800">
-                        {settings.spTop[key] === 0 ? "条件なし" : `${settings.spTop[key]}枚以上`}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="1枚増やす"
-                        disabled={settings.spTop[key] >= 6}
-                        onClick={() =>
-                          onUpdate({
-                            spTop: { ...settings.spTop, [key]: Math.min(6, settings.spTop[key] + 1) },
-                          })
-                        }
-                        className={STEP_BTN}
-                      >
-                        ＋
-                      </button>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ。3本の柱で決める） */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={!!settings.statOrder}
-                  onChange={(e) =>
-                    onUpdate({
-                      statOrder: e.target.checked ? [...(settings.statOrder ?? DEFAULT_STAT_ORDER)] : null,
-                    })
-                  }
-                  className="accent-blue-600"
-                />
-                ステの高さの順を決める
-                <Hint text={GLOSSARY.statOrder} />
-              </label>
-              <div className="mt-2">
-                <StatOrderPicker
-                  order={settings.statOrder ?? DEFAULT_STAT_ORDER}
-                  disabled={!settings.statOrder}
-                  onChange={(order) => onUpdate({ statOrder: order })}
-                />
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400">
-                一番高い柱を押すと2番目のタイプが一番高くなり、ほかの柱を押すとそのタイプが一番高くなります。
-                育成後のステータスがこの順になる編成・踏み方を選びます。
-              </p>
-            </section>
-
-            {/* サポカ編成のタイプ割合 */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={ratio.enabled}
-                  onChange={(e) =>
-                    onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
-                  }
-                  className="accent-blue-600"
-                />
-                サポカ編成のタイプ割合を決める
-                <Hint text={GLOSSARY.typeRatio} />
-              </label>
-              <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
-                <TypeSlotAllocator
-                  ratio={ratio}
-                  disabled={!ratio.enabled}
-                  onChange={(type, v) =>
-                    onUpdate({ typeRatio: { ...ratio, [type]: v } })
-                  }
-                />
-              </div>
-            </section>
-
-            {/* 試験補助 */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={settings.examAssist}
-                  onChange={(e) => onUpdate({ examAssist: e.target.checked })}
-                  className="accent-blue-600"
-                />
-                試験補助を強めにする（試験に強いサポカで編成）
-                <Hint text={GLOSSARY.examAssist} />
-              </label>
-            </section>
-            {/* ステージアイテム */}
-            <section className="border-t border-slate-100 pt-3">
-              <label className="flex items-center gap-1.5 font-semibold">
-                <input
-                  type="checkbox"
-                  checked={settings.noStageItems}
-                  onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
-                  className="accent-blue-600"
-                />
-                ステージに入るPアイテム・スキルのサポカを編成しない
-                <Hint text={GLOSSARY.stageItems} />
-              </label>
-            </section>
-            {/* 選抜の点数配分（H.I.Fだけ）: 手で変えた配分の確認と、極振りだけの探索 */}
-            {scenario === "hif" && (
-              <>
-                <section className="border-t border-slate-100 pt-3">
-                  <label className="flex items-center gap-1.5 font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={settings.examConfirm}
-                      onChange={(e) => onUpdate({ examConfirm: e.target.checked })}
-                      className="accent-blue-600"
-                    />
-                    選抜の点数配分設定をそのままにするかどうかの確認を挟む
-                    <Hint text={GLOSSARY.examConfirm} />
-                  </label>
-                  {/* 確認を挟まないときの、手で変えた点数配分の扱い（確認の「次回以降表示しない」で選んだほうが入る） */}
-                  <div
-                    className={`mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-xs ${
-                      settings.examConfirm ? "opacity-40" : ""
-                    }`}
+        {/* SPレッスン率アップ持ちの最低枚数（レッスンを多く踏む上位2タイプ） */}
+        <section>
+          <p className="flex items-center gap-1 font-semibold">
+            SPレッスン率アップ持ちの最低枚数
+            <Hint text={GLOSSARY.spHolders} />
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {(
+              [
+                ["first", "レッスンを1番多く踏むタイプ"],
+                ["second", "2番目に多く踏むタイプ"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-600">{label}</span>
+                <span className="inline-flex items-center overflow-hidden rounded-lg border border-slate-300 bg-white">
+                  <button
+                    type="button"
+                    aria-label="1枚減らす"
+                    disabled={settings.spTop[key] <= 0}
+                    onClick={() =>
+                      onUpdate({
+                        spTop: { ...settings.spTop, [key]: Math.max(0, settings.spTop[key] - 1) },
+                      })
+                    }
+                    className={STEP_BTN}
                   >
-                    <span className="text-slate-600">確認を挟まないとき:</span>
-                    <span className="inline-flex overflow-hidden rounded-lg border border-slate-300">
-                      {(
-                        [
-                          [false, "探索で決め直す"],
-                          [true, "手で変えた配分のまま探索"],
-                        ] as const
-                      ).map(([keep, label], i) => (
-                        <button
-                          key={label}
-                          type="button"
-                          disabled={settings.examConfirm}
-                          onClick={() => onUpdate({ examKeepManual: keep })}
-                          className={`px-2 py-1 font-semibold transition disabled:cursor-not-allowed ${
-                            i > 0 ? "border-l border-slate-300" : ""
-                          } ${
-                            settings.examKeepManual === keep
-                              ? "bg-blue-600 text-white"
-                              : "bg-white text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </span>
-                  </div>
-                </section>
-                <section className="border-t border-slate-100 pt-3">
-                  <label className="flex items-center gap-1.5 font-semibold">
-                    <input
-                      type="checkbox"
-                      checked={settings.examAllIn}
-                      onChange={(e) => onUpdate({ examAllIn: e.target.checked })}
-                      className="accent-blue-600"
-                    />
-                    選抜試験の点数を全て1つのタイプに分配する
-                    <Hint text={GLOSSARY.examAllIn} />
-                  </label>
-                </section>
-              </>
-            )}
-          </>
-        ) : (
+                    −
+                  </button>
+                  <span className="min-w-16 px-1 text-center text-sm font-bold tabular-nums text-slate-800">
+                    {settings.spTop[key] === 0 ? "条件なし" : `${settings.spTop[key]}枚以上`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="1枚増やす"
+                    disabled={settings.spTop[key] >= 6}
+                    onClick={() =>
+                      onUpdate({
+                        spTop: { ...settings.spTop, [key]: Math.min(6, settings.spTop[key] + 1) },
+                      })
+                    }
+                    className={STEP_BTN}
+                  >
+                    ＋
+                  </button>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* ステの高さの順（探索で、育成後ステがこの順になる編成・踏み方を選ぶ。3本の柱で決める） */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={!!settings.statOrder}
+              onChange={(e) =>
+                onUpdate({
+                  statOrder: e.target.checked ? [...(settings.statOrder ?? DEFAULT_STAT_ORDER)] : null,
+                })
+              }
+              className="accent-blue-600"
+            />
+            ステの高さの順を決める
+            <Hint text={GLOSSARY.statOrder} />
+          </label>
+          <div className="mt-2">
+            <StatOrderPicker
+              order={settings.statOrder ?? DEFAULT_STAT_ORDER}
+              disabled={!settings.statOrder}
+              onChange={(order) => onUpdate({ statOrder: order })}
+            />
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">
+            一番高い柱を押すと2番目のタイプが一番高くなり、ほかの柱を押すとそのタイプが一番高くなります。
+            育成後のステータスがこの順になる編成・踏み方を選びます。
+          </p>
+        </section>
+
+        {/* サポカ編成のタイプ割合 */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={ratio.enabled}
+              onChange={(e) =>
+                onUpdate({ typeRatio: { ...ratio, enabled: e.target.checked } })
+              }
+              className="accent-blue-600"
+            />
+            サポカ編成のタイプ割合を決める
+            <Hint text={GLOSSARY.typeRatio} />
+          </label>
+          <div className={`mt-1.5 ${ratio.enabled ? "" : "opacity-40"}`}>
+            <TypeSlotAllocator
+              ratio={ratio}
+              disabled={!ratio.enabled}
+              onChange={(type, v) =>
+                onUpdate({ typeRatio: { ...ratio, [type]: v } })
+              }
+            />
+          </div>
+        </section>
+
+        {/* 試験補助 */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={settings.examAssist}
+              onChange={(e) => onUpdate({ examAssist: e.target.checked })}
+              className="accent-blue-600"
+            />
+            試験補助を強めにする（試験に強いサポカで編成）
+            <Hint text={GLOSSARY.examAssist} />
+          </label>
+        </section>
+        {/* ステージアイテム */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={settings.noStageItems}
+              onChange={(e) => onUpdate({ noStageItems: e.target.checked })}
+              className="accent-blue-600"
+            />
+            ステージに入るPアイテム・スキルのサポカを編成しない
+            <Hint text={GLOSSARY.stageItems} />
+          </label>
+        </section>
+        {/* 選抜の点数配分（H.I.Fだけ）: 手で変えた配分の確認と、極振りだけの探索 */}
+        {scenario === "hif" && (
           <>
-            {/* タイプ別の最低ステータス */}
-            <section>
-              <p className="flex items-center gap-1 font-semibold">
-                最低ステータス
-                <span className="text-xs font-normal text-slate-400">（0=条件なし）</span>
-                <Hint text={GLOSSARY.minStat} />
-              </p>
-              {statRow(settings.minStats, (type, v) =>
-                onUpdate({ minStats: { ...settings.minStats, [type]: v } }),
-              )}
-            </section>
-
-            {/* タイプ別の最高ステータス */}
-            <section className="border-t border-slate-100 pt-3">
-              <p className="flex items-center gap-1 font-semibold">
-                最高ステータス
-                <span className="text-xs font-normal text-slate-400">（3200=制限なし）</span>
-                <Hint text={GLOSSARY.maxStat} />
-              </p>
-              {statRow(settings.maxStats, (type, v) =>
-                onUpdate({ maxStats: { ...settings.maxStats, [type]: v } }),
-              )}
-            </section>
-
-            {/* 取得回数（前イベ取得・後イベ発動の上限） */}
             <section className="border-t border-slate-100 pt-3">
               <label className="flex items-center gap-1.5 font-semibold">
                 <input
                   type="checkbox"
-                  checked={budget.enabled}
-                  onChange={(e) =>
-                    onUpdate({
-                      eventBudget: { ...budget, enabled: e.target.checked },
-                    })
-                  }
+                  checked={settings.examConfirm}
+                  onChange={(e) => onUpdate({ examConfirm: e.target.checked })}
                   className="accent-blue-600"
                 />
-                前イベ・後イベの回数を制限する
-                <Hint text={GLOSSARY.eventBudget} />
+                選抜の点数配分設定をそのままにするかどうかの確認を挟む
+                <Hint text={GLOSSARY.examConfirm} />
               </label>
+              {/* 確認を挟まないときの、手で変えた点数配分の扱い（確認の「次回以降表示しない」で選んだほうが入る） */}
               <div
-                className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 ${budget.enabled ? "" : "opacity-40"}`}
+                className={`mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-xs ${
+                  settings.examConfirm ? "opacity-40" : ""
+                }`}
               >
-                <label className="flex items-center gap-1.5">
-                  前イベ取得
-                  <NumberField
-                    value={budget.pre}
-                    onChange={(v) => onUpdate({ eventBudget: { ...budget, pre: v } })}
-                    max={6}
-                    sliderMax={6}
-                    disabled={!budget.enabled}
-                    className="w-14"
-                  />
-                  枚
-                </label>
-                <label className="flex items-center gap-1.5">
-                  後イベ合計
-                  <NumberField
-                    value={budget.post}
-                    onChange={(v) => onUpdate({ eventBudget: { ...budget, post: v } })}
-                    max={6}
-                    sliderMax={6}
-                    disabled={!budget.enabled}
-                    className="w-14"
-                  />
-                  回
-                </label>
+                <span className="text-slate-600">確認を挟まないとき:</span>
+                <span className="inline-flex overflow-hidden rounded-lg border border-slate-300">
+                  {(
+                    [
+                      [false, "探索して決め直す"],
+                      [true, "点数配分を除いて探索"],
+                    ] as const
+                  ).map(([keep, label], i) => (
+                    <button
+                      key={label}
+                      type="button"
+                      disabled={settings.examConfirm}
+                      onClick={() => onUpdate({ examKeepManual: keep })}
+                      className={`px-2 py-1 font-semibold transition disabled:cursor-not-allowed ${
+                        i > 0 ? "border-l border-slate-300" : ""
+                      } ${
+                        settings.examKeepManual === keep
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </span>
               </div>
             </section>
-
+            <section className="border-t border-slate-100 pt-3">
+              <label className="flex items-center gap-1.5 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={settings.examAllIn}
+                  onChange={(e) => onUpdate({ examAllIn: e.target.checked })}
+                  className="accent-blue-600"
+                />
+                選抜試験の点数を全て1つのタイプに分配する
+                <Hint text={GLOSSARY.examAllIn} />
+              </label>
+            </section>
           </>
         )}
+        {/* タイプ別の最低ステータス */}
+        <section className="border-t border-slate-100 pt-3">
+          <p className="flex items-center gap-1 font-semibold">
+            最低ステータス
+            <span className="text-xs font-normal text-slate-400">（0=条件なし）</span>
+            <Hint text={GLOSSARY.minStat} />
+          </p>
+          {statRow(settings.minStats, (type, v) =>
+            onUpdate({ minStats: { ...settings.minStats, [type]: v } }),
+          )}
+        </section>
+
+        {/* タイプ別の最高ステータス */}
+        <section className="border-t border-slate-100 pt-3">
+          <p className="flex items-center gap-1 font-semibold">
+            最高ステータス
+            <span className="text-xs font-normal text-slate-400">（3200=制限なし）</span>
+            <Hint text={GLOSSARY.maxStat} />
+          </p>
+          {statRow(settings.maxStats, (type, v) =>
+            onUpdate({ maxStats: { ...settings.maxStats, [type]: v } }),
+          )}
+        </section>
+
+        {/* 取得回数（前イベ取得・後イベ発動の上限） */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={budget.enabled}
+              onChange={(e) =>
+                onUpdate({
+                  eventBudget: { ...budget, enabled: e.target.checked },
+                })
+              }
+              className="accent-blue-600"
+            />
+            前イベ・後イベの回数を制限する
+            <Hint text={GLOSSARY.eventBudget} />
+          </label>
+          <div
+            className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 ${budget.enabled ? "" : "opacity-40"}`}
+          >
+            <label className="flex items-center gap-1.5">
+              前イベ取得
+              <NumberField
+                value={budget.pre}
+                onChange={(v) => onUpdate({ eventBudget: { ...budget, pre: v } })}
+                max={6}
+                sliderMax={6}
+                disabled={!budget.enabled}
+                className="w-14"
+              />
+              枚
+            </label>
+            <label className="flex items-center gap-1.5">
+              後イベ合計
+              <NumberField
+                value={budget.post}
+                onChange={(v) => onUpdate({ eventBudget: { ...budget, post: v } })}
+                max={6}
+                sliderMax={6}
+                disabled={!budget.enabled}
+                className="w-14"
+              />
+              回
+            </label>
+          </div>
+        </section>
+
       </div>
     </Modal>
   );
