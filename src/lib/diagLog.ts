@@ -7,6 +7,7 @@ import { resolveSpMin } from "./buildOptimizeInput";
 import { buildSnapshot } from "./calcSaveIO";
 import type { CardFlagSets } from "./formation";
 import { formationIssues, type ConditionInput } from "./formationConditions";
+import { examsAllSingle } from "./optimize/stepping";
 import type { SelectedMember, useCalcResult } from "./useCalcResult";
 import type { CalcSettings } from "./useCalcSettings";
 
@@ -31,6 +32,11 @@ export function buildConditionInput(
     },
     statCap: r.statCap,
     getLevel: r.getLevel,
+    // 「選抜は極振りで探索する」が ON の H.I.F だけ見る
+    examSingle:
+      r.scenario === "hif" && settings.examAllIn
+        ? examsAllSingle(r.schedule.examScores, r.schedule.examStats)
+        : null,
   };
 }
 

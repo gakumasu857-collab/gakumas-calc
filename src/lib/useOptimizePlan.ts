@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { optimizeSteppingForSlots } from "./autoOptimize";
+import { optimizeSteppingForSlots, type ExamPolicy } from "./autoOptimize";
 import { buildAutoOptimizeInput } from "./buildOptimizeInput";
 import type { SelectedSlot } from "./formation";
 import type { useCalcResult } from "./useCalcResult";
@@ -14,7 +14,11 @@ export function useOptimizePlan(r: CalcResult) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const run = (onDone?: (message: string) => void) => {
+  /**
+   * @param examPolicy 選抜の点数配分の扱い（確認モーダルで選んだもの。省略時は設定から）。
+   *   fixed なら点数配分は書き換えない（手で変えた印も残す）
+   */
+  const run = (onDone?: (message: string) => void, examPolicy?: ExamPolicy) => {
     setBusy(true);
     setMsg(null);
     // 「計算中…」を先に描画させてから重い探索を回す
@@ -28,21 +32,28 @@ export function useOptimizePlan(r: CalcResult) {
           r,
           { banned: new Set(), pinned: new Set() },
           r.calc.settings,
+          examPolicy,
         );
         const result = optimizeSteppingForSlots(input, slots);
         if (!result) return;
         // ステ入力にしていた選抜を探索がスコア入力へ切り替えたか（メッセージで知らせる）
         const hif = result.hif;
+        // 点数配分を固定して探索したときは、選抜は書き換えない
+        const keepExams = examPolicy === "fixed";
         const statToScore =
           !!hif &&
+          !keepExams &&
           r.schedule.examStats.some((x, i) => x != null && hif.examStats[i] == null);
-        if (hif)
-          r.schedule.setPlan(
-            hif.lessons,
-            hif.classTypes,
-            hif.examScores,
-            hif.examStats,
-          );
+        if (hif) {
+          if (keepExams) r.schedule.setPlan(hif.lessons, hif.classTypes);
+          else
+            r.schedule.setPlan(
+              hif.lessons,
+              hif.classTypes,
+              hif.examScores,
+              hif.examStats,
+            );
+        }
         if (result.nia)
           r.niaSchedule.setPlan(result.nia.lessons, result.nia.sales);
         if (result.hatsu)
@@ -60,7 +71,8 @@ export function useOptimizePlan(r: CalcResult) {
             : "") +
           (statToScore
             ? "。ステ入力にしていた選抜を、探索したスコアの入力に切り替えました"
-            : "");
+            : "") +
+          (hif && keepExams ? "。選抜の点数配分はそのままにして、レッスン・授業だけ探索しました" : "");
         setMsg(message);
         onDone?.(message);
       } finally {

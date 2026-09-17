@@ -6,6 +6,8 @@ import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import {
+  evaluateTeam,
+  paraboJointOf,
   scoreOwnedCards,
   scoreRentalCandidates,
   type CardFlagSets,
@@ -27,6 +29,10 @@ const TYPE_CHIP: Record<TypeKey, string> = {
 };
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
+const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+
+/** 合計ステータスの増減の書き方（+12／−8／±0） */
+const formatDelta = (d: number) => (d > 0 ? `+${d}` : d < 0 ? `−${Math.abs(d)}` : "±0");
 
 /** 絞り込みに使わない構造的なアビリティ（ほぼ全カードが持つ・無意味なもの） */
 const ABILITY_FILTER_EXCLUDE = new Set<AbilityName>([
@@ -65,10 +71,16 @@ const ABILITY_OPTIONS: { key: AbilityName; label: string }[] = (() => {
  * 選択サポカのスロットに入れるカードを選ぶモーダル。
  * 「所持」は所持凸で、「レンタル」は全カードを完凸として点数順に表示する。
  * プラン外のカードは表示しない（共通＋Pアイドルのプランのみ）。
+ * 各行に「この枠をそのサポカに入れ替えたときの合計ステータスの増減」も出す
+ * （ほかの5枚とのイベント相互作用・パラボの合算・上限まで入れた、計算ページの合計と同じ式）。
  */
 export default function SupportPickerModal({
   slotIndex,
   usedIds,
+  members,
+  baseNoConv,
+  basePct,
+  statCap,
   ctx,
   typeRole,
   plan,
@@ -83,6 +95,12 @@ export default function SupportPickerModal({
   slotIndex: number;
   /** 他スロットで使用中のカードID（重複選択の禁止） */
   usedIds: ReadonlySet<string>;
+  /** 今の編成6枠（空枠は null）。入れ替えたときの合計ステータスの増減に使う */
+  members: readonly (ScoredCard | null)[];
+  /** サポカ抜きの土台（パラボ変換前のタイプ別ステと、メモリー＋Pアイドル等のパラボ%）とステータス上限 */
+  baseNoConv: Record<TypeKey, number>;
+  basePct: Record<TypeKey, number>;
+  statCap: number;
   ctx: SheetScoreContext;
   typeRole: Partial<Record<TypeKey, SheetRole>>;
   plan: string | null;
@@ -100,8 +118,30 @@ export default function SupportPickerModal({
   const [typeFilter, setTypeFilter] = useState<"すべて" | TypeKey>("すべて");
   const [nameQuery, setNameQuery] = useState("");
   const [abilityFilter, setAbilityFilter] = useState<AbilityName | "">("");
+  /** 並び順: 点数順（既定）か、入れ替えたときの合計ステータスの増減順 */
+  const [sortBy, setSortBy] = useState<"points" | "delta">("points");
 
-  const list: ScoredCard[] = useMemo(() => {
+  /**
+   * この枠をそのカードに入れ替えたときの、育成後の合計ステータス（上限適用後）の増減。
+   * 計算ページの合計と同じ式（パラボは全ソース合算で変換・イベント相互作用込み）で、
+   * 表示の合計（四捨五入）どうしの差を返す。
+   */
+  const deltaOf = useMemo(() => {
+    const joint = paraboJointOf(ctx, typeRole, baseNoConv, basePct);
+    const others = members.filter(
+      (m, i): m is ScoredCard => m !== null && i !== slotIndex,
+    );
+    const totalOf = (team: ScoredCard[]) =>
+      Math.round(evaluateTeam(team, ZERO_STATS, statCap, undefined, joint).score);
+    const cur = members[slotIndex];
+    const now = totalOf(cur ? [...others, cur] : others);
+    return (card: ScoredCard) => totalOf([...others, card]) - now;
+  }, [ctx, typeRole, baseNoConv, basePct, members, slotIndex, statCap]);
+
+  // usedIds は親が毎回作り直すので、中身の文字列で依存を見る（開いている間の無駄な並べ直しを避ける）
+  const usedKey = [...usedIds].sort().join("\n");
+  const list: { card: ScoredCard; delta: number }[] = useMemo(() => {
+    const used = new Set(usedKey ? usedKey.split("\n") : []);
     const cards =
       mode === "owned"
         ? scoreOwnedCards(getLevel, ctx, typeRole, { plan })
@@ -115,12 +155,23 @@ export default function SupportPickerModal({
       .filter(
         (c) => !abilityFilter || ABILITY_BY_ID.get(c.id)?.has(abilityFilter),
       )
-      .sort((a, b) => b.points - a.points);
+      .map((card) => ({ card, delta: deltaOf(card) }))
+      .sort((a, b) =>
+        sortBy === "delta"
+          ? // 増減順: ほかの枠で選択中のカード（選べない）は最後にまとめる
+            Number(used.has(a.card.id)) - Number(used.has(b.card.id)) ||
+            b.delta - a.delta ||
+            b.card.points - a.card.points
+          : b.card.points - a.card.points,
+      );
   }, [
     mode,
     typeFilter,
     nameQuery,
     abilityFilter,
+    sortBy,
+    usedKey,
+    deltaOf,
     getLevel,
     ctx,
     typeRole,
@@ -182,7 +233,6 @@ export default function SupportPickerModal({
           value={nameQuery}
           onChange={(e) => setNameQuery(e.target.value)}
           placeholder="名前で検索"
-          autoFocus
           className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none focus:border-blue-500"
         />
         {/* アビリティ絞り込み */}
@@ -199,11 +249,20 @@ export default function SupportPickerModal({
             </option>
           ))}
         </select>
+        {/* 並び順 */}
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "points" | "delta")}
+          title="並び順"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-600 outline-none focus:border-blue-500"
+        >
+          <option value="points">点数順</option>
+          <option value="delta">合計ステの増減順</option>
+        </select>
         <span className="ml-auto text-xs text-slate-400">
           {plan && plan !== "フリー"
             ? `プラン制限: 共通＋${plan}のみ表示`
             : "プラン制限なし"}
-          ・点数順
         </span>
       </div>
 
@@ -224,19 +283,23 @@ export default function SupportPickerModal({
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-slate-200">
-          {list.map((card) => {
+          {list.map(({ card, delta }) => {
             const used = usedIds.has(card.id);
             const url = imageUrl(card.image);
             const editable = mode === "owned" && !!setLevel;
             return (
-              <li key={card.id} className="flex items-center gap-2 px-1">
+              // スマホは2段（上=画像・タイプと名前・点数／下=凸と固定などのボタン）。PCは1行
+              <li
+                key={card.id}
+                className="flex flex-col gap-1 px-1 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-0"
+              >
                 <button
                   type="button"
                   disabled={used}
                   onClick={() =>
                     onPick({ id: card.id, rental: mode === "rental" })
                   }
-                  className={`flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left text-sm transition ${
+                  className={`flex min-w-0 flex-1 items-center gap-2 text-left text-sm transition sm:gap-3 sm:py-1.5 ${
                     used
                       ? "cursor-not-allowed opacity-40"
                       : "hover:bg-blue-50"
@@ -252,38 +315,64 @@ export default function SupportPickerModal({
                   ) : (
                     <div className="h-9 w-18 shrink-0 rounded bg-slate-100" />
                   )}
-                  <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold ${
-                      card.assist
-                        ? "bg-purple-100 text-purple-700"
-                        : TYPE_CHIP[card.type]
-                    }`}
-                  >
-                    {card.assist ? "アシスト" : TYPE_LABELS[card.type]}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-slate-800">
-                    {card.name}
-                  </span>
-                  {used && (
-                    <span className="shrink-0 text-xs text-slate-400">
-                      選択中
-                    </span>
-                  )}
-                  {!editable && (
-                    <span className="shrink-0 text-xs text-slate-500">
-                      {card.rental ? (
-                        <span className="font-semibold text-amber-600">
-                          レンタル 4凸
+                  {/* スマホ: タイプ等の行の下に名前（折り返して全部見せる）。PC: sm:contents で1行に並べ直す
+                      （並び順は order で タイプ → 名前 → 選択中 → 凸） */}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:contents">
+                    <span className="flex items-center gap-1.5 sm:contents">
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold sm:order-1 ${
+                          card.assist
+                            ? "bg-purple-100 text-purple-700"
+                            : TYPE_CHIP[card.type]
+                        }`}
+                      >
+                        {card.assist ? "アシスト" : TYPE_LABELS[card.type]}
+                      </span>
+                      {used && (
+                        <span className="shrink-0 text-xs text-slate-400 sm:order-3">
+                          選択中
                         </span>
-                      ) : (
-                        `${card.level}凸`
+                      )}
+                      {!editable && (
+                        <span className="shrink-0 text-xs text-slate-500 sm:order-4">
+                          {card.rental ? (
+                            <span className="font-semibold text-amber-600">
+                              レンタル 4凸
+                            </span>
+                          ) : (
+                            `${card.level}凸`
+                          )}
+                        </span>
                       )}
                     </span>
-                  )}
-                  <span className="w-14 shrink-0 text-right font-bold tabular-nums text-blue-600">
-                    +{Math.round(card.points)}
+                    {/* 名前は省略しない（長い名前は折り返す） */}
+                    <span className="min-w-0 break-words leading-snug text-slate-800 sm:order-2 sm:flex-1">
+                      {card.name}
+                    </span>
+                  </span>
+                  {/* 点数と、入れ替えたときの合計ステータスの増減 */}
+                  <span className="flex w-16 shrink-0 flex-col items-end leading-tight sm:order-5">
+                    <span className="font-bold tabular-nums text-blue-600">
+                      +{Math.round(card.points)}
+                    </span>
+                    {!used && (
+                      <span
+                        title="この枠をこのサポカに入れ替えたときの、育成後の合計ステータスの増減（ほかの5枚とのイベント相互作用・パラボの合算・ステータス上限まで計算に入れています）"
+                        className={`whitespace-nowrap text-[11px] font-bold tabular-nums ${
+                          delta > 0
+                            ? "text-emerald-600"
+                            : delta < 0
+                              ? "text-red-500"
+                              : "text-slate-400"
+                        }`}
+                      >
+                        合計 {formatDelta(delta)}
+                      </span>
+                    )}
                   </span>
                 </button>
+                {/* スマホでは2段目に右寄せ（凸の選択と固定などのボタン）。PCでは行の右端にそのまま並ぶ */}
+                <span className="flex shrink-0 items-center justify-end gap-2">
                 {/* 所持の凸をその場で直す（所持状況ページへ行かなくてよい） */}
                 {editable && (
                   <select
@@ -320,12 +409,16 @@ export default function SupportPickerModal({
                     />
                   )}
                 </span>
+                </span>
               </li>
             );
           })}
         </ul>
       )}
       <p className="mt-2 text-[11px] text-slate-400">
+        ※ 点数の下の「合計 +◯／−◯」は、この枠をそのサポカに入れ替えたときの育成後の合計ステータスの増減です（ほかの5枚とのイベント相互作用・パラボの合算・ステータス上限まで計算に入れています）。
+      </p>
+      <p className="mt-1 text-[11px] text-slate-400">
         ※ 点数は現在のプロデュース（アビリティ発動回数）・踏み方の設定での基本点（イベント相互作用は6枚が揃ったときに加算）。ティア表が無いカードは点数計算ができないため表示していません。
       </p>
     </Modal>

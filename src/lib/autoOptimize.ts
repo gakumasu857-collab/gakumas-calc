@@ -81,10 +81,14 @@ import type { Memory } from "./memoryTypes";
 import { climbStepping } from "./optimize/climb";
 import {
   buildSeeds,
+  EXAM_RATIOS,
   EXAM_RATIOS_FINE,
+  EXAM_RATIOS_SINGLE,
   examScoresFromRatio,
   examScoresUniform,
+  isSingleTypeExam,
   sameExamScores,
+  singleRatioOf,
   steppingAxes,
   uniformStepping,
   withAllExamScores,
@@ -163,8 +167,18 @@ const EXAM_PRESET_RATIOS: [number, number, number][] = [
   [0, 1, 2],
 ];
 
+/**
+ * 選抜の点数配分の扱い（H.I.Fだけ）。
+ * - free: 探索が決める（既定）
+ * - fixed: 今の点数配分（ステ入力もそのまま）を動かさない。探索するのはサポカ編成・レッスン・授業だけ
+ * - single: 選抜ごとに1タイプへの極振りだけ（どのタイプに振るかは探索が決める。細かい比率は試さない）
+ */
+export type ExamPolicy = "free" | "fixed" | "single";
+
 export type AutoOptimizeInput = {
   scenario: ScenarioKey;
+  /** 選抜の点数配分の扱い（省略＝free） */
+  examPolicy?: ExamPolicy;
   /** 探索の起点になる現在の踏み方（ストアの状態そのまま） */
   hif: {
     lessons: LessonPick[];
@@ -499,10 +513,12 @@ export function runFullOptimize(
     const ectx = engine.buildEctx(stepping);
     const ev = engine.preciseObjective(cur, ectx);
     if (ev.members.length === 6) {
-      // 取得回数の制限が無いときだけ意味がある（制限ありの評価値は比例の目減りを含むため比べない）
+      // 取得回数の制限が無いときだけ意味がある（制限ありの評価値は比例の目減りを含むため比べない）。
+      // 画面の「今」と比べる値なので、極振りだけの探索でも点数配分は画面どおり（直す前）で出す
       if (!input.eventBudget) {
-        const rep = engine.preciseObjective(cur, ectx, true);
-        currentRating = Math.round(engine.fullRating(stepping, rep.cappedSum, rep.members));
+        const shown = engine.initialStepping(false);
+        const rep = engine.preciseObjective(cur, engine.buildEctx(shown, false), true);
+        currentRating = Math.round(engine.fullRating(shown, rep.cappedSum, rep.members, false));
         currentStats = { ...rep.stats };
       }
       currentCand = {
@@ -557,6 +573,7 @@ export function runFullOptimize(
       best.score,
       evalOf,
       engine.deadline,
+      engine.examAxisRatios,
     );
     if (climbed.score > best.score + 1e-9) {
       best.stepping = climbed.stepping;
@@ -568,6 +585,8 @@ export function runFullOptimize(
       best.score = fine.score;
     }
   }
+  // 選抜の点数配分の方針（固定・極振り）に合わせた形で確定する（評価は常にこの形で行っている）
+  best.stepping = engine.normExams(best.stepping);
   const phaseScores = {
     starts: Math.round(scoreAfterStarts),
     polish: Math.round(scoreAfterPolish),
@@ -691,7 +710,7 @@ export function optimizeSteppingForSlots(
       eventCounts: alloc.eventCounts,
     });
   }
-  const packed = { stepping: best.stepping, slots, score: best.score };
+  const packed = { stepping: engine.normExams(best.stepping), slots, score: best.score };
   finalEngine.applyClassPreference(packed);
   best = { stepping: packed.stepping, score: best.score };
   const ectx = finalEngine.buildEctx(best.stepping);
@@ -765,9 +784,29 @@ export class OptimizeEngine {
   private stageExcluded: ReadonlySet<string>;
   /** サポカ編成のタイプ割合条件（合計6=固定、6未満=最低枚数）。必須条件として全段階で守る */
   private ratioCons: ReturnType<typeof typeConstraintFromRatio>;
+  /** 選抜の点数配分の扱い（H.I.Fだけで意味を持つ） */
+  private examPolicy: ExamPolicy;
+  /** 山登りの選抜軸で試す比率（fixed は空＝選抜を動かさない／single は極振りの3つ） */
+  readonly examAxisRatios: readonly [number, number, number][];
+  /** 「全選抜を同じ寄せ方にする」プリセット（fixed は空／single は極振りの3つ） */
+  private examPresetRatios: readonly [number, number, number][];
+  /** fixed のとき全候補が持つ選抜（入力のまま。参照を使い回して「もう揃っている」を判定する） */
+  private fixedExamScores: ExamScores[];
+  private fixedExamStats: (ExamScores | null)[] | undefined;
 
   constructor(private input: AutoOptimizeInput) {
     this.affection = input.affection ?? AFFECTION_DEFAULT;
+    this.examPolicy = input.scenario === "hif" ? (input.examPolicy ?? "free") : "free";
+    this.examAxisRatios =
+      this.examPolicy === "fixed" ? [] : this.examPolicy === "single" ? EXAM_RATIOS_SINGLE : EXAM_RATIOS;
+    this.examPresetRatios =
+      this.examPolicy === "fixed"
+        ? []
+        : this.examPolicy === "single"
+          ? EXAM_RATIOS_SINGLE
+          : EXAM_PRESET_RATIOS;
+    this.fixedExamScores = input.hif.examScores.map((e) => ({ ...e }));
+    this.fixedExamStats = input.hif.examStats?.map((x) => x && { ...x });
     this.ratioCons = input.typeRatio
       ? typeConstraintFromRatio(input.typeRatio)
       : {};
@@ -841,7 +880,48 @@ export class OptimizeEngine {
     return this.steppingFromPartition([n, 0, 0]);
   }
 
-  initialStepping(): Stepping {
+  /**
+   * 選抜の点数配分を方針に合わせた踏み方にする（H.I.Fだけ。free ならそのまま返す）。
+   * - fixed: どの候補も入力の点数配分（ステ入力もそのまま）
+   * - single: 極振りでない選抜を「いちばん点（ステ入力ならステ）の高いタイプ」への極振りに直す。
+   *   同点（均等配分の端数ぶん＝2点以内の差も同点とみなす）はレッスンのメインを多く踏むタイプ → 審査基準の順。
+   *   もう極振りの選抜はそのまま
+   * 候補を作る側でも揃えているが、評価の入口（buildEctx）と結果の出口（toSteppingResult・fullRating）で
+   * 必ず通すので、どこかで配分を動かした候補が混ざっても方針から外れた結果にはならない。
+   */
+  normExams(s: Stepping): Stepping {
+    if (s.kind !== "hif" || this.examPolicy === "free") return s;
+    if (this.examPolicy === "fixed") {
+      if (s.examScores === this.fixedExamScores && s.examStats === this.fixedExamStats) return s;
+      return { ...s, examScores: this.fixedExamScores, examStats: this.fixedExamStats };
+    }
+    // single
+    if (
+      s.examScores.every((e, i) => s.examStats?.[i] == null && isSingleTypeExam(e))
+    )
+      return s;
+    const mains: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    for (const l of s.lessons) if (l.main) mains[l.main]++;
+    const examScores = s.examScores.map((e, i) => {
+      const manual = s.examStats?.[i] ?? null;
+      if (!manual && isSingleTypeExam(e)) return e;
+      const weight = manual ?? e;
+      // 均等配分は最大剰余法の端数で Vo が 1〜2 点だけ多い（探索の起点・初期値とも）。それを「いちばん高い」と
+      // 数えると起点がすべて Vo 寄せになるので、最大との差が 2 点以内のタイプは同点として扱う
+      const maxWeight = Math.max(...TYPE_KEYS.map((t) => weight[t]));
+      const top = TYPE_KEYS.filter((t) => maxWeight - weight[t] <= 2).sort(
+        (a, b) => mains[b] - mains[a] || this.input.ranks[a] - this.input.ranks[b],
+      )[0];
+      return examScoresFromRatio(i, singleRatioOf(top));
+    });
+    return { ...s, examScores, examStats: undefined };
+  }
+
+  /**
+   * @param normalize false にすると点数配分の方針を当てず、入力（画面）のままの踏み方を返す
+   *   （今の編成の評価値を画面どおりに出すとき用）
+   */
+  initialStepping(normalize = true): Stepping {
     const { scenario, nia, hatsu, hif } = this.input;
     if (scenario === "niaMaster") {
       return {
@@ -857,7 +937,8 @@ export class OptimizeEngine {
         classTypes: [...hatsu.classTypes],
       };
     }
-    return {
+    // 極振りだけの探索では、今の踏み方も極振りに直した形で候補にする（normExams）
+    const current: Stepping = {
       kind: "hif",
       lessons: hif.lessons.map((l) => ({ ...l })),
       classTypes: [...hif.classTypes],
@@ -865,9 +946,11 @@ export class OptimizeEngine {
       // 今の踏み方は画面と同じ前提（ステ入力の選抜はその値）で評価する
       examStats: hif.examStats?.map((x) => x && { ...x }),
     };
+    return normalize ? this.normExams(current) : current;
   }
 
-  toSteppingResult(s: Stepping): SteppingResult {
+  toSteppingResult(raw: Stepping): SteppingResult {
+    const s = this.normExams(raw);
     if (s.kind === "nia") return { nia: { lessons: s.lessons, sales: s.sales } };
     if (s.kind === "hatsu")
       return { hatsu: { lessons: s.lessons, classTypes: s.classTypes } };
@@ -899,8 +982,9 @@ export class OptimizeEngine {
     }
     // 途中打ち切りでも3タイプが均等に試されるよう同タイプの組を先頭へ
     pairs.sort((a, b) => Number(a[0] !== a[1]) - Number(b[0] !== b[1]));
+    // uniformStepping は選抜を一様配分に戻すので、点数配分の方針（固定・極振り）に合わせ直す
     return pairs.map(([lessonType, secondType]) =>
-      uniformStepping(base, lessonType, secondType),
+      this.normExams(uniformStepping(base, lessonType, secondType)),
     );
   }
 
@@ -939,7 +1023,8 @@ export class OptimizeEngine {
     if (current.kind === "hif") {
       for (const seed of baseSeeds) {
         if (seed.kind !== "hif") continue;
-        for (const ratio of EXAM_PRESET_RATIOS) {
+        // 点数配分を固定した探索ではプリセットは空（選抜は動かさない）
+        for (const ratio of this.examPresetRatios) {
           // ステ入力の選抜も寄せ直す（スコア入力に戻る）
           seeds.push(
             withAllExamScores(
@@ -962,6 +1047,7 @@ export class OptimizeEngine {
         seed.score,
         evalOf,
         this.deadline,
+        this.examAxisRatios,
       );
       if (climbed.score > best.score) best = climbed;
     }
@@ -1011,8 +1097,33 @@ export class OptimizeEngine {
     startScore: number,
   ): { stepping: Stepping; score: number } | null {
     if (start.kind !== "hif") return null;
+    // 点数配分を固定した探索では選抜を動かさない
+    if (this.examPolicy === "fixed") return null;
     const evalOf = (s: Stepping) =>
       this.preciseObjective(slots, this.buildEctx(s)).obj;
+    // 極振りだけの探索: 選抜ごとの振り先（3×3×3=27通り）を総当たりする
+    if (this.examPolicy === "single") {
+      let bestSingle = { stepping: start as Stepping, score: startScore };
+      const n = start.examScores.length;
+      const pick = new Array<number>(n).fill(0);
+      const walk = (i: number): void => {
+        if (i === n) {
+          const trial = withAllExamScores(
+            start,
+            pick.map((k, idx) => examScoresFromRatio(idx, EXAM_RATIOS_SINGLE[k])),
+          );
+          const trialScore = evalOf(trial);
+          if (trialScore > bestSingle.score + 1e-9) bestSingle = { stepping: trial, score: trialScore };
+          return;
+        }
+        for (let k = 0; k < EXAM_RATIOS_SINGLE.length; k++) {
+          pick[i] = k;
+          walk(i + 1);
+        }
+      };
+      walk(0);
+      return bestSingle;
+    }
     let current = start;
     let score = startScore;
     for (let pass = 0; pass < 4; pass++) {
@@ -1095,7 +1206,8 @@ export class OptimizeEngine {
     // 確定すると劣った位置に固まってしまう。サブは「他レッスンで最多のメイン
     // タイプ」で仮置きし、細部は後続の山登り・入れ替え手に任せる
     // （サブの全組まで試すと編成組み直しが倍増して時間切れしやすい）。
-    if (best.stepping.kind !== "hif") return false;
+    // 点数配分を固定した探索では選抜を動かさないので、この第2パスは無い
+    if (best.stepping.kind !== "hif" || this.examPolicy === "fixed") return false;
     const cur = best.stepping;
     const mainCounts: Record<TypeKey, number> = {
       vocal: 0,
@@ -1321,7 +1433,8 @@ export class OptimizeEngine {
           if (performance.now() > jointDeadline) break;
           const base = flip.stepping as Stepping & { kind: "hif" };
           const examVariants: Stepping[] = [base];
-          for (const type of TYPE_KEYS) {
+          // 点数配分を固定した探索では選抜変形を重ねない
+          for (const type of this.examPolicy === "fixed" ? [] : TYPE_KEYS) {
             const ratio: [number, number, number] = [
               type === "vocal" ? 1 : 0,
               type === "dance" ? 1 : 0,
@@ -1537,6 +1650,7 @@ export class OptimizeEngine {
         best.score,
         evalWith(best.slots),
         this.deadline,
+        this.examAxisRatios,
       );
       if (climbed.score > best.score + 1e-9) {
         best.stepping = climbed.stepping;
@@ -1625,8 +1739,14 @@ export class OptimizeEngine {
     return out;
   }
 
-  buildEctx(s: Stepping): Ectx {
+  /**
+   * @param normalize false にすると点数配分の方針を当てずに、渡した踏み方をそのまま評価する
+   *   （今の編成の評価値を画面どおりに出すときだけ使う。探索の候補は必ず既定の true）
+   */
+  buildEctx(raw: Stepping, normalize = true): Ectx {
     const { input } = this;
+    // 選抜の点数配分の方針（固定・極振り）に合わせた形で評価する（free ならそのまま）
+    const s = normalize ? this.normExams(raw) : raw;
     let bd: Record<"lessons" | "classes" | "exams", Record<TypeKey, number>>;
     let ctx: SheetScoreContext;
     let starStat = 0;
@@ -2267,7 +2387,9 @@ export class OptimizeEngine {
         ? others[0]
         : others[1];
     };
-    return {
+    // 選抜は一様配分のスコア入力から始める（ステ入力の選抜も探索で動かす）。
+    // 点数配分の方針があれば、それに合わせた形にする（固定＝入力の配分／極振り＝多く踏むタイプへ）
+    return this.normExams({
       kind: "hif",
       lessons: LESSONS.map((_, i) => ({
         main: mains[i] ?? null,
@@ -2275,9 +2397,8 @@ export class OptimizeEngine {
         sp: true,
       })),
       classTypes: CLASSES.map(() => "visual" as TypeKey),
-      // 選抜は一様配分のスコア入力から始める（ステ入力の選抜も探索で動かす）
       examScores: EXAMS.map((_, i) => examScoresUniform(i)),
-    };
+    });
   }
 
   /** レッスン数nの3タイプ分割の全列挙（HIF=45 / NIA=36 / 初=21通り） */
@@ -2518,7 +2639,7 @@ export class OptimizeEngine {
     }
     if (baseStepping && baseStepping.kind === "hif" && best) {
       const top = finalists.slice(0, opts?.examFinalists ?? 10);
-      for (const ratio of EXAM_PRESET_RATIOS) {
+      for (const ratio of this.examPresetRatios) {
         const stepping: Stepping = withAllExamScores(
           baseStepping,
           baseStepping.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
@@ -2755,17 +2876,23 @@ export class OptimizeEngine {
   }): void {
     const base = best.stepping;
     if (base.kind !== "hif") return;
-    // まず各プリセットを素で評価し、有望な上位だけ日入替まで回す（時間節約）
-    const rated = EXAM_PRESET_RATIOS.map((ratio) => {
-      const trial: Stepping = withAllExamScores(
-        base,
-        base.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
-      );
-      return {
-        stepping: trial,
-        score: this.preciseObjective(best.slots, this.buildEctx(trial)).obj,
-      };
-    }).sort((a, b) => b.score - a.score);
+    // まず各プリセットを素で評価し、有望な上位だけ日入替まで回す（時間節約）。
+    // 点数配分を固定した探索ではプリセットが空なので、今の配分のまま日入替だけを試す
+    const rated =
+      this.examPresetRatios.length === 0
+        ? [{ stepping: base as Stepping, score: best.score }]
+        : this.examPresetRatios
+            .map((ratio) => {
+              const trial: Stepping = withAllExamScores(
+                base,
+                base.examScores.map((_, i) => examScoresFromRatio(i, ratio)),
+              );
+              return {
+                stepping: trial,
+                score: this.preciseObjective(best.slots, this.buildEctx(trial)).obj,
+              };
+            })
+            .sort((a, b) => b.score - a.score);
     for (const seed of rated.slice(0, 3)) {
       const cand: { stepping: Stepping; slots: SelectedSlot[]; score: number } = {
         stepping: seed.stepping,
@@ -2837,6 +2964,8 @@ export class OptimizeEngine {
     stepping: Stepping,
     cappedSum: number,
     members: ScoredCard[],
+    /** false＝点数配分の方針を当てず、渡した踏み方のままスター性を数える（今の編成の評価値用） */
+    normalize = true,
   ): number {
     const { input } = this;
     if (input.scenario === "niaMaster") {
@@ -2853,7 +2982,7 @@ export class OptimizeEngine {
         hatsuExamValue(1, input.hatsu.finalScore)
       );
     }
-    const s = stepping as Stepping & { kind: "hif" };
+    const s = (normalize ? this.normExams(stepping) : stepping) as Stepping & { kind: "hif" };
     const sched = computeScheduleGains(
       {
         lessons: s.lessons,

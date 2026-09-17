@@ -95,6 +95,33 @@ export function examScoresFromRatio(
 export const sameExamScores = (a: ExamScores, b: ExamScores) =>
   a.vocal === b.vocal && a.dance === b.dance && a.visual === b.visual;
 
+/** 極振り（1タイプに全部）の比率。選抜を極振りだけで探索するときの候補 */
+export const EXAM_RATIOS_SINGLE: [number, number, number][] = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+];
+
+/** タイプ → そのタイプへの極振りの比率 */
+export const singleRatioOf = (type: TypeKey): [number, number, number] => [
+  type === "vocal" ? 1 : 0,
+  type === "dance" ? 1 : 0,
+  type === "visual" ? 1 : 0,
+];
+
+/** 選抜の配分が極振り（点が入っているのが1タイプだけ）か */
+export function isSingleTypeExam(scores: ExamScores): boolean {
+  return TYPE_KEYS.filter((t) => scores[t] > 0).length === 1;
+}
+
+/** 選抜が全部「スコア入力の極振り」か（「極振りで探索する」設定を今の踏み方が満たしているか） */
+export function examsAllSingle(
+  examScores: readonly ExamScores[],
+  examStats?: readonly (ExamScores | null)[],
+): boolean {
+  return examScores.every((e, i) => examStats?.[i] == null && isSingleTypeExam(e));
+}
+
 /**
  * 仕上げ用の細かい分配候補（整数比 a+b+c ≤ 7 の全組・既約のみ）。
  * 広域探索では EXAM_RATIOS（粗い格子）で足り、上限3200ちょうどへ寄せる
@@ -207,8 +234,13 @@ function axesOver(
 
 /**
  * 踏み方の全軸。山登りの近傍はこれから作る。
+ * @param examRatios 選抜の軸で試す比率（既定は EXAM_RATIOS。空なら選抜は動かさない＝点数配分を固定した探索。
+ *   極振りだけの探索なら EXAM_RATIOS_SINGLE）。軸の並び（レッスン → 選抜 → 授業）は変わらない
  */
-export function steppingAxes(s: Stepping): SteppingAxis[] {
+export function steppingAxes(
+  s: Stepping,
+  examRatios: readonly [number, number, number][] = EXAM_RATIOS,
+): SteppingAxis[] {
   if (s.kind === "hif") {
     return [
       // レッスン: メイン×サブの組を入れ替える
@@ -227,7 +259,8 @@ export function steppingAxes(s: Stepping): SteppingAxis[] {
       ...axesOver(s.examScores.length, (cur, i) => {
         const c = cur as HifStepping;
         const manual = c.examStats?.[i] != null;
-        return EXAM_RATIOS.map((r) => examScoresFromRatio(i, r))
+        return examRatios
+          .map((r) => examScoresFromRatio(i, r))
           .filter((e) => manual || !sameExamScores(c.examScores[i], e))
           .map((e) => withExamScores(c, i, e));
       }),

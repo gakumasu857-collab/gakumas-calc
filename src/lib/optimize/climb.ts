@@ -17,19 +17,21 @@ type EvalOf = (s: Stepping) => number;
  * 山登り: 軸を1つずつ、より良い候補があれば置き換える。
  * 改善が無くなる（=局所最適）か、パス数の上限まで繰り返す。
  * deadline を過ぎたら次のパスに進まない（1パス目は必ず回す）。
+ * @param examRatios 選抜の軸で試す比率（省略＝通常の格子。空＝選抜を動かさない）。steppingAxes へそのまま渡す
  */
 export function climbStepping(
   start: Stepping,
   startScore: number,
   evalOf: EvalOf,
   deadline: number,
+  examRatios?: readonly [number, number, number][],
 ): Scored {
   let current = start;
   let best = startScore;
   for (let pass = 0; pass < MAX_CLIMB_PASS; pass++) {
     if (pass > 0 && performance.now() > deadline) break;
     let improved = false;
-    for (const axis of steppingAxes(current)) {
+    for (const axis of steppingAxes(current, examRatios)) {
       // current は改善のたびに進むので、候補はその時点の current から作る
       for (const trial of axis.alternatives(current)) {
         const score = evalOf(trial);

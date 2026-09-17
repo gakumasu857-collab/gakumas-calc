@@ -229,7 +229,9 @@ export default function SetEditModal({
             </button>
           ))}
 
-          <div className="flex flex-row flex-wrap gap-1.5 sm:mt-auto sm:flex-col">
+          {/* 分類ではないボタン（スケジュール表・削除）。スマホでは分類ボタンの次の行に区切り線を入れて分ける
+              （分類の「スケジュール」と同じ行に並ぶと見分けがつかないため）。PCでは列の一番下 */}
+          <div className="flex w-full flex-row flex-wrap gap-1.5 border-t border-dashed border-slate-300 pt-1.5 sm:mt-auto sm:w-auto sm:flex-col sm:border-t-0 sm:pt-0">
             {/* スケジュール表 */}
             <button
               type="button"
@@ -238,7 +240,7 @@ export default function SetEditModal({
               className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
             >
               <CalendarDays size={13} />
-              スケジュール
+              スケジュール表を見る
             </button>
             {/* ユーザーセットの削除 */}
             {deletable && (

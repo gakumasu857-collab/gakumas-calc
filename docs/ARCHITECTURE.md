@@ -165,15 +165,15 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `sheetScore.ts` | **サポカ 1 枚の点数。** 効果量×発動回数の合計 `sheetScore`、内訳 `sheetScoreBreakdown`、パラボの%→固定値 `paraboConvert`（合算%を獲得ごとに切り捨て）、カード1枚のパラボの期待値 `paraboExpected`（切り捨て前。点数を「パラボ以外」と「パラボ」に分ける `sheetScoreSplit`）、発動回数の引き方 `buildCountResolver`、前イベの起動タグ `resolveTriggerCount`（「VocalSPレッスン」＝そのタイプ、「タイプSPレッスン」＝そのカードのタイプ、「SPレッスン」＝全タイプの合算）、前イベ・後イベが編成全体の回数を増やす分 `eventCountContributionSplit`、イベント値「基本値×(1+率)」`eventValue` / `abilitySlotValue`、Pポイント・回復の集計 `cardResources`、SP率 `cardSpRate` |
 | `sheetContext.ts` | H.I.F の踏み方から「計算に必要な材料」（レッスン回数・パラボの母数）を組み立てる `buildSheetScoreContext`。タイプと内部ロールの対応（Vo=メイン1、Da=メイン2、Vi=サブ） |
 | `scenarioGains.ts` | N.I.A・初の同じ役目（`buildNiaScoreContext` / `buildHatsuScoreContext`）と獲得量集計 |
-| `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
+| `formationConditions.ts` | 今の編成が探索の必須条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・SP率持ち・タイプ割合・最低/最高ステ・H.I.Fで設定ONのときの「選抜は極振り」）を満たすかの判定 `formationIssues` と、評価値の下の条件チップ `conditionChips`。計算ページの「下回ったら変更なし」ガードはこれが満たしているときだけ効く |
 | `formation.ts` | **編成の組み方。** カードを点数化 `scoreCard`、6 枚の合計評価 `evaluateTeam`（イベント相互作用と上限込み）、合算パラボ `summedParaboByType`、理想編成の探索でもパラボを合算%で変換するための土台 `ParaboJoint` / `paraboJointOf`、山登りで最良 6 枚を探す `findBestFormation`、条件（SP枚数・最低ステ・最高ステ・割合・固定/BAN・試験補助）の重み |
 | `autoOptimize.ts` | **理想編成の探索（踏み方×編成を同時に）。** 入口は `runFullOptimize`、本体は `OptimizeEngine` クラス。踏み方だけの最適化 `optimizeSteppingForSlots` も |
-| `optimize/stepping.ts` | 「踏み方」の表し方と近傍（1 箇所だけ変えた候補）の列挙、選抜スコアの整数比プリセット |
+| `optimize/stepping.ts` | 「踏み方」の表し方と近傍（1 箇所だけ変えた候補）の列挙、選抜スコアの整数比プリセット（極振りだけの `EXAM_RATIOS_SINGLE`、極振りかどうかの判定 `isSingleTypeExam` / `examsAllSingle`）。`steppingAxes(s, examRatios)` の第2引数で選抜の軸の候補を差し替える（空＝選抜を動かさない） |
 | `optimize/climb.ts` | 踏み方の山登り `climbStepping`（乱数なし。1箇所ずつ良い方へ動かす） |
 | `buildOptimizeInput.ts` | 計算ページの状態を探索の入力にまとめる。SP枚数条件をタイプに割り当てる `resolveSpMin` |
 | `optimizeReady.ts` | 探索ボタンを押せる条件（シナリオ・アイドル・Pアイドル・発動回数セット・メモリーが選ばれているか） |
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
-| `useSchedule.ts` | H.I.F の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains` |
+| `useSchedule.ts` | H.I.F の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains`。選抜の入力を手で変える前の配分の控え `examBaseline`（値が実際に変わったときだけ控える＝`touchExams`。元の値に戻すか、探索が点数配分を書くと消える。控えがある間は `examTouched`） |
 | `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A・初の踏み方の保存。N.I.Aの最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はパラボ込みのステ（獲得ボーナス込み・ログの値）から `niaAuditionBaseFromRise` で逆算できる |
 | `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「メインパラボ45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
@@ -219,7 +219,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと「探索の条件」モーダル（基本／詳細の2タブ。6枠の割り振り `TypeSlotAllocator`） |
 | `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.Fの選抜と N.I.Aのオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.Aの最終はスコア／ステ切り替え。計算ページでは左端のタブ（`calc/SideTabs.tsx`: 上＝発動回数・下＝レッスン等の踏み方。初めて探索したあとは吹き出しで案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`）か踏み方チップから中央のモーダルで開く。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
 | `calc/AbilityCountDrawer.tsx` | 計算ページ左端の「プロデュース」タブから開くアビリティ発動回数のエディタ（この育成での回数。「上書き保存」でデフォルトへ） |
-| `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み） |
+| `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み。各行に「その枠をそのサポカに入れ替えたときの合計ステータスの増減」＝`evaluateTeam`＋`paraboJointOf` で計算ページの合計と同じ式。並びは点数順／増減順。スマホでは1枚を2段にして名前を省略しない。検索欄に自動でカーソルを合わせない） |
+| `calc/ExamPolicyModal.tsx` | 探索の前の確認（H.I.F）: 選抜の点数配分を手で変えていたら「このまま固定して探索／探索で決め直す」を選ぶ。`useExamGuard(r)` が `ask(scope, run)` と `modal` を返す（計算ページと踏み方エディタの両方で使う） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |
 | `calc/ExportSheet.tsx` | 計算シートの画像出力（PNG） |
 | `calc/ParaboTableModal.tsx` / `calc/CalcHelpModal.tsx` | パラボ変換表、ヘルプ |
@@ -367,6 +368,8 @@ N.I.A では札（2 枚ごとに 3,000 票）として評価値にも効きま�
 - **N.I.A**: `切り捨て(Σ最終ステ × 2.3) ＋ ファン投票数の換算`（営業＋1次・2次＋最終＋札。`src/data/scenarios.ts` の `niaFanValue`）
 - **初（レジェンド）**: `切り捨て(Σ最終ステ × 2.1) ＋ 最終順位分（1700/900/500/0）＋ 中間スコア換算 ＋ 最終スコア換算`
 
+サポカの P率（`レッスンPポイント率`・`タイプSPレッスンPポイント率`）は、踏んだレッスン1回ごとに「そのレッスンのP × 率の合計（SPレッスンなら自タイプのSP率も足す）」を切り捨てて足します（ゲームは獲得のたびに切り捨てる。ステのパラボと同じ考え方。2026-09-17 まではレッスンの合計に掛けて最後に1回だけ切り捨てていた）。
+
 Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボーナスの初期Pポイント」、選抜だけの「親愛度のSTEP3」、差し入れの固定分も含む。差し入れはスケジュールの選択で踏んだ週から `supplyPFromChoices` で出すのでシナリオ・週によって変わる）、SPレッスン率と踏み方の実現確率も同じファイルで出しています。画面（育成後のステータスの下）に出すのは `pCards`（サポカ分）と `pBase`（サポカ＋レッスン＋H.I.Fボーナスの初期P＋親愛度＋メモリー＋差し入れ＝その育成で手に入る合計。内訳も同じ行）の2行です。差し入れの呼び名は `supplyLabel`（初レジェンドは「活動支給」）。
 
 ### 3-5. 理想編成（全自動最適化）の流れ（`src/lib/autoOptimize.ts` の `runFullOptimize`）
@@ -411,6 +414,10 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 ステ直接入力にした選抜（`examStats`）も、全自動・踏み方だけの探索で動かします。候補ごとに `Stepping.examStats` を持ち、今の踏み方は画面どおりステ入力の値で評価します。スコアを置き換えた候補はその選抜を null（スコア入力）に戻します（`withExamScores` / `withAllExamScores`）。結果は `SteppingResult.hif.examStats` で返り、`setPlan(lessons, classTypes, examScores, examStats)` がそのまま書きます。ステ入力からスコア入力に切り替わった選抜があれば、探索結果の注記で知らせます。
 仕上げの授業寄せ（`applyClassPreference`）はこちらにも掛かります（2026-09-12。以前は掛かっておらず、第3流行が 1100 に届かない配分のまま返していた）。
 
+**選抜の点数配分の方針（`AutoOptimizeInput.examPolicy`。H.I.Fだけ。2026-09-17）**: `free`＝探索が決める（既定）／`fixed`＝今の点数配分（ステ入力もそのまま）を動かさず、サポカ編成・レッスン・授業だけ探索／`single`＝選抜ごとに1タイプへの極振りだけ（`EXAM_RATIOS_SINGLE`。仕上げは 3×3×3=27 通りの総当たり）。
+エンジンは評価の入口（`buildEctx`）と結果の出口（`toSteppingResult`・`fullRating`）で必ず `normExams` を通すので、途中で配分を動かした候補が混ざっても方針から外れた結果にはなりません。無駄な評価を減らすため、候補を作る側（山登りの選抜軸 `steppingAxes(s, examRatios)`・寄せ方プリセット・`refineExams`・結合手の選抜変形）も方針に合わせて絞っています。`free` のときの動きは今までと同じです（HEAD と同じ結果になることを確認）。
+画面側は、選抜の入力を手で変えると `useSchedule` が変える前の点数配分を `examBaseline` に控え（元の値に戻せば消える。探索が点数配分を書いても消える）、控えがある間は `examTouched` が true になり、探索（全自動・踏み方だけ）を押したときに `calc/ExamPolicyModal.tsx` の `useExamGuard` が「このままの点数配分で探索する（fixed）／点数配分も探索で決め直す」を聞きます。固定を選んだ探索は選抜を書き換えないので印は残り、次の探索でもまた聞きます。「編成だけ」は踏み方を動かさないので聞かず、取得回数の割り当ては `fixed` で評価します。
+
 ### 3-6. 探索の条件の扱い（「探索の条件」モーダル = `SettingPickers.tsx` の `TheorySettingsModal`）
 
 | 条件 | 探索でどう効くか（`formation.ts` / `autoOptimize.ts`） |
@@ -422,6 +429,8 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | 今の編成が条件を満たすか（`CalcPage.tsx` の `currentMeetsConditions`） | プラン・BAN・ステージアイテム・SP率持ち枚数・タイプ割合に加えて、最低ステ／最高ステも今の最終ステで判定。満たしていれば探索結果が今の評価値を下回るとき置き換えない。満たしていなければ下がっても置き換える |
 | 取得回数の制限（前イベ取得枚数・後イベ枚数） | 探索中は超過分を比例で目減り（`eventBudgetScales`）、最後に残すカードを組み合わせの実評価で決める（`allocateEvents`）。数えるのは前イベ／後イベを持つカード全部。結果は探索が終わった時点で計算ページのイベント設定へそのまま反映（`applyEventOps`）。制限なしのときは探索のたびに全部発動へ戻す |
 | 試験補助を強める | アイテム評価（`強さ` 列）×80、ドリンク獲得 1 本 80、SP率持ち 60 を探索の目的関数だけに加点（表示の評価値には入れない）。アイテムの `おすすめプラン` がセットのプランに合うときだけ |
+| 選抜の点数配分を手で変えていたら確認する（H.I.F。`examConfirm`。既定ON） | 探索の中身には効かない。ON で、手で変えた点数配分（`useSchedule` の `examTouched`＝`examBaseline` が残っている）があるとき探索の前に確認モーダルを出す。「このまま」なら `examPolicy: "fixed"` で探索。OFF なら聞かずに探索が決め直す |
+| 選抜は3つとも極振りで探索する（H.I.F。`examAllIn`。既定OFF） | `examPolicy: "single"`。選抜ごとに1タイプへ全部振った配分だけを試す。今の点数配分が極振りでないときは「条件を満たしていない」扱い（`ConditionInput.examSingle`。チップ「選抜は極振り」）で、結果が低くても置き換える。点数配分を固定して探索したときはこの条件を見ない |
 | ステージアイテムを編成しない | `前イベ` 列が「ステージ用アイテム」または「スキル」のカード（`isStageCard`）を候補から外す（固定は貫通）。**今の編成の候補（`runFullOptimize` の currentCand）にも同じ条件を掛け**、目的関数でも `stageItemShortfall × RATIO_PENALTY` で弾く（2026-09-16 まで、今の編成に入っていた除外カードが候補経由でそのまま結果に戻っていた） |
 | 固定／BAN／レンタルNG（サポカ設定ページ） | 固定は必ず採用（プラン違いは除く）、BAN は候補から除外、レンタルNG はレンタル枠の候補から除外 |
 
@@ -624,7 +633,7 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `gakumas:setup:ownershipAck:v1` | 「完凸のままでOK」（所持状況を入力せず全完凸で探索する）を押した印。計算ページの所持状況のステップと初回の確認モーダルが出なくなる | `src/lib/ownershipAck.ts` |
 | `gakumas:calc:memoryPathsDone:v1` | 廃止（メモリー選択のA/Bの枠をやめた。残っていても使わない） | — |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
-| `gakumas:schedule:v1` | H.I.F の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算する。探索はこの選抜も動かしてよく、スコアを置き換えたら null（スコア入力）に戻す。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用） | `src/lib/useSchedule.ts` |
+| `gakumas:schedule:v1` | H.I.F の踏み方（レッスン 8 回のメイン／サブ／SP、授業 6 回、選抜 3 回のタイプ別スコア、選抜ごとの上昇ステの直接入力 `examStats`。null はスコアから分配式。直接入力の選抜はスター性だけスコアから計算する。探索はこの選抜も動かしてよく、スコアを置き換えたら null（スコア入力）に戻す。編集画面ではゲームのログに出る上昇幅（パラボ込み）を入れると、今の編成のパラボ%で元のステに逆算して保存する。スコア欄はスター性用。ステ入力の合計が選抜の上昇基準値（140／440／520）を超えると編集画面に注意を出す。`examBaseline`＝選抜の入力を手で変える前の点数配分の控え（最後に探索が書いた配分か初期値。null＝手で変えていない。元の値に戻すか、探索が点数配分を書くと null。探索の前の確認に使う。旧データには無い＝null）） | `src/lib/useSchedule.ts` |
 | `gakumas:niaSchedule:v1` | N.I.A の踏み方（自主レッスン、営業、1 次・2 次オーディションの素点と投票数、最終スコア、最終の素点入力 finalStats） | `src/lib/useNiaSchedule.ts` |
 | `gakumas:pIdols:count:v1` | Pアイドルの所持状況を最後に保存したときのPアイドル数（これ以降に追加された新しいPアイドルは特訓6・開花4で持っている扱い。所持状況の保存・セーブデータにも `pIdolCount` として入る） | `src/lib/useOwnedPIdols.ts` |
 | `gakumas:calc:sideTabsSeen:v1` | 左端タブの案内（初めて探索したあとの吹き出し）を見たか | `src/components/calc/CalcPage.tsx` |

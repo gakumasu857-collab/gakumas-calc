@@ -106,11 +106,20 @@ export default function FormationPlanCard({
           <span className="w-full font-bold text-slate-700 sm:w-36">開始時のステータス</span>
           {/* スマホでは3列のグリッド（Visual が2行目に落ちない）、PCでは横並び */}
           <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:gap-x-4">
+            {/* スマホは1列が狭いので「Vo 123」の下に「+52.5%」を置く（1行だと隣の列に重なる）。PCは1行 */}
             {TYPE_KEYS.map((type) => (
-              <span key={type} className="whitespace-nowrap tabular-nums">
-                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-                <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
-                <span className="text-slate-500"> +{r.perType[type].startPct}%</span>
+              <span
+                key={type}
+                className="flex flex-col leading-tight tabular-nums sm:block sm:whitespace-nowrap sm:leading-normal"
+              >
+                <span className="whitespace-nowrap">
+                  <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+                  <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
+                </span>
+                <span className="whitespace-nowrap text-xs text-slate-500 sm:text-sm">
+                  {" "}
+                  +{r.perType[type].startPct}%
+                </span>
               </span>
             ))}
           </div>

@@ -3,6 +3,7 @@ import { Funnel } from "lucide-react";
 import { ABILITY_NAMES } from "@/data/constants";
 import { SUPPORT_CARD_DB, type SupportCardData } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
+import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import {
   computePIdolStats,
@@ -92,6 +93,7 @@ function SupportInfoTable() {
   const [rarityFilter, setRarityFilter] = useState("すべて");
   const [typeFilter, setTypeFilter] = useState("すべて");
   const [planFilter, setPlanFilter] = useState("すべて");
+  const [nameQuery, setNameQuery] = useState("");
 
   // 並びはレアリティ順（R → SR → SSR → 配布SSR）、各レアリティ内は実装順（スプシの行順）
   const visible = useMemo(() => {
@@ -108,13 +110,14 @@ function SupportInfoTable() {
         return false;
       if (typeFilter !== "すべて" && card.cardType !== typeFilter) return false;
       if (planFilter !== "すべて" && card.plan !== planFilter) return false;
+      if (nameQuery.trim() && !matchesCardQuery(card.name, nameQuery)) return false;
       return true;
     }).sort(
       (a, b) =>
         (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9) ||
         (addedIndex.get(a.id) ?? 0) - (addedIndex.get(b.id) ?? 0),
     );
-  }, [rarityFilter, typeFilter, planFilter]);
+  }, [rarityFilter, typeFilter, planFilter, nameQuery]);
 
   return (
     <div>
@@ -123,6 +126,14 @@ function SupportInfoTable() {
           <Funnel size={13} />
           フィルター
         </span>
+        {/* 名前検索（サポカ設定ページと同じ。ひらがな・別名でも引ける） */}
+        <input
+          type="search"
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+          placeholder="名前で検索（ひらがなOK）"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
+        />
         <FilterSelect
           label="レアリティ"
           options={["R", "SR", "SSR", "配布SSR"]}

@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Funnel } from "lucide-react";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
+import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import {
   buildSheetScoreContext,
@@ -83,6 +84,7 @@ export default function CardScoreTable() {
   const [typeFilter, setTypeFilter] = useState("すべて");
   const [planFilter, setPlanFilter] = useState("すべて");
   const [ownedOnly, setOwnedOnly] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean } | null>(
     null,
   );
@@ -187,6 +189,7 @@ export default function CardScoreTable() {
       if (typeFilter !== "すべて" && row.cardType !== typeFilter) return false;
       if (planFilter !== "すべて" && row.plan !== planFilter) return false;
       if (ownedOnly && row.ownedLevel < 0) return false;
+      if (nameQuery.trim() && !matchesCardQuery(row.name, nameQuery)) return false;
       return true;
     });
     if (sort) {
@@ -204,7 +207,7 @@ export default function CardScoreTable() {
       list = [...list].sort((a, b) => b.points - a.points);
     }
     return list;
-  }, [rows, rarityFilter, typeFilter, planFilter, ownedOnly, sort]);
+  }, [rows, rarityFilter, typeFilter, planFilter, ownedOnly, nameQuery, sort]);
 
   const toggleSort = (key: SortKey) => {
     setSort((prev) =>
@@ -226,6 +229,14 @@ export default function CardScoreTable() {
           <Funnel size={13} />
           フィルター
         </span>
+        {/* 名前検索（サポカ設定ページと同じ。ひらがな・別名でも引ける） */}
+        <input
+          type="search"
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+          placeholder="名前で検索（ひらがなOK）"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
+        />
         <FilterSelect
           label="レアリティ"
           options={["R", "SR", "SSR", "配布SSR"]}

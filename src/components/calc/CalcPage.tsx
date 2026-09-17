@@ -8,6 +8,7 @@ import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
 import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import DetailSettingsModal from "@/components/calc/DetailSettingsModal";
+import { useExamGuard } from "@/components/calc/ExamPolicyModal";
 import NiaChallengeModal from "@/components/calc/NiaChallengeModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
@@ -35,7 +36,7 @@ import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
-import { allocateEventsForSlots, runFullOptimize } from "@/lib/autoOptimize";
+import { allocateEventsForSlots, runFullOptimize, type ExamPolicy } from "@/lib/autoOptimize";
 import { buildConditionInput } from "@/lib/diagLog";
 import { imageUrl } from "@/lib/config";
 import { exportSheetImage } from "@/components/calc/ExportSheet";
@@ -176,6 +177,8 @@ export default function CalcPage() {
   };
   /** 「今の編成のまま踏み方だけ」（分割メニュー） */
   const planOpt = useOptimizePlan(r);
+  /** 探索の前の確認: 選抜の点数配分を手で変えていたら「このまま固定／探索で決め直す」を選んでもらう（H.I.F） */
+  const examGuard = useExamGuard(r);
 
   // 前イベ・後イベ・ステイベの手動指定は「今の編成での調整」。編成から外れたカードの分は消す
   // （別の編成で取得OFFにしたカードを探索が入れ直すと、何もしていないのに「1枚変更中」になっていた）
@@ -258,7 +261,7 @@ export default function CalcPage() {
         selected.setAll(slots);
         // 前イベ・後イベの取得状況も探索が決める（制限があれば割り当て、無ければ全部発動）
         const alloc = settings.eventBudget.enabled
-          ? allocateEventsForSlots(buildAutoOptimizeInput(r, flags, settings), slots)
+          ? allocateEventsForSlots(buildAutoOptimizeInput(r, flags, settings, "fixed"), slots)
           : { ops: [], cappedSum: null };
         r.events.applyEventOps(
           slots.map((s) => s.id),
@@ -299,16 +302,20 @@ export default function CalcPage() {
    * SP率持ち・タイプ割合・最低/最高ステ）を満たしているか。
    * 満たしているのに探索結果が今の評価値を下回る場合は、結果を反映せず現状維持する
    * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
+   * 点数配分を固定して探索するときは、「選抜は極振り」の条件は見ない（固定を選んだのは利用者なので）。
    */
-  const currentMeetsConditions = (): boolean => meetsConditions(conditionInput());
+  const conditionInputFor = (examPolicy: ExamPolicy): ConditionInput =>
+    examPolicy === "fixed" ? { ...conditionInput(), examSingle: null } : conditionInput();
 
   /**
    * 全自動最適化: レッスン（営業・授業）の踏み方×サポカ編成をまとめて探索して、
    * 評価値が一番高かった組み合わせを踏み方・選択サポカへ反映する。
    * 結果そのものは編成・踏み方・評価値の表示に出るので、ここには探索の内訳
    * （何通り・何秒・前後の評価値）と注意だけを残す。
+   * @param examPolicy 選抜の点数配分の扱い（確認モーダルで選んだもの。fixed＝今の配分のまま、
+   *   free／single＝探索が決める）
    */
-  const runAutoOptimize = () => {
+  const runAutoOptimize = (examPolicy: ExamPolicy) => {
     markRun();
     setOptBusy(true);
     setLastRun(null);
@@ -322,11 +329,12 @@ export default function CalcPage() {
     const curIds = r.selected.slots.flatMap((s) => (s ? [s.id] : []));
     const curHasOverrides = hasEventOverrides(curIds);
     let before: number | null = guardOn && !curHasOverrides ? r.rating : null;
-    let beforeOk = guardOn && currentMeetsConditions();
+    const condInput = () => conditionInputFor(examPolicy);
+    let beforeOk = guardOn && meetsConditions(condInput());
     // 「計算中…」を先に描画させてから重い探索を回す
     setTimeout(() => {
       try {
-        const res = runFullOptimize(buildAutoOptimizeInput(r, flags, settings));
+        const res = runFullOptimize(buildAutoOptimizeInput(r, flags, settings, examPolicy));
         if (!res) {
           setLastRun({ message: noFormationMessage() });
           return;
@@ -337,7 +345,7 @@ export default function CalcPage() {
           before = res.currentRating ?? null;
           beforeOk =
             !!res.currentStats &&
-            meetsConditions({ ...conditionInput(), capped: res.currentStats });
+            meetsConditions({ ...condInput(), capped: res.currentStats });
         }
         // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
         const issues = res.axisReport?.find((a) => a.chosen)?.issues ?? [];
@@ -367,13 +375,19 @@ export default function CalcPage() {
         }
         if (res.hif) {
           const hif = res.hif;
-          // ステ入力にしていた選抜を、探索がスコア入力へ切り替えたら知らせる
-          const statToScore = r.schedule.examStats.some(
-            (x, i) => x != null && hif.examStats[i] == null,
-          );
-          r.schedule.setPlan(hif.lessons, hif.classTypes, hif.examScores, hif.examStats);
-          if (statToScore)
-            notes.push("ステ入力にしていた選抜を、探索したスコアの入力に切り替えました");
+          if (examPolicy === "fixed") {
+            // 点数配分を固定して探索した: 選抜は書き換えない（手で変えた印も残るので、次の探索でもまた聞く）
+            r.schedule.setPlan(hif.lessons, hif.classTypes);
+            notes.push("選抜の点数配分はそのままにして、サポカ編成・レッスン・授業だけ探索しました");
+          } else {
+            // ステ入力にしていた選抜を、探索がスコア入力へ切り替えたら知らせる
+            const statToScore = r.schedule.examStats.some(
+              (x, i) => x != null && hif.examStats[i] == null,
+            );
+            r.schedule.setPlan(hif.lessons, hif.classTypes, hif.examScores, hif.examStats);
+            if (statToScore)
+              notes.push("ステ入力にしていた選抜を、探索したスコアの入力に切り替えました");
+          }
         }
         if (res.nia) r.niaSchedule.setPlan(res.nia.lessons, res.nia.sales);
         if (res.hatsu)
@@ -459,20 +473,20 @@ export default function CalcPage() {
     if (r.pMaster && !r.ownership) setPIdolWarn(() => run);
     else run();
   };
-  const requestAutoOptimize = () => guardPIdol(runAutoOptimize);
+  const requestAutoOptimize = () => guardPIdol(() => examGuard.ask("full", runAutoOptimize));
   /** プラン外のサポカが入っているか（画像出力は不可にする） */
   const outOfPlan = r.members.some(
     (m) => m !== null && !planAllows(SUPPORT_CARD_DB.find((c) => c.id === m.id)?.plan ?? "", r.plan),
   );
 
   const anyBusy = optBusy || idealBusy || planOpt.busy;
-  const runPlanOnly = () => {
+  const runPlanOnly = (examPolicy: ExamPolicy) => {
     markRun();
     setLastRun(null);
     planOpt.run((m) => {
       setLastRun({ message: m });
       bumpRun();
-    });
+    }, examPolicy);
   };
   /** 操作パネル（前提のすぐ下＝入れたらそのまま押す。PC・スマホ共通） */
   const actionPanel = (
@@ -485,7 +499,7 @@ export default function CalcPage() {
       status={lastRun}
       onRun={requestAutoOptimize}
       onFormationOnly={() => guardPIdol(applyIdealFormation)}
-      onPlanOnly={runPlanOnly}
+      onPlanOnly={() => examGuard.ask("plan", runPlanOnly)}
       onConditions={() => setTheoryOpen(true)}
     />
   );
@@ -684,6 +698,10 @@ export default function CalcPage() {
                 .map((s) => s!.id),
             )
           }
+          members={r.members}
+          baseNoConv={r.baseNoConv}
+          basePct={r.basePct}
+          statCap={r.statCap}
           ctx={r.ctx}
           typeRole={r.roles.typeRole}
           plan={r.plan}
@@ -704,6 +722,7 @@ export default function CalcPage() {
       {theoryOpen && (
         <TheorySettingsModal
           settings={settings}
+          scenario={r.scenario}
           onUpdate={calc.update}
           onClose={() => setTheoryOpen(false)}
         />
@@ -796,6 +815,8 @@ export default function CalcPage() {
         highlight={sideHint}
         onDismissHighlight={dismissSideHint}
       />
+      {/* 探索の前の確認: 選抜の点数配分を手で変えている（H.I.F） */}
+      {examGuard.modal}
       {/* 探索の前の注意: 選んでいるPアイドルが未所持 */}
       {pIdolWarn && r.pMaster && (
         <PIdolUnownedModal

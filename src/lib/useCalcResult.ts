@@ -166,9 +166,11 @@ export function useCalcResult() {
     const niaChallengePct = niaChallengeTotal(settings.niaChallenge);
     let niaAuditionBase: Record<TypeKey, number>[] = [];
     let ctx;
-    // レッスン由来のPポイント合計と、タイプ別「メイン踏み×SP」のPポイント（P率の母数）
+    // レッスン由来のPポイント合計と、踏んだレッスン1回ごとのPポイント（P率の母数）。
+    // P率（レッスン全体・自タイプのSPレッスン）はゲームと同じく獲得のたびに切り捨てるので、
+    // 合計ではなく1回ずつ持つ（honsen は H.I.F の本戦のレッスン。選抜・本戦の内訳に使う）
     let lessonP = 0;
-    const typeSpP: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    const lessonPList: { p: number; main: TypeKey; sp: boolean; honsen: boolean }[] = [];
     if (scenario === "niaMaster") {
       const nia = computeNiaGains(niaSchedule, niaTag, typeRanks, niaChallengePct);
       bd = nia.breakdown;
@@ -178,7 +180,8 @@ export function useCalcResult() {
       lessonP = nia.pPoints;
       NIA_LESSONS.forEach((lesson, i) => {
         const pick = niaSchedule.lessons[i];
-        if (pick?.sp && pick.main) typeSpP[pick.main] += lesson.p;
+        if (pick?.main)
+          lessonPList.push({ p: lesson.p, main: pick.main, sp: pick.sp, honsen: false });
       });
       ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks, niaChallengePct);
     } else if (scenario === "hatsuLegend") {
@@ -188,7 +191,8 @@ export function useCalcResult() {
       lessonP = hatsu.pPoints;
       HATSU_LESSONS.forEach((lesson, i) => {
         const pick = hatsuSchedule.lessons[i];
-        if (pick?.sp && pick.main) typeSpP[pick.main] += lesson.p;
+        if (pick?.main)
+          lessonPList.push({ p: lesson.p, main: pick.main, sp: pick.sp, honsen: false });
       });
       ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
     } else {
@@ -202,7 +206,13 @@ export function useCalcResult() {
       lessonP = sched.pPoints;
       LESSONS.forEach((lesson, i) => {
         const pick = schedule.lessons[i];
-        if (pick?.main && pick.sp) typeSpP[pick.main] += lesson.p;
+        if (pick?.main)
+          lessonPList.push({
+            p: lesson.p,
+            main: pick.main,
+            sp: pick.sp,
+            honsen: lesson.label.startsWith("本戦"),
+          });
       });
       ctx = buildSheetScoreContext(schedule, manual, events.get);
     }
@@ -322,29 +332,22 @@ export function useCalcResult() {
       // サポカ固定P・メモリーは選抜期間に計上し、レッスンP率・タイプSPレッスンP率の
       // 換算は対象レッスンの期間（選抜/本戦）に入れる
       const isHifP = scenario === "hif";
+      // H.I.Fのレッスンのpは選抜・本戦に分けて持つ（他シナリオは0のまま）
       let lessonPSenbatsu = 0;
       let lessonPHonsen = 0;
-      // タイプSPレッスンP率の母数（自タイプのメイン踏み×SPレッスンのP）を期間別に持つ
-      const spPSen: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      const spPHon: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       if (isHifP) {
-        LESSONS.forEach((lesson, i) => {
-          const pick = schedule.lessons[i];
-          if (!pick?.main) return;
-          const honsen = lesson.label.startsWith("本戦");
-          if (honsen) lessonPHonsen += lesson.p;
-          else lessonPSenbatsu += lesson.p;
-          if (pick.sp) (honsen ? spPHon : spPSen)[pick.main] += lesson.p;
-        });
+        for (const l of lessonPList) {
+          if (l.honsen) lessonPHonsen += l.p;
+          else lessonPSenbatsu += l.p;
+        }
       }
 
       let cardP = 0;
       let recover = 0;
       let maxHp = 0;
+      // レッスンPポイント率（全レッスン）と、タイプSPレッスンPポイント率（そのカードのタイプのSPレッスン）
       let rateLesson = 0;
-      let rateTypeSpTotal = 0;
-      let rateTypeSpSen = 0;
-      let rateTypeSpHon = 0;
+      const rateTypeSp: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
       for (const m of activeCards) {
         const db = DB_BY_ID.get(m.id);
         if (!db) continue;
@@ -353,15 +356,20 @@ export function useCalcResult() {
         recover += res.recover;
         maxHp += res.maxHp;
         rateLesson += res.pRateLesson;
-        // タイプSP率は「自タイプのメイン踏み×SPレッスン」のPが母数
-        rateTypeSpTotal += res.pRateTypeSp * typeSpP[m.type];
-        rateTypeSpSen += res.pRateTypeSp * spPSen[m.type];
-        rateTypeSpHon += res.pRateTypeSp * spPHon[m.type];
+        rateTypeSp[m.type] += res.pRateTypeSp;
       }
-      const rateP = Math.floor(rateLesson * lessonP + rateTypeSpTotal);
-      // P率換算の期間別内訳（選抜レッスン由来 / 本戦レッスン由来）
-      const ratePSen = Math.floor(rateLesson * lessonPSenbatsu + rateTypeSpSen);
-      const ratePHon = Math.floor(rateLesson * lessonPHonsen + rateTypeSpHon);
+      // P率の換算はレッスン1回ごとに切り捨てる（ステのパラボと同じく、ゲームは獲得のたびに切り捨てる。
+      // 率は全サポカぶんを合算してから掛ける）。以前は全レッスンの合計に掛けて最後に1回だけ切り捨てていた。
+      // 期間別の内訳（選抜レッスン由来 / 本戦レッスン由来）もここで分ける
+      let ratePSen = 0;
+      let ratePHon = 0;
+      for (const l of lessonPList) {
+        const rate = rateLesson + (l.sp ? rateTypeSp[l.main] : 0);
+        const bonus = Math.floor(l.p * rate + 1e-9);
+        if (isHifP && l.honsen) ratePHon += bonus;
+        else ratePSen += bonus;
+      }
+      const rateP = ratePSen + ratePHon;
       void recover; // 体力回復は表示しない（体力＝最大体力を表示する）
       // 差し入れ（活動支給）のPポイントは、どの週（日）で踏んだかで変わる
       // （スケジュールの選択から。H.I.Fは選抜・本戦に分けて計上する）

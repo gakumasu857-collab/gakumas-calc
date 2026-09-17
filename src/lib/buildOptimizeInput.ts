@@ -4,7 +4,7 @@
  */
 import { hifBonusValues } from "@/data/hifBonus";
 import { niaChallengeTotal } from "@/data/niaChallenge";
-import type { AutoOptimizeInput } from "./autoOptimize";
+import type { AutoOptimizeInput, ExamPolicy } from "./autoOptimize";
 import { examStyleTags, type CardFlagSets } from "./formation";
 import { IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
@@ -41,10 +41,15 @@ export function resolveSpMin(
   return out;
 }
 
+/**
+ * @param examPolicy 選抜の点数配分の扱い（H.I.Fだけ）。省略時は設定から（「極振りで探索する」が ON なら single）。
+ *   「このままの点数配分で探索する」を選んだとき・踏み方を動かさない評価（編成だけ）は fixed を渡す
+ */
 export function buildAutoOptimizeInput(
   r: CalcResult,
   flags: CardFlagSets,
   settings: CalcSettings,
+  examPolicy?: ExamPolicy,
 ): AutoOptimizeInput {
   const manual = manualCountFromSet(
     r.selectedSet ? (key) => r.ability.getRunCount(r.selectedSet!, key) : null,
@@ -52,6 +57,8 @@ export function buildAutoOptimizeInput(
   const tag = IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat";
   return {
     scenario: r.scenario,
+    examPolicy:
+      r.scenario === "hif" ? (examPolicy ?? (settings.examAllIn ? "single" : "free")) : "free",
     hif: {
       lessons: r.schedule.lessons,
       classTypes: r.schedule.classTypes,

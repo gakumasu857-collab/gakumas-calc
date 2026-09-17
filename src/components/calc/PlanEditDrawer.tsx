@@ -61,6 +61,7 @@ import {
 import { missingCalcInputs, notReadyTitle } from "@/lib/optimizeReady";
 import type { useCalcResult } from "@/lib/useCalcResult";
 import { useOptimizePlan } from "@/lib/useOptimizePlan";
+import { useExamGuard } from "@/components/calc/ExamPolicyModal";
 import { subAppearProb } from "@/lib/useSchedule";
 import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
@@ -103,6 +104,8 @@ export default function PlanEditDrawer({
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { run: optimizePlan, busy: optBusy, msg: optMsg } = useOptimizePlan(r);
+  // 選抜の点数配分を手で変えていたら、探索の前に「このまま固定／探索で決め直す」を聞く（H.I.F）
+  const examGuard = useExamGuard(r);
   // 踏み方の最適化も、シナリオ・Pアイドル・育成セット・メモリーがそろうまで押せない
   const missingInputs = missingCalcInputs(r);
   const optimizeReady = missingInputs.length === 0;
@@ -120,7 +123,7 @@ export default function PlanEditDrawer({
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => optimizePlan()}
+              onClick={() => examGuard.ask("plan", (policy) => optimizePlan(undefined, policy))}
               disabled={optBusy || !optimizeReady}
               title={
                 notReadyTitle(missingInputs) ??
@@ -206,6 +209,8 @@ export default function PlanEditDrawer({
           )}
         </Modal>
       )}
+      {/* 探索の前の確認（このエディタの上に重ねて出す） */}
+      {examGuard.modal}
     </>
   );
 }
@@ -311,6 +316,9 @@ function HifEditor({ r }: { r: CalcResult }) {
             const scores = schedule.examScores[i];
             const stats = schedule.examStats[i];
             const total = TYPE_KEYS.reduce((sum, t) => sum + scores[t], 0);
+            /** ステ入力のときのパラボ抜きのステの合計。上昇基準値（選抜1なら140）を超えることは実際には無い */
+            const statSum = stats ? TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0) : 0;
+            const statOver = stats ? Math.max(0, statSum - exam.base) : 0;
             /** スター性が上限に達するスコア（入力もここで止める） */
             const capScore = examStarCapScore(i);
             /** 極振り: スター性が上限に達するスコアを1タイプに全部（今の合計ではなく上限） */
@@ -393,10 +401,12 @@ function HifEditor({ r }: { r: CalcResult }) {
                       after={
                         <span className="text-xs tabular-nums text-slate-500">
                           合計{" "}
-                          <b className="text-slate-800">
-                            {TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0)}
+                          <b className={statOver > 0 ? "text-red-600" : "text-slate-800"}>
+                            {statSum}
                           </b>
-                          <span className="text-slate-400">（合計最大 {exam.base}）</span>
+                          <span className={statOver > 0 ? "font-bold text-red-600" : "text-slate-400"}>
+                            （合計最大 {exam.base}）
+                          </span>
                         </span>
                       }
                     >
@@ -412,6 +422,16 @@ function HifEditor({ r }: { r: CalcResult }) {
                         </TypeCell>
                       ))}
                     </TypeFieldGrid>
+                    {/* 合計が上昇基準値を超えていたら注意（実際の選抜では合計が最大を超えない＝どこか打ち間違い） */}
+                    {statOver > 0 && (
+                      <p
+                        role="alert"
+                        className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold leading-relaxed text-red-700"
+                      >
+                        ⚠ パラボ抜きのステの合計が {statSum} で、{exam.name}の合計最大 {exam.base} を{" "}
+                        {statOver} 超えています。実際より高いステで計算されるので、3タイプの値を見直してください。
+                      </p>
+                    )}
                     <span className="text-[11px] leading-relaxed text-slate-400">
                       上の段にパラボ込みの値（ゲーム内ログにある上昇幅）を入れると、今の編成のパラボ%で下の段（計算に使う値）を逆算します。編成を変えると上の段の表示も変わります。
                     </span>

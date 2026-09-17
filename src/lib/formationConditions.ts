@@ -43,6 +43,11 @@ export type ConditionInput = {
   statCap: number;
   /** 所持凸（-1=未所持）。固定カードを編成に入れられるかの判定に使う */
   getLevel: (id: string) => number;
+  /**
+   * 「選抜は極振りで探索する」（H.I.F）を今の踏み方が満たしているか。
+   * null／省略＝この条件は見ない（設定OFF・H.I.F以外・点数配分を固定して探索したとき）
+   */
+  examSingle?: boolean | null;
 };
 
 /** 編成に入れられる固定カード（プランが合い、所持かレンタル可）のID */
@@ -123,6 +128,8 @@ export function formationIssues(input: ConditionInput): string[] {
     input.statCap,
   ))
     issues.push(`${TYPE_JA[t]}が最高ステ超過`);
+  // 選抜は極振り（設定ONのH.I.Fだけ。今の点数配分が極振りでなければ、探索結果が低くても置き換える）
+  if (input.examSingle === false) issues.push("選抜が極振りになっていない");
   return issues;
 }
 
@@ -226,6 +233,14 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
         : unavoidable.length
           ? `${unavoidable.map((t) => TYPE_JA[t]).join("・")}超過（ほかの2タイプが上限のため可）`
           : undefined,
+    });
+  }
+  // 選抜は極振り（設定ONのH.I.Fだけ）
+  if (input.examSingle != null) {
+    out.push({
+      label: "選抜は極振り",
+      ok: input.examSingle,
+      detail: input.examSingle ? undefined : "極振りでない選抜がある",
     });
   }
   // ステージ用BAN（固定したカードは除く）

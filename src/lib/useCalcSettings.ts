@@ -12,7 +12,7 @@ import type { EventCountOverride } from "./sheetScore";
 import type { PIdolOwnership } from "./useOwnedPIdols";
 import type { HatsuState } from "./useHatsuSchedule";
 import type { NiaState } from "./useNiaSchedule";
-import type { ScheduleState } from "./useSchedule";
+import type { ExamAllocation, ScheduleState } from "./useSchedule";
 
 /**
  * 計算ページの入力状態とセーブデータのストア。
@@ -75,6 +75,13 @@ export type CalcSettings = {
   baseSpRate: Record<ScenarioKey, number>;
   /** 探索で、育成後のステータスをこの順（高い→低い）にする（null＝指定なし） */
   statOrder: TypeKey[] | null;
+  /**
+   * H.I.F: 選抜の点数配分を手で変えていたら、探索の前に「このまま固定して探索するか・探索で決め直すか」を聞く。
+   * OFF なら聞かずに、いつも探索が決め直す（既定は ON）
+   */
+  examConfirm: boolean;
+  /** H.I.F: 選抜は3つとも1タイプへの極振りだけで探索する（細かい比率を試さない。既定は OFF） */
+  examAllIn: boolean;
 /**
    * 親愛度Lv（20以下＝20、21〜37）。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く。
    * シナリオ共通（Pポイントは全シナリオに関わる）。既定は37（一番星）。
@@ -104,6 +111,8 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   noStageItems: false,
   baseSpRate: { hif: 10, niaMaster: 15, hatsuLegend: 15 },
   statOrder: null,
+  examConfirm: true,
+  examAllIn: false,
   affection: AFFECTION_DEFAULT,
   hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
@@ -119,8 +128,8 @@ export const DEFAULT_SETTINGS: CalcSettings = {
  */
 export type CalcSaveSnapshot = {
   scenario: ScenarioKey;
-  /** シナリオ別の踏み方（3つとも保存して、どのシナリオに戻しても再現できるように） */
-  schedule: ScheduleState;
+  /** シナリオ別の踏み方（3つとも保存して、どのシナリオに戻しても再現できるように）。examBaseline は旧データには無い */
+  schedule: Omit<ScheduleState, "examBaseline"> & { examBaseline?: ExamAllocation | null };
   nia: NiaState;
   hatsu: HatsuState;
   /** メモリースロット4枠の中身（保存していないメモリーもそのまま。空枠は null） */
@@ -229,6 +238,10 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
     statOrder: normalizeStatOrder(stored.statOrder),
+    // 真偽値以外（壊れた値・旧データ）は既定に戻す
+    examConfirm:
+      typeof stored.examConfirm === "boolean" ? stored.examConfirm : DEFAULT_SETTINGS.examConfirm,
+    examAllIn: typeof stored.examAllIn === "boolean" ? stored.examAllIn : DEFAULT_SETTINGS.examAllIn,
   };
 }
 

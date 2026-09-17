@@ -117,15 +117,15 @@ export default function HomePage() {
             それぞれの権利者に帰属します。
           </p>
           <p>
-            <b className="text-slate-600">
-              著作権元（権利者）からの削除申請には、いつでも速やかに応じます。
-            </b>
-            掲載内容についてのご連絡は{" "}
+            著作権元（権利者）からの削除申請には、いつでも速やかに応じます。
+            掲載内容についてのご連絡は X（旧Twitter）の{" "}
             <a
-              href="mailto:gakumasu857@gmail.com"
+              href="https://x.com/hoppe_hanami873"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-600 underline"
             >
-              gakumasu857@gmail.com
+              @hoppe_hanami873
             </a>{" "}
             までお願いします。
           </p>

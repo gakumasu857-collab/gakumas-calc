@@ -10,8 +10,8 @@
  *  finalStats + finalStatsCap ... 「育成後のステータス」の見出し（StatsCard）
  *  pCards / pTotal ... 育成後のステータスの下のPポイント2行（StatsCard）
  *  mainParabo ........ メモリーの一覧の「メインパラボ◯点」（MemoryLibrary）
- *  typeRatio / spHolders / statOrder / examAssist / stageItems / minStat / maxStat / eventBudget
- *                      ... 「探索の条件」（SettingPickers）
+ *  typeRatio / spHolders / statOrder / examAssist / stageItems / examConfirm / examAllIn /
+ *  minStat / maxStat / eventBudget ... 「探索の条件」（SettingPickers。examConfirm・examAllIn は H.I.F のときだけ出る）
  *  stepping / axis / rental / cardFlags ... 画面の ⓘ では未使用（ヘルプページの「用語」だけで説明）
  *
  * ▼ ここ以外にある説明文
@@ -50,6 +50,10 @@ export const GLOSSARY = {
     "試験に強いアイテム・ドリンク・SP率持ちのサポカを優先して編成します。表示される評価値は素の値のままです。",
   stageItems:
     "前イベがスキル、またはステージ用アイテムのサポカを編成しません（固定したサポカは残ります）。",
+  examConfirm:
+    "H.I.Fの選抜の点数配分（スコア・ステ入力）を手で変えたあとに探索を押すと、「このままの点数配分で探索する」か「点数配分も探索で決め直す」かを選ぶ確認が出ます。このままを選ぶと、点数配分は固定して、サポカ編成・レッスン・授業だけを探索します（実際の試験で思った通りに寄せられないとき用）。OFFにすると確認せず、いつも探索が点数配分を決め直します。",
+  examAllIn:
+    "H.I.Fの選抜1〜3のそれぞれで、スコアを1つのタイプに全部振った配分（極振り）だけを試します。Vo 2：Da 1 のような細かい分け方はしません。どのタイプに振るかは選抜ごとに探索が決めます。",
   /** 画面の ⓘ では未使用（ヘルプページの「用語」で説明） */
   rental:
     "レンタル: 他のユーザーから借りる1枚（完凸扱い）。編成に1枚まで。",

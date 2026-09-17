@@ -110,10 +110,13 @@ function TypeSlotAllocator({
  */
 export function TheorySettingsModal({
   settings,
+  scenario,
   onUpdate,
   onClose,
 }: {
   settings: CalcSettings;
+  /** 今のシナリオ（選抜の点数配分の項目は H.I.F のときだけ出す） */
+  scenario: ScenarioKey;
   onUpdate: (patch: Partial<CalcSettings>) => void;
   onClose: () => void;
 }) {
@@ -298,6 +301,35 @@ export function TheorySettingsModal({
                 <Hint text={GLOSSARY.stageItems} />
               </label>
             </section>
+            {/* 選抜の点数配分（H.I.Fだけ）: 手で変えた配分の確認と、極振りだけの探索 */}
+            {scenario === "hif" && (
+              <>
+                <section className="border-t border-slate-100 pt-3">
+                  <label className="flex items-center gap-1.5 font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={settings.examConfirm}
+                      onChange={(e) => onUpdate({ examConfirm: e.target.checked })}
+                      className="accent-blue-600"
+                    />
+                    選抜の点数配分を手で変えていたら、探索の前に確認する
+                    <Hint text={GLOSSARY.examConfirm} />
+                  </label>
+                </section>
+                <section className="border-t border-slate-100 pt-3">
+                  <label className="flex items-center gap-1.5 font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={settings.examAllIn}
+                      onChange={(e) => onUpdate({ examAllIn: e.target.checked })}
+                      className="accent-blue-600"
+                    />
+                    選抜は3つとも極振りで探索する
+                    <Hint text={GLOSSARY.examAllIn} />
+                  </label>
+                </section>
+              </>
+            )}
           </>
         ) : (
           <>
