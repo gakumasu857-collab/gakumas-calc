@@ -88,62 +88,104 @@ export const EXAMS = [
   { name: "選抜3", base: 520, fixed: 300, dist: 220, starCap: 110 },
 ] as const;
 
-/** スター性のスケール補正（2026-07修正: 本戦以外は従来値の1.5倍が正） */
-const STAR_SCALE = 1.5;
-
 /**
- * 選抜試験のスター性（親愛度37の値。オーナー提供の表 2026-09）。
- * スコアの区間ごとに、両端のスター性を直線でつなぐ（傾きは両端から求める）。小数は切り捨て。
- *   選抜1: 0〜2,850: 0→28 ／ 2,851〜6,666: 30→46 ／ 6,667〜14,000: 48→58 ／ 14,001〜: 60
- *   選抜2: 0〜29,454: 0→81 ／ 29,455〜68,788: 82→130 ／ 68,789〜146,364: 132→163 ／ 146,365〜: 165
- *   選抜3: 0〜98,181: 0→81 ／ 98,182〜196,969: 82→130 ／ 196,970〜390,909: 132→163 ／ 390,910〜: 165
- * （親愛度27なら 0→19／20→31／32→39／40 など。計算機は親愛度37で固定）
+ * 選抜試験のスター性の式（オーナー提供の表 2026-09-21。以前の「両端を直線でつなぐ表」は境界が1ずれていた）。
+ *   素の値（親愛度27以下） = 切り上げ( Σ 区間ごとの スコア × 傾き )。上限あり
+ *   表示のスター性       = 切り捨て( 素の値 × (1＋親愛度ボーナス) )   … 親愛度37なら ×1.5
+ * 傾きは分数（1/150 など）なので、小数の誤差で切り上げが狂わないよう分子・分母を整数で持つ。
+ *   選抜1: 〜3,000: 1/150 ／ 〜7,000: 3/1000 ／ 〜15,000: 1/1000 ／ それ以上: 0。素の上限 40（表示60）
+ *   選抜2: 〜30,000: 11/6000 ／ 〜70,000: 33/40000 ／ 〜150,000: 11/40000 ／ それ以上: 0。上限 110（165）
+ *   選抜3: 〜100,000: 11/20000 ／ 〜200,000: 33/100000 ／ 〜400,000: 11/100000 ／ それ以上: 0。上限 110（165）
+ * 例: 選抜1のスコア 14,001 → 20＋12＋7.001＝39.001 → 切り上げ 40 → ×1.5＝60。2,850 → 19 → 28。2,851 → 20 → 30。
  */
-export type ExamStarSegment = { from: number; to: number; star: readonly [number, number] };
-export const EXAM_STAR_SEGMENTS: readonly (readonly ExamStarSegment[])[] = [
-  [
-    { from: 0, to: 2850, star: [0, 28] },
-    { from: 2851, to: 6666, star: [30, 46] },
-    { from: 6667, to: 14000, star: [48, 58] },
-    { from: 14001, to: Infinity, star: [60, 60] },
-  ],
-  [
-    { from: 0, to: 29454, star: [0, 81] },
-    { from: 29455, to: 68788, star: [82, 130] },
-    { from: 68789, to: 146364, star: [132, 163] },
-    { from: 146365, to: Infinity, star: [165, 165] },
-  ],
-  [
-    { from: 0, to: 98181, star: [0, 81] },
-    { from: 98182, to: 196969, star: [82, 130] },
-    { from: 196970, to: 390909, star: [132, 163] },
-    { from: 390910, to: Infinity, star: [165, 165] },
-  ],
+export type ExamStarRule = {
+  /** 区間の上端と、その区間の傾きの分子（傾き＝num／den）。上端を超えた分は傾き0 */
+  segments: readonly { to: number; num: number }[];
+  /** 傾きの共通の分母 */
+  den: number;
+  /** 素のスター性の上限（親愛度27以下の値） */
+  cap: number;
+};
+export const EXAM_STAR_RULES: readonly ExamStarRule[] = [
+  { den: 3000, cap: 40, segments: [{ to: 3000, num: 20 }, { to: 7000, num: 9 }, { to: 15000, num: 3 }] },
+  { den: 120000, cap: 110, segments: [{ to: 30000, num: 220 }, { to: 70000, num: 99 }, { to: 150000, num: 33 }] },
+  { den: 100000, cap: 110, segments: [{ to: 100000, num: 55 }, { to: 200000, num: 33 }, { to: 400000, num: 11 }] },
 ];
 
+/** 素のスター性（親愛度27以下の値）。スコア×傾きの合計を切り上げ、上限で止める */
+export function examStarBase(examIndex: number, score: number): number {
+  const rule = EXAM_STAR_RULES[examIndex];
+  if (!rule || score <= 0) return 0;
+  const s = Math.floor(score);
+  let numer = 0; // 分子の合計（÷den が素の値）
+  let from = 0;
+  for (const seg of rule.segments) {
+    if (s <= from) break;
+    numer += (Math.min(s, seg.to) - from) * seg.num;
+    from = seg.to;
+  }
+  // 整数どうしなので切り上げに誤差が出ない
+  const base = Math.floor((numer + rule.den - 1) / rule.den);
+  return Math.min(rule.cap, base);
+}
+
+/** 選抜試験のスター性（親愛度のボーナス込み・切り捨て） */
 export function examStar(
   examIndex: number,
   score: number,
   affection: number = AFFECTION_DEFAULT,
 ): number {
-  const segs = EXAM_STAR_SEGMENTS[examIndex];
-  if (!segs || score <= 0) return 0;
-  const s = Math.floor(score);
-  for (const seg of segs) {
-    if (s > seg.to) continue;
-    const [y0, y1] = seg.star;
-    // 表の値は親愛度37のもの。素の値に直してから親愛度のボーナスを掛ける（切り捨て）
-    if (seg.to === Infinity) return starFromObserved(y0, affection);
-    const y = y0 + ((s - seg.from) * (y1 - y0)) / (seg.to - seg.from);
-    return Math.max(0, starFromObserved(y, affection));
-  }
-  return starFromObserved(segs[segs.length - 1].star[0], affection);
+  return starWithAffection(examStarBase(examIndex, score), affection);
 }
 
 /** スター性が上限に達する合計スコア（これ以上入れても増えない。入力の上限に使う） */
 export function examStarCapScore(examIndex: number): number {
-  const segs = EXAM_STAR_SEGMENTS[examIndex];
-  return segs ? segs[segs.length - 1].from : Infinity;
+  const rule = EXAM_STAR_RULES[examIndex];
+  if (!rule) return Infinity;
+  // 素の値が上限になる最小のスコア＝分子の合計が (上限−1)×den を初めて超える整数スコア
+  const need = (rule.cap - 1) * rule.den;
+  let numer = 0;
+  let from = 0;
+  for (const seg of rule.segments) {
+    const total = (seg.to - from) * seg.num;
+    if (numer + total > need) return from + Math.floor((need - numer) / seg.num) + 1;
+    numer += total;
+    from = seg.to;
+  }
+  return from;
+}
+
+/**
+ * 数値表に出す「合計スコアの区間 → スター性」。オーナーの表と同じ区切り方
+ * （素の値がその区間の累計に届かない範囲で1区間。選抜1: 0〜2,850／2,851〜6,666／6,667〜14,000／14,001〜）。
+ */
+export function examStarTable(
+  examIndex: number,
+  affection: number = AFFECTION_DEFAULT,
+): { from: number; to: number; star: readonly [number, number] }[] {
+  const rule = EXAM_STAR_RULES[examIndex];
+  if (!rule) return [];
+  const rows: { from: number; to: number; star: readonly [number, number] }[] = [];
+  let from = 0; // 区間の最初のスコア
+  let numer = 0; // ここまでの区間の分子の合計
+  let segFrom = 0;
+  for (const seg of rule.segments) {
+    const total = (seg.to - segFrom) * seg.num;
+    // この区間の終わりでの累計（素の値・整数）に届かない最後のスコア
+    const cumulative = Math.round((numer + total) / rule.den);
+    const need = Math.min(cumulative, rule.cap) * rule.den - rule.den;
+    const to = Math.min(segFrom + Math.floor((need - numer) / seg.num), examStarCapScore(examIndex) - 1);
+    if (to >= from) {
+      rows.push({ from, to, star: [examStar(examIndex, from, affection), examStar(examIndex, to, affection)] });
+      from = to + 1;
+    }
+    numer += total;
+    segFrom = seg.to;
+  }
+  const capScore = examStarCapScore(examIndex);
+  const capStar = examStar(examIndex, capScore, affection);
+  rows.push({ from: capScore, to: Infinity, star: [capStar, capStar] });
+  return rows;
 }
 
 /**

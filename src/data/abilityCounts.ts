@@ -30,6 +30,7 @@ export const ABILITY_CATEGORIES = [
       "aggressive_skill_ac", // 強気
       "charge_skill_ac", // 温存
       "charge_8plus_ut4", // 温存8枚以上(4回まで)
+      "burst_8plus_ut4", // 全力8枚以上(4回まで)
       "burst_skill_ac",
       "barrier_skill_ac",
       "SSR_skill_ac",
@@ -42,6 +43,7 @@ export const ABILITY_CATEGORIES = [
       "skill_enhance",
       "A_skill_enhance",
       "M_skill_enhance",
+      "charge_skill_enhance", // 温存スキルを強化した回数（温存スキル強化が起動タグの前イベに効く）
       "skill_del",
       "skill_del_ut4",
       "A_skill_del_ut3",

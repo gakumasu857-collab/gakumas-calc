@@ -81,6 +81,7 @@ import {
   rememberScenarioSet,
 } from "@/lib/scenarioSetMemory";
 import { TYPE_KEYS, type TypeKey } from "@/lib/useCalcSettings";
+import type { ScenarioKey } from "@/data/scenarios";
 
 const CARD_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c]));
 
@@ -468,13 +469,31 @@ export default function CalcPage() {
     }
   };
 
+  /**
+   * 覚えておいたプロデュース（シナリオ × Pアイドル）があれば選び直す。
+   * 今のシナリオで使えて、Pアイドルのプランにも合うものだけ。戻せたら true
+   */
+  const restoreRememberedSet = (scenario: ScenarioKey, pIdol: string, plan: string | null): boolean => {
+    const backId = recallScenarioSet(scenario, pIdol);
+    const back = backId ? r.ability.sets.find((s) => s.id === backId) : undefined;
+    if (!back || !setVisibleInScenario(back.id, scenario) || !setPlanMatches(back.plan, plan)) return false;
+    r.ability.setSelectedSet(back.id);
+    return true;
+  };
+
   /** アイドルとPアイドルをまとめて設定（アイドルが変わるなら踏み方を入れ替え） */
   const applyIdolAndPIdol = (idol: string, pIdolCardName: string) => {
     if (idol !== settings.idol) remapSchedulesForIdol(idol);
+    const pIdolChanged = pIdolCardName !== settings.pIdol;
+    // Pアイドルが変わるなら、今のプロデュースを「シナリオ × 前のPアイドル」で覚えておく（戻したら戻す）
+    if (pIdolChanged && r.ability.selectedSetId)
+      rememberScenarioSet(r.scenario, settings.pIdol, r.ability.selectedSetId);
     calc.update({ idol, pIdol: pIdolCardName });
+    const plan = findPIdolMaster(idol, pIdolCardName)?.plan ?? null;
+    // このPアイドルで前に選んでいたプロデュースがあればそれに戻す
+    if (pIdolChanged && restoreRememberedSet(r.scenario, pIdolCardName, plan)) return;
     // プロデュース（発動回数セット）はPアイドルのプランで使えるものだけ選べる。
     // 使えないものを選んだままなら外して、選び直してもらう
-    const plan = findPIdolMaster(idol, pIdolCardName)?.plan ?? null;
     if (!setPlanMatches(r.selectedSet?.plan, plan)) r.ability.clearSelected();
   };
 
@@ -778,24 +797,15 @@ export default function CalcPage() {
           onPick={(key) => {
             const from = r.scenario;
             // シナリオが変わったらプロデュースは選び直し（テンプレがシナリオ別のため）。
-            // ただし探索を押す前に元のシナリオへ戻したら、そのとき選んでいたプロデュースに戻す
+            // ただし探索を押す前に同じ「シナリオ × Pアイドル」へ戻したら、そのとき選んでいたプロデュースに戻す
             // （上書き保存していない「この育成だけ」の変更はセットごとに残っているので一緒に戻る）
             if (key !== from || !r.scenarioStore.chosen) {
               if (r.scenarioStore.chosen && r.ability.selectedSetId)
-                rememberScenarioSet(from, r.ability.selectedSetId);
+                rememberScenarioSet(from, settings.pIdol, r.ability.selectedSetId);
               r.ability.clearSelected();
             }
             r.scenarioStore.setScenario(key);
-            if (key !== from) {
-              const backId = recallScenarioSet(key);
-              const back = backId ? r.ability.sets.find((s) => s.id === backId) : undefined;
-              if (
-                back &&
-                setVisibleInScenario(back.id, key) &&
-                setPlanMatches(back.plan, r.pMaster?.plan ?? null)
-              )
-                r.ability.setSelectedSet(back.id);
-            }
+            if (key !== from) restoreRememberedSet(key, settings.pIdol, r.pMaster?.plan ?? null);
           }}
           onClose={() => setScenarioPickerOpen(false)}
         />

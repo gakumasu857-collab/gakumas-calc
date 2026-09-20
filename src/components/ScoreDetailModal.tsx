@@ -93,7 +93,8 @@ export default function ScoreDetailModal({
                     <td className={td}>{item.ability}</td>
                     <td className={`${td} text-right`}>
                       {item.kind === "parabo"
-                        ? `${fmt((item.value ?? 0) * 100)}%`
+                        ? // パラボ%は小数を出さない（四捨五入。オーナー指定 2026-09-21）。0.045×100=4.4999… を 5 にするため少し足す
+                          `${Math.round((item.value ?? 0) * 100 + 1e-9)}%`
                         : item.value === null
                           ? "—"
                           : item.value <= 1

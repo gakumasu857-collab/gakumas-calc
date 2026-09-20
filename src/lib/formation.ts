@@ -304,6 +304,26 @@ export function scoreOwnedCards(
   return result;
 }
 
+/**
+ * 未所持のサポカを完凸レンタルとして点数化する（サポカ選択画面の「未所持」表示用。オーナー要望 2026-09-21）。
+ * 探索の候補には使わない（探索の未所持はレンタル枠＝ scoreRentalCandidates）。BAN・レンタルNGは見ない
+ */
+export function scoreUnownedCards(
+  getLevel: (id: string) => number,
+  ctx: SheetScoreContext,
+  typeRole: Partial<Record<TypeKey, SheetRole>>,
+  opts?: FormationOptions,
+): ScoredCard[] {
+  const result: ScoredCard[] = [];
+  for (const card of SUPPORT_CARD_DB) {
+    if (!planAllows(card.plan, opts?.plan)) continue;
+    if (getLevel(card.id) >= 0) continue; // 所持
+    const scored = scoreCard(card, 4, ctx, typeRole, true);
+    if (scored) result.push(scored);
+  }
+  return result;
+}
+
 /** 前イベがステージに入るもの（スキル／ステージ用アイテム）か */
 export function isStageCard(card: SupportCardData): boolean {
   return card.stageItem || card.preEventType === "スキル";

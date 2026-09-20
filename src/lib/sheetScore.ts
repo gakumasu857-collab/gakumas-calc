@@ -328,6 +328,35 @@ const SKILL_FLAG_KEYS = [
  */
 export const ANY_SKILL_TAG_KEYS: string[] = [...SKILL_FLAG_KEYS];
 
+/**
+ * 後イベのランダム強化で選べる「強化したスキルの属性」（回数キー）。
+ * 選んだ属性の「○○スキル強化」がその回数ぶん発動する（今スプシにあるのは温存スキル強化。
+ * ほかは将来スプシに足したときにそのまま効く）。オーナー指定 2026-09-21
+ */
+export const POST_ENHANCE_TAG_KEYS: string[] = [
+  "好調スキル強化",
+  "集中スキル強化",
+  "好印象スキル強化",
+  "やる気スキル強化",
+  "温存スキル強化",
+  "強気スキル強化",
+  "全力スキル強化",
+  "SSRスキル強化",
+  "元気スキル強化",
+];
+
+/** プランごとに選べる属性（センス・ロジック・アノマリー。共通のサポカは全部） */
+const POST_ENHANCE_TAGS_BY_PLAN: Record<string, string[]> = {
+  センス: ["好調スキル強化", "集中スキル強化", "SSRスキル強化", "元気スキル強化"],
+  ロジック: ["好印象スキル強化", "やる気スキル強化", "SSRスキル強化", "元気スキル強化"],
+  アノマリー: ["温存スキル強化", "強気スキル強化", "全力スキル強化", "SSRスキル強化", "元気スキル強化"],
+};
+
+/** このサポカの後イベ（ランダム強化）で選べる属性（サポカのプランで絞る。共通は全部） */
+export function postEnhanceTagOptions(card: SupportCardData): string[] {
+  return POST_ENHANCE_TAGS_BY_PLAN[card.plan] ?? POST_ENHANCE_TAG_KEYS;
+}
+
 /** 任意スキル獲得の1発動あたりの回数 */
 export function anySkillAcPer(card: SupportCardData): number {
   return Number(card.extras["任意スキル獲得"] ?? 0) || 0;
@@ -494,6 +523,10 @@ export function eventCountContributionSplit(
       const target = ov?.enhance ?? defaultEnhanceTarget(card);
       add("スキル強化", postN);
       add(`${target}スキル強化`, postN);
+      // 強化したスキルの属性（手で選んだときだけ。温存スキル強化など）
+      for (const tag of ov?.enhanceTags ?? []) {
+        if (POST_ENHANCE_TAG_KEYS.includes(tag)) add(tag, postN);
+      }
     } else if (card.postEventType === "スキル削除") {
       // 選択削除（スキルを選んで1枚削除）: 属性を選べる（デフォルトA）
       const target = ov?.enhance ?? POST_DELETE_DEFAULT_TARGET;
@@ -621,6 +654,8 @@ export function cardBonusPercent(card: SupportCardData, level: number): number {
  * - acquire: 前イベのスキル/Pアイテムを取得したか。false なら前イベは丸ごと発動0扱い
  *   （アイテムはPアイテム獲得アビも発動しない）
  * - enhance: 後イベ（ランダム強化）がA/Mどちらのスキルを強化したか
+ * - enhanceTags: 後イベ（ランダム強化）で強化したスキルの属性（「温存スキル強化」など POST_ENHANCE_TAG_KEYS の配列。
+ *   未指定は属性なし＝M/Aだけ）
  * - preEnhanceM: 前イベの強化のうちM側に割り振った回数（残りはA。未指定はデフォルト規則で全振り）
  * - preDelM: 前イベの削除のうちM側に割り振った回数（残りはA。トラブル削除は例外で汎用のみ+1）
  * - preSkillTags: 任意スキル獲得の1回ごとの分類タグ（獲得i回目 → フラグキーの配列。
@@ -631,6 +666,7 @@ export type EventCountOverride = {
   post?: number;
   acquire?: boolean;
   enhance?: "A" | "M";
+  enhanceTags?: string[];
   preEnhanceM?: number;
   preDelM?: number;
   preSkillTags?: string[][];

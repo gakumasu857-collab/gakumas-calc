@@ -16,12 +16,12 @@ import { affectionLabel, AFFECTION_DEFAULT, starWithAffection } from "@/data/aff
 import {
   CLASSES,
   distributeExam,
-  EXAM_STAR_SEGMENTS,
   EXAMS,
   examBaseFromRise,
   examRiseWithParabo,
   examStar,
   examStarCapScore,
+  examStarTable,
   FINAL_ROUNDS,
   LESSON_KIND_LABELS,
   LESSONS,
@@ -1172,15 +1172,13 @@ function HifNumbers({ affection }: { affection: number }) {
 
       <h3 className="mb-1 text-xs font-bold text-slate-700">選抜のスター性</h3>
       <PieceTable
-        caption={`合計スコアの区間ごとに、両端のスター性を直線でつなぎます（小数は切り捨て）。表は「${affectionLabel(affection)}」での値。`}
+        caption={`合計スコア×傾きを区間ごとに足して切り上げたものが素のスター性（選抜1: 〜3,000 は 1/150・〜7,000 は 3/1000・〜15,000 は 1/1000。上限40）。それに親愛度のボーナスを掛けて切り捨てます。表は「${affectionLabel(affection)}」での値。`}
         headers={["選抜", "合計スコア", "スター性"]}
-        rows={EXAM_STAR_SEGMENTS.flatMap((segs, i) =>
-          segs.map((seg, si) => [
-            si === 0 ? EXAMS[i].name : "",
-            seg.to === Infinity ? `${fmtNum(seg.from)}〜` : `${fmtNum(seg.from)}〜${fmtNum(seg.to)}`,
-            seg.to === Infinity
-              ? `${starFromObserved(seg.star[0], affection)}（上限）`
-              : `${starFromObserved(seg.star[0], affection)} → ${starFromObserved(seg.star[1], affection)}`,
+        rows={EXAMS.flatMap((exam, i) =>
+          examStarTable(i, affection).map((row, ri) => [
+            ri === 0 ? exam.name : "",
+            row.to === Infinity ? `${fmtNum(row.from)}〜` : `${fmtNum(row.from)}〜${fmtNum(row.to)}`,
+            row.to === Infinity ? `${row.star[0]}（上限）` : `${row.star[0]} → ${row.star[1]}`,
           ]),
         )}
       />

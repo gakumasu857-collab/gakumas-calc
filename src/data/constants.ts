@@ -72,6 +72,9 @@ export const ABILITY_NAMES = {
   skill_enhance: "スキル強化",
   A_skill_enhance: "Aスキル強化",
   M_skill_enhance: "Mスキル強化",
+  // 2026-09-21: 温存スキルを強化したときに発動（前イベ起動タグ・発動回数タブの行。
+  // 後イベのランダム強化で「温存」を選ぶと、その回数ぶん上乗せされる）
+  charge_skill_enhance: "温存スキル強化",
   skill_del: "スキル削除",
   A_skill_del_ut3: "Aスキル削除(3回まで)",
   M_skill_del_ut3: "Mスキル削除(3回まで)",
@@ -130,6 +133,8 @@ export const ABILITY_NAMES = {
   max_hp_up_1abi: "最大体力上昇(1アビ)",
   charge_8plus_ut4: "温存8枚以上スキル獲得(4回まで)",
   focus_8plus_ut4: "集中8枚以上スキル獲得(4回まで)",
+  // 2026-09-21 新カード「わたしに、まかせて」のアビリティ
+  burst_8plus_ut4: "全力8枚以上スキル獲得(4回まで)",
   drink_get_ut10: "ドリンク獲得(10回まで)",
   skill_exchange_ut5: "スキル交換(5回まで)",
   // 2026-09 新カード「もうすぐ本番ですね」のアビリティ（同月に「基本チェンジ」→「基本スキルチェンジ」に改名）

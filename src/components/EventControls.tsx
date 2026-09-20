@@ -2,7 +2,7 @@
  * 前イベ・後イベ設定の共有UI（サポカ設定ページと計算ページの前イベエディタで使用）。
  * - AcquireToggle: 前イベのスキル/Pアイテムを「取得したか」。OFFなら前イベは発動0回扱い
  * - PreAssign: 前イベの強化・削除の割り振り。Mの枚数を決めると残りが自動でAになる
- * - PostEventButtons: 後イベ。ランダム強化=［M/A/✕］ボタン、チェンジ等=発動トグル
+ * - PostEventButtons: 後イベ。ランダム強化=［M/A/✕］ボタン＋強化したスキルの属性（温存など）、チェンジ等=発動トグル
  */
 import { useState } from "react";
 import { Minus, Plus, Settings2 } from "lucide-react";
@@ -20,6 +20,8 @@ import {
   hasPreEnhance,
   hasStatEvent,
   POST_DELETE_DEFAULT_TARGET,
+  POST_ENHANCE_TAG_KEYS,
+  postEnhanceTagOptions,
   postEventToggleable,
   type EventCountOverride,
 } from "@/lib/sheetScore";
@@ -31,6 +33,8 @@ export type EventStoreLike = {
     value: number | null,
   ) => void;
   setTarget: (id: string, value: "A" | "M" | null) => void;
+  /** 後イベのランダム強化で強化したスキルの属性（空＝未指定） */
+  setEnhanceTags: (id: string, tags: string[]) => void;
   setAssign: (
     id: string,
     key: "preEnhanceM" | "preDelM",
@@ -200,6 +204,92 @@ export function PreAssign({
         />
       )}
     </span>
+  );
+}
+
+/** タグの短縮表示（チップ・まとめ表示に載せるラベル）。「○○スキル強化」は末尾を落として使う */
+const shortTag = (tag: string): string => TAG_SHORT[tag] ?? tag.replace(/スキル強化$/, "");
+
+/**
+ * 後イベのランダム強化で「どの属性のスキルを強化したか」を選ぶ（M/Aとは別に、温存・SSRなどを複数選べる）。
+ * 選んだ属性の「○○スキル強化」がその回数ぶん発動する（今あるのは温存スキル強化。ほかは将来スプシに足したとき用）。
+ * 選べる属性はサポカのプランで絞る（センス＝好調・集中・SSR・元気／ロジック＝好印象・やる気・SSR・元気／
+ * アノマリー＝温存・強気・全力・SSR・元気／共通＝全部）。オーナー指定 2026-09-21
+ */
+function PostEnhanceTagPicker({
+  card,
+  override,
+  events,
+}: {
+  card: SupportCardData;
+  override: EventCountOverride | undefined;
+  events: EventStoreLike;
+}) {
+  const [open, setOpen] = useState(false);
+  const picks = override?.enhanceTags ?? [];
+  const options = postEnhanceTagOptions(card);
+  const toggle = (tag: string) => {
+    const next = picks.includes(tag) ? picks.filter((t) => t !== tag) : [...picks, tag];
+    // 表示順（POST_ENHANCE_TAG_KEYS順）に整えて保存
+    events.setEnhanceTags(
+      card.id,
+      POST_ENHANCE_TAG_KEYS.filter((t) => next.includes(t)),
+    );
+  };
+  const summary = picks.map(shortTag).join("・");
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="強化したスキルの属性（温存など）を選びます。選んだ属性の「○○スキル強化」がその回数ぶん発動します"
+        className={`h-6 rounded px-1.5 text-[11px] font-bold transition ${
+          picks.length > 0
+            ? "bg-violet-600 text-white"
+            : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+        }`}
+      >
+        {summary || "属性"}
+      </button>
+      {open && (
+        <Modal title={`強化したスキルの属性（${card.name}）`} onClose={() => setOpen(false)}>
+          <div className="flex flex-col gap-3 text-xs text-slate-600">
+            <p className="leading-relaxed">
+              ランダム強化で強化したスキルの属性を選びます（複数選択可。例: 温存＋SSR）。
+              選んだ属性の「○○スキル強化」がその回数ぶん発動します。M／Aは左のボタンで選びます。
+              {card.plan !== "共通" && `このサポカは${card.plan}なので、${card.plan}のスキルの属性だけ選べます。`}
+            </p>
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+              {options.map((tag) => {
+                const on = picks.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggle(tag)}
+                    title={tag}
+                    className={`rounded px-2 py-1 text-xs font-bold transition ${
+                      on
+                        ? "bg-violet-600 text-white"
+                        : "bg-white text-slate-500 ring-1 ring-slate-300 hover:bg-violet-100 hover:text-violet-700"
+                    }`}
+                  >
+                    {shortTag(tag)}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="self-end rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500"
+            >
+              閉じる
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -439,6 +529,10 @@ export function PostEventButtons({
         <button type="button" onClick={() => pick("off")} className={btn(current === "off", "bg-slate-600 text-white")}>
           ✕
         </button>
+        {/* ランダム強化: 強化したスキルの属性（温存など。発動するときだけ） */}
+        {!isDelete && current !== "off" && (
+          <PostEnhanceTagPicker card={card} override={override} events={events} />
+        )}
       </span>
     );
   }

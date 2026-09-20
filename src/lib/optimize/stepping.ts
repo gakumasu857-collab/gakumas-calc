@@ -42,7 +42,7 @@ type HatsuStepping = Extract<Stepping, { kind: "hatsu" }>;
  * 各選抜試験でスター性がちょうど上限に達する合計スコア（1次から順）。
  * ステ上昇はスコアの比率だけで決まり、スター性は合計だけで決まるので、
  * この合計を整数比で分配すればスター性は常に最大のまま比率だけ動かせる。
- * 値は schedule.ts のスター性の表（examStarCapScore: 14,001／146,365／390,910）から取る
+ * 値は schedule.ts のスター性の式（examStarCapScore: 14,001／146,364／390,910）から取る
  * （以前はここに古い定数 14000／145455／405000 を持っていて、探索がその値を置いていた）。
  */
 const EXAM_STAR_TOTALS = EXAMS.map((_, i) => examStarCapScore(i));

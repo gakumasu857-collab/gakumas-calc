@@ -43,6 +43,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     o.post === undefined &&
     o.acquire === undefined &&
     o.enhance === undefined &&
+    o.enhanceTags === undefined &&
     o.preEnhanceM === undefined &&
     o.preDelM === undefined &&
     o.preSkillTags === undefined &&
@@ -80,6 +81,14 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   const setTarget = useCallback(
     (id: string, value: "A" | "M" | null) => {
       patch(id, "enhance", value);
+    },
+    [patch],
+  );
+
+  /** 後イベのランダム強化で強化したスキルの属性（空なら未指定に戻す） */
+  const setEnhanceTags = useCallback(
+    (id: string, tags: string[]) => {
+      patch(id, "enhanceTags", tags.length > 0 ? tags : null);
     },
     [patch],
   );
@@ -198,6 +207,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     get,
     set,
     setTarget,
+    setEnhanceTags,
     setAssign,
     setAcquire,
     setSkillTags,

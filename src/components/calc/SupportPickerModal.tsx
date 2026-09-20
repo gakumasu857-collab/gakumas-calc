@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Ban, Pin, UserX } from "lucide-react";
 import Modal from "@/components/Modal";
 import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
@@ -10,6 +10,7 @@ import {
   paraboJointOf,
   scoreOwnedCards,
   scoreRentalCandidates,
+  scoreUnownedCards,
   type CardFlagSets,
   type ScoredCard,
   type SelectedSlot,
@@ -30,6 +31,9 @@ const TYPE_CHIP: Record<TypeKey, string> = {
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 const ZERO_STATS: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+
+/** 一覧の行の DOM id（開いたときに今の枠のサポカの行まで送るのに使う） */
+const rowDomId = (cardId: string) => `support-pick-${cardId}`;
 
 /** 合計ステータスの増減の書き方（+12／−8／±0） */
 const formatDelta = (d: number) => (d > 0 ? `+${d}` : d < 0 ? `−${Math.abs(d)}` : "±0");
@@ -70,6 +74,8 @@ const ABILITY_OPTIONS: { key: AbilityName; label: string }[] = (() => {
 /**
  * 選択サポカのスロットに入れるカードを選ぶモーダル。
  * 「所持」は所持凸で、「レンタル」は全カードを完凸として点数順に表示する。
+ * 「所持」の下には未所持のサポカもまとめて出す（選ぶとレンタル（完凸）として入る。凸を選べばその場で所持になる）。
+ * 開いたときは、今この枠に入っているサポカの行まで送る（毎回いちばん上から探さなくてよいように）。
  * プラン外のカードは表示しない（共通＋Pアイドルのプランのみ）。
  * 各行に「この枠をそのサポカに入れ替えたときの合計ステータスの増減」も出す
  * （ほかの5枚とのイベント相互作用・パラボの合算・上限まで入れた、計算ページの合計と同じ式）。
@@ -114,7 +120,12 @@ export default function SupportPickerModal({
   onPick: (entry: SelectedSlot) => void;
   onClose: () => void;
 }) {
-  const [mode, setMode] = useState<"owned" | "rental">("owned");
+  /** 今この枠に入っているサポカ（開いたときにその行まで送る・行を目立たせる） */
+  const currentId = members[slotIndex]?.id;
+  // レンタルで入れているサポカなら「レンタル」の一覧を開く（そこに行がある）
+  const [mode, setMode] = useState<"owned" | "rental">(() =>
+    members[slotIndex]?.rental ? "rental" : "owned",
+  );
   const [typeFilter, setTypeFilter] = useState<"すべて" | TypeKey>("すべて");
   const [nameQuery, setNameQuery] = useState("");
   const [abilityFilter, setAbilityFilter] = useState<AbilityName | "">("");
@@ -140,11 +151,15 @@ export default function SupportPickerModal({
 
   // usedIds は親が毎回作り直すので、中身の文字列で依存を見る（開いている間の無駄な並べ直しを避ける）
   const usedKey = [...usedIds].sort().join("\n");
-  const list: { card: ScoredCard; delta: number }[] = useMemo(() => {
+  const list: { card: ScoredCard; delta: number; unowned: boolean }[] = useMemo(() => {
     const used = new Set(usedKey ? usedKey.split("\n") : []);
     const cards =
       mode === "owned"
-        ? scoreOwnedCards(getLevel, ctx, typeRole, { plan })
+        ? [
+            ...scoreOwnedCards(getLevel, ctx, typeRole, { plan }),
+            // 未所持も出す（完凸レンタルとして点数化。下にまとめる）
+            ...scoreUnownedCards(getLevel, ctx, typeRole, { plan }),
+          ]
         : scoreRentalCandidates(ctx, typeRole, {
             plan,
             flags: { banned: EMPTY_SET, pinned: EMPTY_SET, rentalNg },
@@ -155,14 +170,21 @@ export default function SupportPickerModal({
       .filter(
         (c) => !abilityFilter || ABILITY_BY_ID.get(c.id)?.has(abilityFilter),
       )
-      .map((card) => ({ card, delta: deltaOf(card) }))
-      .sort((a, b) =>
-        sortBy === "delta"
-          ? // 増減順: ほかの枠で選択中のカード（選べない）は最後にまとめる
-            Number(used.has(a.card.id)) - Number(used.has(b.card.id)) ||
-            b.delta - a.delta ||
-            b.card.points - a.card.points
-          : b.card.points - a.card.points,
+      .map((card) => ({
+        card,
+        delta: deltaOf(card),
+        unowned: mode === "owned" && getLevel(card.id) < 0,
+      }))
+      .sort(
+        (a, b) =>
+          // 所持の一覧では未所持を下にまとめる
+          Number(a.unowned) - Number(b.unowned) ||
+          (sortBy === "delta"
+            ? // 増減順: ほかの枠で選択中のカード（選べない）は最後にまとめる
+              Number(used.has(a.card.id)) - Number(used.has(b.card.id)) ||
+              b.delta - a.delta ||
+              b.card.points - a.card.points
+            : b.card.points - a.card.points),
       );
   }, [
     mode,
@@ -178,6 +200,14 @@ export default function SupportPickerModal({
     plan,
     rentalNg,
   ]);
+
+  // 開いたときに、今この枠に入っているサポカの行まで送る（一覧は最初の描画で出そろっている）
+  useEffect(() => {
+    if (!currentId) return;
+    document.getElementById(rowDomId(currentId))?.scrollIntoView({ block: "center" });
+    // 開いたときだけ（並べ替え・絞り込みのたびには送らない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Modal
@@ -273,7 +303,9 @@ export default function SupportPickerModal({
         {mode === "rental" && (
           <span className="inline-flex items-center gap-0.5"><UserX size={11} />レンタルNG＝レンタル枠の候補から外す</span>
         )}
-        {mode === "owned" && <span>／ 凸もここで変えられます</span>}
+        {mode === "owned" && (
+          <span>／ 凸もここで変えられます／ 未所持のサポカは下にまとめて出ます（選ぶとレンタルとして入ります）</span>
+        )}
       </p>
       {list.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
@@ -283,22 +315,29 @@ export default function SupportPickerModal({
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-slate-200">
-          {list.map(({ card, delta }) => {
+          {list.map(({ card, delta, unowned }) => {
             const used = usedIds.has(card.id);
             const url = imageUrl(card.image);
             const editable = mode === "owned" && !!setLevel;
+            const current = card.id === currentId;
             return (
-              // スマホは2段（上=画像・タイプと名前・点数／下=凸と固定などのボタン）。PCは1行
+              // スマホは2段（上=画像・タイプと名前・点数／下=凸と固定などのボタン）。PCは1行。
+              // 今この枠に入っているサポカは薄い青で目立たせる（開いたときにここまで送る）
               <li
                 key={card.id}
-                className="flex flex-col gap-1 px-1 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-0"
+                id={rowDomId(card.id)}
+                className={`flex flex-col gap-1 px-1 py-1.5 sm:flex-row sm:items-center sm:gap-2 sm:py-0 ${
+                  current ? "bg-blue-50/80" : ""
+                }`}
               >
                 <button
                   type="button"
                   disabled={used}
                   onClick={() =>
-                    onPick({ id: card.id, rental: mode === "rental" })
+                    // 未所持は持っていないので、選んだらレンタル（完凸）として入れる
+                    onPick({ id: card.id, rental: mode === "rental" || unowned })
                   }
+                  title={unowned ? "未所持なので、選ぶとレンタル（完凸）として入ります" : undefined}
                   className={`flex min-w-0 flex-1 items-center gap-2 text-left text-sm transition sm:gap-3 sm:py-1.5 ${
                     used
                       ? "cursor-not-allowed opacity-40"
@@ -331,6 +370,16 @@ export default function SupportPickerModal({
                       {used && (
                         <span className="shrink-0 text-xs text-slate-400 sm:order-3">
                           選択中
+                        </span>
+                      )}
+                      {current && (
+                        <span className="shrink-0 rounded bg-blue-600 px-1 text-[10px] font-bold text-white sm:order-3">
+                          この枠
+                        </span>
+                      )}
+                      {unowned && (
+                        <span className="shrink-0 rounded bg-slate-200 px-1 text-[10px] font-bold text-slate-500 sm:order-3">
+                          未所持
                         </span>
                       )}
                       {!editable && (
@@ -376,9 +425,9 @@ export default function SupportPickerModal({
                 {/* 所持の凸をその場で直す（所持状況ページへ行かなくてよい） */}
                 {editable && (
                   <select
-                    value={card.level}
+                    value={unowned ? -1 : card.level}
                     onChange={(e) => setLevel!(card.id, Number(e.target.value))}
-                    title="所持の凸数を変更（未所持にすると一覧から消えます）"
+                    title="所持の凸数を変更（未所持にすると下の未所持のまとまりへ移ります）"
                     className="shrink-0 rounded-md border border-slate-300 bg-white px-1 py-0.5 text-xs text-slate-600"
                   >
                     <option value={-1}>未所持</option>
