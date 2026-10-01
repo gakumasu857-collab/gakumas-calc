@@ -14,6 +14,7 @@
     "gen:preevents": "node scripts/generatePreEventImages.mjs",
     "gen:all": "npm run sync:master && npm run gen:cards && npm run gen:perf && npm run gen:counts && npm run gen:pidols && npm run gen:sprite && npm run gen:preevents && npm run check:labels",
     "check:labels": "node --no-warnings scripts/checkLabels.mjs",
+    "check:regress": "npx --yes esbuild scripts/dev/regress.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json \"--define:import.meta.env={}\" --outfile=node_modules/.cache/regress.cjs --log-level=error && node node_modules/.cache/regress.cjs",
     "release": "npm run build && wrangler deploy",
     "sync:master": "node scripts/syncMaster.mjs",
     "sync:images": "node scripts/syncImagesFromDrive.mjs"

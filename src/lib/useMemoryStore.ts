@@ -42,6 +42,11 @@ function normalizeMemory(memory: Memory): Memory {
  */
 const LIB_KEY = "gakumas:memories:v1";
 const SLOTS_KEY = "gakumas:memorySlots:v2";
+/** 最初の汎用メモリーを入れ終えた印（入れるのは1回だけ。あとから4枠とも空にしても入れ直さない） */
+const INIT_KEY = "gakumas:memoryInit:v1";
+
+/** 汎用メモリー（メインパラボ60点のテンプレ）。初めての人の4枠と「汎用メモリーを入れる」で使う */
+export const GENERIC_MEMORY_ID = "tpl-role60";
 /** 旧形式のスロット（IDの配列）。v2 が無いときだけ読む */
 const LEGACY_SEL_KEY = "gakumas:memorySelection:v1";
 const SETS_KEY = "gakumas:memorySets:v1";
@@ -81,8 +86,38 @@ function normalizeSlot(raw: unknown): SlotMemory | null {
 
 function loadSlots(pool: Memory[]): (SlotMemory | null)[] {
   const v2 = load<unknown>(SLOTS_KEY, null);
-  if (Array.isArray(v2)) return padSlots(v2.map(normalizeSlot));
-  return slotsFromIds(load<string[]>(LEGACY_SEL_KEY, []), pool);
+  const slots = Array.isArray(v2)
+    ? padSlots(v2.map(normalizeSlot))
+    : slotsFromIds(load<string[]>(LEGACY_SEL_KEY, []), pool);
+  return withFirstTimeGeneric(slots, pool);
+}
+
+/**
+ * 初めての人は、4枠とも汎用メモリー（メインパラボ60点）から始める（オーナー指定 2026-10-01。
+ * メモリーを自分で作るところで手が止まりやすいので、まず探索まで行けるようにする）。
+ * 入れるのは1回だけ: もう何か入っている人はそのまま。あとから4枠とも空にしても入れ直さない。
+ * 入れた中身はその場で保存する（開発中の二重初期化や、ほかの実体が読んでも同じ中身になるように）。
+ */
+function withFirstTimeGeneric(
+  slots: (SlotMemory | null)[],
+  pool: Memory[],
+): (SlotMemory | null)[] {
+  try {
+    if (localStorage.getItem(INIT_KEY)) return slots;
+    localStorage.setItem(INIT_KEY, "1");
+  } catch {
+    return slots; // 保存できない環境では何もしない（毎回入れ直してしまうため）
+  }
+  if (slots.some((s) => s !== null)) return slots;
+  const generic = pool.find((m) => m.id === GENERIC_MEMORY_ID);
+  if (!generic) return slots;
+  const filled = Array.from({ length: SLOT_SIZE }, () => toSlotMemory(generic));
+  try {
+    localStorage.setItem(SLOTS_KEY, JSON.stringify(filled));
+  } catch {
+    // 容量超過などは無視（このあとの通常の保存に任せる）
+  }
+  return filled;
 }
 
 function loadSets(pool: Memory[]): MemorySet[] {
@@ -150,6 +185,8 @@ export function useMemoryStore() {
   );
   /** 中身が入っている枠の数 */
   const count = slots.filter((s) => s !== null).length;
+  /** 4枠とも汎用メモリー（メインパラボ60点のテンプレ）のままか（設定欄の「今は汎用メモリー」の表記用） */
+  const isGeneric = slots.every((s) => !!s && !!s.roleSpec && s.sourceId === GENERIC_MEMORY_ID);
 
   // ---------------------------------------------------------------- スロット
   const setSlot = useCallback((index: number, value: SlotMemory | null) => {
@@ -329,6 +366,7 @@ export function useMemoryStore() {
     slots,
     slotMemories,
     count,
+    isGeneric,
     setSlot,
     clearSlot,
     setSlots,

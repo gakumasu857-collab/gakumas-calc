@@ -3,11 +3,12 @@ import Modal from "@/components/Modal";
 import MemoryWorkbench from "@/components/memory-manager/MemoryWorkbench";
 import { BTN_PRIMARY } from "@/components/ui";
 import type { useCalcResult } from "@/lib/useCalcResult";
+import { GENERIC_MEMORY_ID } from "@/lib/useMemoryStore";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
-/** 汎用メモリー（メインパラボ60点）。ボタンで4枠すべてこれになる */
-const TEMPLATE_ID = "tpl-role60";
+/** 汎用メモリー（メインパラボ60点）。ボタンで4枠すべてこれになる（初めての人の4枠にも最初から入っている） */
+const TEMPLATE_ID = GENERIC_MEMORY_ID;
 
 /**
  * 計算ページ内でメモリー4枚を選ぶモーダル。中身は MemoryWorkbench
@@ -16,6 +17,8 @@ const TEMPLATE_ID = "tpl-role60";
  * 中身はその場で反映されるので、決定＝閉じる）。
  * 実物が決まっていない人向けの「汎用メモリーを入れる」（メインパラボ60点×4）は、
  * 一度でも探索したあとは出さない（showTemplate）。
+ * 初めての人は最初から汎用メモリーが入っている（useMemoryStore）ので、入っている間は
+ * ボタンの代わりに「今は汎用メモリーが入っています。変えたいときは枠をクリック」と書く。
  */
 export default function MemoryPickerModal({
   r,
@@ -45,7 +48,16 @@ export default function MemoryPickerModal({
         </div>
       }
     >
-      {showTemplate && (
+      {store.isGeneric ? (
+        /* 最初から入っている汎用メモリーのままのとき: 何が入っているかと、変え方 */
+        <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs leading-relaxed text-slate-700">
+          <b className="text-slate-900">
+            今は汎用のメモリー（メインパラボ60点）が4枠すべてに入っています。
+          </b>
+          自分のメモリーに変えたいときは、変えたい枠をクリックして、下で中身を作ってください（このままでも探索できます）。
+          メインパラボ＝パラボを効果が大きい上位2タイプに、残り1タイプに固定値を付けるテンプレで、踏み方を変えると付け先も自動で変わります。
+        </div>
+      ) : showTemplate && (
         /* 実物が決まっていない人の近道。何が入るかをここで分からせる */
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5">
           <button

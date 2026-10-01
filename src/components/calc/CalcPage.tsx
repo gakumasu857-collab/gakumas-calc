@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
-import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
+import { BookOpen, HelpCircle, ImageDown, Save, Settings, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -106,6 +107,23 @@ const writeSideSeen = () => {
   }
 };
 
+/** 初めて計算ページに来た人への「ようこそ」を閉じたことの記憶 */
+const WELCOME_SEEN_KEY = "gakumas:calc:welcomeSeen:v1";
+const readWelcomeSeen = (): boolean => {
+  try {
+    return localStorage.getItem(WELCOME_SEEN_KEY) === "1";
+  } catch {
+    return true; // 保存できない環境では出さない（閉じても毎回出てしまうため）
+  }
+};
+const writeWelcomeSeen = () => {
+  try {
+    localStorage.setItem(WELCOME_SEEN_KEY, "1");
+  } catch {
+    // 保存できなくても動作には影響しない
+  }
+};
+
 const EVER_RUN_KEY = "gakumas:calc:everRun:v1";
 const readEverRun = (): boolean => {
   try {
@@ -160,12 +178,20 @@ export default function CalcPage() {
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
+  /** 「ようこそ」（初めて来たときだけ。閉じるか、探索を押すまで。もう探索したことがある人には出さない） */
+  const [welcome, setWelcome] = useState<boolean>(() => !readWelcomeSeen() && !readEverRun());
+  const dismissWelcome = () => {
+    setWelcome(false);
+    writeWelcomeSeen();
+  };
   /** 探索が終わった回数（評価値の数字を探索後にも動かすための key） */
   const [runSeq, setRunSeq] = useState(0);
   const bumpRun = () => setRunSeq((n) => n + 1);
   const markRun = () => {
     // 探索を押したら、シナリオを切り替えたときに覚えておいたプロデュースは捨てる（戻しても復元しない）
     forgetScenarioSets();
+    // 探索まで来たら「ようこそ」は役目を終える
+    if (welcome) dismissWelcome();
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
@@ -568,6 +594,35 @@ export default function CalcPage() {
           </button>
         </div>
       </div>
+
+      {/* 初めて来た人へのひとこと（閉じるか、探索を押すまで）。見出し行のすぐ下・左右いっぱい */}
+      {welcome && (
+        <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 lg:col-span-2 lg:order-first">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900">プロデュース計算機へようこそ</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-700">
+              育成の設定をして、自分の最高評価値を求められます。困ったら右上の
+              <Link
+                to="/help"
+                className="mx-1 inline-flex items-center gap-1 rounded-md border border-blue-400 bg-white px-1.5 py-0.5 align-middle font-bold text-blue-700 transition hover:bg-blue-100"
+              >
+                <BookOpen size={12} />
+                ヘルプ
+              </Link>
+              へ。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={dismissWelcome}
+            aria-label="閉じる"
+            title="閉じる"
+            className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-blue-100 hover:text-slate-700"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">

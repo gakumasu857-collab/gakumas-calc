@@ -141,13 +141,33 @@ export default function PremiseCard({
           <PremiseField no={3} label="プロデュース" hint={GLOSSARY.pattern} done={done.set}>
             <SetPickerField r={r} />
           </PremiseField>
-          {/* 4. メモリー（値は1行に収める。狭ければ「…」で切り、2行に折り返さない） */}
-          <PremiseField no={4} label="メモリー" hint={GLOSSARY.memory} done={done.memory} onClick={onOpenMemory}>
+          {/* 4. メモリー（値は1行に収める。狭ければ「…」で切り、2行に折り返さない）。
+              初めての人は汎用メモリー（メインパラボ60点×4）が入っているので、そのことと変え方を欄の下に書く */}
+          <PremiseField
+            no={4}
+            label="メモリー"
+            hint={GLOSSARY.memory}
+            done={done.memory}
+            onClick={onOpenMemory}
+            note={
+              r.memoryStore.isGeneric ? (
+                <>
+                  今は<b>汎用のメモリー</b>（メインパラボ60点）が入っています。変えたいときは上の欄をクリック。
+                </>
+              ) : undefined
+            }
+          >
             {memoryCount === 0 ? (
               <Unset />
             ) : (
               <span className="min-w-0 flex-1 truncate">
-                <span className="mr-1.5">{memoryCount}枚</span>
+                {r.memoryStore.isGeneric ? (
+                  <span className="mr-1.5 rounded bg-indigo-100 px-1.5 py-0.5 align-middle text-xs font-bold text-indigo-700">
+                    汎用メモリー
+                  </span>
+                ) : (
+                  <span className="mr-1.5">{memoryCount}枚</span>
+                )}
                 {TYPE_KEYS.map((t) => (
                   <span
                     key={t}
@@ -197,6 +217,7 @@ function PremiseField({
   done,
   onClick,
   aside,
+  note,
   children,
 }: {
   no: number;
@@ -206,6 +227,8 @@ function PremiseField({
   onClick?: () => void;
   /** 欄の右に添えるもの（特訓・才能開花のボタンなど。狭ければ下に回る） */
   aside?: React.ReactNode;
+  /** 欄の下に添えるひとこと（今は汎用メモリーが入っている、など） */
+  note?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -234,6 +257,7 @@ function PremiseField({
         )}
         {aside}
       </div>
+      {note && <p className="mt-1 text-[11px] leading-snug text-slate-500">{note}</p>}
     </div>
   );
 }

@@ -637,6 +637,7 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `gakumas:ownedSaves:active:v1` | 「使う所持状況」のID。無い・消えたIDは既定 `builtin-all4`（全サポカ完凸。読み込み専用）。既定のまま凸などを変えると今の内容から「自分の所持状況」が自動で作られて使用中になり（`ensureEditableSlot`）、以後の変更は随時そこへ保存される | `src/lib/useOwnedSaves.ts` |
 | `gakumas:calc:statsBreakdown:v1` | 育成後のステータスの「内訳の数字」を開いているか（"1"／"0"。無ければ開く） | `src/components/calc/StatsCard.tsx` |
 | `gakumas:calc:everRun:v1` | 探索を一度でも押した印（"1"。無ければ、前提がそろったときボタンの上に動く矢印を出す） | `src/components/calc/CalcPage.tsx` |
+| `gakumas:calc:welcomeSeen:v1` | 初めて計算ページに来た人への「プロデュース計算機へようこそ」を閉じた印（"1"。閉じるか探索を押すと付く。もう探索したことがある人には最初から出さない。2026-10-01） | 同上 |
 | `gakumas:setup:ownershipAck:v1` | 「完凸のままでOK」（所持状況を入力せず全完凸で探索する）を押した印。計算ページの所持状況のステップと初回の確認モーダルが出なくなる | `src/lib/ownershipAck.ts` |
 | `gakumas:calc:memoryPathsDone:v1` | 廃止（メモリー選択のA/Bの枠をやめた。残っていても使わない） | — |
 | `gakumas:calcSaves:v1` | セーブデータ一覧。各件に「その育成の全状態」（シナリオ・3 シナリオ分の踏み方・メモリー実体・発動回数・編成・イベント設定・所持状況・保存時の評価値） | 同上、`src/lib/calcSaveIO.ts` |
@@ -648,6 +649,7 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `gakumas:scenario:v1` | 選択中のシナリオ（`hif` / `niaMaster` / `hatsuLegend` の文字列） | `src/lib/useScenario.ts` |
 | `gakumas:memories:v1` | 保存したメモリー（テンプレは含まない） | `src/lib/useMemoryStore.ts` |
 | `gakumas:memorySlots:v2` | スロット 4 枠の中身（`SlotMemory`。空枠は null。保存していないメモリーもそのまま入る） | 同上 |
+| `gakumas:memoryInit:v1` | 最初の汎用メモリー（メインパラボ60点×4＝`GENERIC_MEMORY_ID`）を入れ終えた印（"1"）。**初めての人は4枠とも汎用メモリーから始まる**（メモリーを作るところで手が止まりやすいため。オーナー指定 2026-10-01）。入れるのは1回だけで、もう何か入っている人はそのまま、あとから4枠とも空にしても入れ直さない。4枠とも汎用のままの間は `memoryStore.isGeneric` が true で、設定欄に「汎用メモリー」の印と「変えたいときは上の欄をクリック」を出す | 同上 |
 | `gakumas:memorySelection:v1` | 旧形式（スロットのメモリー ID の配列）。v2 が無いときだけ読んで中身に展開する | 同上 |
 | `gakumas:memorySets:v1` | メモリーセット（4 枠の中身 `memories`。旧 `memoryIds` は読み込み時に展開。セーブデータ由来のものは `saveId` 付き） | 同上 |
 | `gakumas:abilityCountOverrides:v1` | 発動回数の「テンプレとの差分」（セット ID → アビリティ → 回数） | `src/lib/useAbilityCounts.ts` |

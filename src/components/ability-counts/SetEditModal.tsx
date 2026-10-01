@@ -136,6 +136,14 @@ export default function SetEditModal({
       side={side}
       fill
     >
+      {/* 計算ページから開いたとき: なぜ回数が並んでいるのかを先に言う
+          （「ステータスはここから変えられます」で開くと差し入れ・ドリンク交換などが出てくるため） */}
+      {mode === "run" && (
+        <p className="mb-2 shrink-0 text-xs leading-relaxed text-slate-600">
+          サポカで上がるステータスは、<b>サポカのアビリティが何回発動するか</b>
+          で決まります（例: 差し入れのときに上がるサポカは、差し入れの回数ぶん上がります）。ここで、その回数を実際の育成に合わせて変えられます。
+        </p>
+      )}
       {/* デフォルト（プロデュース設定ページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (
         <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">

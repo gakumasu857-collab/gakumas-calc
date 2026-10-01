@@ -7,7 +7,7 @@ import { Link, useLocation } from "react-router-dom";
  * プロデュース計算機のナビ（メインは /calc）。
  * 計算｜自動編成機能の設定（プルダウン: 所持状況・プロデュース設定・サポカ設定）｜点数表・データベース｜ヘルプ。
  * 「自動編成機能の設定」は探索（自動編成）が参照する設定ページ3つをまとめたもの（2026-09-16、オーナー指示。
- * 表の2つと計算はそのまま）。ブランド名クリックでホームへ戻る。右端はヘルプ。
+ * 表の2つと計算はそのまま）。ブランド名クリックでホームへ戻る。右端はヘルプ（枠で囲ったボタン）。
  * メニューは nav が横スクロール（overflow）なので、切れないよう body 直付け（createPortal）で描く。
  */
 const SETTINGS_PAGES: { href: string; label: string; note: string }[] = [
@@ -89,10 +89,15 @@ export default function NavBar() {
             </Link>
           ))}
         </nav>
+        {/* ヘルプは枠で囲ってボタンだと分かるようにする（「困ったら右上のヘルプへ」と案内するため。オーナー指定 2026-10-01） */}
         <Link
           to="/help"
           title="使い方・用語・よくある質問"
-          className={`${TAB_CLASS(pathname === "/help")} flex items-center gap-1`}
+          className={`flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm font-bold transition ${
+            pathname === "/help"
+              ? "border-blue-600 bg-blue-600 text-white"
+              : "border-blue-400 bg-white text-blue-700 hover:bg-blue-50"
+          }`}
         >
           <BookOpen size={15} />
           <span className="hidden sm:inline">ヘルプ</span>
