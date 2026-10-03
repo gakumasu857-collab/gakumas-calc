@@ -1,6 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { BookOpen, HelpCircle, ImageDown, Save, Settings } from "lucide-react";
-import { Link } from "react-router-dom";
+import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -26,6 +25,7 @@ import {
 } from "@/components/calc/SettingPickers";
 import StatsCard from "@/components/calc/StatsCard";
 import SupportPickerModal from "@/components/calc/SupportPickerModal";
+import WelcomeModal from "@/components/calc/WelcomeModal";
 import {
   AcquireToggle,
   PostEventButtons,
@@ -36,7 +36,7 @@ import Hint from "@/components/Hint";
 import Modal from "@/components/Modal";
 import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
-import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
+import { BTN_SECONDARY, CHIP_NG, CHIP_OK } from "@/components/ui";
 import { allocateEventsForSlots, runFullOptimize, type ExamPolicy } from "@/lib/autoOptimize";
 import { buildConditionInput } from "@/lib/diagLog";
 import { examsAllSingle } from "@/lib/optimize/stepping";
@@ -124,6 +124,23 @@ const writeWelcomeSeen = () => {
   }
 };
 
+/** メモリーの欄を一度でも開いた印（所持状況の「開いたことがある」と同じ扱い。開くまでは、汎用メモリーのままだと欄が黄色） */
+const MEMORY_VISITED_KEY = "gakumas:calc:memoryVisited:v1";
+const readMemoryVisited = (): boolean => {
+  try {
+    return localStorage.getItem(MEMORY_VISITED_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const writeMemoryVisited = () => {
+  try {
+    localStorage.setItem(MEMORY_VISITED_KEY, "1");
+  } catch {
+    // 保存できなくても動作には影響しない
+  }
+};
+
 const EVER_RUN_KEY = "gakumas:calc:everRun:v1";
 const readEverRun = (): boolean => {
   try {
@@ -163,6 +180,15 @@ export default function CalcPage() {
   const [paraboOpen, setParaboOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  /** メモリーの欄を一度でも開いたか（開くと、汎用メモリーのままでも設定欄の黄色が消える） */
+  const [memoryVisited, setMemoryVisited] = useState<boolean>(readMemoryVisited);
+  const openMemory = () => {
+    if (!memoryVisited) {
+      setMemoryVisited(true);
+      writeMemoryVisited();
+    }
+    setMemoryOpen(true);
+  };
   const [planOpen, setPlanOpen] = useState(false);
   const [countsOpen, setCountsOpen] = useState(false);
   /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
@@ -603,7 +629,8 @@ export default function CalcPage() {
           r={r}
           onOpenScenario={() => setScenarioPickerOpen(true)}
           onOpenIdol={() => setIdolPickerOpen(true)}
-          onOpenMemory={() => setMemoryOpen(true)}
+          onOpenMemory={openMemory}
+          memoryVisited={memoryVisited}
           onOpenIdolTraining={() => setTrainingOpen(true)}
           onOpenDetail={() => setDetailOpen(true)}
           onOpenNiaChallenge={() => setNiaChallengeOpen(true)}
@@ -852,28 +879,8 @@ export default function CalcPage() {
         <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} showTemplate={!everRun} />
       )}
 
-      {/* 初めて来た人への「ようこそ」（モーダル。最初に必ず目に入るように。「はじめる」・×・ヘルプへ・探索で消える） */}
-      {welcome && (
-        <Modal title="プロデュース計算機へようこそ" onClose={dismissWelcome} widthClass="max-w-md">
-          <p className="text-sm leading-relaxed text-slate-700">
-            育成の設定をして、自分の最高評価値を求められます。困ったら右上の
-            <Link
-              to="/help"
-              onClick={dismissWelcome}
-              className="mx-1 inline-flex items-center gap-1 rounded-md border border-blue-400 bg-white px-1.5 py-0.5 align-middle font-bold text-blue-700 transition hover:bg-blue-50"
-            >
-              <BookOpen size={13} />
-              ヘルプ
-            </Link>
-            へ。
-          </p>
-          <div className="mt-4 flex justify-end">
-            <button type="button" onClick={dismissWelcome} className={BTN_PRIMARY}>
-              はじめる
-            </button>
-          </div>
-        </Modal>
-      )}
+      {/* 初めて来た人への「ようこそ」（専用デザインのモーダル。最初に必ず目に入るように。「はじめる」・×・ヘルプへ・探索で消える） */}
+      {welcome && <WelcomeModal onClose={dismissWelcome} />}
 
       {/* セーブデータ・画像保存 */}
       {saveOpen && (

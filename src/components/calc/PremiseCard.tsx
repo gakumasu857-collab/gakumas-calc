@@ -46,7 +46,8 @@ const TYPE_SHORT_JP: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visua
  * 「設定欄」（育成の前提）カード。
  * 青い見出し帯＋番号つきの5つの欄（シナリオ・アイドル・プロデュース・メモリー・所持状況）
  * ＋シナリオ別の本戦の点数。未設定の欄は黄色、設定済みは番号が青。
- * メモリーは汎用メモリー（最初から入っているもの）のままの間も黄色（まだ自分のメモリーではないと分かるように。オーナー指定 2026-10-03）。
+ * メモリーは、汎用メモリー（最初から入っているもの）のままで、まだ欄を一度も開いていなければ黄色
+ * （まだ自分のメモリーではないと気づかせる。所持状況と同じく、一度開けば汎用のままでも白。オーナー指定 2026-10-03）。
  * - アイドルの欄の右に特訓・才能開花のボタン（押すとモーダル）
  * - 所持状況はほかと同じ形の欄（プルダウンで既定＝全完凸／保存してある所持状況を切り替え、
  *   一番下から所持状況ページへ）。一度も決めていなければ黄色
@@ -57,6 +58,7 @@ export default function PremiseCard({
   onOpenScenario,
   onOpenIdol,
   onOpenMemory,
+  memoryVisited,
   onOpenIdolTraining,
   onOpenDetail,
   onOpenNiaChallenge,
@@ -65,6 +67,8 @@ export default function PremiseCard({
   onOpenScenario: () => void;
   onOpenIdol: () => void;
   onOpenMemory: () => void;
+  /** メモリーの欄を一度でも開いたか（開くまでは、汎用メモリーのままだと黄色） */
+  memoryVisited: boolean;
   /** 特訓・才能開花のモーダルを開く（Pアイドルを選んだあと） */
   onOpenIdolTraining: () => void;
   /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
@@ -83,8 +87,8 @@ export default function PremiseCard({
     scenario: r.scenarioStore.chosen,
     idol: !!(settings.pIdol && r.pMaster),
     set: !!r.selectedSet,
-    // 汎用メモリーのままの間も黄色（そのままでも探索はできる）
-    memory: memoryCount > 0 && !r.memoryStore.isGeneric,
+    // 汎用メモリーのままで、まだ欄を開いていなければ黄色（そのままでも探索はできる。一度開けば白）
+    memory: memoryCount > 0 && (!r.memoryStore.isGeneric || memoryVisited),
   };
 
   return (

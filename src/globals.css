@@ -65,3 +65,18 @@ body {
 .drawer-left {
   animation: drawer-left-in 0.18s ease-out;
 }
+
+/* 「ようこそ」のモーダルが出るときに少し浮き上がる */
+@keyframes welcome-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.welcome-pop {
+  animation: welcome-pop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}

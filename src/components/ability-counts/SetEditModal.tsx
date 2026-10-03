@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
-import { CalendarDays, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
+import { BTN_SECONDARY } from "@/components/ui";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import {
   ABILITY_CATEGORIES,
@@ -89,6 +90,29 @@ type Props = {
   side?: "center" | "left";
 };
 
+/** 説明の文章をしまう／見るボタン（しまった状態は覚えておく。ボタンは残る） */
+function NoteToggle({
+  hidden,
+  onClick,
+  className = "",
+}: {
+  hidden: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hidden ? "説明の文章を出す" : "説明の文章をしまう（ボタンは残ります）"}
+      className={BTN_SECONDARY + " shrink-0 " + className}
+    >
+      {hidden ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+      {hidden ? "説明を見る" : "説明を隠す"}
+    </button>
+  );
+}
+
 /** セット1つの発動回数を編集するモーダル。左=分類、右=選択中分類のアビリティのみ。 */
 export default function SetEditModal({
   set,
@@ -164,10 +188,14 @@ export default function SetEditModal({
       {/* 計算ページから開いたとき: なぜ回数が並んでいるのかを先に言う
           （「ステータスはここから変えられます」で開くと差し入れ・ドリンク交換などが出てくるため） */}
       {mode === "run" && !noteHidden && (
-        <p className="mb-2 shrink-0 text-xs leading-relaxed text-slate-600">
-          サポカで上がるステータスは、<b>サポカのアビリティが何回発動するか</b>
-          で決まります（例: 差し入れのときに上がるサポカは、差し入れの回数ぶん上がります）。ここで、その回数を実際の育成に合わせて変えられます。
-        </p>
+        <div className="mb-2 flex shrink-0 items-start gap-3">
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-600">
+            サポカで上がるステータスは、<b>サポカのアビリティが何回発動するか</b>
+            で決まります（例: 差し入れのときに上がるサポカは、差し入れの回数ぶん上がります）。ここで、その回数を実際の育成に合わせて変えられます。
+          </p>
+          {/* 説明の文章（この段落と下の青い枠の文）だけしまえる。ボタンは残る。説明の右上に置く */}
+          <NoteToggle hidden={false} onClick={toggleNote} />
+        </div>
       )}
       {/* デフォルト（プロデュース設定ページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (
@@ -199,14 +227,8 @@ export default function SetEditModal({
               </button>
             )}
           </span>
-          {/* 説明の文章だけしまえる（ボタンは残る）。しまった状態は覚えておく */}
-          <button
-            type="button"
-            onClick={toggleNote}
-            className="ml-auto shrink-0 text-[11px] font-semibold text-blue-700 underline-offset-2 hover:underline"
-          >
-            {noteHidden ? "説明を見る" : "説明を隠す"}
-          </button>
+          {/* しまっている間は、ボタンの行の右端に「説明を見る」 */}
+          {noteHidden && <NoteToggle hidden onClick={toggleNote} className="ml-auto" />}
           {/* 上書き保存に入るのは素の回数だけ（緑＝サポカのイベントによる上乗せは入らない） */}
           {!noteHidden && (
             <span className="w-full text-[11px] leading-relaxed text-slate-600">
