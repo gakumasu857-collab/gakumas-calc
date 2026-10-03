@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { BookOpen, HelpCircle, ImageDown, Save, Settings, X } from "lucide-react";
+import { BookOpen, HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
@@ -178,7 +178,7 @@ export default function CalcPage() {
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
   const [everRun, setEverRun] = useState<boolean>(readEverRun);
-  /** 「ようこそ」（初めて来たときだけ。閉じるか、探索を押すまで。もう探索したことがある人には出さない） */
+  /** 「ようこそ」のモーダル（初めて来たときだけ。閉じる・「はじめる」・ヘルプへ・探索を押すまで。もう探索したことがある人には出さない） */
   const [welcome, setWelcome] = useState<boolean>(() => !readWelcomeSeen() && !readEverRun());
   const dismissWelcome = () => {
     setWelcome(false);
@@ -595,35 +595,6 @@ export default function CalcPage() {
         </div>
       </div>
 
-      {/* 初めて来た人へのひとこと（閉じるか、探索を押すまで）。見出し行のすぐ下・左右いっぱい */}
-      {welcome && (
-        <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 lg:col-span-2 lg:order-first">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900">プロデュース計算機へようこそ</p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-700">
-              育成の設定をして、自分の最高評価値を求められます。困ったら右上の
-              <Link
-                to="/help"
-                className="mx-1 inline-flex items-center gap-1 rounded-md border border-blue-400 bg-white px-1.5 py-0.5 align-middle font-bold text-blue-700 transition hover:bg-blue-100"
-              >
-                <BookOpen size={12} />
-                ヘルプ
-              </Link>
-              へ。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={dismissWelcome}
-            aria-label="閉じる"
-            title="閉じる"
-            className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-blue-100 hover:text-slate-700"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
         {/* 設定欄＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。1〜4がそろうと探索できる */}
@@ -879,6 +850,29 @@ export default function CalcPage() {
       {/* メモリーを計算ページ内で選ぶ */}
       {memoryOpen && (
         <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} showTemplate={!everRun} />
+      )}
+
+      {/* 初めて来た人への「ようこそ」（モーダル。最初に必ず目に入るように。「はじめる」・×・ヘルプへ・探索で消える） */}
+      {welcome && (
+        <Modal title="プロデュース計算機へようこそ" onClose={dismissWelcome} widthClass="max-w-md">
+          <p className="text-sm leading-relaxed text-slate-700">
+            育成の設定をして、自分の最高評価値を求められます。困ったら右上の
+            <Link
+              to="/help"
+              onClick={dismissWelcome}
+              className="mx-1 inline-flex items-center gap-1 rounded-md border border-blue-400 bg-white px-1.5 py-0.5 align-middle font-bold text-blue-700 transition hover:bg-blue-50"
+            >
+              <BookOpen size={13} />
+              ヘルプ
+            </Link>
+            へ。
+          </p>
+          <div className="mt-4 flex justify-end">
+            <button type="button" onClick={dismissWelcome} className={BTN_PRIMARY}>
+              はじめる
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* セーブデータ・画像保存 */}

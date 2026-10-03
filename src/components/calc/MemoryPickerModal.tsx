@@ -18,7 +18,8 @@ const TEMPLATE_ID = GENERIC_MEMORY_ID;
  * 実物が決まっていない人向けの「汎用メモリーを入れる」（メインパラボ60点×4）は、
  * 一度でも探索したあとは出さない（showTemplate）。
  * 初めての人は最初から汎用メモリーが入っている（useMemoryStore）ので、入っている間は
- * ボタンの代わりに「今は汎用メモリーが入っています。変えたいときは枠をクリック」と書く。
+ * ボタンの代わりに「今は汎用メモリーが入っています。変えたいときは枠をクリック」と書く
+ * （これも一度探索したあとは出さない。オーナー指定 2026-10-03）。
  */
 export default function MemoryPickerModal({
   r,
@@ -27,7 +28,7 @@ export default function MemoryPickerModal({
 }: {
   r: CalcResult;
   onClose: () => void;
-  /** 「汎用メモリーを入れる」を出すか（初めて探索するまで） */
+  /** 「汎用メモリーを入れる」と「今は汎用メモリーが入っています」の説明を出すか（初めて探索するまで） */
   showTemplate: boolean;
 }) {
   const store = r.memoryStore;
@@ -48,8 +49,8 @@ export default function MemoryPickerModal({
         </div>
       }
     >
-      {store.isGeneric ? (
-        /* 最初から入っている汎用メモリーのままのとき: 何が入っているかと、変え方 */
+      {showTemplate && store.isGeneric ? (
+        /* 最初から入っている汎用メモリーのままのとき（初めて探索するまで）: 何が入っているかと、変え方 */
         <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs leading-relaxed text-slate-700">
           <b className="text-slate-900">
             今は汎用のメモリー（メインパラボ60点）が4枠すべてに入っています。

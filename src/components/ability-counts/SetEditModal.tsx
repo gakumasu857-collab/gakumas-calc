@@ -21,6 +21,24 @@ import { useScenario } from "@/lib/useScenario";
 import AbilityCounter from "./AbilityCounter";
 import ScheduleChoiceGrid from "./ScheduleChoiceGrid";
 
+/** 計算ページから開いたときの説明文を「説明を隠す」でしまった印（上書き保存のボタンは残る） */
+const NOTE_HIDDEN_KEY = "gakumas:counts:runNoteHidden:v1";
+const readNoteHidden = (): boolean => {
+  try {
+    return localStorage.getItem(NOTE_HIDDEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const writeNoteHidden = (hidden: boolean) => {
+  try {
+    if (hidden) localStorage.setItem(NOTE_HIDDEN_KEY, "1");
+    else localStorage.removeItem(NOTE_HIDDEN_KEY);
+  } catch {
+    // 保存できなくても動作には影響しない
+  }
+};
+
 type Props = {
   set: AbilityCountSet;
   /**
@@ -107,6 +125,13 @@ export default function SetEditModal({
   const [withEvents, setWithEvents] = useState(true);
   // スケジュール表（何週/日に何があるか）のモーダル
   const [schedOpen, setSchedOpen] = useState(false);
+  // 計算ページから開いたときの説明文（回数の意味・上書き保存の説明）をしまっているか。ボタンは残す
+  const [noteHidden, setNoteHidden] = useState<boolean>(readNoteHidden);
+  const toggleNote = () => {
+    const next = !noteHidden;
+    setNoteHidden(next);
+    writeNoteHidden(next);
+  };
   const { scenario } = useScenario();
   const current = ABILITY_CATEGORIES.find((c) => c.key === category)!;
   // スケジュール分類は、選択カードで決まるアビリティ（お出かけ・相談・活動支給・特別指導・休む）を
@@ -138,7 +163,7 @@ export default function SetEditModal({
     >
       {/* 計算ページから開いたとき: なぜ回数が並んでいるのかを先に言う
           （「ステータスはここから変えられます」で開くと差し入れ・ドリンク交換などが出てくるため） */}
-      {mode === "run" && (
+      {mode === "run" && !noteHidden && (
         <p className="mb-2 shrink-0 text-xs leading-relaxed text-slate-600">
           サポカで上がるステータスは、<b>サポカのアビリティが何回発動するか</b>
           で決まります（例: 差し入れのときに上がるサポカは、差し入れの回数ぶん上がります）。ここで、その回数を実際の育成に合わせて変えられます。
@@ -147,9 +172,11 @@ export default function SetEditModal({
       {/* デフォルト（プロデュース設定ページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (
         <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
-          <span>
-            <b>今の評価値に適応されている回数</b>です。ここでの変更を次回以降の探索に適用する場合は「上書き保存」
-          </span>
+          {!noteHidden && (
+            <span>
+              <b>今の評価値に適応されている回数</b>です。ここでの変更を次回以降の探索に適用する場合は「上書き保存」
+            </span>
+          )}
           <span className="flex items-center gap-2">
             {onCommitAdjust && (
               <button
@@ -172,12 +199,22 @@ export default function SetEditModal({
               </button>
             )}
           </span>
+          {/* 説明の文章だけしまえる（ボタンは残る）。しまった状態は覚えておく */}
+          <button
+            type="button"
+            onClick={toggleNote}
+            className="ml-auto shrink-0 text-[11px] font-semibold text-blue-700 underline-offset-2 hover:underline"
+          >
+            {noteHidden ? "説明を見る" : "説明を隠す"}
+          </button>
           {/* 上書き保存に入るのは素の回数だけ（緑＝サポカのイベントによる上乗せは入らない） */}
-          <span className="w-full text-[11px] leading-relaxed text-slate-600">
-            上書き保存されるのは<b>プロデュースの回数だけ</b>です。
-            <b className="text-emerald-700">緑の数字（サポカのイベントによる上乗せ）</b>
-            は含まずに保存します。
-          </span>
+          {!noteHidden && (
+            <span className="w-full text-[11px] leading-relaxed text-slate-600">
+              上書き保存されるのは<b>プロデュースの回数だけ</b>です。
+              <b className="text-emerald-700">緑の数字（サポカのイベントによる上乗せ）</b>
+              は含まずに保存します。
+            </span>
+          )}
         </div>
       ) : (
         <div className="mb-3 shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">

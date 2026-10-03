@@ -89,6 +89,16 @@ export const EXAMS = [
 ] as const;
 
 /**
+ * 選抜のスコア入力欄の上限（オーナー指定 2026-10-03: 選抜1は 99,999、選抜2・3は 999,999）。
+ * 実際の点数をそのまま入れられるようにするためのもの。スター性は examStarBase が上限で止めるので、
+ * ★上限のスコア（examStarCapScore）を超えた分は計算に入らない。上昇ステの配分（distributeExam）は比だけで決まる。
+ */
+export const EXAM_SCORE_INPUT_MAX = [99_999, 999_999, 999_999] as const;
+export function examScoreInputMax(examIndex: number): number {
+  return EXAM_SCORE_INPUT_MAX[examIndex] ?? 999_999;
+}
+
+/**
  * 選抜試験のスター性の式（オーナー提供の表 2026-09-21。以前の「両端を直線でつなぐ表」は境界が1ずれていた）。
  *   素の値（親愛度27以下） = 切り上げ( Σ 区間ごとの スコア × 傾き )。上限あり
  *   表示のスター性       = 切り捨て( 素の値 × (1＋親愛度ボーナス) )   … 親愛度37なら ×1.5

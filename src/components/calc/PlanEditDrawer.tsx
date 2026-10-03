@@ -20,6 +20,7 @@ import {
   examBaseFromRise,
   examRiseWithParabo,
   examStar,
+  examScoreInputMax,
   examStarCapScore,
   examStarTable,
   FINAL_ROUNDS,
@@ -315,6 +316,7 @@ function HifEditor({ r }: { r: CalcResult }) {
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
           スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて、
           ゲームのログに出る上昇幅（パラボ込み）をそのまま入力。今の編成のパラボで元のステに逆算します。
+          スコアは実際の点数をそのまま入れられます（選抜1は99,999、選抜2・3は999,999まで）。★上限を超えた分はスター性に入りません。
         </p>
         <div className="flex flex-col divide-y divide-slate-200">
           {EXAMS.map((exam, i) => {
@@ -324,8 +326,10 @@ function HifEditor({ r }: { r: CalcResult }) {
             /** ステ入力のときのパラボ抜きのステの合計。上昇基準値（選抜1なら140）を超えることは実際には無い */
             const statSum = stats ? TYPE_KEYS.reduce((sum, t) => sum + stats[t], 0) : 0;
             const statOver = stats ? Math.max(0, statSum - exam.base) : 0;
-            /** スター性が上限に達するスコア（入力もここで止める） */
+            /** スター性が上限に達するスコア（スライダーの右端と極振りの値） */
             const capScore = examStarCapScore(i);
+            /** 入力欄の上限（実際の点数をそのまま入れられる。★上限を超えた分はスター性に入らない） */
+            const inputMax = examScoreInputMax(i);
             /** 極振り: スター性が上限に達するスコアを1タイプに全部（今の合計ではなく上限） */
             const allIn = (type: TypeKey) => {
               const next: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
@@ -363,7 +367,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                       <NumberField
                         value={total}
                         onChange={(v) => schedule.setExamTotalScore(i, v)}
-                        max={capScore}
+                        max={inputMax}
                         sliderMax={capScore}
                         className="w-24"
                       />
@@ -466,7 +470,7 @@ function HifEditor({ r }: { r: CalcResult }) {
                           <NumberField
                             value={scores[type]}
                             onChange={(v) => schedule.setExamScore(i, type, v)}
-                            max={capScore}
+                            max={inputMax}
                             sliderMax={capScore}
                             className="w-full sm:w-24"
                           />
