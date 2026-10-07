@@ -1,24 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { FolderInput, FolderPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FolderInput, FolderPlus, Save } from "lucide-react";
+import { BTN_PRIMARY, BTN_SECONDARY_LG, CHIP_OK, CHIP_WARN, NOTE } from "@/components/ui";
 import type { ParaboAssign } from "@/lib/memoryTotals";
 import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useMemoryStore } from "@/lib/useMemoryStore";
-import LibraryEditModal from "./LibraryEditModal";
-import MemoryLibrary from "./MemoryLibrary";
+import MemoryLibraryModal from "./MemoryLibraryModal";
 import MemorySetModal from "./MemorySetModal";
 import MemorySlot from "./MemorySlot";
 import SlotEditor from "./SlotEditor";
 
 type Store = ReturnType<typeof useMemoryStore>;
 
-const SET_BTN =
-  "flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 sm:justify-start sm:px-5 sm:py-2.5";
-
 /**
- * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。
- * 上: スロット4枠（クリックで編集する枠を選ぶ）＋ セットの保存／呼び出し
- * 下: 左＝選んだ枠の編集枠（値を押すとそのまま入る。保存は任意）／右＝保存したメモリーの一覧（クリックで枠に入れる）
- * 操作の単位: アビリティ（編集枠）・メモリー（保存／一覧。✎で直接編集）・メモリーセット（4枚まとめて）。
+ * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。2026-10-07 に組み替え（オーナー要望）:
+ * 上: スロット4枠（クリックで編集する枠を選ぶ）＋ メモリーセット（4枚まとめて保存・呼び出し・上書き。よく使う）
+ * 下: 選んだ枠の中身（「アビリティを選ぶ」／「メインパラボ」45・60・70点）
+ * 保存したメモリー（1枚ずつ）は使う機会が少ないので作業台には出さず、枠の右の小さなボタン
+ * 「一覧から選ぶ」（モーダル。今まで通り選ぶ・✎で編集・削除モード）と「この中身を保存」にまとめる。
+ * 操作の単位: アビリティ（編集枠）・メモリー（1枚ずつの保存）・メモリーセット（4枚まとめて）。
  */
 export default function MemoryWorkbench({
   store,
@@ -28,7 +27,7 @@ export default function MemoryWorkbench({
   store: Store;
   /** テンプレ（パラボ追従）を今の踏み方で展開するための割当 */
   paraboAssign: ParaboAssign;
-  /** 増えるたびに「最初の空枠（無ければ枠1）」を編集対象にして編集枠までスクロールする（A の枠から） */
+  /** 増えるたびに「最初の空枠（無ければ枠1）」を編集対象にして編集枠までスクロールする */
   focusKey?: number;
 }) {
   const firstEmpty = store.slots.findIndex((s) => !s);
@@ -42,17 +41,7 @@ export default function MemoryWorkbench({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
   const [setModal, setSetModal] = useState<"save" | "load" | null>(null);
-  /** 一覧の✎で直接編集している保存済みメモリー */
-  const [editId, setEditId] = useState<string | null>(null);
-
-  // 一覧のバッジ用: 保存元ID -> 枠に入っている枚数
-  const selectedCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const s of store.slots) {
-      if (s?.sourceId) counts.set(s.sourceId, (counts.get(s.sourceId) ?? 0) + 1);
-    }
-    return counts;
-  }, [store.slots]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   /** 枠に入れたあと、次の空枠へ編集対象を進める（4枚続けて入れられるように） */
   const advance = (from: number) => {
@@ -65,21 +54,17 @@ export default function MemoryWorkbench({
     store.pickIntoSlot(active, id);
     advance(active);
   };
-  /** 一覧の−: そのメモリーが入っている最後の枠を空にする */
-  const removeOne = (id: string) => {
-    const last = store.slots.map((s) => s?.sourceId).lastIndexOf(id);
-    if (last !== -1) store.clearSlot(last);
-  };
 
   const value = store.slots[active] ?? null;
   const status = store.slotStatus(active);
   const sourceName = value?.sourceId ? store.findMemory(value.sourceId)?.skillName : undefined;
   const full = store.count === SLOT_SIZE;
   const ownSets = store.sets.filter((s) => !s.saveId).length;
+  const activeSet = store.activeSet;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 1. スロット4枠＋メモリーセット */}
+      {/* 1. スロット4枠 ＋ メモリーセット */}
       <div className="flex flex-wrap items-stretch gap-3">
         <MemorySlot
           memories={store.slotMemories}
@@ -88,70 +73,92 @@ export default function MemoryWorkbench({
           onSelect={setActive}
           onRemove={store.clearSlot}
         />
-        {/* セット操作: スマホでは横並び、sm以上は右寄せ縦積み */}
-        <div className="flex w-full flex-row gap-2 sm:ml-auto sm:w-auto sm:flex-col sm:justify-center">
-          <button
-            type="button"
-            disabled={!full}
-            onClick={() => setSetModal("save")}
-            title={full ? "今の4枚をメモリーセットとして保存します" : "4枚そろうと保存できます"}
-            className={SET_BTN}
-          >
-            <FolderPlus size={18} />
-            この4枚をセットとして保存
-          </button>
-          <button
-            type="button"
-            onClick={() => setSetModal("load")}
-            className={SET_BTN}
-          >
-            <FolderInput size={18} />
-            保存したセットから入れる
-            {ownSets > 0 && (
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
-                {ownSets}
-              </span>
+        <section className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 sm:ml-auto sm:w-72">
+          <h2 className="text-sm font-bold text-slate-900">
+            メモリーセット
+            <span className="ml-2 text-xs font-normal text-slate-500">4枚まとめて保存・呼び出し</span>
+          </h2>
+          {activeSet ? (
+            <p className="flex flex-wrap items-center gap-1.5 text-sm text-slate-800">
+              <span className="min-w-0 truncate font-bold">「{activeSet.name}」</span>
+              {store.activeSetModified ? (
+                <span className={CHIP_WARN}>枠を変更中</span>
+              ) : (
+                <span className={CHIP_OK}>セットの通り</span>
+              )}
+            </p>
+          ) : (
+            <p className={NOTE}>今の4枚は、どのセットからも入れていません。</p>
+          )}
+          <div className="flex flex-col items-stretch gap-1.5">
+            <button type="button" onClick={() => setSetModal("load")} className={BTN_SECONDARY_LG}>
+              <FolderInput size={16} />
+              保存したセットから入れる
+              {ownSets > 0 && (
+                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                  {ownSets}
+                </span>
+              )}
+            </button>
+            {activeSet && store.activeSetModified && (
+              <button
+                type="button"
+                onClick={() => store.overwriteSet(activeSet.id)}
+                title="今の4枚で、このセットの中身を書き換えます"
+                className={BTN_PRIMARY}
+              >
+                <Save size={15} />
+                <span className="min-w-0 truncate">「{activeSet.name}」を上書き保存</span>
+              </button>
             )}
-          </button>
-        </div>
+            <button
+              type="button"
+              disabled={!full}
+              onClick={() => setSetModal("save")}
+              title={full ? "今の4枚を新しいメモリーセットとして保存します" : "4枚そろうと保存できます"}
+              className={BTN_SECONDARY_LG}
+            >
+              <FolderPlus size={16} />
+              新しいセットとして保存
+            </button>
+          </div>
+          <p className={NOTE}>
+            セットから入れたあとに枠を変えても、セットは変わりません（変えた4枚はこの育成のセーブデータに入ります）。セット自体を変えるときは「上書き保存」。
+          </p>
+        </section>
       </div>
 
-      {/* 2. 選んだ枠の編集枠 ／ 3. 保存したメモリーの一覧 */}
-      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
-        <SlotEditor
-          index={active}
-          value={value}
-          status={status}
-          sourceName={sourceName}
-          paraboAssign={paraboAssign}
-          onChange={(next) => store.setSlot(active, next)}
-          onClear={() => store.clearSlot(active)}
-          onSaveNew={() => store.saveSlot(active, "new")}
-          onOverwrite={() => store.saveSlot(active, "overwrite")}
-          duplicate={store.findDuplicate(active)}
-          onUseDuplicate={() => {
-            const dup = store.findDuplicate(active);
-            if (dup) store.pickIntoSlot(active, dup.id);
-          }}
-        />
-        <MemoryLibrary
-          memories={store.allMemories}
-          selectedCounts={selectedCounts}
+      {/* 2. 選んだ枠の中身 */}
+      <SlotEditor
+        index={active}
+        value={value}
+        status={status}
+        sourceName={sourceName}
+        paraboAssign={paraboAssign}
+        libraryCount={store.library.length}
+        onChange={(next) => store.setSlot(active, next)}
+        onClear={() => store.clearSlot(active)}
+        onPickParabo={(id) => store.pickIntoSlot(active, id)}
+        onSaveNew={() => store.saveSlot(active, "new")}
+        onOverwrite={() => store.saveSlot(active, "overwrite")}
+        duplicate={store.findDuplicate(active)}
+        onUseDuplicate={() => {
+          const dup = store.findDuplicate(active);
+          if (dup) store.pickIntoSlot(active, dup.id);
+        }}
+        onOpenLibrary={() => setLibraryOpen(true)}
+      />
+
+      {/* 保存したメモリー（1枚ずつ）の一覧。枠の「一覧から選ぶ」から */}
+      {libraryOpen && (
+        <MemoryLibraryModal
+          store={store}
           activeIndex={active}
-          onSelect={pick}
-          onRemoveOne={removeOne}
-          onDelete={store.deleteMemory}
-          onEdit={setEditId}
-        />
-      </div>
-
-      {/* 保存したメモリーを一覧から直接編集（枠に入れなくてよい） */}
-      {editId && store.findMemory(editId) && (
-        <LibraryEditModal
-          memory={store.findMemory(editId)!}
-          onOverwrite={(draft) => store.updateMemory(editId, draft)}
-          onSaveAsNew={(draft) => store.addMemory(draft)}
-          onClose={() => setEditId(null)}
+          onPick={(id) => {
+            pick(id);
+            setLibraryOpen(false);
+          }}
+          onClose={() => setLibraryOpen(false)}
         />
       )}
 
@@ -160,9 +167,11 @@ export default function MemoryWorkbench({
           mode={setModal}
           slots={store.slotMemories}
           sets={store.sets}
+          activeSetId={activeSet?.id ?? null}
           onSave={store.saveSet}
           onApply={store.applySet}
           onDeleteSet={store.deleteSet}
+          onRenameSet={store.renameSet}
           onClose={() => setSetModal(null)}
         />
       )}

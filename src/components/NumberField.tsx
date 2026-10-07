@@ -39,6 +39,17 @@ export default function NumberField({
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const clamp = (v: number) => Math.max(min, Math.min(max, Math.round(v)));
+  /**
+   * 入力中の文字列（欄に入っている間だけ）。数字を全部消した瞬間に「0」が出て、次に打つと「014000」になるのを防ぐ
+   * （値そのものは打つたびに反映し、表示だけ打った通りにしておく。欄から離れたら値の表示に戻る＝空なら 0）。
+   * オーナー要望 2026-10-07
+   */
+  const [draft, setDraft] = useState<string | null>(null);
+  /** 欄の外（スライダー・±）から値を変えるときは、入力中の文字列を捨てて値の表示に戻す */
+  const commit = (v: number) => {
+    setDraft(null);
+    onChange(v);
+  };
 
   /** 入力欄の位置から画面内に収まる表示位置を決める（収まらなければ上向き） */
   const togglePopover = () => {
@@ -67,9 +78,26 @@ export default function NumberField({
         type="number"
         min={min}
         max={max}
-        value={value}
+        value={draft ?? String(value)} // 文字列で渡す: 数値だと「014000」と 14000 が同じ扱いになり、欄の表示が直らない
         disabled={disabled}
-        onChange={(e) => onChange(clamp(Number(e.target.value) || 0))}
+        onFocus={() => setDraft(String(value))}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") {
+            setDraft(""); // 表示は空のまま（値は 0 として反映）
+            onChange(clamp(0));
+            return;
+          }
+          const n = Number(raw);
+          if (!Number.isFinite(n)) {
+            setDraft(raw);
+            return;
+          }
+          const next = clamp(n);
+          setDraft(next === n ? raw : String(next)); // 上限を超えたら上限の値を見せる
+          onChange(next);
+        }}
+        onBlur={() => setDraft(null)}
         onContextMenu={(e) => {
           e.preventDefault();
           if (!disabled) togglePopover();
@@ -97,7 +125,7 @@ export default function NumberField({
                 value={value}
                 min={min}
                 max={Math.max(min + 1, sliderMax ?? max)}
-                onChange={(v) => onChange(clamp(v))}
+                onChange={(v) => commit(clamp(v))}
               />
               <div className="mt-1.5 flex items-center justify-center gap-1">
                 {[-100, -10, -1].map((step) => (
@@ -105,7 +133,7 @@ export default function NumberField({
                     key={step}
                     step={step}
                     disabled={value <= min}
-                    onClick={() => onChange(clamp(value + step))}
+                    onClick={() => commit(clamp(value + step))}
                   />
                 ))}
                 {[+1, +10, +100].map((step) => (
@@ -113,7 +141,7 @@ export default function NumberField({
                     key={step}
                     step={step}
                     disabled={value >= max}
-                    onClick={() => onChange(clamp(value + step))}
+                    onClick={() => commit(clamp(value + step))}
                   />
                 ))}
               </div>

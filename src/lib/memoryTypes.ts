@@ -172,7 +172,7 @@ export const PLAN_STYLES: Record<
   },
 };
 
-/** テンプレメモリー。ライブラリに常時表示され削除不可。 */
+/** テンプレメモリー（メインパラボ）。枠の「メインパラボ」の選択肢として使う（保存したメモリーの一覧には出さない。2026-10-07）。削除不可 */
 export const TEMPLATE_MEMORIES: Memory[] = [
   // ロール追従のパラボメモリー（メイン1/メイン2に%・サブに固定値。ロール切替に自動追従）
   {
@@ -200,6 +200,15 @@ export const TEMPLATE_MEMORIES: Memory[] = [
     roleSpec: { mainPct: 3.5, subFlat: 20 },
   },
 ];
+
+/** 枠の「メインパラボ」の選択肢（テンプレから作る。点数は名前の「◯点」） */
+export const MAIN_PARABO_OPTIONS: { id: string; points: number; mainPct: number; subFlat: number }[] =
+  TEMPLATE_MEMORIES.filter((t) => t.roleSpec).map((t) => ({
+    id: t.id,
+    points: Number((t.skillName ?? "").match(/(\d+)点/)?.[1] ?? 0),
+    mainPct: t.roleSpec!.mainPct,
+    subFlat: t.roleSpec!.subFlat,
+  }));
 
 /** スロットの最大枚数 */
 export const SLOT_SIZE = 4;
@@ -254,6 +263,20 @@ export function sameMemoryContent(
       m.roleSpec ? [m.roleSpec.mainPct, m.roleSpec.subFlat] : null,
     ]);
   return key(a) === key(b);
+}
+
+/** 4枠の中身が同じか（セットから入れたあとに枠を変えたかの判定。保存元のつながりは見ない） */
+export function sameSlots(a: (SlotMemory | null)[], b: (SlotMemory | null)[]): boolean {
+  for (let i = 0; i < SLOT_SIZE; i++) {
+    const x = a[i] ?? null;
+    const y = b[i] ?? null;
+    if (!x || !y) {
+      if (x !== y) return false;
+      continue;
+    }
+    if (!sameMemoryContent(x, y)) return false;
+  }
+  return true;
 }
 
 /** アビリティとプランが同じか（名前は問わない）。保存時の「同じメモリーがもうある」判定に使う */

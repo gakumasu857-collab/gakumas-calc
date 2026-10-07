@@ -10,7 +10,6 @@ import {
   type Memory,
   type PlanKey,
 } from "@/lib/memoryTypes";
-import { GLOSSARY } from "@/lib/glossary";
 import MemoryCard from "./MemoryCard";
 
 type Props = {
@@ -28,7 +27,7 @@ type Props = {
   onEdit?: (id: string) => void;
 };
 
-/** 保存したメモリーの一覧。クリックで編集中の枠に入れる。テンプレ表示・削除モード・フィルター付き。 */
+/** 保存したメモリー（1枚ずつ）の一覧。クリックで編集中の枠に入れる。削除モード・フィルター付き（テンプレのメインパラボは枠の設定に移したので、ここには出さない。2026-10-07） */
 export default function MemoryLibrary({
   memories,
   selectedCounts,
@@ -40,7 +39,6 @@ export default function MemoryLibrary({
 }: Props) {
   const [deleteMode, setDeleteMode] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(true);
   const [planFilter, setPlanFilter] = useState<PlanKey | "すべて">("すべて");
   const [attrFilters, setAttrFilters] = useState<AttrKey[]>([]);
   /** 属性ごとの値の絞り込み（空配列 or 未設定なら値は問わない） */
@@ -76,7 +74,6 @@ export default function MemoryLibrary({
   const visible = useMemo(
     () =>
       memories.filter((m) => {
-        if (!showTemplates && m.isTemplate) return false;
         if (planFilter !== "すべて" && m.plan !== planFilter) return false;
         // 選択中の属性をすべて含み、値の絞り込みがあればそれにも一致するもの
         for (const attr of attrFilters) {
@@ -88,7 +85,7 @@ export default function MemoryLibrary({
         }
         return true;
       }),
-    [memories, showTemplates, planFilter, attrFilters, valueFilters],
+    [memories, planFilter, attrFilters, valueFilters],
   );
 
   return (
@@ -197,23 +194,12 @@ export default function MemoryLibrary({
               </div>
             );
           })}
-          <label className="flex items-center gap-1.5 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              checked={showTemplates}
-              onChange={(e) => setShowTemplates(e.target.checked)}
-            />
-            テンプレメモリー（メインパラボ）を表示
-          </label>
-          <p className="text-[11px] leading-relaxed text-slate-400">
-            「メインパラボ◯点」とは: {GLOSSARY.mainParabo}
-          </p>
         </div>
       )}
 
       {deleteMode && (
         <p className="mb-2 rounded-md bg-red-50 px-2 py-1 text-xs text-red-600">
-          削除モード中: カードをクリックするとライブラリから削除されます（テンプレは削除不可）
+          削除モード中: カードをクリックすると、保存したメモリーから消えます
         </p>
       )}
 
@@ -247,7 +233,9 @@ export default function MemoryLibrary({
         </div>
       ) : (
         <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-          条件に合うメモリーがありません。枠を選んで中身を作り「メモリーとして保存」するか、フィルターを変更してください。
+          {memories.length === 0
+            ? "保存したメモリーはまだありません。枠の中身を作って「この中身を保存」で保存すると、ここに並びます。"
+            : "条件に合うメモリーがありません。フィルターを変えてください。"}
         </p>
       )}
     </section>

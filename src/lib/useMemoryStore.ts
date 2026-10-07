@@ -7,6 +7,7 @@ import {
   padSlots,
   sameAbilities,
   sameMemoryContent,
+  sameSlots,
   slotToMemory,
   slotsFromIds,
   toSlotMemory,
@@ -37,6 +38,7 @@ function normalizeMemory(memory: Memory): Memory {
  * - library: 保存したメモリー（テンプレは含めない）
  * - slots: スロット4枠の中身（保存していないメモリーもそのまま持つ。sourceId は保存元）
  * - sets: 保存済みメモリーセット（4枠の中身のスナップショット）
+ * - activeSetId: 今の4枠をどのセットから入れたか（セットの「変更あり」「上書き保存」用。2026-10-07）
  *
  * 旧形式（スロット＝メモリーIDの配列、セット＝IDの配列）は読み込み時に中身へ展開する。
  */
@@ -50,6 +52,8 @@ export const GENERIC_MEMORY_ID = "tpl-role60";
 /** 旧形式のスロット（IDの配列）。v2 が無いときだけ読む */
 const LEGACY_SEL_KEY = "gakumas:memorySelection:v1";
 const SETS_KEY = "gakumas:memorySets:v1";
+/** 今の4枠をどのセットから入れたか（セットID。null＝どのセットからでもない） */
+const ACTIVE_SET_KEY = "gakumas:memoryActiveSet:v1";
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -154,6 +158,10 @@ export function useMemoryStore() {
   const [sets, setSets] = useState<MemorySet[]>(() =>
     loadSets([...TEMPLATE_MEMORIES, ...load<Memory[]>(LIB_KEY, [])]),
   );
+  const [activeSetId, setActiveSetId] = useState<string | null>(() => {
+    const raw = load<unknown>(ACTIVE_SET_KEY, null);
+    return typeof raw === "string" ? raw : null;
+  });
 
   const notifySave = useSaveNotifier();
   useEffect(() => {
@@ -161,11 +169,16 @@ export function useMemoryStore() {
       localStorage.setItem(LIB_KEY, JSON.stringify(library));
       localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
       localStorage.setItem(SETS_KEY, JSON.stringify(sets));
+      localStorage.setItem(ACTIVE_SET_KEY, JSON.stringify(activeSetId));
       notifySave();
     } catch {
       // 容量超過などは無視
     }
-  }, [library, slots, sets, notifySave]);
+  }, [library, slots, sets, activeSetId, notifySave]);
+  // 入れたセットが消えたら（削除・セーブデータの控えの整理）つながりを外す
+  useEffect(() => {
+    if (activeSetId && !sets.some((s) => s.id === activeSetId)) setActiveSetId(null);
+  }, [sets, activeSetId]);
 
   /** テンプレ＋保存したメモリーをまとめた全メモリー */
   const allMemories = useMemo(
@@ -187,6 +200,12 @@ export function useMemoryStore() {
   const count = slots.filter((s) => s !== null).length;
   /** 4枠とも汎用メモリー（メインパラボ60点のテンプレ）のままか（設定欄の「今は汎用メモリー」の表記用） */
   const isGeneric = slots.every((s) => !!s && !!s.roleSpec && s.sourceId === GENERIC_MEMORY_ID);
+  /** 今の4枠を入れたセット（無ければ null）と、そこから枠を変えたか（「上書き保存」を出す条件） */
+  const activeSet = useMemo(
+    () => sets.find((s) => s.id === activeSetId) ?? null,
+    [sets, activeSetId],
+  );
+  const activeSetModified = !!activeSet && !sameSlots(slots, activeSet.memories);
 
   // ---------------------------------------------------------------- スロット
   const setSlot = useCallback((index: number, value: SlotMemory | null) => {
@@ -198,6 +217,7 @@ export function useMemoryStore() {
   /** 4枠をまるごと置き換える（セーブデータの読み込み・セットの展開用） */
   const setSlots = useCallback((values: (SlotMemory | null)[]) => {
     setSlotsState(padSlots(values.map((v) => (v ? normalizeSlot(v) : null))));
+    setActiveSetId(null); // セーブデータの読み込みなど＝どのセットから入れたのでもない
   }, []);
 
   /** 保存したメモリー／テンプレの中身を枠にコピーして入れる */
@@ -213,7 +233,10 @@ export function useMemoryStore() {
   const fillSlots = useCallback(
     (memoryId: string) => {
       const m = findMemory(memoryId);
-      if (m) setSlotsState(Array.from({ length: SLOT_SIZE }, () => toSlotMemory(m)));
+      if (m) {
+        setSlotsState(Array.from({ length: SLOT_SIZE }, () => toSlotMemory(m)));
+        setActiveSetId(null);
+      }
     },
     [findMemory],
   );
@@ -317,14 +340,32 @@ export function useMemoryStore() {
         ...prev,
         { id, name: name || `セット${prev.length + 1}`, memories },
       ]);
+      setActiveSetId(id); // 保存した直後は、そのセットを使っている状態
       return id;
     },
     [slots],
   );
 
-  /** セットの4枚を枠へ展開する */
+  /** セットの4枚を枠へ展開する（以後そのセットを使っている状態。枠を変えると「変更あり」） */
   const applySet = useCallback((set: MemorySet) => {
     setSlotsState(padSlots(set.memories.map((m) => (m ? { ...m } : null))));
+    setActiveSetId(set.id);
+  }, []);
+
+  /** 今の4枠で、そのセットの中身を書き換える（作業台の「上書き保存」） */
+  const overwriteSet = useCallback(
+    (id: string) => {
+      const memories = slots.map((s) => (s ? { ...s } : null));
+      setSets((prev) => prev.map((s) => (s.id === id ? { ...s, memories } : s)));
+    },
+    [slots],
+  );
+
+  /** セットの名前を変える（空なら変えない） */
+  const renameSet = useCallback((id: string, name: string) => {
+    const next = name.trim();
+    if (!next) return;
+    setSets((prev) => prev.map((s) => (s.id === id ? { ...s, name: next } : s)));
   }, []);
 
   const deleteSet = useCallback((id: string) => {
@@ -381,6 +422,10 @@ export function useMemoryStore() {
     sets,
     saveSet,
     applySet,
+    overwriteSet,
+    renameSet,
+    activeSet,
+    activeSetModified,
     deleteSet,
     upsertSaveSet,
     deleteSetsBySaveId,

@@ -9,7 +9,7 @@
  *  spRate ............ 「サポカ編成と踏み方」のSPレッスン率（FormationPlanCard）
  *  finalStats + finalStatsCap ... 「育成後のステータス」の見出し（StatsCard）
  *  pCards / pTotal ... 育成後のステータスの下のPポイント2行（StatsCard）
- *  mainParabo ........ メモリーの一覧の「メインパラボ◯点」（MemoryLibrary）
+ *  mainParabo ........ 枠の「メインパラボ」の説明（SlotEditor。一覧には出さなくなった 2026-10-07）
  *  typeRatio / spHolders / statOrder / examAssist / stageItems / examConfirm / examAllIn /
  *  minStat / maxStat / eventBudget ... 「条件設定」（SettingPickers。examConfirm・examAllIn は H.I.F のときだけ出る）
  *  stepping / axis / rental / cardFlags ... 画面の ⓘ では未使用（ヘルプページの「用語」だけで説明）
