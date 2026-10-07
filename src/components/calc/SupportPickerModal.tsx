@@ -60,6 +60,10 @@ for (const card of SUPPORT_CARD_DB) {
   ABILITY_BY_ID.set(card.id, keys);
 }
 
+/** カードID → 登場日・スプシの id（「登場日が新しい順」用。2026-10-07） */
+const RELEASE_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.releaseDate]));
+const SHEET_ID_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.sheetId]));
+
 /** 絞り込みの選択肢（実在するアビリティのみ・ラベル順） */
 const ABILITY_OPTIONS: { key: AbilityName; label: string }[] = (() => {
   const present = new Set<AbilityName>();
@@ -129,8 +133,8 @@ export default function SupportPickerModal({
   const [typeFilter, setTypeFilter] = useState<"すべて" | TypeKey>("すべて");
   const [nameQuery, setNameQuery] = useState("");
   const [abilityFilter, setAbilityFilter] = useState<AbilityName | "">("");
-  /** 並び順: 点数順（既定）か、入れ替えたときの合計ステータスの増減順 */
-  const [sortBy, setSortBy] = useState<"points" | "delta">("points");
+  /** 並び順: 点数順（既定）、入れ替えたときの合計ステータスの増減順、登場日が新しい順 */
+  const [sortBy, setSortBy] = useState<"points" | "delta" | "release">("points");
 
   /**
    * この枠をそのカードに入れ替えたときの、育成後の合計ステータス（上限適用後）の増減。
@@ -184,7 +188,12 @@ export default function SupportPickerModal({
               Number(used.has(a.card.id)) - Number(used.has(b.card.id)) ||
               b.delta - a.delta ||
               b.card.points - a.card.points
-            : b.card.points - a.card.points),
+            : sortBy === "release"
+              ? // 登場日が新しい順（同じ日はスプシの id が大きい順、次に点数）
+                (RELEASE_BY_ID.get(b.card.id) ?? "").localeCompare(RELEASE_BY_ID.get(a.card.id) ?? "") ||
+                (SHEET_ID_BY_ID.get(b.card.id) ?? 0) - (SHEET_ID_BY_ID.get(a.card.id) ?? 0) ||
+                b.card.points - a.card.points
+              : b.card.points - a.card.points),
       );
   }, [
     mode,
@@ -282,12 +291,13 @@ export default function SupportPickerModal({
         {/* 並び順 */}
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "points" | "delta")}
+          onChange={(e) => setSortBy(e.target.value as "points" | "delta" | "release")}
           title="並び順"
           className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-600 outline-none focus:border-blue-500"
         >
           <option value="points">点数順</option>
           <option value="delta">合計ステの増減順</option>
+          <option value="release">登場日が新しい順</option>
         </select>
         <span className="ml-auto text-xs text-slate-400">
           {plan && plan !== "フリー"

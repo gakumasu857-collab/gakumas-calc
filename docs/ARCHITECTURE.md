@@ -120,7 +120,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generateAbilityPerf.mjs`（gen:perf） | `abilityValues`（効果量 level1〜5 と `trigger_tag`）＋`abilityEvolutions`（凸→ティア）を `generated/abilityPerf.json` に。カードが使っているのに `abilityValues` に無いアビリティを警告 |
 | `generateAbilityCounts.mjs`（gen:counts） | `abilityCountsHIF/NIA/Hajime` の表（プラン行＋「アビリティ」ヘッダー行＋回数）と `scheduleHIF/NIA/Hajime` の表（週ごとに踏むもの）を `generated/abilityCounts.json` に。スケジュールは行の名前・選べる行動・プロデュースの列をアプリの定義と突き合わせ、食い違いはここで止める（黙って無視すると回数の合わないプロデュースが静かに出来るため） |
 | `_sheet.mjs` / `_sheetDirect.mjs` | gen スクリプト共通のタブ取得。R2（`/api/master`）を見て、まだ無いタブだけ `service-account.json` でスプシから直接読む（同期するタブを足した直後、その Worker を本番に出す前でも gen が通るようにするため） |
-| `generatePIdols.mjs`（gen:pidols） | `pidleName`（Pアイドル一覧）＋`pidleStatus`（成長段階ごとの数値）＋`idleTypes`（審査基準）を `generated/pIdols.json` に |
+| `generatePIdols.mjs`（gen:pidols） | `pidleName`（Pアイドル一覧）＋`pidleStatus`（成長段階ごとの数値）＋`idleTypes`（審査基準）を `generated/pIdols.json` に（`id` 列が全行にあればその順に並べる） |
 | `generateCardSprite.mjs`（gen:sprite） | R2 のサポカ画像を集めて `public/card-import/sprite.png`（一覧画像）と `generated/cardSprite.json`（並び順）を作る。画面キャプチャ所持入力用。画像が無いカードは一覧に出して飛ばす |
 | `generatePreEventImages.mjs`（gen:preevents） | `supMaster` の「前イベ名」を候補に、R2 の `preEvent/<名前>.webp` が実在するものだけ `generated/preEventImages.json` に書く |
 | `checkLabels.mjs`（check:labels） | 生成した JSON に出てくるアビリティ名・前イベ起動タグ・発動回数タブの行名・`trigger_tag` が `src/data/constants.ts` に登録済みかを確認。未登録があれば一覧を出して止まる（`gen:all` の最後に自動実行。単体は `npm run check:labels`）。発動回数タブに属性つきのスキル強化の行（「温存スキル強化」など）があるときは、止めずに「今は使っていない行」として知らせる |
@@ -454,12 +454,12 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 
 | タブ | 読むスクリプト | 列（見出し） |
 |---|---|---|
-| `supMaster` | `generateSupportCards.mjs` → `supportCardsDb.ts` | `id` `サポカ名` `レアリティ` `タイプ` `プラン` `1タイプ`〜`6タイプ` `1アビ`〜`6アビ` `前イベ` `後イベ` `ステイベ` `前イベ名` `強さ` `おすすめプラン` `前イベ起動タグ` `最大発動回数` `パラメータ` `スキル獲得` `Aスキル獲得` `Mスキル獲得` `好調スキル獲得` `集中スキル獲得` `好印象スキル獲得` `やる気スキル獲得` `強気スキル獲得` `温存スキル獲得` `全力スキル獲得` `元気スキル獲得` `SSRスキル獲得` `任意スキル獲得` `スキル強化` `Aスキル強化` `Mスキル強化` `任意スキル強化` `スキル削除` `Aスキル削除` `Mスキル削除` `任意スキル削除` `チェンジ` `ドリンク獲得` `Pアイテム獲得` `Pポイント` `回復` `検索ワード` |
+| `supMaster` | `generateSupportCards.mjs` → `supportCardsDb.ts` | `id`（登場順の通し番号。2026-10-07 に重複が解消されて一意に。`sheetId` として並び順にだけ使い、保存キーは `card:名前` のまま） `サポカ名` `登場日`（日付の通し番号 → `releaseDate` YYYY-MM-DD。データベースの列と「登場日が新しい順」） `レアリティ` `タイプ` `プラン` `1タイプ`〜`6タイプ` `1アビ`〜`6アビ` `前イベ` `後イベ` `ステイベ` `前イベ名` `強さ` `おすすめプラン` `前イベ起動タグ` `最大発動回数` `パラメータ` `スキル獲得` `Aスキル獲得` `Mスキル獲得` `好調スキル獲得` `集中スキル獲得` `好印象スキル獲得` `やる気スキル獲得` `強気スキル獲得` `温存スキル獲得` `全力スキル獲得` `元気スキル獲得` `SSRスキル獲得` `任意スキル獲得` `スキル強化` `Aスキル強化` `Mスキル強化` `任意スキル強化` `スキル削除` `Aスキル削除` `Mスキル削除` `任意スキル削除` `チェンジ` `ドリンク獲得` `Pアイテム獲得` `Pポイント` `回復` `検索ワード` |
 | `abilityValues` | `generateAbilityPerf.mjs` | `name` `rarity`（SSR／配布SSR／SR／R） `level1`〜`level5` `trigger_tag` |
 | `abilityEvolutions` | `generateAbilityPerf.mjs` | `レアリティ` `アビリティ`（ability1〜6） `0凸`〜`4凸`（ティア番号 1〜5） |
 | `abilityCountsHIF` / `abilityCountsNIA` / `abilityCountsHajime` | `generateAbilityCounts.mjs` → `abilityCounts.ts` | 1 行目: プラン行（左上は空）、2 行目: 左端が `アビリティ`、右にセット名、以降: アビリティ名＋回数。**お出かけ・相談・活動支給・差し入れ・特別指導・休むの行はテンプレでは使わない**（スケジュールタブから数える。食い違うと gen:counts がお知らせを出す） |
 | `scheduleHIF` / `scheduleNIA` / `scheduleHajime` | 同上 → `TEMPLATE_CHOICES` | 開発側が決めるテンプレの踏み方（2026-09-18 にオーナーが作成）。1 行目: プラン行、2 行目: 左端が `スケジュール`、次が `選べる行動`（人が見るだけ。コードは読み飛ばす）、右に発動回数タブと**同じ並びの**プロデュース名（同名の列が並ぶので、プラン行＋名前で突き合わせる）。以降: A 列が週（日）の名前（`選抜1日目` `本戦3日目` `3週目`）、セルは `お出かけ` `相談` `差し入れ`（初は `活動支給`）`特別指導` `休む`／空欄。読み込み時に週の行idが今のスケジュール定義と噛み合わなければそのテンプレは使わない（`registerChoices`。gen:counts を回し忘れると全部「休む」になるのを防ぐ） |
-| `pidleName` | `generatePIdols.mjs` | `固有スキル名` `名前` `カード名` `レアリティ` `プラン` `おすすめ効果` `名前カード名` `成長タグ` |
+| `pidleName` | `generatePIdols.mjs` | `id`（2026-10-07 追加。`sheetId` として並び順にだけ使う。保存キーは `名前カード名` のまま） `固有スキル名` `名前` `カード名` `レアリティ` `プラン` `おすすめ効果` `名前カード名` `成長タグ` |
 | `pidleStatus` | `generatePIdols.mjs` | `成長タグ` `段階` `体力` `Vo初期値` `Da初期値` `Vi初期値` `Voパラボ` `Daパラボ` `Viパラボ` `VoSP率` `DaSP率` `ViSP率` |
 | `idleTypes` | `generatePIdols.mjs` | `名前` `Vocal` `Dance` `Visual`（審査基準 1〜3） `型`（バランス／特化） |
 

@@ -18,9 +18,11 @@ export type PIdolMaster = {
   rarity: string;
   plan: string;
   effect: string;
-  /** 名前カード名（一意キー） */
+  /** 名前カード名（一意キー。所持状況・セーブデータの保存キー） */
   key: string;
   growthTag: string;
+  /** スプシ pidleName の id 列（登場順。2026-10-07 追加）。並び順にだけ使い、保存キーには使わない（旧データは 0） */
+  sheetId: number;
 };
 
 type GrowthBlocks = {

@@ -9,7 +9,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海咲季学園生活",
-   "growthTag": "花海咲季R"
+   "growthTag": "花海咲季R",
+   "sheetId": 1
   },
   {
    "url": "skill/初めての未来.webp",
@@ -20,7 +21,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海咲季初声",
-   "growthTag": "花海咲季初声"
+   "growthTag": "花海咲季初声",
+   "sheetId": 2
   },
   {
    "url": "skill/一番は譲らない.webp",
@@ -31,7 +33,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海咲季わたしが一番！",
-   "growthTag": "花海咲季SR"
+   "growthTag": "花海咲季SR",
+   "sheetId": 3
   },
   {
    "url": "skill/絶対に負けない.webp",
@@ -42,7 +45,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海咲季Fighting My Way",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 4
   },
   {
    "url": "skill/POW！.webp",
@@ -53,7 +57,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海咲季Boom Boom Pow",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 5
   },
   {
    "url": "skill/金魚すくいで勝負.webp",
@@ -64,7 +69,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海咲季冠菊",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 6
   },
   {
    "url": "skill/ちょちょいのちょい.webp",
@@ -75,7 +81,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "花海咲季古今東西ちょちょいのちょい",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 7
   },
   {
    "url": "skill/これまでもこれからも.webp",
@@ -86,7 +93,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海咲季Campus mode!!",
-   "growthTag": "花海咲季SSRフェス"
+   "growthTag": "花海咲季SSRフェス",
+   "sheetId": 8
   },
   {
    "url": "skill/あの日、この場所で.webp",
@@ -97,7 +105,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "花海咲季桜フォトグラフ",
-   "growthTag": "花海咲季SSRシーズン"
+   "growthTag": "花海咲季SSRシーズン",
+   "sheetId": 9
   },
   {
    "url": "skill/わたしらしい色.webp",
@@ -108,7 +117,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "花海咲季雨上がりのアイリス",
-   "growthTag": "花海咲季SSRシーズン"
+   "growthTag": "花海咲季SSRシーズン",
+   "sheetId": 10
   },
   {
    "url": "skill/泥臭くあれ！.webp",
@@ -119,7 +129,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "花海咲季がむしゃらに行こう！",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 11
   },
   {
    "url": "skill/鮮やかに咲く花.webp",
@@ -130,7 +141,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海咲季Wildest Flower",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 12
   },
   {
    "url": "skill/伝説への挑戦.webp",
@@ -141,7 +153,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海咲季GO MY WAY!!",
-   "growthTag": "花海咲季SSR"
+   "growthTag": "花海咲季SSR",
+   "sheetId": 13
   },
   {
    "url": "skill/わたしの人生を込めて.webp",
@@ -152,7 +165,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "花海咲季ガラクタロード",
-   "growthTag": "花海咲季SSRフェス"
+   "growthTag": "花海咲季SSRフェス",
+   "sheetId": 14
   },
   {
    "url": "skill/意地っ張り.webp",
@@ -163,7 +177,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "月村手毬学園生活",
-   "growthTag": "月村手毬R"
+   "growthTag": "月村手毬R",
+   "sheetId": 15
   },
   {
    "url": "skill/初めての場所.webp",
@@ -174,7 +189,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "月村手毬初声",
-   "growthTag": "月村手毬初声"
+   "growthTag": "月村手毬初声",
+   "sheetId": 16
   },
   {
    "url": "skill/ローン・ウルフ.webp",
@@ -185,7 +201,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "月村手毬一匹狼",
-   "growthTag": "月村手毬SR"
+   "growthTag": "月村手毬SR",
+   "sheetId": 17
   },
   {
    "url": "skill/それぞれの道.webp",
@@ -196,7 +213,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "月村手毬Luna say maybe",
-   "growthTag": "月村手毬SSR"
+   "growthTag": "月村手毬SSR",
+   "sheetId": 18
   },
   {
    "url": "skill/絡まる想い.webp",
@@ -207,7 +225,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "月村手毬アイヴイ",
-   "growthTag": "月村手毬SSR"
+   "growthTag": "月村手毬SSR",
+   "sheetId": 19
   },
   {
    "url": "skill/悪戦苦闘ハンドメイド.webp",
@@ -218,7 +237,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "月村手毬仮装狂騒曲",
-   "growthTag": "月村手毬SSRシーズン"
+   "growthTag": "月村手毬SSRシーズン",
+   "sheetId": 20
   },
   {
    "url": "skill/嫌いな自分にバイバイ.webp",
@@ -229,7 +249,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "月村手毬Campus mode!!",
-   "growthTag": "月村手毬SSRフェス"
+   "growthTag": "月村手毬SSRフェス",
+   "sheetId": 21
   },
   {
    "url": "skill/おてつき注意！.webp",
@@ -240,7 +261,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "月村手毬雪解けに",
-   "growthTag": "月村手毬SSR"
+   "growthTag": "月村手毬SSR",
+   "sheetId": 22
   },
   {
    "url": "skill/希望が届くまで.webp",
@@ -251,7 +273,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "月村手毬雨上がりのアイリス",
-   "growthTag": "月村手毬SSRシーズン"
+   "growthTag": "月村手毬SSRシーズン",
+   "sheetId": 23
   },
   {
    "url": "skill/空まで一直線.webp",
@@ -262,7 +285,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "月村手毬がむしゃらに行こう！",
-   "growthTag": "月村手毬SSRシーズン"
+   "growthTag": "月村手毬SSRシーズン",
+   "sheetId": 24
   },
   {
    "url": "skill/置き去りな自分.webp",
@@ -273,7 +297,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "月村手毬一体いつから",
-   "growthTag": "月村手毬SSR"
+   "growthTag": "月村手毬SSR",
+   "sheetId": 25
   },
   {
    "url": "skill/燃え盛る青い炎.webp",
@@ -284,7 +309,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "月村手毬ガラクタロード",
-   "growthTag": "月村手毬SSRフェス"
+   "growthTag": "月村手毬SSRフェス",
+   "sheetId": 26
   },
   {
    "url": "skill/夏風の通り道.webp",
@@ -295,7 +321,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "月村手毬「ねえ、言っちゃうよ。」",
-   "growthTag": "月村手毬SSR"
+   "growthTag": "月村手毬SSR",
+   "sheetId": 27
   },
   {
    "url": "skill/アルバイター.webp",
@@ -306,7 +333,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "藤田ことね学園生活",
-   "growthTag": "藤田ことねR"
+   "growthTag": "藤田ことねR",
+   "sheetId": 28
   },
   {
    "url": "skill/初めてのご褒美.webp",
@@ -317,7 +345,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "藤田ことね初声",
-   "growthTag": "藤田ことね初声"
+   "growthTag": "藤田ことね初声",
+   "sheetId": 29
   },
   {
    "url": "skill/Colorful Cute!.webp",
@@ -328,7 +357,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "藤田ことねカワイイ♡はじめました",
-   "growthTag": "藤田ことねSR"
+   "growthTag": "藤田ことねSR",
+   "sheetId": 30
   },
   {
    "url": "skill/よそ見はダメ♪.webp",
@@ -339,7 +369,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "藤田ことね世界一可愛い私",
-   "growthTag": "藤田ことねSSR"
+   "growthTag": "藤田ことねSSR",
+   "sheetId": 31
   },
   {
    "url": "skill/アドレナリン全開.webp",
@@ -350,7 +381,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "藤田ことねYellow Big Bang！",
-   "growthTag": "藤田ことねYellow Big Bang！"
+   "growthTag": "藤田ことねYellow Big Bang！",
+   "sheetId": 32
   },
   {
    "url": "skill/夏の宵の線香花火.webp",
@@ -361,7 +393,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "藤田ことね冠菊",
-   "growthTag": "藤田ことねSSRシーズン"
+   "growthTag": "藤田ことねSSRシーズン",
+   "sheetId": 33
   },
   {
    "url": "skill/メリクリで～す♪.webp",
@@ -372,7 +405,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "藤田ことねWhite Night! White Wish!",
-   "growthTag": "藤田ことねWhite Night! White Wish!"
+   "growthTag": "藤田ことねWhite Night! White Wish!",
+   "sheetId": 34
   },
   {
    "url": "skill/自慢のお姉ちゃんだぞ.webp",
@@ -383,7 +417,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "藤田ことねCampus mode!!",
-   "growthTag": "藤田ことねSSRフェス"
+   "growthTag": "藤田ことねSSRフェス",
+   "sheetId": 35
   },
   {
    "url": "skill/あたらしい光.webp",
@@ -394,7 +429,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "藤田ことね雨上がりのアイリス",
-   "growthTag": "藤田ことねSSRシーズン"
+   "growthTag": "藤田ことねSSRシーズン",
+   "sheetId": 36
   },
   {
    "url": "skill/自己肯定感爆上げ↑↑.webp",
@@ -405,7 +441,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "藤田ことね自己肯定感爆上げ↑↑しゅきしゅきソング",
-   "growthTag": "藤田ことねSSR"
+   "growthTag": "藤田ことねSSR",
+   "sheetId": 37
   },
   {
    "url": "skill/かましちゃえ♪.webp",
@@ -416,7 +453,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "藤田ことねがむしゃらに行こう！",
-   "growthTag": "藤田ことねSSRシーズン"
+   "growthTag": "藤田ことねSSRシーズン",
+   "sheetId": 38
   },
   {
    "url": "skill/弱気じゃいられない！.webp",
@@ -427,7 +465,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "藤田ことねGO MY WAY!!",
-   "growthTag": "藤田ことねSSR"
+   "growthTag": "藤田ことねSSR",
+   "sheetId": 39
   },
   {
    "url": "skill/プライドの塊.webp",
@@ -438,7 +477,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "雨夜燕学園生活",
-   "growthTag": "雨夜燕R"
+   "growthTag": "雨夜燕R",
+   "sheetId": 40
   },
   {
    "url": "skill/紫電一閃.webp",
@@ -449,7 +489,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "雨夜燕初志貫徹",
-   "growthTag": "雨夜燕SR"
+   "growthTag": "雨夜燕SR",
+   "sheetId": 41
   },
   {
    "url": "skill/私は、決して.webp",
@@ -460,7 +501,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "雨夜燕理論武装して",
-   "growthTag": "雨夜燕SSR"
+   "growthTag": "雨夜燕SSR",
+   "sheetId": 42
   },
   {
    "url": "skill/ダークヒーローの誕生.webp",
@@ -471,7 +513,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "雨夜燕Campus mode!!",
-   "growthTag": "雨夜燕SSRフェス"
+   "growthTag": "雨夜燕SSRフェス",
+   "sheetId": 43
   },
   {
    "url": "skill/星を散らせ.webp",
@@ -482,7 +525,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "雨夜燕クライアイ",
-   "growthTag": "雨夜燕SSR"
+   "growthTag": "雨夜燕SSR",
+   "sheetId": 44
   },
   {
    "url": "skill/リトル・プリンス.webp",
@@ -493,7 +537,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "有村麻央学園生活",
-   "growthTag": "有村麻央R"
+   "growthTag": "有村麻央R",
+   "sheetId": 45
   },
   {
    "url": "skill/初めての結晶.webp",
@@ -504,7 +549,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "有村麻央初恋",
-   "growthTag": "有村麻央初恋"
+   "growthTag": "有村麻央初恋",
+   "sheetId": 46
   },
   {
    "url": "skill/らしさ.webp",
@@ -515,7 +561,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "有村麻央はじまりはカッコよく",
-   "growthTag": "有村麻央SR"
+   "growthTag": "有村麻央SR",
+   "sheetId": 47
   },
   {
    "url": "skill/盛装の華形.webp",
@@ -526,7 +573,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "有村麻央Fluorite",
-   "growthTag": "有村麻央SSR"
+   "growthTag": "有村麻央SSR",
+   "sheetId": 48
   },
   {
    "url": "skill/ひんやり一休み.webp",
@@ -537,7 +585,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "有村麻央キミとセミブルー",
-   "growthTag": "有村麻央SSR"
+   "growthTag": "有村麻央SSR",
+   "sheetId": 49
   },
   {
    "url": "skill/月夜のランウェイ.webp",
@@ -548,7 +597,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "有村麻央Feel Jewel Dream",
-   "growthTag": "有村麻央SSR"
+   "growthTag": "有村麻央SSR",
+   "sheetId": 50
   },
   {
    "url": "skill/手にした答え.webp",
@@ -559,7 +609,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "有村麻央Campus mode!!",
-   "growthTag": "有村麻央SSRフェス"
+   "growthTag": "有村麻央SSRフェス",
+   "sheetId": 51
   },
   {
    "url": "skill/頬張る3色.webp",
@@ -570,7 +621,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "有村麻央雪解けに",
-   "growthTag": "有村麻央SSRシーズン"
+   "growthTag": "有村麻央SSRシーズン",
+   "sheetId": 52
   },
   {
    "url": "skill/ドラマチックホリデー.webp",
@@ -581,7 +633,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "有村麻央ミラクルナナウ(ﾟ∀ﾟ)！",
-   "growthTag": "有村麻央SSRシーズン"
+   "growthTag": "有村麻央SSRシーズン",
+   "sheetId": 53
   },
   {
    "url": "skill/見つけた世界で.webp",
@@ -592,7 +645,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "有村麻央見て",
-   "growthTag": "有村麻央SSR"
+   "growthTag": "有村麻央SSR",
+   "sheetId": 54
   },
   {
    "url": "skill/奪われる心.webp",
@@ -603,7 +657,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "有村麻央SUGAR FRAVOR",
-   "growthTag": "有村麻央SSRシーズン"
+   "growthTag": "有村麻央SSRシーズン",
+   "sheetId": 55
   },
   {
    "url": "skill/受け止める光.webp",
@@ -614,7 +669,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "有村麻央標",
-   "growthTag": "有村麻央SSR"
+   "growthTag": "有村麻央SSR",
+   "sheetId": 56
   },
   {
    "url": "skill/内気系少女.webp",
@@ -625,7 +681,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "葛城リーリヤ学園生活",
-   "growthTag": "葛城リーリヤR"
+   "growthTag": "葛城リーリヤR",
+   "sheetId": 57
   },
   {
    "url": "skill/初めての地平.webp",
@@ -636,7 +693,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "葛城リーリヤ初心",
-   "growthTag": "葛城リーリヤ初心"
+   "growthTag": "葛城リーリヤ初心",
+   "sheetId": 58
   },
   {
    "url": "skill/純白の妖精.webp",
@@ -647,7 +705,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "葛城リーリヤ一つ踏み出した先に",
-   "growthTag": "葛城リーリヤSR"
+   "growthTag": "葛城リーリヤSR",
+   "sheetId": 59
   },
   {
    "url": "skill/もう怖くないから.webp",
@@ -658,7 +717,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "葛城リーリヤ白線",
-   "growthTag": "葛城リーリヤSSR"
+   "growthTag": "葛城リーリヤSSR",
+   "sheetId": 60
   },
   {
    "url": "skill/はじめてのラムネ.webp",
@@ -669,7 +729,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "葛城リーリヤ冠菊",
-   "growthTag": "葛城リーリヤSSRシーズン"
+   "growthTag": "葛城リーリヤSSRシーズン",
+   "sheetId": 61
   },
   {
    "url": "skill/愛を込めて.webp",
@@ -680,7 +741,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "葛城リーリヤWhite Night! White Wish!",
-   "growthTag": "葛城リーリヤWhite Night! White Wish!"
+   "growthTag": "葛城リーリヤWhite Night! White Wish!",
+   "sheetId": 62
   },
   {
    "url": "skill/いつか見た景色.webp",
@@ -691,7 +753,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "葛城リーリヤCampus mode!!",
-   "growthTag": "葛城リーリヤSSRフェス"
+   "growthTag": "葛城リーリヤSSRフェス",
+   "sheetId": 63
   },
   {
    "url": "skill/きらきらプリズム.webp",
@@ -702,7 +765,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "葛城リーリヤ極光",
-   "growthTag": "葛城リーリヤSSR"
+   "growthTag": "葛城リーリヤSSR",
+   "sheetId": 64
   },
   {
    "url": "skill/放課後おしゃべり.webp",
@@ -713,7 +777,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "葛城リーリヤ桜フォトグラフ",
-   "growthTag": "葛城リーリヤSSR"
+   "growthTag": "葛城リーリヤSSR",
+   "sheetId": 65
   },
   {
    "url": "skill/戦う理由.webp",
@@ -724,7 +789,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "葛城リーリヤHowling over the World",
-   "growthTag": "葛城リーリヤSSRシーズン"
+   "growthTag": "葛城リーリヤSSRシーズン",
+   "sheetId": 66
   },
   {
    "url": "skill/あふれ出る想い.webp",
@@ -735,7 +801,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "葛城リーリヤAtmosphere",
-   "growthTag": "葛城リーリヤSSR"
+   "growthTag": "葛城リーリヤSSR",
+   "sheetId": 67
   },
   {
    "url": "skill/いつかあなたの隣で.webp",
@@ -746,7 +813,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "葛城リーリヤときめきエモーション",
-   "growthTag": "葛城リーリヤSSRシーズン"
+   "growthTag": "葛城リーリヤSSRシーズン",
+   "sheetId": 68
   },
   {
    "url": "skill/理想に手が届く日まで.webp",
@@ -757,7 +825,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "葛城リーリヤガラクタロード",
-   "growthTag": "葛城リーリヤSSRフェス"
+   "growthTag": "葛城リーリヤSSRフェス",
+   "sheetId": 69
   },
   {
    "url": "skill/無自覚チャーム.webp",
@@ -768,7 +837,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "葛城リーリヤAgitato",
-   "growthTag": "葛城リーリヤSSR"
+   "growthTag": "葛城リーリヤSSR",
+   "sheetId": 70
   },
   {
    "url": "skill/元気いっぱい.webp",
@@ -779,7 +849,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "倉本千奈学園生活",
-   "growthTag": "倉本千奈R"
+   "growthTag": "倉本千奈R",
+   "sheetId": 71
   },
   {
    "url": "skill/初めての色.webp",
@@ -790,7 +861,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "倉本千奈初心",
-   "growthTag": "倉本千奈初心"
+   "growthTag": "倉本千奈初心",
+   "sheetId": 72
   },
   {
    "url": "skill/いっしょけんめい.webp",
@@ -801,7 +873,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "倉本千奈胸を張って一歩ずつ",
-   "growthTag": "倉本千奈SR"
+   "growthTag": "倉本千奈SR",
+   "sheetId": 73
   },
   {
    "url": "skill/お嬢様の晴れ舞台.webp",
@@ -812,7 +885,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "倉本千奈Wonder Scale",
-   "growthTag": "倉本千奈SSR"
+   "growthTag": "倉本千奈SSR",
+   "sheetId": 74
   },
   {
    "url": "skill/お茶会へようこそ♪.webp",
@@ -823,7 +897,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "倉本千奈日々、発見的ステップ！",
-   "growthTag": "倉本千奈SSR"
+   "growthTag": "倉本千奈SSR",
+   "sheetId": 75
   },
   {
    "url": "skill/こくりとひとくち.webp",
@@ -834,7 +909,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "倉本千奈ようこそ初星温泉",
-   "growthTag": "倉本千奈SSRシーズン"
+   "growthTag": "倉本千奈SSRシーズン",
+   "sheetId": 76
   },
   {
    "url": "skill/悪戯しちゃいますわ！.webp",
@@ -845,7 +921,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "倉本千奈仮装狂騒曲",
-   "growthTag": "倉本千奈SSR"
+   "growthTag": "倉本千奈SSR",
+   "sheetId": 77
   },
   {
    "url": "skill/広がり続ける世界.webp",
@@ -856,7 +933,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "倉本千奈Campus mode!!",
-   "growthTag": "倉本千奈SSRフェス"
+   "growthTag": "倉本千奈SSRフェス",
+   "sheetId": 78
   },
   {
    "url": "skill/ちいさなおひさま.webp",
@@ -867,7 +945,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "倉本千奈雪解けに",
-   "growthTag": "倉本千奈SSRシーズン"
+   "growthTag": "倉本千奈SSRシーズン",
+   "sheetId": 79
   },
   {
    "url": "skill/次こそは、必ず.webp",
@@ -878,7 +957,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "倉本千奈Howling over the World",
-   "growthTag": "倉本千奈SSRシーズン"
+   "growthTag": "倉本千奈SSRシーズン",
+   "sheetId": 80
   },
   {
    "url": "skill/世界一の勇気.webp",
@@ -889,7 +969,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "倉本千奈空と約束",
-   "growthTag": "倉本千奈SSR"
+   "growthTag": "倉本千奈SSR",
+   "sheetId": 81
   },
   {
    "url": "skill/どきどきはそのまま.webp",
@@ -900,7 +981,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "倉本千奈みちなるひろがる",
-   "growthTag": "倉本千奈SSRシーズン"
+   "growthTag": "倉本千奈SSRシーズン",
+   "sheetId": 82
   },
   {
    "url": "skill/出発進行ですわ～♪.webp",
@@ -911,7 +993,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "倉本千奈標",
-   "growthTag": "倉本千奈SSR"
+   "growthTag": "倉本千奈SSR",
+   "sheetId": 83
   },
   {
    "url": "skill/フレンドリー.webp",
@@ -922,7 +1005,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "紫雲清夏学園生活",
-   "growthTag": "紫雲清夏R"
+   "growthTag": "紫雲清夏R",
+   "sheetId": 84
   },
   {
    "url": "skill/初めての想い.webp",
@@ -933,7 +1017,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "紫雲清夏初恋",
-   "growthTag": "紫雲清夏初恋"
+   "growthTag": "紫雲清夏初恋",
+   "sheetId": 85
   },
   {
    "url": "skill/勇気の一歩.webp",
@@ -944,7 +1029,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "紫雲清夏夢へのリスタート",
-   "growthTag": "紫雲清夏SR"
+   "growthTag": "紫雲清夏SR",
+   "sheetId": 86
   },
   {
    "url": "skill/ワンモアステップ.webp",
@@ -955,7 +1041,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "紫雲清夏Tame-Lie-One-Step",
-   "growthTag": "紫雲清夏SSR"
+   "growthTag": "紫雲清夏SSR",
+   "sheetId": 87
   },
   {
    "url": "skill/昼下がりのそよ風.webp",
@@ -966,7 +1053,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "紫雲清夏キミとセミブルー",
-   "growthTag": "紫雲清夏SSRシーズン"
+   "growthTag": "紫雲清夏SSRシーズン",
+   "sheetId": 88
   },
   {
    "url": "skill/踏切の先に.webp",
@@ -977,7 +1065,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "紫雲清夏カクシタワタシ",
-   "growthTag": "紫雲清夏SSR"
+   "growthTag": "紫雲清夏SSR",
+   "sheetId": 89
   },
   {
    "url": "skill/また、飛べる.webp",
@@ -988,7 +1077,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "紫雲清夏Campus mode!!",
-   "growthTag": "紫雲清夏SSRフェス"
+   "growthTag": "紫雲清夏SSRフェス",
+   "sheetId": 90
   },
   {
    "url": "skill/ヒーローとの出会い.webp",
@@ -999,7 +1089,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "紫雲清夏桜フォトグラフ",
-   "growthTag": "紫雲清夏SSRシーズン"
+   "growthTag": "紫雲清夏SSRシーズン",
+   "sheetId": 91
   },
   {
    "url": "skill/もうためらわない.webp",
@@ -1010,7 +1101,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "紫雲清夏Love&Joy",
-   "growthTag": "紫雲清夏SSR"
+   "growthTag": "紫雲清夏SSR",
+   "sheetId": 92
   },
   {
    "url": "skill/爆盛れ最強ルック♪.webp",
@@ -1021,7 +1113,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "紫雲清夏ミラクルナナウ(ﾟ∀ﾟ)！",
-   "growthTag": "紫雲清夏SSR"
+   "growthTag": "紫雲清夏SSR",
+   "sheetId": 93
   },
   {
    "url": "skill/いつもあなたの隣で.webp",
@@ -1032,7 +1125,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "紫雲清夏ときめきエモーション",
-   "growthTag": "紫雲清夏SSRシーズン"
+   "growthTag": "紫雲清夏SSRシーズン",
+   "sheetId": 94
   },
   {
    "url": "skill/応えたい気持ち.webp",
@@ -1043,7 +1137,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "紫雲清夏標",
-   "growthTag": "紫雲清夏SSR"
+   "growthTag": "紫雲清夏SSR",
+   "sheetId": 95
   },
   {
    "url": "skill/超高学歴アイドル.webp",
@@ -1054,7 +1149,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "篠澤広学園生活",
-   "growthTag": "篠澤広R"
+   "growthTag": "篠澤広R",
+   "sheetId": 96
   },
   {
    "url": "skill/初めてのたのしみ.webp",
@@ -1065,7 +1161,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "篠澤広初恋",
-   "growthTag": "篠澤広初恋"
+   "growthTag": "篠澤広初恋",
+   "sheetId": 97
   },
   {
    "url": "skill/苦しいのが好き.webp",
@@ -1076,7 +1173,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "篠澤広一番向いてないこと",
-   "growthTag": "篠澤広SR"
+   "growthTag": "篠澤広SR",
+   "sheetId": 98
   },
   {
    "url": "skill/本気の趣味.webp",
@@ -1087,7 +1185,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "篠澤広光景",
-   "growthTag": "篠澤広SSR"
+   "growthTag": "篠澤広SSR",
+   "sheetId": 99
   },
   {
    "url": "skill/バスに揺られて.webp",
@@ -1098,7 +1197,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "篠澤広コントラスト",
-   "growthTag": "篠澤広SSR"
+   "growthTag": "篠澤広SSR",
+   "sheetId": 100
   },
   {
    "url": "skill/正確無比な看板づくり.webp",
@@ -1109,7 +1209,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "篠澤広仮装狂騒曲",
-   "growthTag": "篠澤広SSRシーズン"
+   "growthTag": "篠澤広SSRシーズン",
+   "sheetId": 101
   },
   {
    "url": "skill/エウレカ！.webp",
@@ -1120,7 +1221,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "篠澤広Campus mode!!",
-   "growthTag": "篠澤広SSRフェス"
+   "growthTag": "篠澤広SSRフェス",
+   "sheetId": 102
   },
   {
    "url": "skill/がんばった、よ.webp",
@@ -1131,7 +1233,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "篠澤広ハッピーミルフィーユ",
-   "growthTag": "篠澤広SSR"
+   "growthTag": "篠澤広SSR",
+   "sheetId": 103
   },
   {
    "url": "skill/日が差す方へ.webp",
@@ -1142,7 +1245,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "篠澤広サンフェーデッド",
-   "growthTag": "篠澤広SSR"
+   "growthTag": "篠澤広SSR",
+   "sheetId": 104
   },
   {
    "url": "skill/でこれーとまじっく.webp",
@@ -1153,7 +1257,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "篠澤広ミラクルナナウ(ﾟ∀ﾟ)！",
-   "growthTag": "篠澤広SSRシーズン"
+   "growthTag": "篠澤広SSRシーズン",
+   "sheetId": 105
   },
   {
    "url": "skill/心が跳ねるままに.webp",
@@ -1164,7 +1269,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "篠澤広みちなるひろがる",
-   "growthTag": "篠澤広SSRシーズン"
+   "growthTag": "篠澤広SSRシーズン",
+   "sheetId": 106
   },
   {
    "url": "skill/あなたがくれた夢.webp",
@@ -1175,7 +1281,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "篠澤広ガラクタロード",
-   "growthTag": "篠澤広SSRフェス"
+   "growthTag": "篠澤広SSRフェス",
+   "sheetId": 107
   },
   {
    "url": "skill/わたしは、風！.webp",
@@ -1186,7 +1293,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "篠澤広め",
-   "growthTag": "篠澤広SSR"
+   "growthTag": "篠澤広SSR",
+   "sheetId": 108
   },
   {
    "url": "skill/学園一のアイドル.webp",
@@ -1197,7 +1305,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "十王星南学園生活",
-   "growthTag": "十王星南R"
+   "growthTag": "十王星南R",
+   "sheetId": 109
   },
   {
    "url": "skill/初めての野望.webp",
@@ -1208,7 +1317,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "十王星南初陣",
-   "growthTag": "十王星南初陣"
+   "growthTag": "十王星南初陣",
+   "sheetId": 110
   },
   {
    "url": "skill/王者の御出まし.webp",
@@ -1219,7 +1329,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "十王星南一番星",
-   "growthTag": "十王星南SR"
+   "growthTag": "十王星南SR",
+   "sheetId": 111
   },
   {
    "url": "skill/一番高い星.webp",
@@ -1230,7 +1341,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "十王星南小さな野望",
-   "growthTag": "十王星南SSR"
+   "growthTag": "十王星南SSR",
+   "sheetId": 112
   },
   {
    "url": "skill/夢はまだ続く.webp",
@@ -1241,7 +1353,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "十王星南Campus mode!!",
-   "growthTag": "十王星南SSRフェス"
+   "growthTag": "十王星南SSRフェス",
+   "sheetId": 113
   },
   {
    "url": "skill/あなたにあげる.webp",
@@ -1252,7 +1365,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "十王星南ハッピーミルフィーユ",
-   "growthTag": "十王星南SSRシーズン"
+   "growthTag": "十王星南SSRシーズン",
+   "sheetId": 114
   },
   {
    "url": "skill/湧き上がる気持ち.webp",
@@ -1263,7 +1377,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "十王星南Our Chant",
-   "growthTag": "十王星南SSR"
+   "growthTag": "十王星南SSR",
+   "sheetId": 115
   },
   {
    "url": "skill/待ち望んだ瞬間.webp",
@@ -1274,7 +1389,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "十王星南Star-mine",
-   "growthTag": "十王星南SSRシーズン"
+   "growthTag": "十王星南SSRシーズン",
+   "sheetId": 116
   },
   {
    "url": "skill/私を超えて.webp",
@@ -1285,7 +1401,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "十王星南赤裸々",
-   "growthTag": "十王星南SSR"
+   "growthTag": "十王星南SSR",
+   "sheetId": 117
   },
   {
    "url": "skill/踊り狂え！.webp",
@@ -1296,7 +1413,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "十王星南ENDLESS DANCE",
-   "growthTag": "十王星南SSRシーズン"
+   "growthTag": "十王星南SSRシーズン",
+   "sheetId": 118
   },
   {
    "url": "skill/先へ進む姿.webp",
@@ -1307,18 +1425,20 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "十王星南ガラクタロード",
-   "growthTag": "十王星南SSRフェス"
+   "growthTag": "十王星南SSRフェス",
+   "sheetId": 119
   },
   {
    "url": "skill/見惚れる横顔.webp",
    "idol": "十王星南",
    "cardName": "「ねえ、言っちゃうよ。」",
    "skillName": "見惚れる横顔",
-   "rarity": "SSR",
+   "rarity": "配布SSR",
    "plan": "センス",
    "effect": "集中",
    "key": "十王星南「ねえ、言っちゃうよ。」",
-   "growthTag": "十王星南SSR"
+   "growthTag": "十王星南SSR",
+   "sheetId": 120
   },
   {
    "url": "skill/のんびり屋さん.webp",
@@ -1329,7 +1449,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "秦谷美鈴学園生活",
-   "growthTag": "秦谷美鈴R"
+   "growthTag": "秦谷美鈴R",
+   "sheetId": 121
   },
   {
    "url": "skill/初めての息.webp",
@@ -1340,7 +1461,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "秦谷美鈴初陣",
-   "growthTag": "秦谷美鈴初陣"
+   "growthTag": "秦谷美鈴初陣",
+   "sheetId": 122
   },
   {
    "url": "skill/休み休み、前へ.webp",
@@ -1351,7 +1473,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "秦谷美鈴ゆっくり、一歩ずつ",
-   "growthTag": "秦谷美鈴SR"
+   "growthTag": "秦谷美鈴SR",
+   "sheetId": 123
   },
   {
    "url": "skill/屋上からの景色.webp",
@@ -1362,7 +1485,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "秦谷美鈴ツキノカメ",
-   "growthTag": "秦谷美鈴SSR"
+   "growthTag": "秦谷美鈴SSR",
+   "sheetId": 124
   },
   {
    "url": "skill/憧れのアイドル.webp",
@@ -1373,7 +1497,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "秦谷美鈴Campus mode!!",
-   "growthTag": "秦谷美鈴SSRフェス"
+   "growthTag": "秦谷美鈴SSRフェス",
+   "sheetId": 125
   },
   {
    "url": "skill/朝が満たすまで.webp",
@@ -1384,7 +1509,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "秦谷美鈴Star-mine",
-   "growthTag": "秦谷美鈴SSRシーズン"
+   "growthTag": "秦谷美鈴SSRシーズン",
+   "sheetId": 126
   },
   {
    "url": "skill/夢と現の境界線.webp",
@@ -1395,7 +1521,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "秦谷美鈴Suparlative",
-   "growthTag": "秦谷美鈴SSR"
+   "growthTag": "秦谷美鈴SSR",
+   "sheetId": 127
   },
   {
    "url": "skill/虜になあれ.webp",
@@ -1406,7 +1533,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "秦谷美鈴ENDLESS DANCE",
-   "growthTag": "秦谷美鈴SSR"
+   "growthTag": "秦谷美鈴SSR",
+   "sheetId": 128
   },
   {
    "url": "skill/教えてあげる.webp",
@@ -1417,7 +1545,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "秦谷美鈴VEIL",
-   "growthTag": "秦谷美鈴SSR"
+   "growthTag": "秦谷美鈴SSR",
+   "sheetId": 129
   },
   {
    "url": "skill/波間に揺れる光.webp",
@@ -1428,7 +1557,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "秦谷美鈴「ねえ、言っちゃうよ。」",
-   "growthTag": "秦谷美鈴SSR"
+   "growthTag": "秦谷美鈴SSR",
+   "sheetId": 130
   },
   {
    "url": "skill/未完の大器.webp",
@@ -1439,7 +1569,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "花海佑芽学園生活",
-   "growthTag": "花海佑芽R"
+   "growthTag": "花海佑芽R",
+   "sheetId": 131
   },
   {
    "url": "skill/初めての神降臨.webp",
@@ -1450,7 +1581,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海佑芽初陣",
-   "growthTag": "花海佑芽初陣"
+   "growthTag": "花海佑芽初陣",
+   "sheetId": 132
   },
   {
    "url": "skill/打倒お姉ちゃん.webp",
@@ -1461,7 +1593,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "花海佑芽アイドル、はじめっ！",
-   "growthTag": "花海佑芽SR"
+   "growthTag": "花海佑芽SR",
+   "sheetId": 133
   },
   {
    "url": "skill/おっきなおにぎり.webp",
@@ -1472,7 +1605,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "花海佑芽The Rolling Riceball",
-   "growthTag": "花海佑芽SSR"
+   "growthTag": "花海佑芽SSR",
+   "sheetId": 134
   },
   {
    "url": "skill/おすそわけですっ！.webp",
@@ -1483,7 +1617,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "花海佑芽White Night! White Wish!",
-   "growthTag": "花海佑芽SSRシーズン"
+   "growthTag": "花海佑芽SSRシーズン",
+   "sheetId": 135
   },
   {
    "url": "skill/新たなステージ.webp",
@@ -1494,7 +1629,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "花海佑芽Campus mode!!",
-   "growthTag": "花海佑芽SSRフェス"
+   "growthTag": "花海佑芽SSRフェス",
+   "sheetId": 136
   },
   {
    "url": "skill/つかみ取った未来.webp",
@@ -1505,7 +1641,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海佑芽Star-mine",
-   "growthTag": "花海佑芽SSRシーズン"
+   "growthTag": "花海佑芽SSRシーズン",
+   "sheetId": 137
   },
   {
    "url": "skill/グーチョキパーデポン.webp",
@@ -1516,7 +1653,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "花海佑芽グースーピー",
-   "growthTag": "花海佑芽SSR"
+   "growthTag": "花海佑芽SSR",
+   "sheetId": 138
   },
   {
    "url": "skill/狂い咲け！.webp",
@@ -1527,7 +1665,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "花海佑芽ENDLESS DANCE",
-   "growthTag": "花海佑芽SSRシーズン"
+   "growthTag": "花海佑芽SSRシーズン",
+   "sheetId": 139
   },
   {
    "url": "skill/あたしがいるよ.webp",
@@ -1538,7 +1677,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "花海佑芽真っ白いページと水彩の主人公",
-   "growthTag": "花海佑芽SSR"
+   "growthTag": "花海佑芽SSR",
+   "sheetId": 140
   },
   {
    "url": "skill/これぞアイドル！.webp",
@@ -1549,18 +1689,20 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海佑芽GO MY WAY!!",
-   "growthTag": "花海佑芽SSR"
+   "growthTag": "花海佑芽SSR",
+   "sheetId": 141
   },
   {
    "url": "skill/悪戯ハートジャック.webp",
    "idol": "花海佑芽",
    "cardName": "Agitato",
    "skillName": "悪戯ハートジャック",
-   "rarity": "SSR",
+   "rarity": "配布SSR",
    "plan": "アノマリー",
    "effect": "全力",
    "key": "花海佑芽Agitato",
-   "growthTag": "花海佑芽SSR"
+   "growthTag": "花海佑芽SSR",
+   "sheetId": 142
   },
   {
    "url": "skill/包容力.webp",
@@ -1571,7 +1713,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "姫﨑莉波学園生活",
-   "growthTag": "姫﨑莉波R"
+   "growthTag": "姫﨑莉波R",
+   "sheetId": 143
   },
   {
    "url": "skill/初めてのお相手.webp",
@@ -1582,7 +1725,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "姫﨑莉波初心",
-   "growthTag": "姫﨑莉波初心"
+   "growthTag": "姫﨑莉波初心",
+   "sheetId": 144
   },
   {
    "url": "skill/寄り添う気持ち.webp",
@@ -1593,7 +1737,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "姫﨑莉波『私らしさ』のはじまり",
-   "growthTag": "姫﨑莉波SR"
+   "growthTag": "姫﨑莉波SR",
+   "sheetId": 145
   },
   {
    "url": "skill/距離感.webp",
@@ -1604,7 +1749,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "姫﨑莉波clumsy trick",
-   "growthTag": "姫﨑莉波SSR"
+   "growthTag": "姫﨑莉波SSR",
+   "sheetId": 146
   },
   {
    "url": "skill/入道雲と、きみ.webp",
@@ -1615,7 +1761,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "姫﨑莉波キミとセミブルー",
-   "growthTag": "姫﨑莉波SSRシーズン"
+   "growthTag": "姫﨑莉波SSRシーズン",
+   "sheetId": 147
   },
   {
    "url": "skill/さっぱりひといき.webp",
@@ -1626,7 +1773,8 @@
    "plan": "ロジック",
    "effect": "やる気",
    "key": "姫﨑莉波ようこそ初星温泉",
-   "growthTag": "姫﨑莉波SSR"
+   "growthTag": "姫﨑莉波SSR",
+   "sheetId": 148
   },
   {
    "url": "skill/また、明日.webp",
@@ -1637,7 +1785,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "姫﨑莉波L.U.V",
-   "growthTag": "姫﨑莉波L.U.V"
+   "growthTag": "姫﨑莉波L.U.V",
+   "sheetId": 149
   },
   {
    "url": "skill/アイドルにしてくれた.webp",
@@ -1648,7 +1797,8 @@
    "plan": "アノマリー",
    "effect": "全力",
    "key": "姫﨑莉波Campus mode!!",
-   "growthTag": "姫﨑莉波SSRフェス"
+   "growthTag": "姫﨑莉波SSRフェス",
+   "sheetId": 150
   },
   {
    "url": "skill/受け取ってくれる？.webp",
@@ -1659,7 +1809,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "姫﨑莉波ハッピーミルフィーユ",
-   "growthTag": "姫﨑莉波SSRシーズン"
+   "growthTag": "姫﨑莉波SSRシーズン",
+   "sheetId": 151
   },
   {
    "url": "skill/どんな世界でも.webp",
@@ -1670,7 +1821,8 @@
    "plan": "センス",
    "effect": "集中",
    "key": "姫﨑莉波Howling over the World",
-   "growthTag": "姫﨑莉波SSR"
+   "growthTag": "姫﨑莉波SSR",
+   "sheetId": 152
   },
   {
    "url": "skill/微熱ノスタルジー.webp",
@@ -1681,7 +1833,8 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "姫﨑莉波36℃ U･B･U",
-   "growthTag": "姫﨑莉波SSR"
+   "growthTag": "姫﨑莉波SSR",
+   "sheetId": 153
   },
   {
    "url": "skill/自然体の魅力.webp",
@@ -1692,7 +1845,8 @@
    "plan": "センス",
    "effect": "好調",
    "key": "姫﨑莉波ガラクタロード",
-   "growthTag": "姫﨑莉波SSRフェス"
+   "growthTag": "姫﨑莉波SSRフェス",
+   "sheetId": 154
   },
   {
    "url": "skill/甘く溶ける心.webp",
@@ -1703,7 +1857,8 @@
    "plan": "アノマリー",
    "effect": "強気",
    "key": "姫﨑莉波SUGAR FRAVOR",
-   "growthTag": "姫﨑莉波SSRシーズン"
+   "growthTag": "姫﨑莉波SSRシーズン",
+   "sheetId": 155
   }
  ],
  "growth": {

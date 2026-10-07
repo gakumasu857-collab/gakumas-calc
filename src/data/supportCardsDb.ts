@@ -42,8 +42,12 @@ export type PreEventInfo = {
 };
 
 export type SupportCardData = {
-  /** CSVのid列。空なら名前から生成（名前が変わらない限り安定） */
+  /** 保存キー（card:名前）。名前が変わらない限り安定。所持状況・固定/BAN・編成・セーブデータはこれで持つ */
   id: string;
+  /** スプシ supMaster の id 列（登場順の通し番号。2026-10-07 に重複が解消されて一意になった）。並び順にだけ使い、保存キーには使わない */
+  sheetId: number;
+  /** 登場日（YYYY-MM-DD。スプシの「登場日」列＝日付の通し番号から変換。無ければ ""）。一覧の「新しい順」と、データベースの表示に使う */
+  releaseDate: string;
   name: string;
   rarity: Rarity;
   /** Vocal / Dance / Visual / アシスト */
@@ -124,6 +128,8 @@ const COL = {
  */
 const HEADER_ALIASES: Record<string, string> = {
   サポカ名: "name",
+  // 2026-10-07 追加: 登場日（スプシの日付＝1899-12-30 からの日数の通し番号）
+  登場日: "release_date",
   レアリティ: "rarity",
   タイプ: "type",
   プラン: "plan",
@@ -288,6 +294,14 @@ const numOf = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+/** スプシの日付（1899-12-30 からの日数の通し番号。例 46295＝2026-09-30）を YYYY-MM-DD にする。空・不正は "" */
+function sheetDateToIso(v: unknown): string {
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000).toISOString().slice(0, 10);
+}
 /** JSON値（string|number|null）を文字列に正規化して trim */
 const str = (v: unknown): string =>
   v == null ? "" : (typeof v === "string" ? v : String(v)).trim();
@@ -379,6 +393,8 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
 
   return {
     id: `card:${name}`, // 保存キーは名前ベースを維持（所持データ等の互換のため）
+    sheetId: numOf(row.id),
+    releaseDate: sheetDateToIso(row.release_date),
     name,
     rarity: RARITY_ALIASES[str(row[COL.rarity])] ?? "SSR",
     cardType: CARD_TYPE_JP[str(row[COL.cardType])] ?? "",

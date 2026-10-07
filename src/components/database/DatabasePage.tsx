@@ -96,7 +96,7 @@ function SupportInfoTable() {
   const [planFilter, setPlanFilter] = useState("すべて");
   const [nameQuery, setNameQuery] = useState("");
 
-  // 並びはレアリティ順（R → SR → SSR → 配布SSR）、各レアリティ内は実装順（スプシの行順）
+  // 並びはレアリティ順（R → SR → SSR → 配布SSR）、各レアリティ内は登場日が新しい順（同じ日はスプシの id が大きい順。2026-10-07）
   const visible = useMemo(() => {
     const rarityOrder: Record<string, number> = {
       R: 0,
@@ -104,7 +104,6 @@ function SupportInfoTable() {
       SSR: 2,
       EventSSR: 3,
     };
-    const addedIndex = new Map(SUPPORT_CARD_DB.map((c, i) => [c.id, i]));
     return SUPPORT_CARD_DB.filter((card) => {
       const rarityLabel = card.rarity === "EventSSR" ? "配布SSR" : card.rarity;
       if (rarityFilter !== "すべて" && rarityLabel !== rarityFilter)
@@ -116,7 +115,8 @@ function SupportInfoTable() {
     }).sort(
       (a, b) =>
         (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9) ||
-        (addedIndex.get(a.id) ?? 0) - (addedIndex.get(b.id) ?? 0),
+        b.releaseDate.localeCompare(a.releaseDate) ||
+        b.sheetId - a.sheetId,
     );
   }, [rarityFilter, typeFilter, planFilter, nameQuery]);
 
@@ -163,6 +163,7 @@ function SupportInfoTable() {
               <th className={TH_STICKY}>サポートカード</th>
               <th className={TH}>イラスト</th>
               <th className={TH}>レアリティ</th>
+              <th className={TH}>登場日</th>
               <th className={TH}>タイプ</th>
               <th className={TH}>使用制限</th>
               <th className={TH}>前イベ</th>
@@ -200,6 +201,9 @@ function SupportInfoTable() {
                   </td>
                   <td className={`${TD} text-slate-600`}>
                     {card.rarity === "EventSSR" ? "配布SSR" : card.rarity}
+                  </td>
+                  <td className={`${TD} whitespace-nowrap text-slate-600`}>
+                    {card.releaseDate ? card.releaseDate.replace(/-/g, "/") : "—"}
                   </td>
                   <td className={TD}>
                     <span

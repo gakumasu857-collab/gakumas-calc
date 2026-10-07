@@ -36,8 +36,8 @@ export default function SupportCardOwnership({
   const [bulkLevel, setBulkLevel] = useState<BulkLevel>("keep");
 
   // 現在のフィルターで表示するカード。
-  // 並びは SSR →配布SSR→ SR → R、各レアリティ内は追加が新しい順
-  // （スプシの行順＝実装順。新カードが上に来るので入力しやすい）
+  // 並びは SSR →配布SSR→ SR → R、各レアリティ内は登場日が新しい順
+  // （スプシの登場日列。同じ日はスプシの id が大きい順。新カードが上に来るので入力しやすい。2026-10-07）
   const visible = useMemo(() => {
     const rarityOrder: Record<string, number> = {
       SSR: 0,
@@ -45,7 +45,6 @@ export default function SupportCardOwnership({
       SR: 2,
       R: 3,
     };
-    const addedIndex = new Map(SUPPORT_CATALOG.map((c, i) => [c.id, i]));
     return SUPPORT_CATALOG.filter((card) => {
       if (rarityFilter !== "すべて" && card.rarity !== rarityFilter)
         return false;
@@ -60,7 +59,8 @@ export default function SupportCardOwnership({
     }).sort(
       (a, b) =>
         (rarityOrder[a.rarity] ?? 9) - (rarityOrder[b.rarity] ?? 9) ||
-        (addedIndex.get(b.id) ?? 0) - (addedIndex.get(a.id) ?? 0),
+        b.releaseDate.localeCompare(a.releaseDate) ||
+        b.sheetId - a.sheetId,
     );
   }, [rarityFilter, typeFilter, planFilter, abilityFilter, nameQuery]);
 

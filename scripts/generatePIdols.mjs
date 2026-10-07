@@ -4,7 +4,8 @@
  *
  * 出力:
  * {
- *   masters: [{ url, idol, cardName, rarity, plan, effect, key, growthTag }],
+ *   masters: [{ url, idol, cardName, skillName, rarity, plan, effect, key, growthTag, sheetId }],
+ *     ※ sheetId はスプシ pidleName の id 列（2026-10-07 追加）。あればその順に並べる（保存キーは key のまま）
  *   growth: { 成長タグ: { base:[10], kunren1:[10], kunren2:[10], kunren4:[10], kunren5:[10],
  *                        kunren6:[10], kaika1:[10], kaika3:[10], kaika4:[10] } },
  *     ※ 配列は [体力, Vo初期値, Da初期値, Vi初期値, Voパラボ, Daパラボ, Viパラボ, VoSP率, DaSP率, ViSP率]
@@ -46,7 +47,12 @@ const masters = pidleName.map((r) => ({
   effect: r["おすすめ効果"] ?? "",
   key: r["名前カード名"] ?? "",
   growthTag: r["成長タグ"] ?? "",
+  sheetId: num(r["id"]),
 }));
+// スプシの id 列（2026-10-07 追加）が全行にあれば、その順に並べる（行の順に頼らない）
+if (masters.length > 0 && masters.every((m) => m.sheetId > 0)) {
+  masters.sort((a, b) => a.sheetId - b.sheetId);
+}
 
 // ---- growth（段階行→ブロック）----
 // 段階のうち 初期・初・NIA・HIF は所持状況によらず常に効く（無条件加算）ので base に合算する。

@@ -12,6 +12,9 @@ export type CatalogCard = {
   id: string;
   name: string;
   rarity: Rarity;
+  /** スプシの id（登場順）と登場日（YYYY-MM-DD）。一覧の「新しい順」用 */
+  sheetId: number;
+  releaseDate: string;
   /** R2キー または フルURL（imageUrl()がどちらも解決する） */
   image: string;
   /** Vocal / Dance / Visual / アシスト */
@@ -26,6 +29,8 @@ export const SUPPORT_CATALOG: CatalogCard[] = SUPPORT_CARD_DB.map((card) => ({
   id: card.id,
   name: card.name,
   rarity: card.rarity,
+  sheetId: card.sheetId,
+  releaseDate: card.releaseDate,
   image: `${card.name}.webp`,
   cardType: card.cardType,
   plan: card.plan,
