@@ -5,7 +5,12 @@
  * （CSVサポカDBと同じキー体系なので、後で連携できる）。
  */
 import generatedCounts from "./generated/abilityCounts.json";
-import { ABILITY_NAMES, abilityKeyFromLabel, type AbilityName } from "./constants";
+import {
+  ABILITY_NAMES,
+  abilityKeyFromLabel,
+  isAttrSkillEnhanceLabel,
+  type AbilityName,
+} from "./constants";
 import { SCENARIO_KEYS, type ScenarioKey } from "./scenarios";
 import {
   calendarEventCounts,
@@ -24,6 +29,7 @@ export const ABILITY_CATEGORIES = [
       "A_skill_ac",
       "M_skill_ac",
       "positive_skill_ac",
+      "positive_8plus_ut4", // 好調8枚以上(4回まで)
       "focus_skill_ac",
       "charm_skill_ac",
       "vitality_skill_ac",
@@ -43,7 +49,6 @@ export const ABILITY_CATEGORIES = [
       "skill_enhance",
       "A_skill_enhance",
       "M_skill_enhance",
-      "charge_skill_enhance", // 温存スキルを強化した回数（温存スキル強化が起動タグの前イベに効く）
       "skill_del",
       "skill_del_ut4",
       "A_skill_del_ut3",
@@ -335,6 +340,9 @@ function toCountTable(table: CountTable): Partial<Record<AbilityName, number[]>>
   const out: Partial<Record<AbilityName, number[]>> = {};
   const unknown: string[] = [];
   for (const [label, values] of Object.entries(table.rows)) {
+    // 属性つきのスキル強化（「温存スキル強化」など）の行は使わない。いまは全部「スキル強化」の回数で判定するので、
+    // 行が残っていても「スキル強化」の回数を上書きさせない（constants.ts の SKILL_ENHANCE_ATTRS）
+    if (isAttrSkillEnhanceLabel(label)) continue;
     const key = abilityKeyFromLabel(label);
     if (key && FIXED_COUNT_KEYS.has(key)) continue;
     if (key) out[key] = values;

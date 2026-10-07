@@ -72,9 +72,8 @@ export const ABILITY_NAMES = {
   skill_enhance: "スキル強化",
   A_skill_enhance: "Aスキル強化",
   M_skill_enhance: "Mスキル強化",
-  // 2026-09-21: 温存スキルを強化したときに発動（前イベ起動タグ・発動回数タブの行。
-  // 後イベのランダム強化で「温存」を選ぶと、その回数ぶん上乗せされる）
-  charge_skill_enhance: "温存スキル強化",
+  // 「好調スキル強化」「好印象スキル強化」「温存スキル強化」のような属性つきのスキル強化は、ここには置かない
+  // （いまは全部「スキル強化」として判定する。下の SKILL_ENHANCE_ATTRS）
   skill_del: "スキル削除",
   A_skill_del_ut3: "Aスキル削除(3回まで)",
   M_skill_del_ut3: "Mスキル削除(3回まで)",
@@ -135,6 +134,8 @@ export const ABILITY_NAMES = {
   focus_8plus_ut4: "集中8枚以上スキル獲得(4回まで)",
   // 2026-09-21 新カード「わたしに、まかせて」のアビリティ
   burst_8plus_ut4: "全力8枚以上スキル獲得(4回まで)",
+  // 2026-10-07 新カード「小悪魔になっちゃえ♪」のアビリティ
+  positive_8plus_ut4: "好調8枚以上スキル獲得(4回まで)",
   drink_get_ut10: "ドリンク獲得(10回まで)",
   skill_exchange_ut5: "スキル交換(5回まで)",
   // 2026-09 新カード「もうすぐ本番ですね」のアビリティ（同月に「基本チェンジ」→「基本スキルチェンジ」に改名）
@@ -175,6 +176,35 @@ function normalizeLabel(label: string): string {
     .trim();
 }
 
+/**
+ * 属性つきの「○○スキル強化」（前イベ起動タグの「好調スキル強化」「好印象スキル強化」「温存スキル強化」など）。
+ * いまは全部「スキル強化」として判定する＝スキル強化が1回あったら1回発動（オーナー指定 2026-10-07）。
+ * 2026-09-21 に入れた「温存スキル強化」専用の回数（charge_skill_enhance）と、後イベのランダム強化で
+ * 属性を選ぶボタンは、この仕様変更でやめた。
+ * 属性ごとの判定が必要になったら: 発動回数のシートに行を足し、その属性をここから外して ABILITY_NAMES に登録する。
+ */
+const SKILL_ENHANCE_ATTRS = [
+  "好調",
+  "集中",
+  "好印象",
+  "やる気",
+  "温存",
+  "強気",
+  "全力",
+  "元気",
+  "SSR",
+] as const;
+const ATTR_SKILL_ENHANCE_LABELS: ReadonlySet<string> = new Set(
+  SKILL_ENHANCE_ATTRS.map((attr) => normalizeLabel(`${attr}スキル強化`)),
+);
+/**
+ * 属性つきのスキル強化の名前か（＝「スキル強化」として判定する名前）。
+ * 発動回数のシートにこの名前の行があっても、回数としては使わない（abilityCounts.ts の toCountTable）。
+ */
+export function isAttrSkillEnhanceLabel(label: string): boolean {
+  return ATTR_SKILL_ENHANCE_LABELS.has(normalizeLabel(label));
+}
+
 // 正規化済みラベル → キー の逆引きテーブルを構築
 const LABEL_TO_KEY = new Map<string, AbilityName>();
 for (const [key, label] of Object.entries(ABILITY_NAMES)) {
@@ -183,6 +213,8 @@ for (const [key, label] of Object.entries(ABILITY_NAMES)) {
 for (const [label, key] of Object.entries(ABILITY_LABEL_ALIASES)) {
   LABEL_TO_KEY.set(normalizeLabel(label), key);
 }
+// 属性つきのスキル強化は「スキル強化」と同じ回数で判定する
+for (const label of ATTR_SKILL_ENHANCE_LABELS) LABEL_TO_KEY.set(label, "skill_enhance");
 // 括弧なしの表記（supMaster の「前イベ起動タグ」列は「チェンジ」「特別指導」のように
 // (N回まで) を付けない）は、「その名前(N回まで)」の正式名がちょうど1つあるときに同じキーへ結び付ける。
 // 「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先（上で登録済みなので触らない）。

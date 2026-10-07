@@ -123,7 +123,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generatePIdols.mjs`（gen:pidols） | `pidleName`（Pアイドル一覧）＋`pidleStatus`（成長段階ごとの数値）＋`idleTypes`（審査基準）を `generated/pIdols.json` に |
 | `generateCardSprite.mjs`（gen:sprite） | R2 のサポカ画像を集めて `public/card-import/sprite.png`（一覧画像）と `generated/cardSprite.json`（並び順）を作る。画面キャプチャ所持入力用。画像が無いカードは一覧に出して飛ばす |
 | `generatePreEventImages.mjs`（gen:preevents） | `supMaster` の「前イベ名」を候補に、R2 の `preEvent/<名前>.webp` が実在するものだけ `generated/preEventImages.json` に書く |
-| `checkLabels.mjs`（check:labels） | 生成した JSON に出てくるアビリティ名・前イベ起動タグ・発動回数タブの行名・`trigger_tag` が `src/data/constants.ts` に登録済みかを確認。未登録があれば一覧を出して止まる（`gen:all` の最後に自動実行。単体は `npm run check:labels`） |
+| `checkLabels.mjs`（check:labels） | 生成した JSON に出てくるアビリティ名・前イベ起動タグ・発動回数タブの行名・`trigger_tag` が `src/data/constants.ts` に登録済みかを確認。未登録があれば一覧を出して止まる（`gen:all` の最後に自動実行。単体は `npm run check:labels`）。発動回数タブに属性つきのスキル強化の行（「温存スキル強化」など）があるときは、止めずに「今は使っていない行」として知らせる |
 | `syncImagesFromDrive.mjs`（sync:images） | ドライブの 3 フォルダ（サポカ／前イベ／Pアイドル固有スキル）から画像を取り、webp に変換して R2 へ。既に R2 にあるものは飛ばす（`-- --force` で全部上書き） |
 
 ### 2-3. `worker/`（サーバー側）
@@ -144,7 +144,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `generated/pIdols.json` | Pアイドル一覧（`masters`）、成長数値（`growth`）、審査基準（`idolRanks`） |
 | `generated/cardSprite.json` / `generated/preEventImages.json` | 画像関連のカタログ（2-2 参照） |
 | `supportCardsDb.ts` | **supMaster の読み替え役。** 日本語の列名を内部名に写す `HEADER_ALIASES`、1 行をカードの形に組み立てる `convert()`、後イベの語彙 `LATER_EVENT_MAP`、ステイベの種類 `STAT_EVENT_TYPES_ARRAY`、前イベの数値列 `NUMERIC_ACTION_MAP`、スキル分類列 `SKILL_FLAG_MAP` がここ。結果が `SUPPORT_CARD_DB` |
-| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名。2026-09 にレッスン系は「タイプレッスン／タイプSPレッスン／タイプ通常レッスン」、SP率は「タイプSPレッスン率／全タイプSPレッスン率」に改名。旧名は `ABILITY_LABEL_ALIASES` で受ける）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
+| `constants.ts` | アビリティの正式名一覧 `ABILITY_NAMES`（内部キー → 日本語名。2026-09 にレッスン系は「タイプレッスン／タイプSPレッスン／タイプ通常レッスン」、SP率は「タイプSPレッスン率／全タイプSPレッスン率」に改名。旧名は `ABILITY_LABEL_ALIASES` で受ける）、表記ゆれの受け皿 `ABILITY_LABEL_ALIASES`、日本語名からキーを引く `abilityKeyFromLabel`（括弧なしの起動タグ「チェンジ」「特別指導」は「その名前(N回まで)」の正式名に自動で結び付く。属性つきの「○○スキル強化」＝好調・好印象・温存などは `SKILL_ENHANCE_ATTRS` で `スキル強化` と同じキーに結び付く＝`isAttrSkillEnhanceLabel`）。**スプシでアビリティ名を変えたら直すのはここだけ**（4-1 C-2）。レアリティ表記 `RARITY_ALIASES`（配布SSR → EventSSR） |
 | `abilityCounts.ts` | プロデュース設定ページの分類 `ABILITY_CATEGORIES`（4 分類に並ぶアビリティ）、上限計算 `abilityMax`（「(N回まで)」の N と、スケジュール上の回数の小さい方）、上限違いの派生 `DERIVED_CAPS`、テンプレセット `DEFAULT_SETS` / `NIA_DEFAULT_SETS` / `HATSU_DEFAULT_SETS` |
 | `abilityValues.ts` | `SLOT_TIER`（凸→ティア表）を `abilityPerf.json` から取り出すだけ |
 | `fixedAbilityCounts.ts` | 回数が変わらないアビリティの固定回数 `FIXED_ABILITY_COUNTS`（初期値=1、パラボ=1、パラメータイベント=1、SPレッスン率=1、何もなし=0、試験・オーディション終了= NIA3/初2/HIF5、レッスン系=スケジュールから自動）。内部キーで書くので、名前の改名には影響されない |
@@ -318,6 +318,11 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 **前イベの発動回数** = min(最大発動回数, トリガーの回数)（`preEventAutoActivations`）
 - トリガー（`前イベ起動タグ` 列）が `VocalSPレッスン` のようにタイプ付きなら、そのタイプの踏み回数。`SPレッスン` のようにタイプ無しなら全タイプ合算。
   `相談` `スキル強化` `初期値` などはそのキーの回数。
+- **`好調スキル強化` `好印象スキル強化` `温存スキル強化` のような属性つきのスキル強化は、いまは全部 `スキル強化` の回数**
+  （スキル強化が 1 回あったら 1 回発動。オーナー指定 2026-10-07）。`constants.ts` の `SKILL_ENHANCE_ATTRS`
+  （好調・集中・好印象・やる気・温存・強気・全力・元気・SSR）が `スキル強化` と同じ内部キーへ結び付ける。
+  属性ごとに判定したくなったら、発動回数のシートに行を足し、その属性を `SKILL_ENHANCE_ATTRS` から外して `ABILITY_NAMES` に登録する。
+- 条件に使う回数はプロデュース（発動回数セット）の回数だけ。編成の前イベ・後イベによる上乗せ（緑の数字）は、前イベの発動条件には数えない。
 - 前イベ＝スキルのカードはスプシに最大回数・トリガーが無いので「1 回・初期値」に補完します（`supportCardsDb.ts` の `convert`）。
 - 利用者が「取得しない」にすると 0 回。回数の手動指定があればそれ（0〜最大）。
 
@@ -331,7 +336,9 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 - 前イベ＝アイテムで `Pアイテム獲得` 列が 1 のカードは、取得そのものが「Pアイテム獲得（6回まで）」を +1。
 
 **後イベ**（`後イベ` 列 → `supportCardsDb.ts` の `LATER_EVENT_MAP` で語彙をそろえる。既定 1 回、利用者が ✕ にすると 0）
-- 強化（スキル強化／選択スキル強化）→ 「スキル強化」＋「Aスキル強化 or Mスキル強化」（M/A ボタンで選択）
+- 強化（スキル強化／選択スキル強化）→ 「スキル強化」＋「Aスキル強化 or Mスキル強化」（M/A ボタンで選択）。
+  強化したスキルの属性（温存など）を選ぶボタンは 2026-09-21 に足したが、2026-10-07 にやめた
+  （属性つきのスキル強化は「スキル強化」として判定することになったため。保存データに残る `enhanceTags` は読むときに落とす）
 - スキル削除（選択スキル削除）→ 「スキル削除」＋「A or Mスキル削除（3回まで）」（既定 A）
 - トラブル削除 → 「スキル削除」のみ（A/M なし）
 - チェンジ → 「チェンジ（3回まで）」、Pポイント → ステ点には影響なし（Pポイント集計へ）
@@ -512,6 +519,8 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
   保存されているので、日本語名を変えても利用者側は何も壊れません。
 - 「チェンジ」「特別指導」のように **括弧なし**の起動タグは、「その名前（N回まで）」という正式名がちょうど 1 つあれば
   自動でそれに結び付きます（追記不要）。「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先。
+- 「好調スキル強化」「好印象スキル強化」「温存スキル強化」のような **属性つきのスキル強化**（好調・集中・好印象・やる気・温存・強気・全力・元気・SSR）も
+  登録不要で、「スキル強化」の回数で判定されます（`SKILL_ENHANCE_ATTRS`。2026-10-07）。発動回数タブに同じ名前の行があっても回数は使いません。
 - 手順: ①スプシを改名 → ②`ABILITY_NAMES` の日本語名を書き換え → ③`update-all.cmd`。
   `check:labels` が「✓ …すべてコードに登録済み」なら OK。「✗ コードに登録されていない名前」と出たら、
   その名前を②で直してもう一度。
@@ -654,14 +663,14 @@ Pポイント・体力（H.I.F は選抜・本戦それぞれの「H.I.Fボー�
 | `gakumas:memoryInit:v1` | 最初の汎用メモリー（メインパラボ60点×4＝`GENERIC_MEMORY_ID`）を入れ終えた印（"1"）。**初めての人は4枠とも汎用メモリーから始まる**（メモリーを作るところで手が止まりやすいため。オーナー指定 2026-10-01）。入れるのは1回だけで、もう何か入っている人はそのまま、あとから4枠とも空にしても入れ直さない。4枠とも汎用のままの間は `memoryStore.isGeneric` が true で、設定欄に「汎用メモリー」の印と「変えたいときは上の欄をクリック」を出し、**欄を一度も開いていなければ未設定と同じ黄色**（まだ自分のメモリーではないと気づかせる。一度開けば汎用のままでも白＝`gakumas:calc:memoryVisited:v1`。2026-10-03）。メモリー選択画面の「今は汎用のメモリーが入っています」の説明は、「汎用メモリーを入れる」ボタンと同じく初めて探索するまで（`showTemplate`＝`!everRun`） | 同上 |
 | `gakumas:memorySelection:v1` | 旧形式（スロットのメモリー ID の配列）。v2 が無いときだけ読んで中身に展開する | 同上 |
 | `gakumas:memorySets:v1` | メモリーセット（4 枠の中身 `memories`。旧 `memoryIds` は読み込み時に展開。セーブデータ由来のものは `saveId` 付き） | 同上 |
-| `gakumas:abilityCountOverrides:v1` | 発動回数の「テンプレとの差分」（セット ID → アビリティ → 回数） | `src/lib/useAbilityCounts.ts` |
+| `gakumas:abilityCountOverrides:v1` | 発動回数の「テンプレとの差分」（セット ID → アビリティ → 回数。今は無いアビリティのキー＝例: 2026-10-07 にやめた `charge_skill_enhance`（温存スキル強化）は、読むときに落とす＝`dropUnknownKeys`。計算ページの調整・セーブデータの回数も同じ） | `src/lib/useAbilityCounts.ts` |
 | `gakumas:abilityUserSets:v1` | 利用者が追加した発動回数セット（名前・プラン。セーブ由来は `saveId` 付き） | 同上 |
 | `gakumas:abilitySelectedSet:v1` | 計算ページで使うセット（プロデュース）の ID | 同上 |
 | `gakumas:calc:countAdjust:v1` | 計算ページでの「この育成だけ」の回数調整（セット ID → アビリティ → 回数。デフォルトより優先。セーブ用セットに固めたら消える） | 同上 |
 | `gakumas:scheduleChoices:v1` | スケジュールの選択（セット ID → シナリオ → 週の行 id → お出かけ／相談／活動支給／特別指導。null＝休む）。プロデュースごとのデフォルト。**一度も選んでいないテンプレはスプシのスケジュールタブの値を使う**（保存はしない） | 同上 |
 | `gakumas:calc:scheduleChoiceAdjust:v1` | 計算ページでの「この育成だけ」のスケジュールの選択（同じ形。「上書き保存」でデフォルトへ移る） | 同上 |
 | `gakumas:calc:scenarioSetMemory:v2` | シナリオやPアイドルを切り替えたときに外したプロデュース（「シナリオ｜Pアイドル」 → セット ID。2026-09-21 からPアイドルも組み合わせに入れた）。探索を押す前に同じ組み合わせへ戻したら選び直す（この育成だけの変更はセットごとに残っているので一緒に戻る）。探索を押したら消す | `src/lib/scenarioSetMemory.ts` |
-| `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定 | `src/lib/useEventCounts.ts` |
+| `gakumas:eventCounts:v1` | サポカ設定ページ・点数表で使う前イベ／後イベ／ステイベの手動設定（今は使わない項目 `enhanceTags`＝後イベ強化の属性は、読むときに落とす＝`sanitize`。セーブデータの読み込みも同じ） | `src/lib/useEventCounts.ts` |
 | `gakumas:calcEventCounts:v1` | 計算ページ専用の同じ設定（サポカ設定と混ざらないよう別キー） | 同上 |
 | `gakumas:ownedLevels:v1` | サポカの所持凸（`card:<名前>` → -1 未所持／0〜4 凸。初回は全カード 4） | `src/lib/useOwnedLevels.ts` |
 | `gakumas:pIdols:v1` | P アイドルの所持（`名前カード名` → 特訓・開花。初回は全員 6／4） | `src/lib/useOwnedPIdols.ts` |

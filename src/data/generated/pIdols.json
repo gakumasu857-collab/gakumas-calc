@@ -760,6 +760,17 @@
    "growthTag": "葛城リーリヤSSRフェス"
   },
   {
+   "url": "skill/無自覚チャーム.webp",
+   "idol": "葛城リーリヤ",
+   "cardName": "Agitato",
+   "skillName": "無自覚チャーム",
+   "rarity": "SSR",
+   "plan": "センス",
+   "effect": "好調",
+   "key": "葛城リーリヤAgitato",
+   "growthTag": "葛城リーリヤSSR"
+  },
+  {
    "url": "skill/元気いっぱい.webp",
    "idol": "倉本千奈",
    "cardName": "学園生活",
@@ -1538,6 +1549,17 @@
    "plan": "ロジック",
    "effect": "好印象",
    "key": "花海佑芽GO MY WAY!!",
+   "growthTag": "花海佑芽SSR"
+  },
+  {
+   "url": "skill/悪戯ハートジャック.webp",
+   "idol": "花海佑芽",
+   "cardName": "Agitato",
+   "skillName": "悪戯ハートジャック",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "花海佑芽Agitato",
    "growthTag": "花海佑芽SSR"
   },
   {

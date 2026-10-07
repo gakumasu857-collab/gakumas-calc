@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useSaveNotifier } from "./storeSync";
 import { useScenario } from "./useScenario";
-import type { AbilityName } from "@/data/constants";
+import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
 import {
   ABILITY_CATEGORIES,
   abilityAppliesTo,
@@ -60,6 +60,24 @@ type ChoiceStore = Record<string, Partial<Record<ScenarioKey, ScheduleChoices>>>
 
 /** setId -> (アビリティキー -> 上書き回数) */
 type Overrides = Record<string, Partial<Record<AbilityName, number>>>;
+
+/**
+ * 保存データに残っている「今は無いアビリティ」の回数を落とす
+ * （例: 2026-10-07 にやめた「温存スキル強化」。残したままだと、行が無いのに「変更◯件」と数えられる）。
+ */
+function dropUnknownKeys(stored: Overrides): Overrides {
+  const out: Overrides = {};
+  for (const [setId, counts] of Object.entries(stored ?? {})) {
+    if (!counts || typeof counts !== "object") continue;
+    const kept: Partial<Record<AbilityName, number>> = {};
+    for (const [key, value] of Object.entries(counts)) {
+      if (key in ABILITY_NAMES) kept[key as AbilityName] = value;
+    }
+    // 中身が無くなったセットの入れ物は持たない（読むときは無い＝デフォルトとして扱う）
+    if (Object.keys(kept).length > 0) out[setId] = kept;
+  }
+  return out;
+}
 
 /**
  * ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定。
@@ -125,13 +143,13 @@ function loadJson<T>(key: string, fallback: T): T {
  */
 export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   const [overrides, setOverrides] = useState<Overrides>(() =>
-    loadJson<Overrides>(STORAGE_KEY, {}),
+    dropUnknownKeys(loadJson<Overrides>(STORAGE_KEY, {})),
   );
   const [userSets, setUserSets] = useState<UserSet[]>(() =>
     loadJson<UserSet[]>(USER_SETS_KEY, []),
   );
   const [adjust, setAdjust] = useState<Overrides>(() =>
-    loadJson<Overrides>(ADJUST_KEY, {}),
+    dropUnknownKeys(loadJson<Overrides>(ADJUST_KEY, {})),
   );
   const [choices, setChoices] = useState<ChoiceStore>(() =>
     loadJson<ChoiceStore>(CHOICES_KEY, {}),
@@ -635,6 +653,8 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
       );
       const clamped: Partial<Record<AbilityName, number>> = {};
       for (const [key, value] of Object.entries(counts)) {
+        // 昔のセーブデータにだけ残っている、今は無いアビリティ（例: 温存スキル強化）は読み飛ばす
+        if (!(key in ABILITY_NAMES)) continue;
         const k = key as AbilityName;
         if (value) clamped[k] = clamp(value, abilityMax(k));
       }

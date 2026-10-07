@@ -15,12 +15,40 @@ const DEFAULT_STORAGE_KEY = "gakumas:eventCounts:v1";
 
 type OverrideMap = Record<string, EventCountOverride>;
 
+/** 空のオーバーライドか（空ならマップから消す） */
+const isEmpty = (o: EventCountOverride) =>
+  o.pre === undefined &&
+  o.post === undefined &&
+  o.acquire === undefined &&
+  o.enhance === undefined &&
+  o.preEnhanceM === undefined &&
+  o.preDelM === undefined &&
+  o.preSkillTags === undefined &&
+  o.statEvent === undefined;
+
+/**
+ * 保存データ（localStorage・セーブデータ）を読むときに、今は使わない項目を落とす。
+ * 後イベのランダム強化の「強化したスキルの属性」（enhanceTags）は 2026-10-07 にやめた
+ * （属性つきのスキル強化は全部「スキル強化」として判定することになったため）。
+ * 残したままだと、ボタンが無いのに「変更中」と数えられてしまう。
+ */
+function sanitize(map: OverrideMap): OverrideMap {
+  const out: OverrideMap = {};
+  for (const [id, raw] of Object.entries(map ?? {})) {
+    if (!raw || typeof raw !== "object") continue;
+    const o: EventCountOverride & { enhanceTags?: unknown } = { ...raw };
+    delete o.enhanceTags;
+    if (!isEmpty(o)) out[id] = o;
+  }
+  return out;
+}
+
 export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   // SPAなのでlocalStorageを初期値で同期読み込みする（読み込みちらつき防止）
   const [map, setMap] = useState<OverrideMap>(() => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) return JSON.parse(raw) as OverrideMap;
+      if (raw) return sanitize(JSON.parse(raw) as OverrideMap);
     } catch {
       // 破損データは無視
     }
@@ -36,18 +64,6 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
       // 容量超過などは無視
     }
   }, [map, notifySave, storageKey]);
-
-  /** 空のオーバーライドはマップから消す */
-  const isEmpty = (o: EventCountOverride) =>
-    o.pre === undefined &&
-    o.post === undefined &&
-    o.acquire === undefined &&
-    o.enhance === undefined &&
-    o.enhanceTags === undefined &&
-    o.preEnhanceM === undefined &&
-    o.preDelM === undefined &&
-    o.preSkillTags === undefined &&
-    o.statEvent === undefined;
 
   /** 1項目の更新（null でデフォルトに戻す）共通処理 */
   const patch = useCallback(
@@ -81,14 +97,6 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   const setTarget = useCallback(
     (id: string, value: "A" | "M" | null) => {
       patch(id, "enhance", value);
-    },
-    [patch],
-  );
-
-  /** 後イベのランダム強化で強化したスキルの属性（空なら未指定に戻す） */
-  const setEnhanceTags = useCallback(
-    (id: string, tags: string[]) => {
-      patch(id, "enhanceTags", tags.length > 0 ? tags : null);
     },
     [patch],
   );
@@ -140,7 +148,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
 
   /** まるごと置き換える（セーブデータの読み込み用） */
   const replaceAll = useCallback((snapshot: OverrideMap) => {
-    setMap({ ...snapshot });
+    setMap(sanitize(snapshot));
   }, []);
 
   /** カード1枚ぶんの手動指定を全部消す（自動に戻す） */
@@ -207,7 +215,6 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     get,
     set,
     setTarget,
-    setEnhanceTags,
     setAssign,
     setAcquire,
     setSkillTags,
