@@ -18,10 +18,12 @@ export type PIdolMaster = {
   rarity: string;
   plan: string;
   effect: string;
-  /** 名前カード名（一意キー。所持状況・セーブデータの保存キー） */
+  /** 保存キー `pidol:<スプシのid>`（2026-10-08〜。id が無い旧データだけ名前カード名）。所持状況・セーブデータはこれで持つ */
   key: string;
+  /** 旧キー（名前カード名。2026-10-08 より前の保存データを読むときの移行用） */
+  legacyKey: string;
   growthTag: string;
-  /** スプシ pidleName の id 列（登場順。2026-10-07 追加）。並び順にだけ使い、保存キーには使わない（旧データは 0） */
+  /** スプシ pidleName の id 列（登場順。2026-10-07 追加）。保存キーの元なので、スプシ側で変えない・使い回さない */
   sheetId: number;
 };
 
@@ -38,7 +40,8 @@ type GrowthBlocks = {
 };
 
 const typed = data as {
-  masters: PIdolMaster[];
+  /** 生成データの key は名前カード名（旧キー）。保存キー pidol:<id> はここで付ける */
+  masters: Omit<PIdolMaster, "legacyKey">[];
   growth: Record<string, GrowthBlocks>;
   idolRanks: Record<
     string,
@@ -46,7 +49,11 @@ const typed = data as {
   >;
 };
 
-export const P_IDOL_MASTERS = typed.masters;
+export const P_IDOL_MASTERS: PIdolMaster[] = typed.masters.map((m) => ({
+  ...m,
+  legacyKey: m.key,
+  key: m.sheetId > 0 ? `pidol:${m.sheetId}` : m.key,
+}));
 export const P_IDOL_GROWTH = typed.growth;
 /** アイドルごとの審査基準ランク（Vo/Da/Vi）とバランス/特化タグ */
 export const IDOL_RANKS = typed.idolRanks;

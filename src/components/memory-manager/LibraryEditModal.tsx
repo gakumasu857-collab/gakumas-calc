@@ -3,7 +3,7 @@ import { Save } from "lucide-react";
 import Modal from "@/components/Modal";
 import { BTN_PRIMARY, BTN_SECONDARY, NOTE } from "@/components/ui";
 import { sameMemoryContent, type Memory } from "@/lib/memoryTypes";
-import MemoryFields, { type MemoryFieldsValue } from "./MemoryFields";
+import MemoryEditor, { type MemoryEditorValue } from "./MemoryEditor";
 
 /**
  * 保存したメモリーを一覧から直接編集するモーダル（枠に入れなくても変えられる）。
@@ -17,11 +17,11 @@ export default function LibraryEditModal({
   onClose,
 }: {
   memory: Memory;
-  onOverwrite: (draft: MemoryFieldsValue) => void;
-  onSaveAsNew: (draft: MemoryFieldsValue) => void;
+  onOverwrite: (draft: MemoryEditorValue) => void;
+  onSaveAsNew: (draft: MemoryEditorValue) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<MemoryFieldsValue>({
+  const [draft, setDraft] = useState<MemoryEditorValue>({
     plan: memory.plan,
     skillName: memory.skillName,
     abilities: memory.abilities,
@@ -39,7 +39,7 @@ export default function LibraryEditModal({
         「上書き保存」はこのメモリー自体を書き換えます（枠に入れてある同じ中身のものも一緒に変わります）。
         元を残したいときは「別のメモリーとして保存」。
       </p>
-      <MemoryFields value={draft} onChange={setDraft} />
+      <MemoryEditor value={draft} onChange={setDraft} />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"

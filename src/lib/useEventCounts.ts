@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from "react";
+import { migrateCardId } from "./idMigration";
 import type { EventCountOverride } from "./sheetScore";
 import { useSaveNotifier } from "./storeSync";
 
@@ -34,11 +35,15 @@ const isEmpty = (o: EventCountOverride) =>
  */
 function sanitize(map: OverrideMap): OverrideMap {
   const out: OverrideMap = {};
-  for (const [id, raw] of Object.entries(map ?? {})) {
+  for (const [rawId, raw] of Object.entries(map ?? {})) {
     if (!raw || typeof raw !== "object") continue;
     const o: EventCountOverride & { enhanceTags?: unknown } = { ...raw };
     delete o.enhanceTags;
-    if (!isEmpty(o)) out[id] = o;
+    if (isEmpty(o)) continue;
+    // 旧キー card:<名前> は今のキー card:<スプシのid> へ（両方あれば今のキーの値を優先）
+    const id = migrateCardId(rawId);
+    if (id !== rawId && id in out) continue;
+    out[id] = o;
   }
   return out;
 }

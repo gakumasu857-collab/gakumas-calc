@@ -556,34 +556,42 @@ export default function HelpPage() {
               </MockBtn>
               <span className="text-xs text-slate-600">メインパラボ60点×4が入る（実物が決まっていないとき）</span>
             </div>
-            <div className="mb-2 grid w-64 grid-cols-4 gap-1.5">
-              {["Vo+2.8%", "Da+2.1%", "編集中", "＋"].map((t, i) => (
+            <div className="mb-2 flex w-80 max-w-full flex-col gap-1 text-[10px]">
+              {(
+                [
+                  ["1", "Vo +2.8%  Da +2.1%  Vi +15", false],
+                  ["2", "メインパラボ60点 → Vo +2.8% / Da +2.8% / Vi +20", false],
+                  ["3", "編集中（下に入力欄が開く）", true],
+                  ["4", "空き（クリックして入れる）", false],
+                ] as [string, string, boolean][]
+              ).map(([n, t, on]) => (
                 <div
-                  key={i}
-                  className={`flex h-14 items-center justify-center rounded-md border text-[10px] font-semibold ${
-                    i === 2
-                      ? "border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-300"
-                      : i === 3
-                        ? "border-dashed border-slate-300 bg-white text-blue-600"
-                        : "border-slate-300 bg-white text-slate-700"
+                  key={n}
+                  className={`flex items-center gap-2 rounded-md border px-2 py-1 ${
+                    on ? "border-blue-400 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"
                   }`}
                 >
-                  {t}
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full font-black ${
+                      on ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
+                    {n}
+                  </span>
+                  <span>{t}</span>
                 </div>
               ))}
             </div>
-            <div className="rounded-lg border-2 border-blue-300 bg-white p-2">
-              <div className="mb-1 text-xs font-bold">枠3 のメモリー</div>
-              <div className="flex flex-wrap gap-1">
-                {["+1.4%", "+2.1%", "+2.8%", "+3.5%", "+10", "+15", "+20", "+25"].map((v) => (
-                  <span
-                    key={v}
-                    className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600"
-                  >
-                    {v}
-                  </span>
-                ))}
+            <div className="rounded-lg border-2 border-blue-300 bg-white p-2 text-[10px] text-slate-700">
+              <div className="mb-1 flex gap-1">
+                <MockBtn tone="primary">アビリティを選ぶ</MockBtn>
+                <MockBtn>メインパラボ</MockBtn>
               </div>
+              {["アビリティ1 ［Vo ▾］［+2.8% ▾］", "アビリティ2 ［Da ▾］［+2.1% ▾］", "アビリティ3 ［なし ▾］"].map((t) => (
+                <div key={t} className="py-0.5">
+                  {t}
+                </div>
+              ))}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 <MockBtn>この枠を空にする</MockBtn>
                 <MockBtn>一覧から選ぶ</MockBtn>
@@ -605,7 +613,7 @@ export default function HelpPage() {
               <b>メモリーセットとして保存</b>: メモリーセットはメモリー4枚のセットです。保存すれば、以降メモリーセットを選択することで4枚まとめて入力できます。セットから入れたあとに枠を変えても、セットは変わりません（変えた4枚はセーブデータに入ります）。セット自体を変えるときは「上書き保存」。名前の変更と削除は「保存したセットから入れる」の中でできます。
             </li>
             <li>
-              <b>メモリーの編集・操作</b>: 「一覧から選ぶ」の中で、クリックで枠に入れられます。✎で中身を直接編集、−で外す。
+              <b>メモリーの編集・操作</b>: 「一覧から選ぶ」の中の「枠に入れる」で枠に入れられます。✎で中身を直接編集、ゴミ箱で消せます。枠から外すのは、4枠の一覧の×。
             </li>
           </ul>
         </div>

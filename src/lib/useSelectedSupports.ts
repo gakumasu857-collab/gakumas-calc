@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import type { SelectedSlot } from "./formation";
+import { migrateSlotIds } from "./idMigration";
 import { useSaveNotifier } from "./storeSync";
 
 /**
@@ -18,7 +19,8 @@ export function useSelectedSupports() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const stored = JSON.parse(raw) as (SelectedSlot | null)[];
-        return Array.from({ length: SLOT_COUNT }, (_, i) => stored[i] ?? null);
+        // 旧キー card:<名前> を今のキーへ
+        return migrateSlotIds(Array.from({ length: SLOT_COUNT }, (_, i) => stored[i] ?? null));
       }
     } catch {
       // 破損データは無視
@@ -42,7 +44,7 @@ export function useSelectedSupports() {
 
   /** 理想編成などから6枠を一括設定 */
   const setAll = useCallback((entries: (SelectedSlot | null)[]) => {
-    setSlots(Array.from({ length: SLOT_COUNT }, (_, i) => entries[i] ?? null));
+    setSlots(migrateSlotIds(Array.from({ length: SLOT_COUNT }, (_, i) => entries[i] ?? null)));
   }, []);
 
   const clearAll = useCallback(() => setSlots(EMPTY), []);

@@ -40,7 +40,7 @@ export default function MemoryPickerModal({
       toolbar={
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <p className="min-w-0 flex-1 text-sm text-slate-700">
-            育成の開始時に持ち込むメモリー4枚。枠をクリックして、下で中身を作れます（保存は任意）。
+            育成の開始時に持ち込むメモリー4枚。行をクリックすると、その場で中身を変えられます（保存は任意）。
           </p>
           <button type="button" onClick={onClose} className={BTN_PRIMARY}>
             <Check size={15} />
@@ -55,7 +55,7 @@ export default function MemoryPickerModal({
           <b className="text-slate-900">
             今は汎用のメモリー（メインパラボ60点）が4枠すべてに入っています。
           </b>
-          自分のメモリーに変えたいときは、変えたい枠をクリックして、下で中身を作ってください（このままでも探索できます）。
+          自分のメモリーに変えたいときは、変えたい行をクリックして中身を選んでください（このままでも探索できます）。
           メインパラボ＝パラボを効果が大きい上位2タイプに、残り1タイプに固定値を付けるテンプレで、踏み方を変えると付け先も自動で変わります。
         </div>
       ) : showTemplate && (

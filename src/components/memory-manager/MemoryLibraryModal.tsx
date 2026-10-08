@@ -35,11 +35,6 @@ export default function MemoryLibraryModal({
     }
     return counts;
   }, [store.slots]);
-  /** 一覧の−: そのメモリーが入っている最後の枠を空にする */
-  const removeOne = (id: string) => {
-    const last = store.slots.map((s) => s?.sourceId).lastIndexOf(id);
-    if (last !== -1) store.clearSlot(last);
-  };
 
   return (
     <Modal
@@ -48,14 +43,13 @@ export default function MemoryLibraryModal({
       widthClass="max-w-4xl"
     >
       <p className={`mb-3 ${NOTE}`}>
-        クリックすると枠{activeIndex + 1}に入ります。✎で中身を編集、「削除モード」で消せます。保存するのは、枠の中身を作って右の「この中身を保存」。
+        「枠{activeIndex + 1}に入れる」でその枠に入ります。✎で中身を編集、ゴミ箱で消せます。保存するのは、枠の中身を作って「この中身を保存」。
       </p>
       <MemoryLibrary
         memories={store.library}
         selectedCounts={selectedCounts}
         activeIndex={activeIndex}
         onSelect={onPick}
-        onRemoveOne={removeOne}
         onDelete={store.deleteMemory}
         onEdit={setEditId}
       />

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 import { slotToMemory, type Memory, type MemorySet } from "@/lib/memoryTypes";
 import { BTN_SECONDARY, FIELD } from "@/components/ui";
-import MemoryCard from "./MemoryCard";
+import MemoryLine from "./MemoryLine";
 import Modal from "@/components/Modal";
 
 type Props = {
@@ -45,25 +45,19 @@ export default function MemorySetModal({
   );
 }
 
-/** 4枚を横に並べたプレビュー（保存時・一覧） */
+/** 4枚の中身（保存時・一覧。1枚1行） */
 function SetCards({ memories }: { memories: (Memory | null)[] }) {
   return (
-    <div className="flex gap-2">
-      {memories.map((memory, i) =>
-        memory ? (
-          <div key={i} className="w-1/4 max-w-24">
-            <MemoryCard memory={memory} />
-          </div>
-        ) : (
-          <div
-            key={i}
-            className="flex aspect-3/5 w-1/4 max-w-24 items-center justify-center rounded-lg border border-dashed border-slate-300 text-[10px] text-slate-400"
-          >
-            空
-          </div>
-        ),
-      )}
-    </div>
+    <ol className="flex flex-col gap-1">
+      {memories.map((memory, i) => (
+        <li key={i} className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-600">
+            {i + 1}
+          </span>
+          {memory ? <MemoryLine memory={memory} size="sm" /> : <span className="text-[10px] text-slate-400">空</span>}
+        </li>
+      ))}
+    </ol>
   );
 }
 

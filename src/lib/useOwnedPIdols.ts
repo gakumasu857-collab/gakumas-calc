@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { migratePIdolKeys } from "./idMigration";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { useSaveNotifier } from "./storeSync";
 import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
@@ -48,7 +49,8 @@ export function useOwnedPIdols() {
   const [map, setMap] = useState<OwnershipMap>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return fillNewPIdols(JSON.parse(raw) as OwnershipMap, readCount());
+      // 旧キー（名前カード名）は今のキー pidol:<スプシのid> へ
+      if (raw) return fillNewPIdols(migratePIdolKeys(JSON.parse(raw) as OwnershipMap), readCount());
     } catch {
       // 破損データは無視
     }
@@ -148,7 +150,7 @@ export function useOwnedPIdols() {
    * 保存時の数が無い古いデータは、無いものを全部 6・4 にする。
    */
   const replaceAll = useCallback((snapshot: OwnershipMap, knownCount?: number) => {
-    setMap(fillNewPIdols(snapshot, knownCount));
+    setMap(fillNewPIdols(migratePIdolKeys(snapshot), knownCount));
   }, []);
 
   return {

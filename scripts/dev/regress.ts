@@ -19,9 +19,13 @@ const store = new Map<string, string>();
 };
 
 import { optimizeSteppingForSlots, runFullOptimize } from "@/lib/autoOptimize";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { buildInput } from "@/lib/devHarness";
 import { loadHatsuState } from "@/lib/useHatsuSchedule";
 import { loadNiaState } from "@/lib/useNiaSchedule";
+
+/** 保存キーは card:<スプシのid> なので、表示は名前に戻す */
+const NAME_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.name]));
 
 type Case = { scenario: string; idol: string; pIdol: string; set: string };
 const CASES: Case[] = [
@@ -51,7 +55,7 @@ for (const c of CASES) {
   );
   console.log(
     "  編成:",
-    res.slots.map((s) => s.id.replace("card:", "") + (s.rental ? "*" : "")).join("、"),
+    res.slots.map((s) => (NAME_BY_ID.get(s.id) ?? s.id) + (s.rental ? "*" : "")).join("、"),
   );
   if (res.hif) console.log("  選抜:", JSON.stringify(res.hif.examScores));
 }

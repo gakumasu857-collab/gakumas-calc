@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { migrateCardIdKeys } from "./idMigration";
 import { useSaveNotifier } from "./storeSync";
 import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
@@ -35,7 +36,8 @@ function loadLevels(): LevelMap {
           if (!(newKey in migrated)) migrated[newKey] = level;
         }
       }
-      return migrated;
+      // さらに旧キー card:<名前> を今のキー card:<スプシのid> へ（2026-10-08）
+      return migrateCardIdKeys(migrated);
     }
   } catch {
     // 破損データなどは無視
@@ -104,7 +106,7 @@ export function useOwnedLevels() {
    */
   const replaceAll = useCallback(
     (snapshot: LevelMap, knownCount?: number) => {
-      const next: LevelMap = { ...snapshot };
+      const next: LevelMap = migrateCardIdKeys(snapshot); // 旧キーのセーブデータも読める
       SUPPORT_CARD_DB.forEach((c, i) => {
         if (c.id in next) return;
         next[c.id] = knownCount !== undefined && i >= knownCount ? 4 : -1;

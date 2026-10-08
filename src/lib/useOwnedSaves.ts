@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
+import { migrateCardIdKeys, migratePIdolKeys } from "./idMigration";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { notifyStoreChange, subscribeStoreChange } from "./storeSync";
 import type { PIdolOwnership } from "./useOwnedPIdols";
@@ -67,10 +68,19 @@ export const BUILTIN_ALL4: OwnedSave = {
 export const isBuiltinId = (id: string | null | undefined): boolean =>
   !id || id === BUILTIN_ID;
 
+/** 保存した所持状況のキー（サポカ card:<名前>→card:<id>、Pアイドル 名前カード名→pidol:<id>）を今の形にする */
+function migrateSave(s: OwnedSave): OwnedSave {
+  return {
+    ...s,
+    levels: migrateCardIdKeys(s.levels),
+    pIdols: s.pIdols ? migratePIdolKeys(s.pIdols) : s.pIdols,
+  };
+}
+
 function load(): OwnedSave[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as OwnedSave[];
+    if (raw) return (JSON.parse(raw) as OwnedSave[]).map(migrateSave);
   } catch {
     // 破損データは無視
   }
@@ -97,11 +107,11 @@ function readJson<T>(key: string, fallback: T): T {
 
 /** 所持ストアの今の中身（サポカ凸） */
 function currentLevels(): Record<string, number> {
-  return readJson(LEVELS_KEY, BUILTIN_ALL4.levels);
+  return migrateCardIdKeys(readJson(LEVELS_KEY, BUILTIN_ALL4.levels));
 }
 /** 所持ストアの今の中身（Pアイドル） */
 function currentPIdols(): Record<string, PIdolOwnership> {
-  return readJson(PIDOLS_KEY, BUILTIN_ALL4.pIdols ?? {});
+  return migratePIdolKeys(readJson(PIDOLS_KEY, BUILTIN_ALL4.pIdols ?? {}));
 }
 
 const today = () => new Date().toLocaleDateString("ja-JP");
@@ -193,7 +203,16 @@ export function adoptSaveSnapshot(
   const list = load();
   const rec =
     list.find((s) => s.saveId === saveId) ??
-    insert({ name, levels, pIdols, pIdolCount, saveId }, list);
+    insert(
+      {
+        name,
+        levels: migrateCardIdKeys(levels),
+        pIdols: pIdols ? migratePIdolKeys(pIdols) : undefined,
+        pIdolCount,
+        saveId,
+      },
+      list,
+    );
   writeActiveSlotId(rec.id);
   notifyStoreChange();
 }

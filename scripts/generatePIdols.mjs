@@ -5,7 +5,8 @@
  * 出力:
  * {
  *   masters: [{ url, idol, cardName, skillName, rarity, plan, effect, key, growthTag, sheetId }],
- *     ※ sheetId はスプシ pidleName の id 列（2026-10-07 追加）。あればその順に並べる（保存キーは key のまま）
+ *     ※ sheetId はスプシ pidleName の id 列（2026-10-07 追加）。あればその順に並べる。
+ *        アプリ側の保存キーは pidol:<id>（pIdol.ts で付ける）。key 列＝名前カード名は旧キーの移行用
  *   growth: { 成長タグ: { base:[10], kunren1:[10], kunren2:[10], kunren4:[10], kunren5:[10],
  *                        kunren6:[10], kaika1:[10], kaika3:[10], kaika4:[10] } },
  *     ※ 配列は [体力, Vo初期値, Da初期値, Vi初期値, Voパラボ, Daパラボ, Viパラボ, VoSP率, DaSP率, ViSP率]

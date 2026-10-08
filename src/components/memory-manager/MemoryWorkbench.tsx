@@ -6,18 +6,17 @@ import { SLOT_SIZE } from "@/lib/memoryTypes";
 import type { useMemoryStore } from "@/lib/useMemoryStore";
 import MemoryLibraryModal from "./MemoryLibraryModal";
 import MemorySetModal from "./MemorySetModal";
-import MemorySlot from "./MemorySlot";
+import MemorySlotList from "./MemorySlotList";
 import SlotEditor from "./SlotEditor";
 
 type Store = ReturnType<typeof useMemoryStore>;
 
 /**
- * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。2026-10-07 に組み替え（オーナー要望）:
- * 上: スロット4枠（クリックで編集する枠を選ぶ）＋ メモリーセット（4枚まとめて保存・呼び出し・上書き。よく使う）
- * 下: 選んだ枠の中身（「アビリティを選ぶ」／「メインパラボ」45・60・70点）
- * 保存したメモリー（1枚ずつ）は使う機会が少ないので作業台には出さず、枠の右の小さなボタン
- * 「一覧から選ぶ」（モーダル。今まで通り選ぶ・✎で編集・削除モード）と「この中身を保存」にまとめる。
- * 操作の単位: アビリティ（編集枠）・メモリー（1枚ずつの保存）・メモリーセット（4枚まとめて）。
+ * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。2026-10-08 に作り直し（オーナー要望）:
+ * 左: 4枠を1枠1行で並べた一覧。行をクリックすると、その行のすぐ下に編集欄（アビリティ3行／メインパラボ）が開く
+ * 右: メモリーセット（4枚まとめて保存・呼び出し・上書き。よく使う）
+ * 保存したメモリー（1枚ずつ）は使う機会が少ないので作業台には出さず、編集欄の小さなボタン
+ * 「一覧から選ぶ」（モーダル。選ぶ・✎で編集・削除）と「この中身を保存」にまとめる。
  */
 export default function MemoryWorkbench({
   store,
@@ -27,7 +26,7 @@ export default function MemoryWorkbench({
   store: Store;
   /** テンプレ（パラボ追従）を今の踏み方で展開するための割当 */
   paraboAssign: ParaboAssign;
-  /** 増えるたびに「最初の空枠（無ければ枠1）」を編集対象にして編集枠までスクロールする */
+  /** 増えるたびに「最初の空枠（無ければ枠1）」を開く */
   focusKey?: number;
 }) {
   const firstEmpty = store.slots.findIndex((s) => !s);
@@ -36,7 +35,6 @@ export default function MemoryWorkbench({
     if (!focusKey) return;
     const empty = store.slots.findIndex((s) => !s);
     setActive(empty === -1 ? 0 : empty);
-    document.getElementById("memory-slot-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
     // focusKey が増えたときだけ動かす
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
@@ -63,93 +61,92 @@ export default function MemoryWorkbench({
   const activeSet = store.activeSet;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* 1. スロット4枠 ＋ メモリーセット */}
-      <div className="flex flex-wrap items-stretch gap-3">
-        <MemorySlot
-          memories={store.slotMemories}
-          activeIndex={active}
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+      {/* 左: 4枠の一覧＋開いている枠の編集欄 */}
+      <MemorySlotList
+        memories={store.slotMemories}
+        activeIndex={active}
+        paraboAssign={paraboAssign}
+        onSelect={setActive}
+        onRemove={store.clearSlot}
+      >
+        <SlotEditor
+          index={active}
+          value={value}
+          status={status}
+          sourceName={sourceName}
           paraboAssign={paraboAssign}
-          onSelect={setActive}
-          onRemove={store.clearSlot}
+          libraryCount={store.library.length}
+          onChange={(next) => store.setSlot(active, next)}
+          onClear={() => store.clearSlot(active)}
+          onPickParabo={(id) => store.pickIntoSlot(active, id)}
+          onSaveNew={() => store.saveSlot(active, "new")}
+          onOverwrite={() => store.saveSlot(active, "overwrite")}
+          duplicate={store.findDuplicate(active)}
+          onUseDuplicate={() => {
+            const dup = store.findDuplicate(active);
+            if (dup) store.pickIntoSlot(active, dup.id);
+          }}
+          onOpenLibrary={() => setLibraryOpen(true)}
         />
-        <section className="flex w-full flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 sm:ml-auto sm:w-72">
-          <h2 className="text-sm font-bold text-slate-900">
-            メモリーセット
-            <span className="ml-2 text-xs font-normal text-slate-500">4枚まとめて保存・呼び出し</span>
-          </h2>
-          {activeSet ? (
-            <p className="flex flex-wrap items-center gap-1.5 text-sm text-slate-800">
-              <span className="min-w-0 truncate font-bold">「{activeSet.name}」</span>
-              {store.activeSetModified ? (
-                <span className={CHIP_WARN}>枠を変更中</span>
-              ) : (
-                <span className={CHIP_OK}>セットの通り</span>
-              )}
-            </p>
-          ) : (
-            <p className={NOTE}>今の4枚は、どのセットからも入れていません。</p>
-          )}
-          <div className="flex flex-col items-stretch gap-1.5">
-            <button type="button" onClick={() => setSetModal("load")} className={BTN_SECONDARY_LG}>
-              <FolderInput size={16} />
-              保存したセットから入れる
-              {ownSets > 0 && (
-                <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
-                  {ownSets}
-                </span>
-              )}
-            </button>
-            {activeSet && store.activeSetModified && (
-              <button
-                type="button"
-                onClick={() => store.overwriteSet(activeSet.id)}
-                title="今の4枚で、このセットの中身を書き換えます"
-                className={BTN_PRIMARY}
-              >
-                <Save size={15} />
-                <span className="min-w-0 truncate">「{activeSet.name}」を上書き保存</span>
-              </button>
+      </MemorySlotList>
+
+      {/* 右: メモリーセット */}
+      <section className="flex w-full shrink-0 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 lg:w-72">
+        <h2 className="text-sm font-bold text-slate-900">
+          メモリーセット
+          <span className="ml-2 text-xs font-normal text-slate-500">4枚まとめて保存・呼び出し</span>
+        </h2>
+        {activeSet ? (
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-slate-800">
+            <span className="min-w-0 truncate font-bold">「{activeSet.name}」</span>
+            {store.activeSetModified ? (
+              <span className={CHIP_WARN}>枠を変更中</span>
+            ) : (
+              <span className={CHIP_OK}>セットの通り</span>
             )}
+          </p>
+        ) : (
+          <p className={NOTE}>今の4枚は、どのセットからも入れていません。</p>
+        )}
+        <div className="flex flex-col items-stretch gap-1.5">
+          <button type="button" onClick={() => setSetModal("load")} className={BTN_SECONDARY_LG}>
+            <FolderInput size={16} />
+            保存したセットから入れる
+            {ownSets > 0 && (
+              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                {ownSets}
+              </span>
+            )}
+          </button>
+          {activeSet && store.activeSetModified && (
             <button
               type="button"
-              disabled={!full}
-              onClick={() => setSetModal("save")}
-              title={full ? "今の4枚を新しいメモリーセットとして保存します" : "4枚そろうと保存できます"}
-              className={BTN_SECONDARY_LG}
+              onClick={() => store.overwriteSet(activeSet.id)}
+              title="今の4枚で、このセットの中身を書き換えます"
+              className={BTN_PRIMARY}
             >
-              <FolderPlus size={16} />
-              新しいセットとして保存
+              <Save size={15} />
+              <span className="min-w-0 truncate">「{activeSet.name}」を上書き保存</span>
             </button>
-          </div>
-          <p className={NOTE}>
-            セットから入れたあとに枠を変えても、セットは変わりません（変えた4枚はこの育成のセーブデータに入ります）。セット自体を変えるときは「上書き保存」。
-          </p>
-        </section>
-      </div>
+          )}
+          <button
+            type="button"
+            disabled={!full}
+            onClick={() => setSetModal("save")}
+            title={full ? "今の4枚を新しいメモリーセットとして保存します" : "4枚そろうと保存できます"}
+            className={BTN_SECONDARY_LG}
+          >
+            <FolderPlus size={16} />
+            新しいセットとして保存
+          </button>
+        </div>
+        <p className={NOTE}>
+          セットから入れたあとに枠を変えても、セットは変わりません（変えた4枚はこの育成のセーブデータに入ります）。セット自体を変えるときは「上書き保存」。
+        </p>
+      </section>
 
-      {/* 2. 選んだ枠の中身 */}
-      <SlotEditor
-        index={active}
-        value={value}
-        status={status}
-        sourceName={sourceName}
-        paraboAssign={paraboAssign}
-        libraryCount={store.library.length}
-        onChange={(next) => store.setSlot(active, next)}
-        onClear={() => store.clearSlot(active)}
-        onPickParabo={(id) => store.pickIntoSlot(active, id)}
-        onSaveNew={() => store.saveSlot(active, "new")}
-        onOverwrite={() => store.saveSlot(active, "overwrite")}
-        duplicate={store.findDuplicate(active)}
-        onUseDuplicate={() => {
-          const dup = store.findDuplicate(active);
-          if (dup) store.pickIntoSlot(active, dup.id);
-        }}
-        onOpenLibrary={() => setLibraryOpen(true)}
-      />
-
-      {/* 保存したメモリー（1枚ずつ）の一覧。枠の「一覧から選ぶ」から */}
+      {/* 保存したメモリー（1枚ずつ）の一覧。編集欄の「一覧から選ぶ」から */}
       {libraryOpen && (
         <MemoryLibraryModal
           store={store}

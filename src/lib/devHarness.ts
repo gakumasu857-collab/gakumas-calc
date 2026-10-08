@@ -17,6 +17,7 @@ import { CLASSES, EXAMS, examStarCapScore, LESSONS } from "@/data/schedule";
 import { hifBonusValues } from "@/data/hifBonus";
 import { niaChallengeTotal, normalizeNiaChallenge } from "@/data/niaChallenge";
 import { SCENARIO_CAPS, type ScenarioKey } from "@/data/scenarios";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import {
   OptimizeEngine,
   optimizeSteppingForSlots,
@@ -24,6 +25,7 @@ import {
   type AutoOptimizeInput,
 } from "./autoOptimize";
 import { examStyleTags } from "./formation";
+import { migrateCardId, migratePIdolKeys } from "./idMigration";
 import {
   TEMPLATE_MEMORIES,
   slotToMemory,
@@ -116,9 +118,8 @@ export function buildInput(): AutoOptimizeInput {
 
   // Pアイドル（ストア未初期化なら特訓6・開花4）
   const pMaster = findPIdolMaster(settings.idol, settings.pIdol);
-  const pOwnership = loadJson<Record<string, { kunren: number; kaika: number }>>(
-    "gakumas:pIdols:v1",
-    {},
+  const pOwnership = migratePIdolKeys(
+    loadJson<Record<string, { kunren: number; kaika: number }>>("gakumas:pIdols:v1", {}),
   );
   const own = pMaster
     ? (pOwnership[pMaster.key] ?? { kunren: 6, kaika: 4 })
@@ -241,7 +242,7 @@ export function buildInput(): AutoOptimizeInput {
         (x): x is { id: string; rental: boolean } =>
           !!x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string",
       );
-      return slots.length === 6 ? slots.map((x) => ({ id: x.id, rental: !!x.rental })) : undefined;
+      return slots.length === 6 ? slots.map((x) => ({ id: migrateCardId(x.id), rental: !!x.rental })) : undefined;
     })(),
     eventBudget: settings.eventBudget.enabled
       ? { pre: settings.eventBudget.pre, post: settings.eventBudget.post }
@@ -264,8 +265,11 @@ export function buildInput(): AutoOptimizeInput {
   };
 }
 
-const nameToId = (name: string) => `card:${name}`;
-const idToName = (id: string) => id.replace(/^card:/, "");
+// 保存キーは card:<スプシのid> なので、名前との行き来はDBで引く
+const ID_BY_NAME = new Map(SUPPORT_CARD_DB.map((c) => [c.name, c.id]));
+const NAME_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, c.name]));
+const nameToId = (name: string) => ID_BY_NAME.get(name) ?? `card:${name}`;
+const idToName = (id: string) => NAME_BY_ID.get(id) ?? id;
 
 /** コンソール実験用（クラス本体は autoOptimize.ts） */
 export { OptimizeEngine } from "./autoOptimize";

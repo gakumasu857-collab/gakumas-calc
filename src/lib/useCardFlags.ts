@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { migrateCardIdKeys } from "./idMigration";
 import { useSaveNotifier } from "./storeSync";
 
 /**
@@ -16,7 +17,7 @@ export function useCardFlags() {
   const [map, setMap] = useState<FlagMap>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as FlagMap;
+      if (raw) return migrateCardIdKeys(JSON.parse(raw) as FlagMap); // 旧キー card:<名前> を今のキーへ
     } catch {
       // 破損データは無視
     }

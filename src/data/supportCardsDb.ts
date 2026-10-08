@@ -42,9 +42,12 @@ export type PreEventInfo = {
 };
 
 export type SupportCardData = {
-  /** 保存キー（card:名前）。名前が変わらない限り安定。所持状況・固定/BAN・編成・セーブデータはこれで持つ */
+  /**
+   * 保存キー `card:<スプシのid>`（2026-10-08〜。id が無い行だけ `card:<名前>`）。所持状況・固定/BAN・編成・セーブデータはこれで持つ。
+   * 以前は `card:<名前>` だったので、カード名を変えると保存データが切れていた。旧キーは各ストアが読むときに idMigration.ts で写す。
+   */
   id: string;
-  /** スプシ supMaster の id 列（登場順の通し番号。2026-10-07 に重複が解消されて一意になった）。並び順にだけ使い、保存キーには使わない */
+  /** スプシ supMaster の id 列（登場順の通し番号。2026-10-07 に重複が解消されて一意になった）。保存キーの元なので、スプシ側で変えない・使い回さない */
   sheetId: number;
   /** 登場日（YYYY-MM-DD。スプシの「登場日」列＝日付の通し番号から変換。無ければ ""）。一覧の「新しい順」と、データベースの表示に使う */
   releaseDate: string;
@@ -391,9 +394,11 @@ function convert(rawRow: Record<string, unknown>): SupportCardData | null {
   const statRaw = str(row.stat_event);
   const statEventType = STAT_EVENT_TYPES.has(statRaw) ? statRaw : "何もなし";
 
+  const sheetId = numOf(row.id);
   return {
-    id: `card:${name}`, // 保存キーは名前ベースを維持（所持データ等の互換のため）
-    sheetId: numOf(row.id),
+    // 保存キーはスプシの id（id が無い行だけ名前）。旧キー card:名前 は idMigration.ts が読むときに写す
+    id: sheetId > 0 ? `card:${sheetId}` : `card:${name}`,
+    sheetId,
     releaseDate: sheetDateToIso(row.release_date),
     name,
     rarity: RARITY_ALIASES[str(row[COL.rarity])] ?? "SSR",
