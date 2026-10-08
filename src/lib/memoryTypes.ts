@@ -23,7 +23,7 @@ export type Memory = {
   skillName?: string;
   /** 1〜3個。同一属性の重複なし */
   abilities: Ability[];
-  /** テンプレメモリー（メインパラボ）は削除不可 */
+  /** テンプレメモリー（汎用メモリー）は削除不可 */
   isTemplate?: boolean;
   /**
    * ロール追従メモリー: メイン1/メイン2のタイプに%、サブのタイプに固定値。
@@ -172,13 +172,13 @@ export const PLAN_STYLES: Record<
   },
 };
 
-/** テンプレメモリー（メインパラボ）。枠の「メインパラボ」の選択肢として使う（保存したメモリーの一覧には出さない。2026-10-07）。削除不可 */
+/** テンプレメモリー（汎用メモリー。2026-10-08 に「メインパラボ」から改名）。枠の「汎用メモリーにする」の選択肢として使う（保存したメモリーの一覧には出さない）。削除不可 */
 export const TEMPLATE_MEMORIES: Memory[] = [
   // ロール追従のパラボメモリー（メイン1/メイン2に%・サブに固定値。ロール切替に自動追従）
   {
     id: "tpl-role45",
     plan: "共通",
-    skillName: "メインパラボ45点",
+    skillName: "汎用メモリー45点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 2.1, subFlat: 15 },
@@ -186,7 +186,7 @@ export const TEMPLATE_MEMORIES: Memory[] = [
   {
     id: "tpl-role60",
     plan: "共通",
-    skillName: "メインパラボ60点",
+    skillName: "汎用メモリー60点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 2.8, subFlat: 20 },
@@ -194,14 +194,14 @@ export const TEMPLATE_MEMORIES: Memory[] = [
   {
     id: "tpl-role70",
     plan: "共通",
-    skillName: "メインパラボ70点",
+    skillName: "汎用メモリー70点",
     abilities: [],
     isTemplate: true,
     roleSpec: { mainPct: 3.5, subFlat: 20 },
   },
 ];
 
-/** 枠の「メインパラボ」の選択肢（テンプレから作る。点数は名前の「◯点」） */
+/** 枠の「汎用メモリーにする」の選択肢（テンプレから作る。点数は名前の「◯点」） */
 export const MAIN_PARABO_OPTIONS: { id: string; points: number; mainPct: number; subFlat: number }[] =
   TEMPLATE_MEMORIES.filter((t) => t.roleSpec).map((t) => ({
     id: t.id,
@@ -263,6 +263,12 @@ export function sameMemoryContent(
       m.roleSpec ? [m.roleSpec.mainPct, m.roleSpec.subFlat] : null,
     ]);
   return key(a) === key(b);
+}
+
+/** 汎用メモリーの表示名（「汎用メモリー60点」）。古い保存データの名前（メインパラボ60点）に頼らず roleSpec から出す */
+export function templateLabel(spec: NonNullable<Memory["roleSpec"]>): string {
+  const o = MAIN_PARABO_OPTIONS.find((x) => x.mainPct === spec.mainPct && x.subFlat === spec.subFlat);
+  return o ? `汎用メモリー${o.points}点` : "汎用メモリー";
 }
 
 /** 4枠の中身が同じか（セットから入れたあとに枠を変えたかの判定。保存元のつながりは見ない） */

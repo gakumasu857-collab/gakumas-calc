@@ -47,7 +47,7 @@ const SLOTS_KEY = "gakumas:memorySlots:v2";
 /** 最初の汎用メモリーを入れ終えた印（入れるのは1回だけ。あとから4枠とも空にしても入れ直さない） */
 const INIT_KEY = "gakumas:memoryInit:v1";
 
-/** 汎用メモリー（メインパラボ60点のテンプレ）。初めての人の4枠と「汎用メモリーを入れる」で使う */
+/** 汎用メモリー（汎用メモリー60点のテンプレ）。初めての人の4枠と「汎用メモリーを入れる」で使う */
 export const GENERIC_MEMORY_ID = "tpl-role60";
 /** 旧形式のスロット（IDの配列）。v2 が無いときだけ読む */
 const LEGACY_SEL_KEY = "gakumas:memorySelection:v1";
@@ -97,7 +97,7 @@ function loadSlots(pool: Memory[]): (SlotMemory | null)[] {
 }
 
 /**
- * 初めての人は、4枠とも汎用メモリー（メインパラボ60点）から始める（オーナー指定 2026-10-01。
+ * 初めての人は、4枠とも汎用メモリー（汎用メモリー60点）から始める（オーナー指定 2026-10-01。
  * メモリーを自分で作るところで手が止まりやすいので、まず探索まで行けるようにする）。
  * 入れるのは1回だけ: もう何か入っている人はそのまま。あとから4枠とも空にしても入れ直さない。
  * 入れた中身はその場で保存する（開発中の二重初期化や、ほかの実体が読んでも同じ中身になるように）。
@@ -198,7 +198,7 @@ export function useMemoryStore() {
   );
   /** 中身が入っている枠の数 */
   const count = slots.filter((s) => s !== null).length;
-  /** 4枠とも汎用メモリー（メインパラボ60点のテンプレ）のままか（設定欄の「今は汎用メモリー」の表記用） */
+  /** 4枠とも汎用メモリー（汎用メモリー60点のテンプレ）のままか（設定欄の「今は汎用メモリー」の表記用） */
   const isGeneric = slots.every((s) => !!s && !!s.roleSpec && s.sourceId === GENERIC_MEMORY_ID);
   /** 今の4枠を入れたセット（無ければ null）と、そこから枠を変えたか（「上書き保存」を出す条件） */
   const activeSet = useMemo(
@@ -308,12 +308,18 @@ export function useMemoryStore() {
   /**
    * 枠の中身をライブラリへ保存する。
    * new: 新しいメモリーとして保存して枠をそれにつなぐ／overwrite: 保存元を上書き。
+   * patch（名前・プラン）は保存するときに付けるもの（2026-10-08〜。枠の編集では付けない）。枠にも書く。
    * 保存したメモリーのIDを返す（テンプレ・空枠は null）。
    */
   const saveSlot = useCallback(
-    (index: number, mode: "new" | "overwrite"): string | null => {
-      const s = slots[index];
-      if (!s || s.roleSpec || s.abilities.length === 0) return null;
+    (
+      index: number,
+      mode: "new" | "overwrite",
+      patch?: { plan?: PlanKey; skillName?: string },
+    ): string | null => {
+      const s0 = slots[index];
+      if (!s0 || s0.roleSpec || s0.abilities.length === 0) return null;
+      const s: SlotMemory = patch ? { ...s0, ...patch } : s0;
       const draft: MemoryDraft = {
         plan: s.plan,
         skillName: s.skillName,
@@ -321,6 +327,7 @@ export function useMemoryStore() {
       };
       if (mode === "overwrite" && s.sourceId && library.some((m) => m.id === s.sourceId)) {
         updateMemory(s.sourceId, draft);
+        if (patch) setSlot(index, s);
         return s.sourceId;
       }
       const id = addMemory(draft);

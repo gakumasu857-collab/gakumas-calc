@@ -148,7 +148,7 @@ export default function PremiseCard({
             <SetPickerField r={r} />
           </PremiseField>
           {/* 4. メモリー（値は1行に収める。狭ければ「…」で切り、2行に折り返さない）。
-              初めての人は汎用メモリー（メインパラボ60点×4）が入っているので、そのことと変え方を欄の下に書く */}
+              初めての人は汎用メモリー60点×4が入っているので、そのことと変え方を欄の下に書く */}
           <PremiseField
             no={4}
             label="メモリー"
@@ -158,7 +158,7 @@ export default function PremiseCard({
             note={
               r.memoryStore.isGeneric ? (
                 <>
-                  今は<b>汎用のメモリー</b>（メインパラボ60点）が入っています。変えたいときは上の欄をクリック。
+                  今は<b>汎用メモリー60点</b>が入っています。変えたいときは上の欄をクリック。
                 </>
               ) : undefined
             }

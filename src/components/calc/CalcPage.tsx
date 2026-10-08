@@ -876,7 +876,7 @@ export default function CalcPage() {
 
       {/* メモリーを計算ページ内で選ぶ */}
       {memoryOpen && (
-        <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} showTemplate={!everRun} />
+        <MemoryPickerModal r={r} onClose={() => setMemoryOpen(false)} />
       )}
 
       {/* 初めて来た人への「ようこそ」（専用デザインのモーダル。最初に必ず目に入るように。「はじめる」・×・ヘルプへ・探索で消える） */}

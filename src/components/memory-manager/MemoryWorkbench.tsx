@@ -12,11 +12,12 @@ import SlotEditor from "./SlotEditor";
 type Store = ReturnType<typeof useMemoryStore>;
 
 /**
- * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。2026-10-08 に作り直し（オーナー要望）:
- * 左: 4枠を1枠1行で並べた一覧。行をクリックすると、その行のすぐ下に編集欄（アビリティ3行／メインパラボ）が開く
+ * メモリーの作業台（計算ページの「メモリーを4枚選ぶ」の中身）。
+ * 左: 4枠を1枠1行（アイコンと名前）で並べた一覧。行をクリックするとその行のすぐ下に編集欄が開き、もう一度クリックで閉じる
+ *     （編集欄＝「汎用メモリーにする」45/60/70点の帯＋アビリティ3行＋保存したメモリーの小さなボタン）
  * 右: メモリーセット（4枚まとめて保存・呼び出し・上書き。よく使う）
- * 保存したメモリー（1枚ずつ）は使う機会が少ないので作業台には出さず、編集欄の小さなボタン
- * 「一覧から選ぶ」（モーダル。選ぶ・✎で編集・削除）と「この中身を保存」にまとめる。
+ * 保存したメモリー（1枚ずつ）は使う機会が少ないので作業台には出さず、編集欄の「一覧から選ぶ」（モーダル）と
+ * 「この中身を保存」（名前・プランはそのときに付ける）にまとめる。
  */
 export default function MemoryWorkbench({
   store,
@@ -29,8 +30,8 @@ export default function MemoryWorkbench({
   /** 増えるたびに「最初の空枠（無ければ枠1）」を開く */
   focusKey?: number;
 }) {
-  const firstEmpty = store.slots.findIndex((s) => !s);
-  const [active, setActive] = useState<number>(firstEmpty === -1 ? 0 : firstEmpty);
+  /** 開いている枠（null＝閉じている。最初はどれも開かない） */
+  const [active, setActive] = useState<number | null>(null);
   useEffect(() => {
     if (!focusKey) return;
     const empty = store.slots.findIndex((s) => !s);
@@ -41,20 +42,19 @@ export default function MemoryWorkbench({
   const [setModal, setSetModal] = useState<"save" | "load" | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
 
-  /** 枠に入れたあと、次の空枠へ編集対象を進める（4枚続けて入れられるように） */
-  const advance = (from: number) => {
-    const after = store.slots.findIndex((s, i) => i > from && !s);
-    if (after !== -1) return setActive(after);
-    const any = store.slots.findIndex((s, i) => i !== from && !s);
-    if (any !== -1) setActive(any);
-  };
+  /** 行をクリック: 開く／同じ行ならもう一度で閉じる */
+  const toggle = (i: number) => setActive((cur) => (cur === i ? null : i));
+
+  /** 一覧から枠に入れたあと、次の空枠があればそちらを開く（4枚続けて入れられるように） */
   const pick = (id: string) => {
+    if (active === null) return;
     store.pickIntoSlot(active, id);
-    advance(active);
+    const after = store.slots.findIndex((s, i) => i > active && !s);
+    if (after !== -1) setActive(after);
   };
 
-  const value = store.slots[active] ?? null;
-  const status = store.slotStatus(active);
+  const value = active === null ? null : (store.slots[active] ?? null);
+  const status = active === null ? "empty" : store.slotStatus(active);
   const sourceName = value?.sourceId ? store.findMemory(value.sourceId)?.skillName : undefined;
   const full = store.count === SLOT_SIZE;
   const ownSets = store.sets.filter((s) => !s.saveId).length;
@@ -67,28 +67,29 @@ export default function MemoryWorkbench({
         memories={store.slotMemories}
         activeIndex={active}
         paraboAssign={paraboAssign}
-        onSelect={setActive}
+        onSelect={toggle}
         onRemove={store.clearSlot}
       >
-        <SlotEditor
-          index={active}
-          value={value}
-          status={status}
-          sourceName={sourceName}
-          paraboAssign={paraboAssign}
-          libraryCount={store.library.length}
-          onChange={(next) => store.setSlot(active, next)}
-          onClear={() => store.clearSlot(active)}
-          onPickParabo={(id) => store.pickIntoSlot(active, id)}
-          onSaveNew={() => store.saveSlot(active, "new")}
-          onOverwrite={() => store.saveSlot(active, "overwrite")}
-          duplicate={store.findDuplicate(active)}
-          onUseDuplicate={() => {
-            const dup = store.findDuplicate(active);
-            if (dup) store.pickIntoSlot(active, dup.id);
-          }}
-          onOpenLibrary={() => setLibraryOpen(true)}
-        />
+        {active !== null && (
+          <SlotEditor
+            index={active}
+            value={value}
+            status={status}
+            sourceName={sourceName}
+            paraboAssign={paraboAssign}
+            libraryCount={store.library.length}
+            onChange={(next) => store.setSlot(active, next)}
+            onPickParabo={(id) => store.pickIntoSlot(active, id)}
+            onSaveNew={(patch) => store.saveSlot(active, "new", patch)}
+            onOverwrite={() => store.saveSlot(active, "overwrite")}
+            duplicate={store.findDuplicate(active)}
+            onUseDuplicate={() => {
+              const dup = store.findDuplicate(active);
+              if (dup) store.pickIntoSlot(active, dup.id);
+            }}
+            onOpenLibrary={() => setLibraryOpen(true)}
+          />
+        )}
       </MemorySlotList>
 
       {/* 右: メモリーセット */}
@@ -147,7 +148,7 @@ export default function MemoryWorkbench({
       </section>
 
       {/* 保存したメモリー（1枚ずつ）の一覧。編集欄の「一覧から選ぶ」から */}
-      {libraryOpen && (
+      {libraryOpen && active !== null && (
         <MemoryLibraryModal
           store={store}
           activeIndex={active}

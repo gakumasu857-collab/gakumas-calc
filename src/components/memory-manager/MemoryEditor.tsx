@@ -1,4 +1,4 @@
-import { FIELD, NOTE } from "@/components/ui";
+import { FIELD } from "@/components/ui";
 import {
   ATTR_LABEL,
   ATTR_LIST,
@@ -21,16 +21,19 @@ export type MemoryEditorValue = {
 };
 
 /**
- * メモリーの中身を入れる共通の入力欄（2026-10-08 に作り直し）。
+ * メモリーの中身を入れる共通の入力欄。
  * ゲームのメモリーと同じ「アビリティ3行」で、行ごとに属性と値を選ぶ（同じ属性は1つまで。「なし」でその行が消える）。
- * 枠の編集（SlotEditor）と保存したメモリーの編集（LibraryEditModal）で同じものを使う。
+ * プランと名前は withMeta のときだけ（1枚ずつ保存するときに付けるもの。枠の編集では出さない。オーナー 2026-10-08）。
  */
 export default function MemoryEditor({
   value,
   onChange,
+  withMeta = true,
 }: {
   value: MemoryEditorValue;
   onChange: (next: MemoryEditorValue) => void;
+  /** プランと名前の欄も出すか */
+  withMeta?: boolean;
 }) {
   const abilities = value.abilities;
 
@@ -74,7 +77,7 @@ export default function MemoryEditor({
                 value={ab?.attr ?? ""}
                 disabled={disabled}
                 onChange={(e) => setLine(i, e.target.value as AttrKey | "")}
-                title="属性（Vo／Da／Vi／Pポイント／回復）"
+                title="属性（Vo／Da／Vi／Pポイント／回復）。同じ属性は1つまで"
                 className={`${FIELD} w-28 disabled:bg-slate-50 disabled:text-slate-300`}
               >
                 <option value="">なし</option>
@@ -105,41 +108,41 @@ export default function MemoryEditor({
           );
         })}
       </div>
-      <p className={NOTE}>同じ属性は1つまで。「なし」にすると、その行は消えます。</p>
 
-      {/* プランと名前 */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-slate-500">プラン</span>
-          {PLAN_LIST.map((p) => {
-            const s = PLAN_STYLES[p];
-            const on = value.plan === p;
-            return (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onChange({ ...value, plan: p })}
-                className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                  on ? s.btnOn : s.btnOff
-                }`}
-              >
-                {s.label}
-              </button>
-            );
-          })}
+      {withMeta && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-slate-500">プラン</span>
+            {PLAN_LIST.map((p) => {
+              const s = PLAN_STYLES[p];
+              const on = value.plan === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => onChange({ ...value, plan: p })}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    on ? s.btnOn : s.btnOff
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-slate-500">
+            名前
+            <input
+              type="text"
+              value={value.skillName ?? ""}
+              onChange={(e) => onChange({ ...value, skillName: e.target.value || undefined })}
+              placeholder="任意（例: 咲季用パラボ）"
+              maxLength={20}
+              className={`${FIELD} min-w-0 flex-1`}
+            />
+          </label>
         </div>
-        <label className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-slate-500">
-          名前
-          <input
-            type="text"
-            value={value.skillName ?? ""}
-            onChange={(e) => onChange({ ...value, skillName: e.target.value || undefined })}
-            placeholder="任意（例: 咲季用パラボ）"
-            maxLength={20}
-            className={`${FIELD} min-w-0 flex-1`}
-          />
-        </label>
-      </div>
+      )}
     </div>
   );
 }

@@ -4,9 +4,8 @@ import { calcMemoryTotals, resolveParaboMemory, type ParaboAssign } from "@/lib/
 import MemoryLine from "./MemoryLine";
 
 /**
- * メモリーの4枠を上から並べた一覧（2026-10-08 に、縦長のカード4枚から「1枠1行」に作り直し。
- * オーナー「カード型でなくていい。もっと見やすい見方があればそれがいい」）。
- * 行をクリックすると、その行のすぐ下に編集欄（children）が開く。×で空にする。下に4枚の合計。
+ * メモリーの4枠を上から並べた一覧（1枠1行。行はプランのアイコンと名前だけ）。
+ * 行をクリックすると、その行のすぐ下に編集欄（children）が開き、もう一度クリックすると閉じる。×で空にする。下に4枚の合計。
  */
 export default function MemorySlotList({
   memories,
@@ -18,10 +17,11 @@ export default function MemorySlotList({
 }: {
   /** 4枠の中身（空枠は null） */
   memories: (Memory | null)[];
-  /** いま開いている枠 */
-  activeIndex: number;
-  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当 */
+  /** いま開いている枠（null＝どれも開いていない） */
+  activeIndex: number | null;
+  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当（合計の計算用） */
   paraboAssign: ParaboAssign;
+  /** 行をクリック（開く／閉じる） */
   onSelect: (index: number) => void;
   onRemove: (index: number) => void;
   /** 開いている枠の編集欄 */
@@ -60,7 +60,7 @@ export default function MemorySlotList({
                 <button
                   type="button"
                   onClick={() => onSelect(i)}
-                  title={active ? "この枠を編集中" : "クリックで中身を変える"}
+                  title={active ? "クリックで閉じる" : "クリックで中身を変える"}
                   className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
                 >
                   <span
@@ -75,7 +75,7 @@ export default function MemorySlotList({
                     {i + 1}
                   </span>
                   {memory ? (
-                    <MemoryLine memory={memory} paraboAssign={paraboAssign} />
+                    <MemoryLine memory={memory} detail="name" />
                   ) : (
                     <span className="text-xs text-slate-400">空き（クリックして入れる）</span>
                   )}
