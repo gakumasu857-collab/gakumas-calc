@@ -74,7 +74,11 @@ function normalizeSlot(raw: unknown): SlotMemory | null {
     r.roleSpec &&
     typeof r.roleSpec.mainPct === "number" &&
     typeof r.roleSpec.subFlat === "number"
-      ? { mainPct: r.roleSpec.mainPct, subFlat: r.roleSpec.subFlat }
+      ? {
+          mainPct: r.roleSpec.mainPct,
+          ...(typeof r.roleSpec.main2Pct === "number" ? { main2Pct: r.roleSpec.main2Pct } : {}),
+          subFlat: r.roleSpec.subFlat,
+        }
       : undefined;
   return {
     plan: normalizePlan(r.plan),

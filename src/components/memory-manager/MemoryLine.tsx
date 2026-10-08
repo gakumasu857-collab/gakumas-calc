@@ -3,6 +3,7 @@ import {
   PLAN_ICON_SRC,
   sortAbilities,
   templateLabel,
+  templateSpecText,
   type Memory,
 } from "@/lib/memoryTypes";
 import { resolveParaboMemory, type ParaboAssign } from "@/lib/memoryTotals";
@@ -68,9 +69,7 @@ export default function MemoryLine({
               ))}
             </>
           ) : (
-            <span className="text-[10px] text-slate-500">
-              +{memory.roleSpec.mainPct}%×2・固定+{memory.roleSpec.subFlat}
-            </span>
+            <span className="text-[10px] text-slate-500">{templateSpecText(memory.roleSpec)}</span>
           )}
         </>
       ) : (

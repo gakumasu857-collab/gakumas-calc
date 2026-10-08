@@ -4,7 +4,9 @@ import { BTN_SECONDARY, NOTE } from "@/components/ui";
 import { resolveParaboMemory, type ParaboAssign } from "@/lib/memoryTotals";
 import {
   MAIN_PARABO_OPTIONS,
+  sameRoleSpec,
   slotToMemory,
+  templateSpecText,
   type Memory,
   type PlanKey,
   type SlotMemory,
@@ -65,9 +67,7 @@ export default function SlotEditor({
     : base.abilities;
   const canSave = !isTemplate && base.abilities.length > 0;
   const currentParabo = base.roleSpec
-    ? MAIN_PARABO_OPTIONS.find(
-        (o) => o.mainPct === base.roleSpec!.mainPct && o.subFlat === base.roleSpec!.subFlat,
-      )
+    ? MAIN_PARABO_OPTIONS.find((o) => sameRoleSpec(o, base.roleSpec!))
     : undefined;
   const [saveOpen, setSaveOpen] = useState(false);
 
@@ -83,7 +83,7 @@ export default function SlotEditor({
               key={o.id}
               type="button"
               onClick={() => onPickParabo(o.id)}
-              title={`+${o.mainPct}%×2タイプ・固定+${o.subFlat}`}
+              title={templateSpecText(o)}
               className={`rounded-md border px-3 py-1 text-sm font-bold transition ${
                 on
                   ? "border-indigo-600 bg-indigo-600 text-white"
@@ -94,6 +94,9 @@ export default function SlotEditor({
             </button>
           );
         })}
+        <span className="w-full text-[11px] leading-snug text-indigo-800">
+          ％は、踏み方でパラボの効果が大きいタイプ（1位・2位）に自動で付き、残りのタイプは固定値になります。踏み方を変えると付け先も変わります。
+        </span>
       </div>
 
       {/* アビリティ3行 */}

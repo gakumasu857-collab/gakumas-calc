@@ -28,11 +28,12 @@ export function resolveParaboMemory(
 ): Memory {
   if (!memory.roleSpec) return memory;
   const { mainPct, subFlat } = memory.roleSpec;
+  const main2Pct = memory.roleSpec.main2Pct ?? mainPct; // 2位の%（65点は 3.5%／2.8% のように1位と違う）
   return {
     ...memory,
     abilities: [
       { attr: ATTR_OF_TYPE[assign.mains[0]], value: `+${mainPct}%` },
-      { attr: ATTR_OF_TYPE[assign.mains[1]], value: `+${mainPct}%` },
+      { attr: ATTR_OF_TYPE[assign.mains[1]], value: `+${main2Pct}%` },
       { attr: ATTR_OF_TYPE[assign.sub], value: `+${subFlat}` },
     ],
   };

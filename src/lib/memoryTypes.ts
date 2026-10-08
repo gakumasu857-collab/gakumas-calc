@@ -26,11 +26,11 @@ export type Memory = {
   /** テンプレメモリー（汎用メモリー）は削除不可 */
   isTemplate?: boolean;
   /**
-   * ロール追従メモリー: メイン1/メイン2のタイプに%、サブのタイプに固定値。
-   * 計算ページのロール割当を変えると効果先のタイプが自動で変わる。
-   * これを持つメモリーは abilities を空にして、計算時に resolveRoleMemory で展開する。
+   * 汎用メモリー（パラボ追従）: 踏み方でパラボの効果が大きい1位のタイプに mainPct%、2位のタイプに main2Pct%
+   * （無ければ mainPct と同じ）、残りのタイプに固定値 subFlat。踏み方を変えると付け先が自動で変わる。
+   * これを持つメモリーは abilities を空にして、計算時に resolveParaboMemory で展開する。
    */
-  roleSpec?: { mainPct: number; subFlat: number };
+  roleSpec?: { mainPct: number; main2Pct?: number; subFlat: number };
 };
 
 /**
@@ -191,6 +191,15 @@ export const TEMPLATE_MEMORIES: Memory[] = [
     isTemplate: true,
     roleSpec: { mainPct: 2.8, subFlat: 20 },
   },
+  // 2026-10-08 追加（オーナー指定）: 65点＝1位 3.5%・2位 2.8%・固定 20、75点＝3.5%×2・固定 25
+  {
+    id: "tpl-role65",
+    plan: "共通",
+    skillName: "汎用メモリー65点",
+    abilities: [],
+    isTemplate: true,
+    roleSpec: { mainPct: 3.5, main2Pct: 2.8, subFlat: 20 },
+  },
   {
     id: "tpl-role70",
     plan: "共通",
@@ -199,16 +208,49 @@ export const TEMPLATE_MEMORIES: Memory[] = [
     isTemplate: true,
     roleSpec: { mainPct: 3.5, subFlat: 20 },
   },
+  {
+    id: "tpl-role75",
+    plan: "共通",
+    skillName: "汎用メモリー75点",
+    abilities: [],
+    isTemplate: true,
+    roleSpec: { mainPct: 3.5, subFlat: 25 },
+  },
 ];
 
 /** 枠の「汎用メモリーにする」の選択肢（テンプレから作る。点数は名前の「◯点」） */
-export const MAIN_PARABO_OPTIONS: { id: string; points: number; mainPct: number; subFlat: number }[] =
-  TEMPLATE_MEMORIES.filter((t) => t.roleSpec).map((t) => ({
-    id: t.id,
-    points: Number((t.skillName ?? "").match(/(\d+)点/)?.[1] ?? 0),
-    mainPct: t.roleSpec!.mainPct,
-    subFlat: t.roleSpec!.subFlat,
-  }));
+export const MAIN_PARABO_OPTIONS: {
+  id: string;
+  points: number;
+  mainPct: number;
+  main2Pct: number;
+  subFlat: number;
+}[] = TEMPLATE_MEMORIES.filter((t) => t.roleSpec).map((t) => ({
+  id: t.id,
+  points: Number((t.skillName ?? "").match(/(\d+)点/)?.[1] ?? 0),
+  mainPct: t.roleSpec!.mainPct,
+  main2Pct: t.roleSpec!.main2Pct ?? t.roleSpec!.mainPct,
+  subFlat: t.roleSpec!.subFlat,
+}));
+
+/** 汎用メモリーの中身を短く（「+3.5%×2・固定+20」「+3.5%/+2.8%・固定+20」） */
+export function templateSpecText(spec: NonNullable<Memory["roleSpec"]>): string {
+  const second = spec.main2Pct ?? spec.mainPct;
+  const pct = second === spec.mainPct ? `+${spec.mainPct}%×2` : `+${spec.mainPct}%/+${second}%`;
+  return `${pct}・固定+${spec.subFlat}`;
+}
+
+/** roleSpec が同じか（2位の%が無いものは1位と同じとみなす） */
+export function sameRoleSpec(
+  a: NonNullable<Memory["roleSpec"]>,
+  b: NonNullable<Memory["roleSpec"]>,
+): boolean {
+  return (
+    a.mainPct === b.mainPct &&
+    (a.main2Pct ?? a.mainPct) === (b.main2Pct ?? b.mainPct) &&
+    a.subFlat === b.subFlat
+  );
+}
 
 /** スロットの最大枚数 */
 export const SLOT_SIZE = 4;
@@ -260,14 +302,14 @@ export function sameMemoryContent(
       m.plan,
       m.skillName ?? "",
       sortAbilities(m.abilities).map((x) => `${x.attr}${x.value}`),
-      m.roleSpec ? [m.roleSpec.mainPct, m.roleSpec.subFlat] : null,
+      m.roleSpec ? [m.roleSpec.mainPct, m.roleSpec.main2Pct ?? m.roleSpec.mainPct, m.roleSpec.subFlat] : null,
     ]);
   return key(a) === key(b);
 }
 
 /** 汎用メモリーの表示名（「汎用メモリー60点」）。古い保存データの名前（メインパラボ60点）に頼らず roleSpec から出す */
 export function templateLabel(spec: NonNullable<Memory["roleSpec"]>): string {
-  const o = MAIN_PARABO_OPTIONS.find((x) => x.mainPct === spec.mainPct && x.subFlat === spec.subFlat);
+  const o = MAIN_PARABO_OPTIONS.find((x) => sameRoleSpec(x, spec));
   return o ? `汎用メモリー${o.points}点` : "汎用メモリー";
 }
 

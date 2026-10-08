@@ -4,7 +4,8 @@ import { calcMemoryTotals, resolveParaboMemory, type ParaboAssign } from "@/lib/
 import MemoryLine from "./MemoryLine";
 
 /**
- * メモリーの4枠を上から並べた一覧（1枠1行。行はプランのアイコンと名前だけ）。
+ * メモリーの4枠を上から並べた一覧（1枠1行）。閉じている行はアイコン＋名前＋アビリティ、開いている行はアイコンと名前だけ
+ * （開いたときにアビリティが二重に見えてうるさい、との指摘。2026-10-08）。
  * 行をクリックすると、その行のすぐ下に編集欄（children）が開き、もう一度クリックすると閉じる。×で空にする。下に4枚の合計。
  */
 export default function MemorySlotList({
@@ -19,7 +20,7 @@ export default function MemorySlotList({
   memories: (Memory | null)[];
   /** いま開いている枠（null＝どれも開いていない） */
   activeIndex: number | null;
-  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当（合計の計算用） */
+  /** テンプレ（パラボ追従）を今の踏み方で展開するための割当（行の表示と合計の計算用） */
   paraboAssign: ParaboAssign;
   /** 行をクリック（開く／閉じる） */
   onSelect: (index: number) => void;
@@ -75,7 +76,7 @@ export default function MemorySlotList({
                     {i + 1}
                   </span>
                   {memory ? (
-                    <MemoryLine memory={memory} detail="name" />
+                    <MemoryLine memory={memory} detail={active ? "name" : "full"} paraboAssign={paraboAssign} />
                   ) : (
                     <span className="text-xs text-slate-400">空き（クリックして入れる）</span>
                   )}

@@ -176,7 +176,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `useCalcResult.ts` | **計算ページの「現在のステ」「評価値」。** 全ストアを読んで合計し、シナリオ別の評価式を適用する |
 | `useSchedule.ts` | H.I.F の踏み方（レッスンのメイン／サブ／SP、授業、選抜スコア）の保存と集計 `computeScheduleGains`。授業は `null`＝未選択（上昇なし）を持てる（N.I.A の営業の `type`・初の授業も同じ。未選択の営業はファン投票数も入らない）。踏み方エディタの「レッスン・授業リセット」（N.I.A は「レッスン・営業リセット」）＝ `resetLessonsAndClasses` / `resetLessonsAndSales` でレッスンを全部「踏まない」、授業（営業）を全部「未選択」に戻す。探索が作る候補は必ずタイプが入る。選抜の入力を手で変える前の配分の控え `examBaseline`（値が実際に変わったときだけ控える＝`touchExams`。元の値に戻すか、探索が点数配分を書くと消える。控えがある間は `examTouched`） |
 | `useNiaSchedule.ts` / `useHatsuSchedule.ts` | N.I.A・初の踏み方の保存。N.I.Aの最終オーディションは `finalStats`（ステ直接入力。null＝スコアから導出）と `finalKind`（FINALE／QUARTET）。オーディションの素点はパラボ込みのステ（獲得ボーナス込み・ログの値）から `niaAuditionBaseFromRise` で逆算できる |
-| `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「汎用メモリー45/60/70点」）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
+| `memoryTotals.ts` / `memoryTypes.ts` | メモリー 4 枚の合計、パラボ追従メモリー（テンプレ「汎用メモリー45/60/65/70/75点」。`roleSpec`＝1位の% `mainPct`・2位の% `main2Pct`（無ければ1位と同じ。65点だけ 3.5／2.8）・残りの固定値 `subFlat`）の展開。スロットの中身 `SlotMemory`（保存元 `sourceId`）とライブラリの相互変換 `toSlotMemory`／`slotToMemory`、旧形式（ID 配列）の展開 `slotsFromIds`、中身の一致判定 `sameMemoryContent` |
 | `pIdol.ts` | Pアイドルの一覧 `P_IDOL_MASTERS`、審査基準 `IDOL_RANKS`、特訓・開花段階からステを出す `computePIdolStats` |
 | `calcSaveIO.ts` | セーブデータの中身（全状態のスナップショット）と読み書き |
 | `useCalcSettings.ts` | 計算ページの設定（アイドル・Pアイドル・条件設定・本戦点数など）とセーブ一覧のストア |
