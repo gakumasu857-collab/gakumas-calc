@@ -89,7 +89,7 @@ export default function DebugPage() {
     const opts = { flags, plan: r.plan, noStageItems: r.calc.settings.noStageItems };
     const start = performance.now();
     // アプリの「編成だけ探索」と同じく、探索が決める前イベ・後イベの項目は入力から外す
-    const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.events.get) };
+    const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.eventOverride) };
     const owned = scoreOwnedCards(r.getLevel, searchCtx, r.roles.typeRole, opts);
     const rentals = scoreRentalCandidates(searchCtx, r.roles.typeRole, opts);
     const best = findBestFormation(owned, rentals, r.baseStats, {

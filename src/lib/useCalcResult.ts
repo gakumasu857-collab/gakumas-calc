@@ -65,7 +65,7 @@ import {
 } from "./sheetScore";
 import { useAbilityCounts } from "./useAbilityCounts";
 import { TYPE_KEYS, useCalcSettings, type TypeKey } from "./useCalcSettings";
-import { CALC_EVENT_COUNTS_KEY, useEventCounts } from "./useEventCounts";
+import { CALC_EVENT_COUNTS_KEY, useEventCounts, withPreMax } from "./useEventCounts";
 import { useHatsuSchedule } from "./useHatsuSchedule";
 import { useMemoryStore } from "./useMemoryStore";
 import { hifBonusValues } from "@/data/hifBonus";
@@ -127,6 +127,12 @@ export function useCalcResult() {
   const selected = useSelectedSupports();
   // 計算ページの前イベ・後イベ設定はサポカ設定と混ざらないよう専用ストアを使う
   const events = useEventCounts(CALC_EVENT_COUNTS_KEY);
+  // サポカ設定ページの「前イベの回数の上限」だけは全ページ共通なので、計算ページの設定に重ねて読む（探索もこれを使う。2026-10-09）
+  const cardSettings = useEventCounts();
+  const eventOverride = useMemo(
+    () => withPreMax(events.get, cardSettings.get),
+    [events.get, cardSettings.get],
+  );
   const niaSchedule = useNiaSchedule();
   const hatsuSchedule = useHatsuSchedule();
   const ownedLevels = useOwnedLevels();
@@ -185,7 +191,7 @@ export function useCalcResult() {
         if (pick?.main)
           lessonPList.push({ p: lesson.p, main: pick.main, sp: pick.sp, honsen: false });
       });
-      ctx = buildNiaScoreContext(niaSchedule, manual, events.get, niaTag, typeRanks, niaChallengePct);
+      ctx = buildNiaScoreContext(niaSchedule, manual, eventOverride, niaTag, typeRanks, niaChallengePct);
     } else if (scenario === "hatsuLegend") {
       const hatsu = computeHatsuGains(hatsuSchedule);
       bd = hatsu.breakdown;
@@ -196,7 +202,7 @@ export function useCalcResult() {
         if (pick?.main)
           lessonPList.push({ p: lesson.p, main: pick.main, sp: pick.sp, honsen: false });
       });
-      ctx = buildHatsuScoreContext(hatsuSchedule, manual, events.get);
+      ctx = buildHatsuScoreContext(hatsuSchedule, manual, eventOverride);
     } else {
       const sched = computeScheduleGains(schedule, settings.affection);
       bd = sched.breakdown;
@@ -216,7 +222,7 @@ export function useCalcResult() {
             honsen: lesson.label.startsWith("本戦"),
           });
       });
-      ctx = buildSheetScoreContext(schedule, manual, events.get);
+      ctx = buildSheetScoreContext(schedule, manual, eventOverride);
     }
 
     // ---- メモリー（メモリーページのスロット4枚） ----
@@ -663,7 +669,7 @@ export function useCalcResult() {
     ability,
     selectedSet,
     selected.slots,
-    events.get,
+    eventOverride,
     getLevel,
     levelsLoaded,
   ]);
@@ -680,6 +686,8 @@ export function useCalcResult() {
     pIdols,
     selected,
     events,
+    /** 計算ページの設定にサポカ設定ページの前イベの上限を重ねたもの（点数の計算・探索の入力はこちら。黄色い帯の表示は events） */
+    eventOverride,
     getLevel,
     setLevel: ownedLevels.setLevel,
     ownedLevels,

@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from "react";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { migrateCardId } from "./idMigration";
-import type { EventCountOverride } from "./sheetScore";
+import { preEventMax, type EventCountOverride } from "./sheetScore";
 import { useSaveNotifier } from "./storeSync";
 
 /**
@@ -8,13 +9,48 @@ import { useSaveNotifier } from "./storeSync";
  * 未指定のカードは自動計算（前イベ=min(参照回数, 最大発動回数)、後イベ=1回）。
  *
  * 保存キーを引数で切り替えられる:
- * - 既定（gakumas:eventCounts:v1）: サポカ設定ページ・点数表で共有
+ * - 既定（gakumas:eventCounts:v1）: サポカ設定ページ・点数表で共有。
+ *   ここの「前イベの回数の上限」（preMax）だけは全ページ共通で、計算ページ・探索・点数表が
+ *   withPreMax で自分の設定に重ねて読む（オーナー要望 2026-10-09「たこ焼きは4回出るけど大体3回なので3で制限したい」）
  * - 計算ページは専用キーを渡して独立させる（サポカ設定と混ざらないように）
+ * - 点数表の前イベ回数も専用キー（この表だけの設定。オーナー要望 2026-10-09）
  */
 export const CALC_EVENT_COUNTS_KEY = "gakumas:calcEventCounts:v1";
+/** 点数表だけの前イベ回数（pre）の保存先 */
+export const SCORE_EVENT_COUNTS_KEY = "gakumas:scoreEventCounts:v1";
 const DEFAULT_STORAGE_KEY = "gakumas:eventCounts:v1";
 
 type OverrideMap = Record<string, EventCountOverride>;
+
+/** カードの最大発動回数（上限がこれ以上なら意味が無いので持たない） */
+const CARD_MAX_BY_ID = new Map(SUPPORT_CARD_DB.map((c) => [c.id, preEventMax(c)]));
+
+/** 前イベの上限の正規化。数でない・0未満は切り上げ、スプシの最大発動回数以上（＝効かない）は null（持たない） */
+function normalizePreMax(id: string, value: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const v = Math.max(0, Math.floor(value));
+  const max = CARD_MAX_BY_ID.get(id);
+  if (max !== undefined && v >= max) return null;
+  return v;
+}
+
+/**
+ * サポカ設定ページの「前イベの回数の上限」（preMax）を、別の設定（計算ページ専用・点数表専用の手動指定）に重ねて読む。
+ * 計算ページ・探索・点数表はこれで作った関数を SheetScoreContext.eventCounts に渡す
+ * （上限だけが全ページ共通の設定。後イベ・ステイベ・取得はページごと）。
+ */
+export function withPreMax(
+  get: (cardId: string) => EventCountOverride | undefined,
+  caps: (cardId: string) => EventCountOverride | undefined,
+): (cardId: string) => EventCountOverride | undefined {
+  return (id) => {
+    const base = get(id);
+    const cap = caps(id)?.preMax;
+    if (cap === undefined) return base;
+    if (base?.preMax === cap) return base;
+    return { ...(base ?? {}), preMax: cap };
+  };
+}
 
 /** 空のオーバーライドか（空ならマップから消す） */
 const isEmpty = (o: EventCountOverride) =>
@@ -25,23 +61,35 @@ const isEmpty = (o: EventCountOverride) =>
   o.preEnhanceM === undefined &&
   o.preDelM === undefined &&
   o.preSkillTags === undefined &&
-  o.statEvent === undefined;
+  o.statEvent === undefined &&
+  o.preMax === undefined;
 
 /**
  * 保存データ（localStorage・セーブデータ）を読むときに、今は使わない項目を落とす。
  * 後イベのランダム強化の「強化したスキルの属性」（enhanceTags）は 2026-10-07 にやめた
  * （属性つきのスキル強化は全部「スキル強化」として判定することになったため）。
  * 残したままだと、ボタンが無いのに「変更中」と数えられてしまう。
+ * @param preToCap サポカ設定ページのストアのとき true。2026-10-09 まで「回数」欄は固定回数（pre）だったので
+ *   上限（preMax）へ写す（両方あれば小さい方）。計算ページ・点数表の pre はそのまま
  */
-function sanitize(map: OverrideMap): OverrideMap {
+function sanitize(map: OverrideMap, preToCap: boolean): OverrideMap {
   const out: OverrideMap = {};
   for (const [rawId, raw] of Object.entries(map ?? {})) {
     if (!raw || typeof raw !== "object") continue;
     const o: EventCountOverride & { enhanceTags?: unknown } = { ...raw };
     delete o.enhanceTags;
-    if (isEmpty(o)) continue;
     // 旧キー card:<名前> は今のキー card:<スプシのid> へ（両方あれば今のキーの値を優先）
     const id = migrateCardId(rawId);
+    if (preToCap && o.pre !== undefined) {
+      o.preMax = o.preMax === undefined ? o.pre : Math.min(o.preMax, o.pre);
+      delete o.pre;
+    }
+    if (o.preMax !== undefined) {
+      const cap = normalizePreMax(id, o.preMax);
+      if (cap === null) delete o.preMax;
+      else o.preMax = cap;
+    }
+    if (isEmpty(o)) continue;
     if (id !== rawId && id in out) continue;
     out[id] = o;
   }
@@ -53,7 +101,7 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   const [map, setMap] = useState<OverrideMap>(() => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) return sanitize(JSON.parse(raw) as OverrideMap);
+      if (raw) return sanitize(JSON.parse(raw) as OverrideMap, storageKey === DEFAULT_STORAGE_KEY);
     } catch {
       // 破損データは無視
     }
@@ -90,10 +138,15 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
     [],
   );
 
-  /** 回数の設定（前イベ・後イベ・ステイベ）。null で自動に戻す */
+  /**
+   * 回数の設定（前イベ・後イベ・ステイベ）。null で自動に戻す。
+   * preMax＝前イベの回数の上限（サポカ設定ページ）。スプシの最大発動回数以上の上限は意味が無いので持たない
+   */
   const set = useCallback(
-    (id: string, key: "pre" | "post" | "statEvent", value: number | null) => {
-      patch(id, key, value === null ? null : Math.max(0, value));
+    (id: string, key: "pre" | "post" | "statEvent" | "preMax", value: number | null) => {
+      const v =
+        value === null ? null : key === "preMax" ? normalizePreMax(id, value) : Math.max(0, value);
+      patch(id, key, v);
     },
     [patch],
   );
@@ -152,9 +205,12 @@ export function useEventCounts(storageKey: string = DEFAULT_STORAGE_KEY) {
   );
 
   /** まるごと置き換える（セーブデータの読み込み用） */
-  const replaceAll = useCallback((snapshot: OverrideMap) => {
-    setMap(sanitize(snapshot));
-  }, []);
+  const replaceAll = useCallback(
+    (snapshot: OverrideMap) => {
+      setMap(sanitize(snapshot, storageKey === DEFAULT_STORAGE_KEY));
+    },
+    [storageKey],
+  );
 
   /** カード1枚ぶんの手動指定を全部消す（自動に戻す） */
   const clear = useCallback((id: string) => {

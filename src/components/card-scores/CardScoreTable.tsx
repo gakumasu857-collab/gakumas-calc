@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDown, ArrowUp, Funnel } from "lucide-react";
+import NumberField from "@/components/NumberField";
 import ScoreDetailModal from "@/components/ScoreDetailModal";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -13,12 +14,16 @@ import {
 } from "@/lib/sheetContext";
 import {
   itemCorrectionAuto,
+  preEventAutoActivations,
+  preEventMax,
+  preEventMaxLabel,
+  preEventStatRelevant,
   sheetScore,
   type SheetRole,
   type SheetScoreContext,
 } from "@/lib/sheetScore";
 import { useAbilityCounts } from "@/lib/useAbilityCounts";
-import { useEventCounts } from "@/lib/useEventCounts";
+import { SCORE_EVENT_COUNTS_KEY, useEventCounts } from "@/lib/useEventCounts";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useSchedule } from "@/lib/useSchedule";
 import { type TypeKey } from "@/lib/useCalcSettings";
@@ -59,8 +64,20 @@ type Row = {
   plan: string;
   /** このカードの点数計算に使うロール（タイプ→踏み方から自動） */
   role: SheetRole | undefined;
+  /** アビリティだけの点数（0〜4凸）。表に出すときは itemBonus を足す */
   scores: (number | null)[];
   itemBonus: number;
+  /** 前イベの回数の欄（この表だけの設定）。null＝欄を出さない（前イベがステに効かない・スキル＝取得で1回確定） */
+  preBox: {
+    /** 今の設定での回数（サポカ設定ページの上限込み） */
+    auto: number;
+    /** 欄に出す回数（この表の設定があればそれ。取得しないなら0） */
+    count: number;
+    max: number;
+    maxLabel: string;
+    acquired: boolean;
+    overridden: boolean;
+  } | null;
   ownedLevel: number;
   ownedStat: number | null;
   /** 既定の並び順に使う点数（所持凸、未所持は完凸想定。サポカ設定ページと同じ） */
@@ -72,13 +89,17 @@ type SortKey = "c0" | "c1" | "c2" | "c3" | "c4" | "owned";
 /**
  * サポカ点数表。スプシ検証済みエンジン（sheetScore）で点数を表示する。
  * ロールは計算ページ「レッスンの踏み方」のタイプ⇔ロール対応から自動で決まる。
- * 前イベ・後イベの発動回数もこの表で設定する（ステータスに影響するカードのみ）。
+ * 点数（0〜4凸・所持）はアイテム補正（パラメ系Pアイテムの上昇量×発動回数）込み（オーナー要望 2026-10-09）。
+ * 前イベの回数は「前イベ回数」の欄でこの表だけ変えられる（専用の保存先。プロデュース設定・サポカ設定・計算ページには影響しない）。
+ * 後イベ・ステイベ・取得・前イベの上限はサポカ設定ページの設定を使う。
  */
 export default function CardScoreTable() {
   const { getLevel, loaded } = useOwnedLevels();
   const ability = useAbilityCounts();
   const schedule = useSchedule();
   const events = useEventCounts();
+  // 前イベの回数はこの表だけの設定（プロデュース設定・サポカ設定・計算ページには影響しない）
+  const scoreEvents = useEventCounts(SCORE_EVENT_COUNTS_KEY);
 
   const [rarityFilter, setRarityFilter] = useState("すべて");
   const [typeFilter, setTypeFilter] = useState("すべて");
@@ -127,6 +148,17 @@ export default function CardScoreTable() {
   // カードは自タイプの踏み回数を参照（固定対応）
   const typeRole = TYPE_SHEET_ROLE;
 
+  // サポカ設定ページの設定（上限・後イベ・ステイベ・取得）に、この表だけの前イベ回数（pre）を重ねる
+  const eventOverride = useMemo(() => {
+    const base = events.get;
+    const own = scoreEvents.get;
+    return (id: string) => {
+      const pre = own(id)?.pre;
+      const b = base(id);
+      return pre === undefined ? b : { ...(b ?? {}), pre };
+    };
+  }, [events.get, scoreEvents.get]);
+
   // スプシ準拠の計算コンテキスト（発動回数＋パラボ母数＋イベント回数設定）
   const ctx: SheetScoreContext = useMemo(
     () =>
@@ -135,9 +167,9 @@ export default function CardScoreTable() {
         manualCountFromSet(
           selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
         ),
-        events.get,
+        eventOverride,
       ),
-    [ability, selectedSet, schedule, events.get],
+    [ability, selectedSet, schedule, eventOverride],
   );
 
   const rows: Row[] = useMemo(() => {
@@ -157,6 +189,21 @@ export default function CardScoreTable() {
       const itemBonus = role
         ? (itemCorrectionAuto(card, role, ctx)?.points ?? 0)
         : 0;
+      // 前イベの回数の欄（この表だけの設定）。スキルは取得した時点で1回確定なので欄を出さない
+      let preBox: Row["preBox"] = null;
+      if (role && preEventStatRelevant(card) && card.preEventType !== "スキル") {
+        const auto = preEventAutoActivations(card, role, ctx);
+        const own = scoreEvents.get(card.id)?.pre;
+        const acquired = events.get(card.id)?.acquire ?? true;
+        preBox = {
+          auto,
+          count: acquired ? (own ?? auto) : 0,
+          max: preEventMax(card),
+          maxLabel: preEventMaxLabel(card),
+          acquired,
+          overridden: own !== undefined,
+        };
+      }
       const ownedLevel = loaded ? getLevel(card.id) : -1;
       const ownedStat =
         ownedLevel >= 0 && scores[ownedLevel] !== null
@@ -175,12 +222,13 @@ export default function CardScoreTable() {
         role,
         scores,
         itemBonus,
+        preBox,
         ownedLevel,
         ownedStat,
         points,
       };
     });
-  }, [ctx, typeRole, getLevel, loaded]);
+  }, [ctx, typeRole, getLevel, loaded, events.get, scoreEvents.get]);
 
   const visible = useMemo(() => {
     let list = rows.filter((row) => {
@@ -197,7 +245,9 @@ export default function CardScoreTable() {
         if (sort.key === "owned")
           return row.ownedStat ?? (row.ownedLevel >= 0 ? 0 : -Infinity);
         const i = Number(sort.key.slice(1));
-        return row.scores[i] ?? -Infinity;
+        const s = row.scores[i];
+        // 表に出している値（アイテム補正込み）で並べる
+        return s === null ? -Infinity : s + row.itemBonus;
       };
       list = [...list].sort((a, b) =>
         sort.desc ? value(b) - value(a) : value(a) - value(b),
@@ -220,6 +270,8 @@ export default function CardScoreTable() {
   };
 
   const detailCard = detail ? CARD_BY_ID.get(detail.id) : undefined;
+  /** この表だけの前イベ回数を変えているカードの枚数 */
+  const changedCount = Object.keys(scoreEvents.map).length;
 
   return (
     <div>
@@ -264,6 +316,18 @@ export default function CardScoreTable() {
           />
           所持のみ
         </label>
+        {changedCount > 0 && (
+          <span className="flex items-center gap-1.5 text-xs text-amber-800">
+            前イベ回数を変更中 {changedCount}枚
+            <button
+              type="button"
+              onClick={() => scoreEvents.pruneTo(new Set())}
+              className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              全部自動に戻す
+            </button>
+          </span>
+        )}
         <span className="ml-auto text-xs text-slate-400">
           {visible.length}枚 / セット:{" "}
           {selectedSet ? (
@@ -300,7 +364,10 @@ export default function CardScoreTable() {
                   onToggle={toggleSort}
                 />
               ))}
-              <Th title="パラメ系Pアイテムの上昇量×発動回数（前イベ回数の設定に連動）">
+              <Th title="前イベの発動回数（この表だけの設定。プロデュース設定・サポカ設定・計算ページには影響しません）。何も入れなければ今の設定での回数（サポカ設定ページの上限込み）">
+                前イベ回数
+              </Th>
+              <Th title="パラメ系Pアイテムの上昇量×発動回数（左の前イベ回数に連動）。0〜4凸・所持の点数に入っています">
                 アイテム補正
               </Th>
               <Th>使用制限</Th>
@@ -310,6 +377,7 @@ export default function CardScoreTable() {
           <tbody>
             {visible.map((row) => {
               const url = imageUrl(row.image);
+              const box = row.preBox;
               return (
                 <tr key={row.id} className="bg-white">
                   {/* スマホは幅が狭いので名前を折り返す（PCは1行で省略） */}
@@ -367,11 +435,39 @@ export default function CardScoreTable() {
                           title="クリックで計算の内訳を表示"
                           className="w-full px-1.5 py-1 tabular-nums underline decoration-slate-300 decoration-dotted underline-offset-2 hover:bg-blue-100 hover:text-blue-700"
                         >
-                          {Math.round(score)}
+                          {/* アイテム補正込み（内訳モーダルの合計と同じ） */}
+                          {Math.round(score + row.itemBonus)}
                         </button>
                       )}
                     </td>
                   ))}
+                  {/* 前イベ回数（この表だけの設定）。自動の値と同じにすれば設定は消える */}
+                  <td className="border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center">
+                    {box ? (
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <NumberField
+                          value={box.count}
+                          onChange={(v) => scoreEvents.set(row.id, "pre", v === box.auto ? null : v)}
+                          max={box.max}
+                          disabled={!box.acquired}
+                          className="w-14"
+                        />
+                        <span className="text-slate-400">/{box.maxLabel}</span>
+                        {box.overridden && (
+                          <button
+                            type="button"
+                            onClick={() => scoreEvents.set(row.id, "pre", null)}
+                            title={`今の設定では${box.auto}回。クリックで戻す`}
+                            className="rounded bg-amber-100 px-1 py-0.5 text-[10px] font-bold text-amber-800 hover:bg-amber-200"
+                          >
+                            変更中 ×
+                          </button>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                   <td
                     className={`border-b border-r border-b-slate-300 border-r-slate-200 px-1.5 py-1 text-center ${row.itemBonus > 0 ? "font-medium text-slate-900" : "text-slate-300"}`}
                   >
@@ -410,11 +506,11 @@ export default function CardScoreTable() {
 
       <p className="mt-2 text-[11px] text-slate-400">
         ※
-        点数は検算済みの計算式で出しています。点数のセルをクリックすると計算の内訳が見られます。レッスン系アビリティは自タイプの踏み回数を参照します。並べ替えは保存されます。前イベ・後イベの回数やBAN・固定・レンタルNGは
+        点数は検算済みの計算式で出しています（パラメ系Pアイテムの上昇分＝アイテム補正も入っています）。点数のセルをクリックすると計算の内訳が見られます。レッスン系アビリティは自タイプの踏み回数を参照します。並べ替えは保存されます。前イベの回数は「前イベ回数」の欄でこの表だけ変えられます（プロデュース設定・サポカ設定・計算ページには影響しません）。前イベの回数の上限・後イベ・ステイベ・取得やBAN・固定・レンタルNGは
         <Link to="/card-settings" className="text-blue-600 underline">
           サポカ設定
         </Link>
-        ページで設定でき、この表のアイテム補正・最大ステにも反映されます。アシストの点数は1タイプ分の値です（実際はVo/Da/Viすべてに同値で効きます）。
+        ページで設定でき、この表にも反映されます。アシストの点数は1タイプ分の値です（実際はVo/Da/Viすべてに同値で効きます）。
       </p>
 
       {detail && detailCard && (

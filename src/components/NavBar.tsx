@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom";
 const SETTINGS_PAGES: { href: string; label: string; note: string }[] = [
   { href: "/support", label: "所持状況", note: "持っているサポカの凸・Pアイドルの特訓と才能開花" },
   { href: "/ability-counts", label: "プロデュース設定", note: "アビリティ発動回数のデフォルト" },
-  { href: "/card-settings", label: "サポカ設定", note: "前イベ・後イベの既定、固定・BAN・レンタルNG" },
+  { href: "/card-settings", label: "サポカ設定", note: "前イベ回数の上限、固定・BAN・レンタルNG" },
 ];
 const TABLE_PAGES: { href: string; label: string }[] = [
   { href: "/card-scores", label: "点数表" },

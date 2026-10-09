@@ -76,8 +76,9 @@ export function buildAutoOptimizeInput(
     tag,
     ranks: r.typeRanks,
     manual,
-    // 前イベの取得・前イベ回数・後イベの発動は探索が決める（前の探索の「取得しない」を引きずらない）
-    eventCounts: searchEventCounts(r.events.get),
+    // 前イベの取得・前イベ回数・後イベの発動は探索が決める（前の探索の「取得しない」を引きずらない）。
+    // サポカ設定ページの前イベの上限（preMax）は残る
+    eventCounts: searchEventCounts(r.eventOverride),
     getLevel: r.getLevel,
     flags,
     spMin: resolveSpMin(r, settings),

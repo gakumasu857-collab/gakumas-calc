@@ -235,11 +235,12 @@ export function resolveTriggerCount(
 }
 
 /**
- * 前イベ（Pアイテム/スキル）の発動回数の自動計算。
+ * 前イベ（Pアイテム/スキル）の、上限を付ける前の自動回数。
  * min(最大発動回数, 参照回数キーの回数)（Pアイテム!E列 MIN(...) の移植）。
- * 参照回数キーの解決は resolveTriggerCount を参照。
+ * 参照回数キーの解決は resolveTriggerCount を参照。サポカ設定ページの「回数」欄の「/N」はこの値
+ * （今のプロデュース設定で出る回数。欄はこれより増やせない）。
  */
-export function preEventAutoActivations(
+export function preEventBaseActivations(
   card: SupportCardData,
   role: SheetRole,
   ctx: SheetScoreContext,
@@ -250,9 +251,30 @@ export function preEventAutoActivations(
   return Math.min(max, resolveTriggerCount(refKey, ctx, role));
 }
 
+/** 前イベの発動回数に利用者が付けた上限（サポカ設定ページの「回数」欄。EventCountOverride.preMax）。無ければ undefined */
+export function preEventCap(cardId: string, ctx: SheetScoreContext): number | undefined {
+  const cap = ctx.eventCounts?.(cardId)?.preMax;
+  return typeof cap === "number" && Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : undefined;
+}
+
 /**
- * 前イベの発動回数。取得しない指定なら0、手動指定があればそれを優先（0〜最大でクランプ）、
- * 無ければ自動計算。
+ * 前イベの発動回数の自動計算。上限を付ける前の回数（preEventBaseActivations）を、
+ * サポカ設定ページの上限（「最大4回のアイテムは大体3回しか出ない」）で切る。2026-10-09
+ */
+export function preEventAutoActivations(
+  card: SupportCardData,
+  role: SheetRole,
+  ctx: SheetScoreContext,
+): number {
+  const base = preEventBaseActivations(card, role, ctx);
+  const cap = preEventCap(card.id, ctx);
+  return cap === undefined ? base : Math.min(base, cap);
+}
+
+/**
+ * 前イベの発動回数。取得しない指定なら0、手動指定があればそれを優先（0〜最大でクランプ。
+ * 計算ページの黄色い帯・点数表の欄で入れた回数は、サポカ設定ページの上限より多くてもそのまま）、
+ * 無ければ自動計算（上限込み）。
  */
 export function eventActivations(
   card: SupportCardData,
@@ -642,6 +664,14 @@ export type EventCountOverride = {
    * 未指定は発動（1回）扱い。
    */
   statEvent?: number;
+  /**
+   * 前イベの発動回数の上限（サポカ設定ページの「回数」欄。2026-10-09）。
+   * 自動の回数 min(最大発動回数, 参照回数) をこれより多くしない（「最大4回のアイテムは大体3回しか出ない」）。
+   * サポカ設定ページのストア（gakumas:eventCounts:v1）に持ち、計算ページ・探索・点数表は
+   * それぞれの設定に重ねて読む（useEventCounts.ts の withPreMax）。探索が捨てる項目（acquire/pre/post）では
+   * ないので探索でも効く。回数の手動指定（pre）があるときはそちらが優先。
+   */
+  preMax?: number;
 };
 
 /**
@@ -649,6 +679,7 @@ export type EventCountOverride = {
  * 探索はこれらを入力として使わず（全部発動する前提で評価し）、終わったら結果の6枚ぶんを書き直す:
  * 取得回数の制限があればその割り当て、無ければ全部発動（上書きを消す）。
  * ステイベ・強化のA/M・任意スキルの分類は手で決めるものなので残す。
+ * 前イベの回数の上限（preMax。サポカ設定ページ）も残す＝探索でも上限まで（2026-10-09）。
  */
 export const SEARCH_OWNED_EVENT_KEYS = ["acquire", "pre", "post"] as const;
 
@@ -717,7 +748,10 @@ export function preParamActivations(
   if (card.preEventType !== "パラメータ") return 0;
   const ov = ctx.eventCounts?.(card.id);
   if (ov?.acquire === false) return 0;
-  return Math.max(0, ov?.pre ?? 1);
+  if (ov?.pre !== undefined) return Math.max(0, ov.pre);
+  // サポカ設定ページの上限（0 にすれば発動しない扱い）
+  const cap = preEventCap(card.id, ctx);
+  return cap === undefined ? 1 : Math.min(1, cap);
 }
 
 /** カードがステイベ（パラメータ/Pポイント/回復のランダムイベント）を持つか */

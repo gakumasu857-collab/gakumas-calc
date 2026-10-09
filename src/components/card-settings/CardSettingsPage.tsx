@@ -19,9 +19,7 @@ import {
   TYPE_SHEET_ROLE,
 } from "@/lib/sheetContext";
 import {
-  preEventAutoActivations,
-  preEventMax,
-  preEventMaxLabel,
+  preEventBaseActivations,
   preEventStatRelevant,
   sheetScore,
   type SheetScoreContext,
@@ -41,8 +39,10 @@ const TYPE_OF_CARD: Record<string, TypeKey> = {
 };
 /**
  * サポカ設定ページ。
- * 前イベ・後イベの発動回数（ステータスに影響するカードのみ）と
- * BAN・固定・レンタルNG をここで設定する。点数表・理想編成・計算はこの設定を参照する。
+ * - 前イベの回数の**上限**（「最大4回のアイテムは大体3回しか出ない」→3。計算ページ・探索・点数表のどこでも効く。
+ *   今のプロデュース設定で出る回数より増やすことはできない。オーナー要望 2026-10-09。保存は EventCountOverride.preMax）
+ * - 後イベ・ステイベ・取得の既定（点数表が参照。計算ページは黄色い帯で別に決める）
+ * - BAN・固定・レンタルNG（探索が参照）
  */
 export default function CardSettingsPage() {
   const { getLevel, loaded } = useOwnedLevels();
@@ -224,7 +224,7 @@ export default function CardSettingsPage() {
               </th>
               <th
                 className={thNarrow}
-                title="前イベの発動回数。スキルは取得した時点で1回に確定します"
+                title="前イベの発動回数の上限。今のプロデュース設定で出る回数（/の右）より減らしたいときに入れます（増やすことはできません）。計算ページ・探索・点数表のどこでもその上限までになります。スキルは取得した時点で1回に確定します"
               >
                 回数
               </th>
@@ -264,13 +264,14 @@ export default function CardSettingsPage() {
               const type = TYPE_OF_CARD[card.cardType];
               const role = type ? typeRole[type] : undefined;
               const preRelevant = preEventStatRelevant(card);
-              const preAuto = role
-                ? preEventAutoActivations(card, role, ctx)
-                : 0;
+              // 今のプロデュース設定で出る回数（上限を付ける前）。「回数」欄はこれより増やせない
+              const preBase = role ? preEventBaseActivations(card, role, ctx) : 0;
               const override = events.get(card.id);
               const acquired = override?.acquire ?? true;
+              // 上限（「最大4回のアイテムは大体3回」）。付けていれば min(上限, 今の回数)
+              const preCap = override?.preMax;
               // 取得しない指定なら発動0回扱い
-              const preCount = acquired ? (override?.pre ?? preAuto) : 0;
+              const preCount = acquired ? Math.min(preCap ?? preBase, preBase) : 0;
               return (
                 <tr key={card.id} className="bg-white">
                   {/* スマホは幅が狭いので名前を折り返す（PCは1行で省略） */}
@@ -310,7 +311,7 @@ export default function CardSettingsPage() {
                       imgClass="h-10 w-10"
                     />
                   </td>
-                  {/* 前イベ回数。スキルは取得した時点で1回確定なので固定表示 */}
+                  {/* 前イベ回数の上限。欄の最大＝今のプロデュース設定で出る回数（増やせない）。スキルは取得した時点で1回確定なので固定表示 */}
                   <td className={td}>
                     {!preRelevant ? (
                       <span className="text-slate-300">—</span>
@@ -318,23 +319,41 @@ export default function CardSettingsPage() {
                       // スキルは取得した時点で1回確定なので表示しない
                       <span className="text-slate-300">—</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1">
+                      <span
+                        className="inline-flex items-center gap-1"
+                        title={
+                          preBase <= 0
+                            ? "今のプロデュース設定では発動0回なので、上限は付けられません（増やすことはできません）"
+                            : `今のプロデュース設定では${preBase}回。これより小さい数を入れると、その回数が上限になります（計算ページ・探索・点数表のどこでもその上限まで）`
+                        }
+                      >
                         <NumberField
                           value={preCount}
-                          onChange={(v) =>
-                            events.set(
-                              card.id,
-                              "pre",
-                              v === preAuto ? null : v,
-                            )
-                          }
-                          max={preEventMax(card)}
-                          disabled={acquired === false}
+                          onChange={(v) => {
+                            // 今の回数以上＝上限なし（効いていた上限は外す）。小さい数＝その回数を上限に
+                            if (v >= preBase) {
+                              if (preCap !== undefined && preCap < preBase) {
+                                events.set(card.id, "preMax", null);
+                              }
+                            } else {
+                              events.set(card.id, "preMax", v);
+                            }
+                          }}
+                          max={preBase}
+                          disabled={!acquired || preBase <= 0}
                           className="w-14"
                         />
-                        <span className="text-slate-400">
-                          /{preEventMaxLabel(card)}
-                        </span>
+                        <span className="text-slate-400">/{preBase}</span>
+                        {preCap !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() => events.set(card.id, "preMax", null)}
+                            title={`上限${preCap}回を付けています。クリックで外す`}
+                            className="whitespace-nowrap rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-200"
+                          >
+                            上限{preCap} ×
+                          </button>
+                        )}
                       </span>
                     )}
                   </td>
@@ -385,12 +404,11 @@ export default function CardSettingsPage() {
       </div>
 
       <p className="mt-2 text-[11px] text-slate-400">
-        ※ ここの設定は
+        ※ 前イベの回数は「今のプロデュース設定で出る回数」を表示していて、それより小さい数を入れるとその回数が上限になります（
         <Link to="/card-scores" className="text-blue-600 underline">
           点数表
         </Link>
-        ・理想編成・計算ページに反映されます。前イベ回数は自動値（min(参照回数,
-        最大発動回数)）を表示していて、変更すると固定・自動値と同じに戻すと再び自動追従します。強化/削除のA/Mは自動で判定済み（カード自身の〇強化アビ→そのスキル、無ければ共通・ロジック=M／センス・アノマリー=A。トラブル削除は例外で汎用スキル削除だけ+1）。
+        ・探索・計算ページのどこでもその上限まで。増やすことはできません。元の数に戻すか「上限N ×」で外せます）。後イベ・ステイベ・取得の設定は点数表に反映されます（計算ページは「サポカ編成と踏み方」の黄色い帯で別に決めます）。BAN・固定・レンタルNGは探索に反映されます。強化/削除のA/Mは自動で判定済み（カード自身の〇強化アビ→そのスキル、無ければ共通・ロジック=M／センス・アノマリー=A。トラブル削除は例外で汎用スキル削除だけ+1）。
       </p>
     </div>
   );

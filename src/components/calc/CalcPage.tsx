@@ -270,7 +270,7 @@ export default function CalcPage() {
           noStageItems: settings.noStageItems,
         };
         // 前イベの取得・後イベの発動は探索が決めるので、前の探索の「取得しない」を引きずらずに点数を出す
-        const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.events.get) };
+        const searchCtx = { ...r.ctx, eventCounts: searchEventCounts(r.eventOverride) };
         const owned = scoreOwnedCards(r.getLevel, searchCtx, r.roles.typeRole, opts);
         const rentals = scoreRentalCandidates(searchCtx, r.roles.typeRole, opts);
         // ベースはサポカ抜きの現在ステ（レッスン・メモリー・Pアイドル込み）。上限溢れを考慮して選ぶ。
@@ -977,7 +977,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
             <th className={th} title="取得しない場合は前イベ発動0回扱い">
               前イベ
             </th>
-            <th className={th} title="前イベの発動回数（取得時は自動計算）">
+            <th className={th} title="前イベの発動回数（取得時は自動計算。サポカ設定ページで上限を付けていればそこまで）">
               回数
             </th>
             <th

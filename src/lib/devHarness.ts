@@ -36,7 +36,8 @@ import {
 import type { Stepping } from "./optimize/stepping";
 import { computePIdolStats, findPIdolMaster, IDOL_RANKS } from "./pIdol";
 import { manualCountFromSet } from "./sheetContext";
-import { searchEventCounts } from "./sheetScore";
+import { searchEventCounts, type EventCountOverride } from "./sheetScore";
+import { withPreMax } from "./useEventCounts";
 import {
   DEFAULT_SETTINGS,
   type CalcSettings,
@@ -157,6 +158,11 @@ export function buildInput(): AutoOptimizeInput {
     "gakumas:calcEventCounts:v1",
     {},
   );
+  // サポカ設定ページの前イベの回数の上限（preMax。全ページ共通）
+  const settingsMap = loadJson<Record<string, Record<string, unknown>>>(
+    "gakumas:eventCounts:v1",
+    {},
+  );
 
   // 所持凸（ストア未初期化なら全カード完凸）
   const levelsRaw = localStorage.getItem("gakumas:ownedLevels:v1");
@@ -203,10 +209,12 @@ export function buildInput(): AutoOptimizeInput {
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),
     manual,
-    // アプリと同じく、探索が決める項目（acquire/pre/post）は入力から外す
+    // アプリと同じく、探索が決める項目（acquire/pre/post）は入力から外し、サポカ設定ページの上限（preMax）は重ねる
     eventCounts: searchEventCounts(
-      (id: string) =>
-        eventMap[id] as ReturnType<NonNullable<AutoOptimizeInput["eventCounts"]>>,
+      withPreMax(
+        (id: string) => eventMap[id] as EventCountOverride | undefined,
+        (id: string) => settingsMap[id] as EventCountOverride | undefined,
+      ),
     ),
     getLevel,
     flags: {
