@@ -1,3 +1,5 @@
+import autoAbilityData from "./generated/autoAbilities.json" with { type: "json" };
+
 /**
  * ゲーム内の名称・キーの定数定義（ユーザー提供のconstがベース）。
  *
@@ -53,7 +55,10 @@ export type CardType = keyof typeof CARD_TYPE_NAMES;
 // アビリティ
 // 注: 元のconstでは charge/aggressive のラベルが EFFECT_NAMES と逆だったため、
 //     charge=温存 / aggressive=強気 に統一した。
-export const ABILITY_NAMES = {
+// ここに無い名前がスプシに出てきたら、update-all（check:labels）が generated/autoAbilities.json に書き、
+// 下の ABILITY_NAMES に `auto:<名前>` のキーで自動で入る（2026-10-14〜。オーナー「いちいち頼まずに update-all だけで」）。
+// 特別なルール（踏み方から決まる・足し算・連動・固定回数）があるものや改名のときだけ、ここに手で書く。
+const MANUAL_ABILITY_NAMES = {
   lesson: "タイプレッスン",
   sp_lesson: "タイプSPレッスン",
   normal_lesson: "タイプ通常レッスン",
@@ -78,6 +83,8 @@ export const ABILITY_NAMES = {
   A_skill_del_ut3: "Aスキル削除(3回まで)",
   M_skill_del_ut3: "Mスキル削除(3回まで)",
   skill_del_ut4: "スキル削除(4回まで)",
+  // チェンジ・カスタマイズは元の回数をプロデュースで持ち、「(N回まで)」はその頭打ち（スキル削除(4回まで)と同じ。2026-10-14）
+  change: "チェンジ",
   change_ut3: "チェンジ(3回まで)",
   study: "授業・営業",
   // N.I.A の営業先「Pポイント営業」を踏む回数（サポカのアビリティではなく、プロデュースの回数として持つ。1回 +50P）
@@ -95,6 +102,7 @@ export const ABILITY_NAMES = {
   // カード側の現行ラベルから回数が引けず加点0になる（＝ドリンク採点が切れる）。
   drink_exchange: "ドリンク交換",
   drink_get: "ドリンク獲得",
+  custom: "カスタマイズ",
   custom_ut6: "カスタマイズ(6回まで)",
   SP_lesson_20s_ut4: "20枚以上SPレッスン(4回まで)",
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
@@ -143,7 +151,15 @@ export const ABILITY_NAMES = {
   stage_finish_15plus_ut5: "15枚以上試験・オーディション終了(5回まで)",
   nothing: "なし",
 } as const satisfies Record<string, string>;
-export type AbilityName = keyof typeof ABILITY_NAMES;
+
+/** 自動で登録したアビリティのキー（`auto:` ＋正規化した名前） */
+export type AutoAbilityKey = `auto:${string}`;
+export type AbilityName = keyof typeof MANUAL_ABILITY_NAMES | AutoAbilityKey;
+
+/** 自動で登録したアビリティ（update-all の check:labels が書く）。count＝回数として参照されている（起動タグ・trigger_tag・発動回数タブ） */
+type AutoAbilityEntry = { label: string; count: boolean };
+const AUTO_ENTRIES: readonly AutoAbilityEntry[] =
+  (autoAbilityData as { abilities?: AutoAbilityEntry[] }).abilities ?? [];
 
 /**
  * スプレッドシート側の表記ゆれ → キー。
@@ -207,7 +223,7 @@ export function isAttrSkillEnhanceLabel(label: string): boolean {
 
 // 正規化済みラベル → キー の逆引きテーブルを構築
 const LABEL_TO_KEY = new Map<string, AbilityName>();
-for (const [key, label] of Object.entries(ABILITY_NAMES)) {
+for (const [key, label] of Object.entries(MANUAL_ABILITY_NAMES)) {
   LABEL_TO_KEY.set(normalizeLabel(label), key as AbilityName);
 }
 for (const [label, key] of Object.entries(ABILITY_LABEL_ALIASES)) {
@@ -220,7 +236,7 @@ for (const label of ATTR_SKILL_ENHANCE_LABELS) LABEL_TO_KEY.set(label, "skill_en
 // 「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先（上で登録済みなので触らない）。
 {
   const byBase = new Map<string, Set<AbilityName>>();
-  for (const [key, label] of Object.entries(ABILITY_NAMES)) {
+  for (const [key, label] of Object.entries(MANUAL_ABILITY_NAMES)) {
     const m = label.match(/^(.+?)\(\d+回まで\)$/);
     if (!m) continue;
     const base = normalizeLabel(m[1]);
@@ -230,6 +246,42 @@ for (const label of ATTR_SKILL_ENHANCE_LABELS) LABEL_TO_KEY.set(label, "skill_en
   for (const [base, keys] of byBase) {
     if (!LABEL_TO_KEY.has(base) && keys.size === 1) LABEL_TO_KEY.set(base, [...keys][0]);
   }
+}
+
+/** 手で書いた名前だけで引いたキー（check:labels が「自動で登録が要る名前」を見つけるのに使う） */
+export function manualAbilityKeyFromLabel(label: string): AbilityName | undefined {
+  return LABEL_TO_KEY.get(normalizeLabel(label));
+}
+
+/** 自動で登録した名前（手で書いた名前と同じものは除く。手で登録したらそちらが優先） */
+const AUTO_ABILITIES: { key: AutoAbilityKey; label: string; count: boolean }[] = [];
+for (const entry of AUTO_ENTRIES) {
+  const norm = normalizeLabel(entry.label);
+  if (!norm || LABEL_TO_KEY.has(norm)) continue;
+  const key: AutoAbilityKey = `auto:${norm}`;
+  LABEL_TO_KEY.set(norm, key);
+  AUTO_ABILITIES.push({ key, label: entry.label, count: entry.count });
+}
+
+/** 自動で登録したアビリティのうち、回数として参照されるもの（プロデュース設定の「その他」に出す候補） */
+export const AUTO_COUNT_ABILITY_KEYS: readonly AutoAbilityKey[] = AUTO_ABILITIES.filter(
+  (a) => a.count,
+).map((a) => a.key);
+
+/** 自動で登録したアビリティのキーか */
+export function isAutoAbilityKey(key: string): key is AutoAbilityKey {
+  return key.startsWith("auto:");
+}
+
+/** アビリティの内部キー → 表示名（手で書いた名前＋自動で登録した名前） */
+export const ABILITY_NAMES: Readonly<Record<AbilityName, string>> = {
+  ...MANUAL_ABILITY_NAMES,
+  ...Object.fromEntries(AUTO_ABILITIES.map((a) => [a.key, a.label])),
+} as Record<AbilityName, string>;
+
+/** ラベルの正規化（全角括弧→半角、空白除去）。外から照合に使う用 */
+export function normalizeAbilityLabel(label: string): string {
+  return normalizeLabel(label);
 }
 
 /**

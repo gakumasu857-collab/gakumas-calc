@@ -11,7 +11,7 @@
  * ストアはlocalStorageを直接読む（React非依存）。値が無いときは
  * 各ストアの初回デフォルト（全カード完凸・特訓6/開花4・メインパラボ60×4）に合わせる。
  */
-import { abilityMax, DEFAULT_SETS } from "@/data/abilityCounts";
+import { abilityMax, DEFAULT_SETS, DERIVED_CAP_OF, migrateAbilityCounts } from "@/data/abilityCounts";
 import type { AbilityName } from "@/data/constants";
 import { CLASSES, EXAMS, examStarCapScore, LESSONS } from "@/data/schedule";
 import { hifBonusValues } from "@/data/hifBonus";
@@ -140,16 +140,17 @@ export function buildInput(): AutoOptimizeInput {
   const adjust = loadJson<
     Record<string, Partial<Record<AbilityName, number>>>
   >("gakumas:calc:countAdjust:v1", {});
+  const ov = set ? migrateAbilityCounts(overrides[set.id] ?? {}) : {};
+  const adj = set ? migrateAbilityCounts(adjust[set.id] ?? {}) : {};
+  const rawCount = (key: AbilityName): number =>
+    set ? Math.min(abilityMax(key), Math.max(0, adj[key] ?? ov[key] ?? set.defaults[key] ?? 0)) : 0;
   const manual = manualCountFromSet(
     set
-      ? (key) =>
-          Math.min(
-            abilityMax(key),
-            Math.max(
-              0,
-              adjust[set.id]?.[key] ?? overrides[set.id]?.[key] ?? set.defaults[key] ?? 0,
-            ),
-          )
+      ? (key) => {
+          // 「(N回まで)」の写しは元の回数の頭打ち（アプリの getRunCount と同じ）
+          const capped = DERIVED_CAP_OF[key];
+          return capped ? Math.min(rawCount(capped.base), capped.cap) : rawCount(key);
+        }
       : null,
   );
 

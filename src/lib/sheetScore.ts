@@ -12,6 +12,7 @@
  */
 import perfData from "@/data/generated/abilityPerf.json";
 import { SLOT_TIER } from "@/data/abilityValues";
+import { DERIVED_CAP_OF } from "@/data/abilityCounts";
 import { FIXED_ABILITY_COUNTS } from "@/data/fixedAbilityCounts";
 import {
   ABILITY_NAMES,
@@ -35,6 +36,30 @@ type PerfEntry = {
   sub: string | null;
 };
 const PERF = (perfData as { perf: Record<string, PerfEntry> }).perf;
+
+/**
+ * 元の回数 → その頭打ちで決まる「◯◯（N回まで）」の回数キー（abilityValues の trigger_tag の表記のまま）。
+ * 例: スキル削除 → スキル削除（4回まで）、チェンジ → チェンジ（3回まで）。
+ * 前イベ・後イベで元の回数が増えたら、写しの回数キーにも同じだけ上乗せする（上限は clampExtraCount が切る）。2026-10-14
+ */
+const CAPPED_COUNT_KEYS_BY_BASE: Map<string, string[]> = (() => {
+  const map = new Map<string, Set<string>>();
+  for (const entry of Object.values(PERF)) {
+    for (const tag of [entry.main1, entry.main2, entry.sub]) {
+      if (!tag) continue;
+      const key = abilityKeyFromLabel(tag);
+      const capped = key ? DERIVED_CAP_OF[key] : undefined;
+      if (!capped) continue;
+      const base = normAbiLabel(ABILITY_NAMES[capped.base]);
+      if (!map.has(base)) map.set(base, new Set());
+      map.get(base)!.add(tag);
+    }
+  }
+  return new Map([...map].map(([k, v]) => [k, [...v]]));
+})();
+function normAbiLabel(s: string): string {
+  return s.replace(/（/g, "(").replace(/）/g, ")").replace(/\s+/g, "");
+}
 
 // アビリティ性能のキーはシート表記のレアリティ（EventSSRではなく配布SSR）
 const PERF_RARITY: Record<string, string> = { EventSSR: "配布SSR" };
@@ -365,7 +390,7 @@ const NUMERIC_ACTION_KEYS = [
   "スキル削除",
   "Aスキル削除（3回まで）",
   "Mスキル削除（3回まで）",
-  "チェンジ（3回まで）",
+  "チェンジ",
   "ドリンク獲得",
   "体力回復",
 ];
@@ -373,7 +398,7 @@ const NUMERIC_ACTION_KEYS = [
 /** 後イベの種類 → 発動する回数キー（ランダム強化はA/M不定のため汎用スキル強化扱い。トラブル削除はスキル削除の一種） */
 const POST_EVENT_KEY: Record<string, string> = {
   強化: "スキル強化",
-  チェンジ: "チェンジ（3回まで）",
+  チェンジ: "チェンジ",
   トラブル削除: "スキル削除",
 };
 
@@ -432,7 +457,12 @@ export function eventCountContributionSplit(
   const postOut: Record<string, number> = {};
   let out = preOut;
   const add = (key: string, v: number) => {
-    if (v > 0) out[key] = (out[key] ?? 0) + v;
+    if (v <= 0) return;
+    out[key] = (out[key] ?? 0) + v;
+    // 「スキル削除（4回まで）」「チェンジ（3回まで）」のような元の回数の写しにも同じだけ上乗せ
+    for (const capped of CAPPED_COUNT_KEYS_BY_BASE.get(normAbiLabel(key)) ?? []) {
+      out[capped] = (out[capped] ?? 0) + v;
+    }
   };
   const num = (col: string) => Number(card.extras[col] ?? 0) || 0;
 

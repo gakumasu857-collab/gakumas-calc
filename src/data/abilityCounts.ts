@@ -7,8 +7,10 @@
 import generatedCounts from "./generated/abilityCounts.json";
 import {
   ABILITY_NAMES,
+  AUTO_COUNT_ABILITY_KEYS,
   abilityKeyFromLabel,
   isAttrSkillEnhanceLabel,
+  normalizeAbilityLabel,
   type AbilityName,
 } from "./constants";
 import { SCENARIO_KEYS, type ScenarioKey } from "./scenarios";
@@ -18,6 +20,32 @@ import {
   type CalendarEvent,
   type ScheduleChoices,
 } from "./scheduleCalendar";
+
+/**
+ * 「◯◯(N回まで)」の名前から、元の◯◯のキーと N を読む（元の名前が登録されていなければ undefined）。
+ * 自動で登録した「(N回まで)」のアビリティは、元の回数があればその頭打ちにする（スキル削除(4回まで)と同じ扱い）
+ */
+function capOfLabel(key: AbilityName): { base: AbilityName; cap: number } | undefined {
+  const m = normalizeAbilityLabel(ABILITY_NAMES[key]).match(/^(.+?)\((\d+)回まで\)$/);
+  if (!m) return undefined;
+  const base = abilityKeyFromLabel(m[1]);
+  if (!base || base === key) return undefined;
+  return { base, cap: Number(m[2]) };
+}
+
+/** 自動で登録したアビリティの「(N回まで)」の頭打ち（元の回数があるものだけ） */
+const AUTO_DERIVED_CAPS: { key: AbilityName; base: AbilityName; cap: number }[] = AUTO_COUNT_ABILITY_KEYS.flatMap(
+  (key) => {
+    const c = capOfLabel(key);
+    return c ? [{ key, ...c }] : [];
+  },
+);
+
+/** プロデュース設定に行を出す、自動で登録したアビリティ（回数として参照され、元の回数の頭打ちでないもの） */
+function autoListedKeys(): AbilityName[] {
+  const derived = new Set(AUTO_DERIVED_CAPS.map((c) => c.key));
+  return AUTO_COUNT_ABILITY_KEYS.filter((k) => !derived.has(k));
+}
 
 /** 4つの分類とそこに属するアビリティ（表示順のまま） */
 export const ABILITY_CATEGORIES = [
@@ -53,7 +81,7 @@ export const ABILITY_CATEGORIES = [
       "skill_del_ut4",
       "A_skill_del_ut3",
       "M_skill_del_ut3",
-      "change_ut3",
+      "change", // チェンジ（「チェンジ(3回まで)」はこの回数の頭打ちなので行を出さない。2026-10-14）
       "basic_change_ut3",
       "skill_exchange_ut5",
     ],
@@ -83,11 +111,13 @@ export const ABILITY_CATEGORIES = [
       "drink_exchange",
       "drink_get",
       "drink_get_ut10", // ドリンク獲得(10回まで)
-      "custom_ut6",
+      "custom", // カスタマイズ（「(6回まで)」「(3回まで)」はこの回数の頭打ちなので行を出さない。2026-10-14）
       "SP_lesson_20s_ut4",
       "charm_8plus_ut4",
       "focus_8plus_ut4", // 集中8枚以上スキル獲得(4回まで)
       "p_item_get_ut6",
+      // スプシに出てきた新しいアビリティ（自動で登録。元の回数の頭打ちで決まるものは除く）
+      ...autoListedKeys(),
     ],
   },
 ] as const satisfies readonly {
@@ -106,13 +136,47 @@ export const DEFAULT_MAX = 99;
  *   （例: ドリンク獲得(10回まで) = min(ドリンク獲得, 10)）。
  * お出かけ・相談・活動支給の「(2回まで)」はスケジュールの選択から直接決まる（そちらが優先）。
  */
-const DERIVED_CAPS = [
+const DERIVED_CAPS: readonly { key: AbilityName; base: AbilityName; cap: number }[] = [
   { key: "date_ut2", base: "date", cap: 2 }, // お出かけ(2回まで)
   { key: "meeting_ut2", base: "meeting", cap: 2 }, // 相談(2回まで)
   { key: "supply_ut2", base: "supply", cap: 2 }, // 活動支給・差し入れ(2回まで)
   { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
   { key: "drink_get_ut10", base: "drink_get", cap: 10 }, // ドリンク獲得(10回まで)
-] as const satisfies readonly { key: AbilityName; base: AbilityName; cap: number }[];
+  // 2026-10-14〜 チェンジ・カスタマイズも元の回数の頭打ち（オーナー指定。発動回数タブの「(N回まで)」の行は元の回数の既定にだけ使う）
+  { key: "change_ut3", base: "change", cap: 3 }, // チェンジ(3回まで)
+  { key: "custom_ut6", base: "custom", cap: 6 }, // カスタマイズ(6回まで)
+  // 自動で登録した「◯◯(N回まで)」のうち、◯◯が登録済みのもの（例: カスタマイズ(3回まで)）
+  ...AUTO_DERIVED_CAPS,
+];
+
+/**
+ * 保存データの回数のうち、元の回数へ移すもの（2026-10-14 に「(N回まで)」が自動の値になった）。
+ * 例: 「チェンジ(3回まで)」を2にしていた → 「チェンジ」2（頭打ちで同じ2）。
+ */
+const MOVED_TO_BASE: Partial<Record<AbilityName, AbilityName>> = {
+  change_ut3: "change",
+  custom_ut6: "custom",
+};
+
+/**
+ * 保存データ（プロデュース設定の差分・この育成の調整・セーブデータ）の回数を今の形にそろえる。
+ * 今は無いアビリティ（例: 2026-10-07 にやめた温存スキル強化）を落とし、自動の値になった回数は元の回数へ移す。
+ */
+export function migrateAbilityCounts(
+  counts: Record<string, unknown>,
+): Partial<Record<AbilityName, number>> {
+  const out: Partial<Record<AbilityName, number>> = {};
+  for (const [key, value] of Object.entries(counts ?? {})) {
+    if (typeof value !== "number" || !(key in ABILITY_NAMES)) continue;
+    const base = MOVED_TO_BASE[key as AbilityName];
+    if (base) {
+      if (!(base in counts)) out[base] = value;
+      continue;
+    }
+    out[key as AbilityName] = value;
+  }
+  return out;
+}
 
 /**
  * 足し算で決まる回数（オーナー指定 2026-09-18）。
@@ -178,7 +242,7 @@ const SCHEDULE_CAPS: Record<ScenarioKey, Partial<Record<AbilityName, number>>> =
       const counts = calendarEventCounts(scenario);
       const caps: Partial<Record<AbilityName, number>> = {};
       for (const [key, events] of Object.entries(SCHEDULE_CAP_EVENTS)) {
-        caps[key as AbilityName] = events.reduce((sum, e) => sum + counts[e], 0);
+        caps[key as AbilityName] = (events ?? []).reduce((sum, e) => sum + counts[e], 0);
       }
       return [scenario, caps];
     }),
@@ -348,12 +412,16 @@ function toCountTable(table: CountTable): Partial<Record<AbilityName, number[]>>
     if (key) out[key] = values;
     else unknown.push(label);
   }
+  // 元の回数の行が無く「(N回まで)」の行だけあるとき（チェンジ・カスタマイズ）は、その行を元の回数の既定にする
+  for (const { key, base } of DERIVED_CAPS) {
+    if (!out[base] && out[key]) out[base] = out[key];
+  }
   for (const { key, base, cap } of DERIVED_CAPS) {
     const b = out[base];
     if (b) out[key] = b.map((n) => Math.min(n, cap));
   }
   // 足し算で決まる回数（スキル強化＝A＋M）はタブの行があってもこちらを正とする
-  for (const [key, parts] of Object.entries(DERIVED_SUMS)) {
+  for (const [key, parts = []] of Object.entries(DERIVED_SUMS)) {
     const length = parts.map((p) => out[p]?.length ?? 0).reduce((a, b) => Math.max(a, b), 0);
     if (length === 0) continue;
     out[key as AbilityName] = Array.from({ length }, (_, i) =>
@@ -390,7 +458,7 @@ export const DEFAULT_SETS: AbilityCountSet[] = SET_NAMES.map((name, i) => {
     plan,
     defaults: Object.fromEntries(
       Object.entries(DEFAULT_COUNTS)
-        .map(([key, values]) => [key, values[i]])
+        .map(([key, values]) => [key, values?.[i] ?? 0])
         .filter(([, value]) => value !== 0),
     ) as Partial<Record<AbilityName, number>>,
   };
@@ -412,7 +480,7 @@ export const NIA_DEFAULT_SETS: AbilityCountSet[] = NIA_SET_NAMES.map(
     const plan = NIA_SET_PLANS[i] || planFromSetName(name);
     const defaults = Object.fromEntries(
       Object.entries(NIA_DEFAULT_COUNTS)
-        .map(([key, values]) => [key, values[i]])
+        .map(([key, values]) => [key, values?.[i] ?? 0])
         .filter(([, value]) => value !== 0),
     ) as Partial<Record<AbilityName, number>>;
     // Pポイント営業: スプシに行が無ければ、名前とプランから決めた既定を入れる
@@ -444,7 +512,7 @@ export const HATSU_DEFAULT_SETS: AbilityCountSet[] = HATSU_SET_NAMES.map(
       plan,
       defaults: Object.fromEntries(
         Object.entries(HATSU_DEFAULT_COUNTS)
-          .map(([key, values]) => [key, values[i]])
+          .map(([key, values]) => [key, values?.[i] ?? 0])
           .filter(([, value]) => value !== 0),
       ) as Partial<Record<AbilityName, number>>,
     };

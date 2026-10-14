@@ -1,0 +1,12 @@
+{
+  "abilities": [
+    {
+      "label": "カスタマイズ（3回まで）",
+      "count": true
+    },
+    {
+      "label": "やる気8枚以上スキル獲得（4回まで）",
+      "count": true
+    }
+  ]
+}

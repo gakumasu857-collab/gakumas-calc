@@ -1,9 +1,10 @@
 ﻿import { useCallback, useEffect, useState } from "react";
 import { useSaveNotifier } from "./storeSync";
 import { useScenario } from "./useScenario";
-import { ABILITY_NAMES, type AbilityName } from "@/data/constants";
+import type { AbilityName } from "@/data/constants";
 import {
   ABILITY_CATEGORIES,
+  migrateAbilityCounts,
   abilityAppliesTo,
   abilityMax,
   DEFAULT_SETS,
@@ -69,10 +70,8 @@ function dropUnknownKeys(stored: Overrides): Overrides {
   const out: Overrides = {};
   for (const [setId, counts] of Object.entries(stored ?? {})) {
     if (!counts || typeof counts !== "object") continue;
-    const kept: Partial<Record<AbilityName, number>> = {};
-    for (const [key, value] of Object.entries(counts)) {
-      if (key in ABILITY_NAMES) kept[key as AbilityName] = value;
-    }
+    // 自動の値になった回数（チェンジ(3回まで)など）は元の回数へ移す
+    const kept = migrateAbilityCounts(counts);
     // 中身が無くなったセットの入れ物は持たない（読むときは無い＝デフォルトとして扱う）
     if (Object.keys(kept).length > 0) out[setId] = kept;
   }
@@ -652,9 +651,9 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
           : [...prev, { id, name, plan, saveId }],
       );
       const clamped: Partial<Record<AbilityName, number>> = {};
-      for (const [key, value] of Object.entries(counts)) {
-        // 昔のセーブデータにだけ残っている、今は無いアビリティ（例: 温存スキル強化）は読み飛ばす
-        if (!(key in ABILITY_NAMES)) continue;
+      // 昔のセーブデータにだけ残っている、今は無いアビリティ（例: 温存スキル強化）は読み飛ばし、
+      // 自動の値になった回数（チェンジ(3回まで)など）は元の回数へ移す
+      for (const [key, value] of Object.entries(migrateAbilityCounts(counts))) {
         const k = key as AbilityName;
         if (value) clamped[k] = clamp(value, abilityMax(k));
       }

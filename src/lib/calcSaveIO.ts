@@ -218,7 +218,7 @@ export function saveSummary(save: CalcSave): string {
 export function snapshotCountEntries(
   counts: Partial<Record<AbilityName, number>>,
 ): [AbilityName, number][] {
-  return Object.entries(counts).filter(([, v]) => v > 0) as [
+  return Object.entries(counts).filter(([, v]) => (v ?? 0) > 0) as [
     AbilityName,
     number,
   ][];

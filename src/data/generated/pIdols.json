@@ -1859,6 +1859,18 @@
    "key": "姫﨑莉波SUGAR FRAVOR",
    "growthTag": "姫﨑莉波SSRシーズン",
    "sheetId": 155
+  },
+  {
+   "url": "skill/スイートトラップ♡.webp",
+   "idol": "花海咲季",
+   "cardName": "Agitato",
+   "skillName": "スイートトラップ♡",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "やる気",
+   "key": "花海咲季Agitato",
+   "growthTag": "花海咲季SSR",
+   "sheetId": 156
   }
  ],
  "growth": {

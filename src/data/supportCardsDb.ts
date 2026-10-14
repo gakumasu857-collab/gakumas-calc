@@ -221,7 +221,7 @@ const NUMERIC_ACTION_MAP: Record<string, string> = {
   skill_del: "スキル削除",
   A_skill_del_ut3: "Aスキル削除（3回まで）",
   M_skill_del_ut3: "Mスキル削除（3回まで）",
-  change_ut3: "チェンジ（3回まで）",
+  change_ut3: "チェンジ", // 2026-10-14〜 元の回数（チェンジ（3回まで）はその頭打ち）
   drink_get: "ドリンク獲得",
   recovery: "体力回復",
 };
@@ -261,7 +261,7 @@ const PRE_EVENT_ACTION_KEYS = [
   "スキル削除",
   "Aスキル削除（3回まで）",
   "Mスキル削除（3回まで）",
-  "チェンジ（3回まで）",
+  "チェンジ",
   "ドリンク獲得",
   "体力回復",
   "アイテムPポ",
