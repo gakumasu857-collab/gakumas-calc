@@ -22,15 +22,20 @@ import {
 } from "./scheduleCalendar";
 
 /**
- * 「◯◯(N回まで)」の名前から、元の◯◯のキーと N を読む（元の名前が登録されていなければ undefined）。
- * 自動で登録した「(N回まで)」のアビリティは、元の回数があればその頭打ちにする（スキル削除(4回まで)と同じ扱い）
+ * 「◯◯(N回まで)」の名前から、頭打ちの元になるキーと N を読む（無ければ undefined）。
+ * 元は ◯◯ そのもの（スキル削除(4回まで)と同じ）か、同じ系統でいちばん回数の多い「◯◯(M回まで)」（M＞N。
+ * 例: カスタマイズ(3回まで) → カスタマイズ(6回まで)。オーナー指定 2026-10-14）。
+ * 括弧なしの ◯◯ は constants.ts が「いちばん N の大きいもの」へ結び付けているので、引けばどちらかになる。
  */
 function capOfLabel(key: AbilityName): { base: AbilityName; cap: number } | undefined {
   const m = normalizeAbilityLabel(ABILITY_NAMES[key]).match(/^(.+?)\((\d+)回まで\)$/);
   if (!m) return undefined;
+  const cap = Number(m[2]);
   const base = abilityKeyFromLabel(m[1]);
   if (!base || base === key) return undefined;
-  return { base, cap: Number(m[2]) };
+  const baseCap = normalizeAbilityLabel(ABILITY_NAMES[base]).match(/\((\d+)回まで\)$/);
+  if (baseCap && Number(baseCap[1]) <= cap) return undefined;
+  return { base, cap };
 }
 
 /** 自動で登録したアビリティの「(N回まで)」の頭打ち（元の回数があるものだけ） */
@@ -81,7 +86,7 @@ export const ABILITY_CATEGORIES = [
       "skill_del_ut4",
       "A_skill_del_ut3",
       "M_skill_del_ut3",
-      "change", // チェンジ（「チェンジ(3回まで)」はこの回数の頭打ちなので行を出さない。2026-10-14）
+      "change_ut3",
       "basic_change_ut3",
       "skill_exchange_ut5",
     ],
@@ -111,7 +116,7 @@ export const ABILITY_CATEGORIES = [
       "drink_exchange",
       "drink_get",
       "drink_get_ut10", // ドリンク獲得(10回まで)
-      "custom", // カスタマイズ（「(6回まで)」「(3回まで)」はこの回数の頭打ちなので行を出さない。2026-10-14）
+      "custom_ut6", // カスタマイズ(6回まで)。カスタマイズ(3回まで)はこの回数の頭打ち（2026-10-14）
       "SP_lesson_20s_ut4",
       "charm_8plus_ut4",
       "focus_8plus_ut4", // 集中8枚以上スキル獲得(4回まで)
@@ -142,21 +147,15 @@ const DERIVED_CAPS: readonly { key: AbilityName; base: AbilityName; cap: number 
   { key: "supply_ut2", base: "supply", cap: 2 }, // 活動支給・差し入れ(2回まで)
   { key: "skill_del_ut4", base: "skill_del", cap: 4 }, // スキル削除(4回まで)
   { key: "drink_get_ut10", base: "drink_get", cap: 10 }, // ドリンク獲得(10回まで)
-  // 2026-10-14〜 チェンジ・カスタマイズも元の回数の頭打ち（オーナー指定。発動回数タブの「(N回まで)」の行は元の回数の既定にだけ使う）
-  { key: "change_ut3", base: "change", cap: 3 }, // チェンジ(3回まで)
-  { key: "custom_ut6", base: "custom", cap: 6 }, // カスタマイズ(6回まで)
-  // 自動で登録した「◯◯(N回まで)」のうち、◯◯が登録済みのもの（例: カスタマイズ(3回まで)）
+  // 自動で登録した「◯◯(N回まで)」のうち、元（◯◯ か同じ系統の大きい「(M回まで)」）が登録済みのもの（例: カスタマイズ(3回まで)）
   ...AUTO_DERIVED_CAPS,
 ];
 
 /**
- * 保存データの回数のうち、元の回数へ移すもの（2026-10-14 に「(N回まで)」が自動の値になった）。
- * 例: 「チェンジ(3回まで)」を2にしていた → 「チェンジ」2（頭打ちで同じ2）。
+ * 保存データの回数のうち、別のキーへ移すもの（手で書いた「(N回まで)」を頭打ちの写しに変えたとき用。今は無し）。
+ * 2026-10-14 にいったんチェンジ・カスタマイズを元の回数へ移したが、同じ日にオーナー指定で元に戻した（公開前）。
  */
-const MOVED_TO_BASE: Partial<Record<AbilityName, AbilityName>> = {
-  change_ut3: "change",
-  custom_ut6: "custom",
-};
+const MOVED_TO_BASE: Partial<Record<AbilityName, AbilityName>> = {};
 
 /**
  * 保存データ（プロデュース設定の差分・この育成の調整・セーブデータ）の回数を今の形にそろえる。

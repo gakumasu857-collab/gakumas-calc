@@ -39,7 +39,7 @@ const PERF = (perfData as { perf: Record<string, PerfEntry> }).perf;
 
 /**
  * 元の回数 → その頭打ちで決まる「◯◯（N回まで）」の回数キー（abilityValues の trigger_tag の表記のまま）。
- * 例: スキル削除 → スキル削除（4回まで）、チェンジ → チェンジ（3回まで）。
+ * 例: スキル削除 → スキル削除（4回まで）、カスタマイズ（6回まで）→ カスタマイズ（3回まで）。
  * 前イベ・後イベで元の回数が増えたら、写しの回数キーにも同じだけ上乗せする（上限は clampExtraCount が切る）。2026-10-14
  */
 const CAPPED_COUNT_KEYS_BY_BASE: Map<string, string[]> = (() => {
@@ -390,7 +390,7 @@ const NUMERIC_ACTION_KEYS = [
   "スキル削除",
   "Aスキル削除（3回まで）",
   "Mスキル削除（3回まで）",
-  "チェンジ",
+  "チェンジ（3回まで）",
   "ドリンク獲得",
   "体力回復",
 ];
@@ -398,7 +398,7 @@ const NUMERIC_ACTION_KEYS = [
 /** 後イベの種類 → 発動する回数キー（ランダム強化はA/M不定のため汎用スキル強化扱い。トラブル削除はスキル削除の一種） */
 const POST_EVENT_KEY: Record<string, string> = {
   強化: "スキル強化",
-  チェンジ: "チェンジ",
+  チェンジ: "チェンジ（3回まで）",
   トラブル削除: "スキル削除",
 };
 
@@ -459,7 +459,7 @@ export function eventCountContributionSplit(
   const add = (key: string, v: number) => {
     if (v <= 0) return;
     out[key] = (out[key] ?? 0) + v;
-    // 「スキル削除（4回まで）」「チェンジ（3回まで）」のような元の回数の写しにも同じだけ上乗せ
+    // 「スキル削除（4回まで）」のような元の回数の写しにも同じだけ上乗せ
     for (const capped of CAPPED_COUNT_KEYS_BY_BASE.get(normAbiLabel(key)) ?? []) {
       out[capped] = (out[capped] ?? 0) + v;
     }

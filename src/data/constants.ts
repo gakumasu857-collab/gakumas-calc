@@ -83,8 +83,8 @@ const MANUAL_ABILITY_NAMES = {
   A_skill_del_ut3: "Aスキル削除(3回まで)",
   M_skill_del_ut3: "Mスキル削除(3回まで)",
   skill_del_ut4: "スキル削除(4回まで)",
-  // チェンジ・カスタマイズは元の回数をプロデュースで持ち、「(N回まで)」はその頭打ち（スキル削除(4回まで)と同じ。2026-10-14）
-  change: "チェンジ",
+  // チェンジ・カスタマイズは、系統でいちばん回数の多い「(N回まで)」をプロデュースで持つ（オーナー指定 2026-10-14）。
+  // 同じ系統の小さい「(N回まで)」（例: カスタマイズ(3回まで)）はその頭打ち（abilityCounts.ts の capOfLabel）
   change_ut3: "チェンジ(3回まで)",
   study: "授業・営業",
   // N.I.A の営業先「Pポイント営業」を踏む回数（サポカのアビリティではなく、プロデュースの回数として持つ。1回 +50P）
@@ -102,7 +102,6 @@ const MANUAL_ABILITY_NAMES = {
   // カード側の現行ラベルから回数が引けず加点0になる（＝ドリンク採点が切れる）。
   drink_exchange: "ドリンク交換",
   drink_get: "ドリンク獲得",
-  custom: "カスタマイズ",
   custom_ut6: "カスタマイズ(6回まで)",
   SP_lesson_20s_ut4: "20枚以上SPレッスン(4回まで)",
   p_item_get_ut6: "Pアイテム獲得(6回まで)",
@@ -232,25 +231,28 @@ for (const [label, key] of Object.entries(ABILITY_LABEL_ALIASES)) {
 // 属性つきのスキル強化は「スキル強化」と同じ回数で判定する
 for (const label of ATTR_SKILL_ENHANCE_LABELS) LABEL_TO_KEY.set(label, "skill_enhance");
 // 括弧なしの表記（supMaster の「前イベ起動タグ」列は「チェンジ」「特別指導」のように
-// (N回まで) を付けない）は、「その名前(N回まで)」の正式名がちょうど1つあるときに同じキーへ結び付ける。
+// (N回まで) を付けない）は、「その名前(N回まで)」の正式名のうちいちばん N が大きいものへ結び付ける
+// （例: 「カスタマイズ」→ カスタマイズ(6回まで)。2026-10-14 までは「ちょうど1つあるとき」だけ）。
 // 「スキル削除」のように括弧なしの正式名が別にあるときはそちらが優先（上で登録済みなので触らない）。
-{
-  const byBase = new Map<string, Set<AbilityName>>();
-  for (const [key, label] of Object.entries(MANUAL_ABILITY_NAMES)) {
-    const m = label.match(/^(.+?)\(\d+回まで\)$/);
+function linkBareLabels(entries: [string, string][]): void {
+  const best = new Map<string, { key: AbilityName; cap: number }>();
+  for (const [key, label] of entries) {
+    const m = normalizeLabel(label).match(/^(.+?)\((\d+)回まで\)$/);
     if (!m) continue;
-    const base = normalizeLabel(m[1]);
-    if (!byBase.has(base)) byBase.set(base, new Set());
-    byBase.get(base)!.add(key as AbilityName);
+    const cap = Number(m[2]);
+    const cur = best.get(m[1]);
+    if (!cur || cap > cur.cap) best.set(m[1], { key: key as AbilityName, cap });
   }
-  for (const [base, keys] of byBase) {
-    if (!LABEL_TO_KEY.has(base) && keys.size === 1) LABEL_TO_KEY.set(base, [...keys][0]);
+  for (const [base, { key }] of best) {
+    if (!LABEL_TO_KEY.has(base)) LABEL_TO_KEY.set(base, key);
   }
 }
+linkBareLabels(Object.entries(MANUAL_ABILITY_NAMES));
 
-/** 手で書いた名前だけで引いたキー（check:labels が「自動で登録が要る名前」を見つけるのに使う） */
+/** 手で書いた名前だけで引いたキー（check:labels が「自動で登録が要る名前」を見つけるのに使う。自動で登録したキーは数えない） */
 export function manualAbilityKeyFromLabel(label: string): AbilityName | undefined {
-  return LABEL_TO_KEY.get(normalizeLabel(label));
+  const key = LABEL_TO_KEY.get(normalizeLabel(label));
+  return key && !key.startsWith("auto:") ? key : undefined;
 }
 
 /** 自動で登録した名前（手で書いた名前と同じものは除く。手で登録したらそちらが優先） */
@@ -262,6 +264,8 @@ for (const entry of AUTO_ENTRIES) {
   LABEL_TO_KEY.set(norm, key);
   AUTO_ABILITIES.push({ key, label: entry.label, count: entry.count });
 }
+// 自動で登録した「(N回まで)」だけの系統も、括弧なしの名前をいちばん N の大きいものへ
+linkBareLabels(AUTO_ABILITIES.map((a) => [a.key, a.label]));
 
 /** 自動で登録したアビリティのうち、回数として参照されるもの（プロデュース設定の「その他」に出す候補） */
 export const AUTO_COUNT_ABILITY_KEYS: readonly AutoAbilityKey[] = AUTO_ABILITIES.filter(
