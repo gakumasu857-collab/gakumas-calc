@@ -1,0 +1,74 @@
+# 自動更新（update-all.cmd と同じことを GitHub 上で回す）。2026-11-06 追加
+#   1. グーグルドライブの画像 → R2（npm run sync:images）
+#   2. スプシ → R2 → データ生成（npm run gen:all）
+#   3. ビルド → 本番に公開（npm run release）
+# 動くとき:
+#   - 毎日 4:00（日本時間）
+#   - Actions タブの「Run workflow」ボタン（スマホのブラウザからも押せる）
+#   - main にコードを上げたとき（＝本番に出すのは「GitHub に上げる」こと）
+# 必要な鍵（Settings → Secrets and variables → Actions に登録。手順は docs/AUTO_UPDATE.md）:
+#   ENV_LOCAL                … .env.local の中身まるごと
+#   GCP_SERVICE_ACCOUNT_JSON … service-account.json の中身まるごと
+#   CLOUDFLARE_API_TOKEN     … Cloudflare で作る公開用の鍵
+# 鍵はログに出ない（GitHub が伏せ字にする）。作ったファイルは最後に必ず消す。
+name: 自動更新（スプシ・画像 → 本番）
+
+on:
+  schedule:
+    - cron: "0 19 * * *" # 毎日 19:00 UTC ＝ 日本時間 4:00
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# 同時に2つ走らせない（後から来たものは前のが終わるまで待つ）
+concurrency:
+  group: auto-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: e673d6dfbcd9c8b568659df65e126a0a
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 部品のインストール
+        run: npm ci
+
+      - name: 鍵のファイルを置く（.env.local と service-account.json）
+        env:
+          ENV_LOCAL: ${{ secrets.ENV_LOCAL }}
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$ENV_LOCAL" ] || [ -z "$GCP_SERVICE_ACCOUNT_JSON" ] || [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::鍵がまだ登録されていません（docs/AUTO_UPDATE.md の手順で ENV_LOCAL・GCP_SERVICE_ACCOUNT_JSON・CLOUDFLARE_API_TOKEN を登録してください）"
+            exit 1
+          fi
+          printf '%s\n' "$ENV_LOCAL" > .env.local
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > service-account.json
+
+      - name: 1. ドライブの画像 → R2
+        # update-all.cmd と同じく、失敗しても先へ進む（画像が無くても公開はできる）
+        continue-on-error: true
+        run: npm run sync:images
+
+      - name: 2. スプシ → データ生成
+        run: npm run gen:all
+
+      - name: 3. ビルド → 本番に公開
+        run: npm run release
+
+      - name: 鍵のファイルを消す
+        if: always()
+        run: rm -f .env.local service-account.json

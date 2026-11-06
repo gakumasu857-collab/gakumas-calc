@@ -68,6 +68,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 |---|---|---|
 | `release.cmd` | `npm run release`（= `npm run build` → `wrangler deploy`）だけ | プログラム（.ts/.tsx）だけを直したとき。スプシ・画像は取り込まない |
 | `update-all.cmd` | ①`npm run sync:images`（ドライブ→R2。未設定なら飛ばす）→ ②`npm run gen:all`（スプシ→R2 同期＋6つの gen）→ ③`npm run release` | スプシや画像を変えたとき。これ1本で全部やる（2〜3分） |
+| GitHub の自動更新（`.github/workflows/auto-update.yml`。2026-11-06〜） | update-all.cmd と同じ3段階を GitHub 上で回す。毎日 4:00 JST・Actions の「Run workflow」・main に上げたとき。鍵は Secrets の ENV_LOCAL／GCP_SERVICE_ACCOUNT_JSON／CLOUDFLARE_API_TOKEN。**公開されるのは GitHub の main**。wrangler は devDependencies で 4.43.0 に固定。使い方は docs/AUTO_UPDATE.md | スプシ・画像を直しただけなら何もしなくてよい。急ぐときは Run workflow |
 | `dev.cmd` | `npm run dev`（開発サーバー）を起動し、数秒後にブラウザで http://localhost:5173 を開く。**何も配信しない** | リリース前にローカルで動きを確かめたいとき。黒い窓を閉じると止まる |
 
 - `npm run gen:all` の中身（`package.json` の `scripts`）:

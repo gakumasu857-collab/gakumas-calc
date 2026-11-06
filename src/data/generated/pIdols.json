@@ -1871,6 +1871,42 @@
    "key": "花海咲季Agitato",
    "growthTag": "花海咲季SSR",
    "sheetId": 156
+  },
+  {
+   "url": "",
+   "idol": "雨夜燕",
+   "cardName": "ガラクタロード",
+   "skillName": "",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "強気",
+   "key": "雨夜燕ガラクタロード",
+   "growthTag": "雨夜燕SSRフェス",
+   "sheetId": 157
+  },
+  {
+   "url": "",
+   "idol": "倉本千奈",
+   "cardName": "ガラクタロード",
+   "skillName": "",
+   "rarity": "SSR",
+   "plan": "アノマリー",
+   "effect": "全力",
+   "key": "倉本千奈ガラクタロード",
+   "growthTag": "倉本千奈SSRフェス",
+   "sheetId": 158
+  },
+  {
+   "url": "",
+   "idol": "秦谷美鈴",
+   "cardName": "ガラクタロード",
+   "skillName": "",
+   "rarity": "SSR",
+   "plan": "ロジック",
+   "effect": "好印象",
+   "key": "秦谷美鈴ガラクタロード",
+   "growthTag": "秦谷美鈴SSRフェス",
+   "sheetId": 158
   }
  ],
  "growth": {
