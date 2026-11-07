@@ -9,9 +9,12 @@
  *
  * 例) .env.local
  *   VITE_IMAGE_BASE_URL=https://pub-xxxxxxxx.r2.dev
+ *
+ * 未設定なら本番の画像置き場（https://img.hoppepan.com）を使う。2026-11-08: .env.local の無い場所でビルドされた版
+ * （GitHub に上げた直後に Cloudflare が自動で作って公開した版）で、画像が全部出なくなったため。
  */
 export const IMAGE_BASE_URL = (
-  (import.meta.env?.VITE_IMAGE_BASE_URL as string | undefined) ?? ""
+  (import.meta.env?.VITE_IMAGE_BASE_URL as string | undefined) || "https://img.hoppepan.com"
 ).replace(/\/$/, "");
 
 /** サポカのファイル名（またはフルURL）から表示用URLを組み立てる。 */
