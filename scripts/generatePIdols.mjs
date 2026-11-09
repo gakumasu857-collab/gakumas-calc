@@ -54,6 +54,19 @@ const masters = pidleName.map((r) => ({
 if (masters.length > 0 && masters.every((m) => m.sheetId > 0)) {
   masters.sort((a, b) => a.sheetId - b.sheetId);
 }
+// id の重複は保存キー（pidol:<id>）がぶつかり、2枚の所持状況が1つにまとまってしまう。スプシの id を直すよう知らせる（止めはしない）
+{
+  const byId = new Map();
+  for (const m of masters) {
+    if (!(m.sheetId > 0)) continue;
+    byId.set(m.sheetId, [...(byId.get(m.sheetId) ?? []), `${m.idol}「${m.cardName}」`]);
+  }
+  for (const [id, names] of byId) {
+    if (names.length > 1) {
+      console.warn(`⚠ pidleName の id ${id} が重複しています: ${names.join(" / ")}（所持状況が混ざるので、スプシで別の id にしてください）`);
+    }
+  }
+}
 
 // ---- growth（段階行→ブロック）----
 // 段階のうち 初期・初・NIA・HIF は所持状況によらず常に効く（無条件加算）ので base に合算する。

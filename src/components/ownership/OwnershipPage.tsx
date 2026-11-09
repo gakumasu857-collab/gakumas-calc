@@ -6,6 +6,8 @@ import SupportCardOwnership from "@/components/ownership/SupportCardOwnership";
 import PIdolOwnership from "@/components/ownership/PIdolOwnership";
 import OwnedSaveBar from "@/components/ownership/OwnedSaveBar";
 import { BTN_SECONDARY } from "@/components/ui";
+import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
+import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import { markOwnershipVisited } from "@/lib/ownershipAck";
 import { importPIdolCsv, importSupportCsv } from "@/lib/ownershipCsv";
 import { clearPortalHash, hasPortalHash, readPortalHash } from "@/lib/portalImport";
@@ -147,83 +149,101 @@ export default function OwnershipPage() {
     </option>
   );
 
+  // タブに出す所持数
+  const supportOwned = levels.loaded ? SUPPORT_CATALOG.filter((c) => levels.getLevel(c.id) >= 0).length : null;
+  const pIdolOwned = pIdols.loaded ? P_IDOL_MASTERS.filter((m) => pIdols.getOwnership(m.key)).length : null;
+  const tabBtn = (key: "support" | "pidol", label: string, owned: number | null, total: number) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={tab === key}
+      onClick={() => setTab(key)}
+      className={`-mb-px flex flex-1 flex-col items-center whitespace-nowrap border-b-2 px-4 py-2 text-sm font-bold transition sm:flex-none sm:flex-row sm:items-baseline sm:gap-2 ${
+        tab === key
+          ? "border-blue-600 text-blue-700"
+          : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+      }`}
+    >
+      {label}
+      <span className="text-xs font-normal text-slate-400">
+        {owned !== null ? `所持 ${owned} / ${total}` : `${total}枚`}
+      </span>
+    </button>
+  );
+
+  // 2026-11-09 に整理（オーナー「ごちゃごちゃしてる。機能は減らさないで」）:
+  // 上の枠に「使う所持状況」と操作ボタン（管理・CSV／画面キャプチャ／計算ページへ戻る）と今の状態の1行、
+  // その下にサポカ／Pアイドルのタブ（所持数つき）、一覧の上に検索・絞り込み・一括入力の帯、説明はページの下へ
   return (
     <div className="flex flex-col gap-4">
-      {/* 計算ページから来た人の帰り道（説明文は置かず、ボタンだけ） */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          to="/calc"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500"
-        >
-          計算ページへ戻る
-          <ArrowRight size={15} />
-        </Link>
-      </div>
-      {/* 見出し行: 使う所持状況・管理、サポカ／Pアイドルの切替、キャプチャ入力 */}
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
-          使う所持状況
-          <select
-            value={saves.activeId}
-            onChange={(e) => switchTo(e.target.value)}
-            className={`${SELECT} max-w-72`}
+      {/* 使う所持状況と操作 */}
+      <section className="rounded-xl border border-slate-200 bg-white px-3 py-3 sm:px-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+            使う所持状況
+            <select
+              value={saves.activeId}
+              onChange={(e) => switchTo(e.target.value)}
+              className={`${SELECT} max-w-72`}
+            >
+              <option value={BUILTIN_ID}>全サポカ完凸（既定）</option>
+              {own.length > 0 && <optgroup label="自分で作ったもの">{own.map(option)}</optgroup>}
+              {linked.length > 0 && (
+                <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
+                  {linked.map(option)}
+                </optgroup>
+              )}
+              <option value={NEW_OPTION}>＋ 新しく作る…</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setManageOpen("manage")}
+            className={BTN_SECONDARY}
+            title="名前の変更・複製・削除、CSVの書き出し・読み込み"
           >
-            <option value={BUILTIN_ID}>全サポカ完凸（既定）</option>
-            {own.length > 0 && <optgroup label="自分で作ったもの">{own.map(option)}</optgroup>}
-            {linked.length > 0 && (
-              <optgroup label="セーブデータ用（計算ページのセーブと一緒に保存）">
-                {linked.map(option)}
-              </optgroup>
-            )}
-            <option value={NEW_OPTION}>＋ 新しく作る…</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => setManageOpen("manage")}
-          className={BTN_SECONDARY}
-          title="名前の変更・複製・削除、CSVの書き出し・読み込み"
-        >
-          <Settings2 size={14} />
-          管理・CSV
-        </button>
-        <select
-          value={tab}
-          onChange={(e) => setTab(e.target.value as "support" | "pidol")}
-          className={SELECT}
-        >
-          <option value="support">サポートカード</option>
-          <option value="pidol">Pアイドル</option>
-        </select>
-        <Link
-          to="/card-import"
-          className={`${BTN_SECONDARY} ml-auto`}
-          title="ゲーム画面を映して所持を自動読み取り（β版・PCのみ）"
-        >
-          <Camera size={14} />
-          画面キャプチャで入力
-        </Link>
-      </div>
-      <p className="-mt-2 text-[11px] leading-relaxed text-slate-500">
-        {isBuiltinActive ? (
-          <>
-            今は<b className="text-slate-700">全サポカ完凸</b>です。カードの凸や特訓を変えると
-            <b className="text-slate-700">「{DEFAULT_OWN_NAME}」</b>
-            が自動で作られ、以後の変更はそこに保存されます。
-          </>
-        ) : active.saveId ? (
-          <>
-            セーブデータ用の<b className="text-slate-700">「{active.name}」</b>
-            を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
-          </>
-        ) : (
-          <>
-            <b className="text-slate-700">「{active.name}」</b>
-            を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
-          </>
-        )}{" "}
-        新しく実装されたサポカは完凸（4凸）として扱います。保存先はこのブラウザの中です（別端末・データ削除では引き継がれません）。
-      </p>
+            <Settings2 size={14} />
+            管理・CSV
+          </button>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <Link
+              to="/card-import"
+              className={BTN_SECONDARY}
+              title="ゲーム画面を映して所持を自動読み取り（β版・PCのみ）"
+            >
+              <Camera size={14} />
+              画面キャプチャで入力
+            </Link>
+            {/* 計算ページから来た人の帰り道 */}
+            <Link
+              to="/calc"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-500"
+            >
+              計算ページへ戻る
+              <ArrowRight size={15} />
+            </Link>
+          </span>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          {isBuiltinActive ? (
+            <>
+              今は<b className="text-slate-700">全サポカ完凸</b>です。カードの凸や特訓を変えると
+              <b className="text-slate-700">「{DEFAULT_OWN_NAME}」</b>
+              が自動で作られ、以後の変更はそこに保存されます。
+            </>
+          ) : active.saveId ? (
+            <>
+              セーブデータ用の<b className="text-slate-700">「{active.name}」</b>
+              を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
+            </>
+          ) : (
+            <>
+              <b className="text-slate-700">「{active.name}」</b>
+              を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
+            </>
+          )}
+        </p>
+      </section>
       {message && (
         <p className="-mt-2 flex items-center gap-1 text-xs font-bold text-emerald-700">
           <Check size={13} />
@@ -231,11 +251,28 @@ export default function OwnershipPage() {
         </p>
       )}
 
+      {/* サポカ／Pアイドルの切り替え */}
+      <div role="tablist" className="-mb-1 flex border-b border-slate-200">
+        {tabBtn("support", "サポートカード", supportOwned, SUPPORT_CATALOG.length)}
+        {tabBtn("pidol", "Pアイドル", pIdolOwned, P_IDOL_MASTERS.length)}
+      </div>
+
       {tab === "support" ? (
         <SupportCardOwnership store={levels} />
       ) : (
         <PIdolOwnership store={pIdols} />
       )}
+
+      {/* 説明（ページの下にまとめる） */}
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        {tab === "pidol" && (
+          <>
+            特訓の「未」で未所持に。レアリティ・プラン・計算後のステータスは
+            データベースページで確認できます。
+          </>
+        )}
+        新しく実装されたサポカは完凸（4凸）として扱います。保存先はこのブラウザの中です（別端末・データ削除では引き継がれません）。
+      </p>
 
       {/* 所持状況の管理（新しく作る／名前・複製・削除／CSV） */}
       {manageOpen && (

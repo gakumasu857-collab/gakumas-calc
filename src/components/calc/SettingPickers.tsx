@@ -5,7 +5,7 @@ import NumberField from "@/components/NumberField";
 import StatOrderPicker from "@/components/calc/StatOrderPicker";
 import { GLOSSARY } from "@/lib/glossary";
 import { imageUrl } from "@/lib/config";
-import { P_IDOL_MASTERS } from "@/lib/pIdol";
+import { P_IDOL_IDOLS, P_IDOL_MASTERS } from "@/lib/pIdol";
 import {
   SCENARIO_KEYS,
   SCENARIO_LABELS,
@@ -485,7 +485,8 @@ export function ScenarioPickerModal({
   );
 }
 
-const IDOLS = [...new Set(P_IDOL_MASTERS.map((m) => m.idol))];
+// アイドル順（スプシ idleTypes の順。2026-11-09）
+const IDOLS = P_IDOL_IDOLS;
 
 /**
  * アイドルでフィルターして、Pアイドルを画像から選ぶモーダル。

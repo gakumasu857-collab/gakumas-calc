@@ -54,6 +54,23 @@ export const P_IDOL_MASTERS: PIdolMaster[] = typed.masters.map((m) => ({
   legacyKey: m.key,
   key: m.sheetId > 0 ? `pidol:${m.sheetId}` : m.key,
 }));
+/**
+ * アイドルの並び（スプシ idleTypes の行の順。そこに無いアイドルは後ろに、出てきた順）。
+ * 所持状況・データベース・アイドル選びはこの順に並べる（オーナー指定 2026-11-09「アイドル順にして」）。
+ */
+export const P_IDOL_IDOLS: string[] = [
+  ...new Set([...Object.keys(typed.idolRanks), ...P_IDOL_MASTERS.map((m) => m.idol)]),
+];
+/**
+ * 表示用の並び: アイドル順、同じアイドルの中はスプシの id 順。
+ * P_IDOL_MASTERS 自体の順（id 順）は「保存のあとに増えた新しいPアイドル」の判定（fillNewPIdols）に使うので変えない。
+ */
+export const P_IDOL_MASTERS_BY_IDOL: PIdolMaster[] = (() => {
+  const rank = new Map(P_IDOL_IDOLS.map((idol, i) => [idol, i]));
+  return P_IDOL_MASTERS.map((m, i) => ({ m, i }))
+    .sort((a, b) => (rank.get(a.m.idol) ?? 0) - (rank.get(b.m.idol) ?? 0) || a.i - b.i)
+    .map(({ m }) => m);
+})();
 export const P_IDOL_GROWTH = typed.growth;
 /** アイドルごとの審査基準ランク（Vo/Da/Vi）とバランス/特化タグ */
 export const IDOL_RANKS = typed.idolRanks;

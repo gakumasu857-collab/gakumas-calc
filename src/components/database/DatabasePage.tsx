@@ -7,13 +7,15 @@ import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import {
   computePIdolStats,
-  P_IDOL_MASTERS,
+  P_IDOL_IDOLS,
+  P_IDOL_MASTERS_BY_IDOL,
   type PIdolMaster,
 } from "@/lib/pIdol";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 
 const IMAGE_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c.image]));
-const IDOLS = [...new Set(P_IDOL_MASTERS.map((m) => m.idol))];
+// アイドル順（スプシ idleTypes の順。2026-11-09）
+const IDOLS = P_IDOL_IDOLS;
 
 const TYPE_CHIP: Record<string, string> = {
   Vocal: "bg-red-100 text-red-700",
@@ -276,7 +278,7 @@ function PIdolInfoTable() {
 
   const visible = useMemo(
     () =>
-      P_IDOL_MASTERS.filter((m) => {
+      P_IDOL_MASTERS_BY_IDOL.filter((m) => {
         if (idolFilter !== "すべて" && m.idol !== idolFilter) return false;
         if (rarityFilter !== "すべて" && m.rarity !== rarityFilter)
           return false;
