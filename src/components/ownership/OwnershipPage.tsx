@@ -7,6 +7,8 @@ import PIdolOwnership from "@/components/ownership/PIdolOwnership";
 import OwnedSaveBar from "@/components/ownership/OwnedSaveBar";
 import { BTN_SECONDARY } from "@/components/ui";
 import { markOwnershipVisited } from "@/lib/ownershipAck";
+import { importPIdolCsv, importSupportCsv } from "@/lib/ownershipCsv";
+import { clearPortalHash, hasPortalHash, readPortalHash } from "@/lib/portalImport";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import {
@@ -51,6 +53,41 @@ export default function OwnershipPage() {
     markOwnershipVisited();
     // 旧データ: 使用中が無いのに入力済みなら「自分の所持状況」として引き継ぐ
     adoptCustomizedAsOwn();
+  }, []);
+
+  // ハイ元クロスポータルの「ほぺマスで開く」から来たとき（/support#halogen=…）は、その所持状況を読み込む
+  const portalHandled = useRef(false);
+  useEffect(() => {
+    if (portalHandled.current || !hasPortalHash()) return;
+    portalHandled.current = true;
+    readPortalHash()
+      .then((p) => {
+        clearPortalHash();
+        if (!p) return;
+        const target =
+          saves.activeId === BUILTIN_ID
+            ? `「${DEFAULT_OWN_NAME}」（自動で作られます）`
+            : `「${saves.saves.find((s) => s.id === saves.activeId)?.name ?? DEFAULT_OWN_NAME}」`;
+        const ok = window.confirm(
+          `ハイ元クロスポータル${p.from ? `の ${p.from} さん` : ""}の所持状況を、${target}に読み込みます。
+
+` +
+            "ポータルにあるカードは、今の内容がポータルの内容で上書きされます（ポータルに無いカードはそのままです）。よろしいですか？",
+        );
+        if (!ok) return;
+        const sup = p.sup ? importSupportCsv(p.sup, levels.applyLevels) : { applied: 0, unmatched: [] };
+        const idol = p.idol ? importPIdolCsv(p.idol, pIdols.applyOwnership) : { applied: 0, unmatched: [] };
+        const miss = [...sup.unmatched, ...idol.unmatched];
+        notify(
+          `ポータルから読み込みました（サポカ ${sup.applied}枚・Pアイドル ${idol.applied}枚）` +
+            (miss.length ? `。こちらに無いカード ${miss.length}枚は飛ばしました: ${miss.slice(0, 3).join(" / ")}${miss.length > 3 ? " …" : ""}` : ""),
+        );
+      })
+      .catch(() => {
+        clearPortalHash();
+        notify("ポータルからのデータを読み込めませんでした。ポータルでもう一度「ほぺマスで開く」を押してください");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const active =
