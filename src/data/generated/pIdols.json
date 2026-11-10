@@ -1873,10 +1873,10 @@
    "sheetId": 156
   },
   {
-   "url": "",
+   "url": "skill/ファンが望むこと.webp",
    "idol": "雨夜燕",
    "cardName": "ガラクタロード",
-   "skillName": "",
+   "skillName": "ファンが望むこと",
    "rarity": "SSR",
    "plan": "アノマリー",
    "effect": "強気",
@@ -1885,10 +1885,10 @@
    "sheetId": 157
   },
   {
-   "url": "",
+   "url": "skill/わずかずつの歩み.webp",
    "idol": "倉本千奈",
    "cardName": "ガラクタロード",
-   "skillName": "",
+   "skillName": "わずかずつの歩み",
    "rarity": "SSR",
    "plan": "アノマリー",
    "effect": "全力",
@@ -1897,16 +1897,16 @@
    "sheetId": 158
   },
   {
-   "url": "",
+   "url": "skill/認めてくれるひと.webp",
    "idol": "秦谷美鈴",
    "cardName": "ガラクタロード",
-   "skillName": "",
+   "skillName": "認めてくれるひと",
    "rarity": "SSR",
    "plan": "ロジック",
    "effect": "好印象",
    "key": "秦谷美鈴ガラクタロード",
    "growthTag": "秦谷美鈴SSRフェス",
-   "sheetId": 158
+   "sheetId": 159
   }
  ],
  "growth": {

@@ -8,7 +8,6 @@ import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import {
-  buildSheetScoreContext,
   manualCountFromSet,
   TYPE_SHEET_ROLE,
 } from "@/lib/sheetContext";
@@ -25,7 +24,7 @@ import {
 import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { SCORE_EVENT_COUNTS_KEY, useEventCounts } from "@/lib/useEventCounts";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
-import { useSchedule } from "@/lib/useSchedule";
+import { useScenarioScoreContext } from "@/lib/useScenarioScoreContext";
 import { type TypeKey } from "@/lib/useCalcSettings";
 
 /** ソート状態の保存先（並べ替えはページを離れても維持する） */
@@ -96,7 +95,6 @@ type SortKey = "c0" | "c1" | "c2" | "c3" | "c4" | "owned";
 export default function CardScoreTable() {
   const { getLevel, loaded } = useOwnedLevels();
   const ability = useAbilityCounts();
-  const schedule = useSchedule();
   const events = useEventCounts();
   // 前イベの回数はこの表だけの設定（プロデュース設定・サポカ設定・計算ページには影響しない）
   const scoreEvents = useEventCounts(SCORE_EVENT_COUNTS_KEY);
@@ -160,17 +158,15 @@ export default function CardScoreTable() {
   }, [events.get, scoreEvents.get]);
 
   // スプシ準拠の計算コンテキスト（発動回数＋パラボ母数＋イベント回数設定）
-  const ctx: SheetScoreContext = useMemo(
+  // 計算ページで選んでいるシナリオの作り方で（レッスン回数・固定回数もそのシナリオ。2026-11-11）。回数はプロデュース設定の回数
+  const manual = useMemo(
     () =>
-      buildSheetScoreContext(
-        schedule,
-        manualCountFromSet(
-          selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
-        ),
-        eventOverride,
+      manualCountFromSet(
+        selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
       ),
-    [ability, selectedSet, schedule, eventOverride],
+    [ability, selectedSet],
   );
+  const { ctx } = useScenarioScoreContext(manual, eventOverride);
 
   const rows: Row[] = useMemo(() => {
     return SUPPORT_CARD_DB.map((card) => {

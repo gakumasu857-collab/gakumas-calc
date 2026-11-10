@@ -14,7 +14,6 @@ import { matchesCardQuery } from "@/lib/cardSearch";
 import { imageUrl } from "@/lib/config";
 import { itemCorrectionAuto } from "@/lib/sheetScore";
 import {
-  buildSheetScoreContext,
   manualCountFromSet,
   TYPE_SHEET_ROLE,
 } from "@/lib/sheetContext";
@@ -28,7 +27,7 @@ import { useAbilityCounts } from "@/lib/useAbilityCounts";
 import { useCardFlags } from "@/lib/useCardFlags";
 import { useEventCounts } from "@/lib/useEventCounts";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
-import { useSchedule } from "@/lib/useSchedule";
+import { useScenarioScoreContext } from "@/lib/useScenarioScoreContext";
 import { type TypeKey } from "@/lib/useCalcSettings";
 
 const IMAGE_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c.image]));
@@ -47,7 +46,6 @@ const TYPE_OF_CARD: Record<string, TypeKey> = {
 export default function CardSettingsPage() {
   const { getLevel, loaded } = useOwnedLevels();
   const ability = useAbilityCounts();
-  const schedule = useSchedule();
   const flags = useCardFlags();
   const events = useEventCounts();
 
@@ -61,17 +59,15 @@ export default function CardSettingsPage() {
   const selectedSet = ability.sets.find((s) => s.id === ability.selectedSetId);
   // カードは自タイプの踏み回数を参照（固定対応）
   const typeRole = TYPE_SHEET_ROLE;
-  const ctx: SheetScoreContext = useMemo(
+  // 計算ページで選んでいるシナリオの作り方で（レッスン回数・固定回数もそのシナリオ。2026-11-11）。回数はプロデュース設定の回数
+  const manual = useMemo(
     () =>
-      buildSheetScoreContext(
-        schedule,
-        manualCountFromSet(
-          selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
-        ),
-        events.get,
+      manualCountFromSet(
+        selectedSet ? (key) => ability.getCount(selectedSet, key) : null,
       ),
-    [ability, selectedSet, schedule, events.get],
+    [ability, selectedSet],
   );
+  const { ctx } = useScenarioScoreContext(manual, events.get);
 
   // 計算ページのサポカ選択と同じ「点数の高い順」で並べる（所持凸、未所持は完凸想定）
   const scoreOf = useMemo(() => {
