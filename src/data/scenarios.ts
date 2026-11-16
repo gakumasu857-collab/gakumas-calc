@@ -302,27 +302,38 @@ export const HATSU_LESSONS = [
   p: number;
 }[];
 
-/** 初のレッスンで出せる点数の上限（＝パーフェクト。踏んだタイプの素ステの上限） */
-export function hatsuLessonScoreCap(index: number, sp: boolean): number {
-  return HATSU_LESSONS[index]?.perfectMain[sp ? 1 : 0] ?? 0;
+/** HATSU_LESSONS のパーフェクトの値が前提にしているレッスン上限の合計（チャレンジPアイテム3枠とも+30） */
+const HATSU_TABLE_CAP = 90;
+
+/**
+ * 初のレッスンで出せる点数の上限（＝パーフェクト。踏んだタイプの素ステの上限）。
+ * capBonus＝チャレンジPアイテムのレッスン上限の合計（既定 +90＝表の値）。少なければその分だけ下がる（2026-11-16）
+ */
+export function hatsuLessonScoreCap(index: number, sp: boolean, capBonus = HATSU_TABLE_CAP): number {
+  const v = HATSU_LESSONS[index]?.perfectMain[sp ? 1 : 0];
+  return v === undefined ? 0 : Math.max(0, v - (HATSU_TABLE_CAP - capBonus));
 }
 
 /**
  * 初のレッスンの素ステ上昇。レッスン中の点数がそのまま踏んだタイプに入り、
  * クリアラインを超えた分は残り2タイプにも同じだけ入る（どちらもパラボが掛かる）。
  * score 省略＝上限（パーフェクト）。上限のときは実測の perfectSub を返す。
+ * capBonus＝チャレンジPアイテムのレッスン上限の合計（既定 +90）。少ない分だけパーフェクトの値（踏んだタイプ・他タイプとも）が下がる。
  */
 export function hatsuLessonGains(
   index: number,
   sp: boolean,
   score?: number,
+  capBonus = HATSU_TABLE_CAP,
 ): { main: number; other: number } {
   const lesson = HATSU_LESSONS[index];
   if (!lesson) return { main: 0, other: 0 };
   const k = sp ? 1 : 0;
-  const cap = lesson.perfectMain[k];
+  const short = Math.max(0, HATSU_TABLE_CAP - capBonus);
+  const cap = Math.max(0, lesson.perfectMain[k] - short);
   // 上限（パーフェクト）は実測値の perfectSub をそのまま使う（非SPは「点数−クリア」と1点ずれる週がある）
-  if (score === undefined || score >= cap) return { main: cap, other: lesson.perfectSub[k] };
+  if (score === undefined || score >= cap)
+    return { main: cap, other: Math.max(0, lesson.perfectSub[k] - short) };
   const s = Math.max(0, score);
   return { main: s, other: Math.max(0, s - lesson.clear[k]) };
 }

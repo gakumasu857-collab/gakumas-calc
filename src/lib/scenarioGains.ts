@@ -126,6 +126,8 @@ export type HatsuStateLike = {
   classTypes: (TypeKey | null)[];
   midRank: number;
   finalRank: number;
+  /** チャレンジPアイテムのレッスン上限の合計（無ければ +90＝表の値）。計算ページが設定から入れる */
+  capBonus?: number;
 };
 
 /**
@@ -207,7 +209,7 @@ export function computeHatsuGains(state: HatsuStateLike) {
   HATSU_LESSONS.forEach((lesson, i) => {
     const pick = state.lessons[i];
     if (!pick.main) return; // 踏まないレッスン
-    const g = hatsuLessonGains(i, pick.sp, pick.score);
+    const g = hatsuLessonGains(i, pick.sp, pick.score, state.capBonus);
     for (const type of TYPE_KEYS) {
       lessons[type] += type === pick.main ? g.main : g.other;
     }
@@ -288,7 +290,7 @@ export function buildHatsuScoreContext(
       lessons: HATSU_LESSONS.map((_, i) => {
         const pick = state.lessons[i];
         if (!pick.main) return 0;
-        const g = hatsuLessonGains(i, pick.sp, pick.score);
+        const g = hatsuLessonGains(i, pick.sp, pick.score, state.capBonus);
         return pick.main === type ? g.main : g.other;
       }),
       exams: [],

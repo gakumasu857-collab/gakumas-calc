@@ -205,6 +205,8 @@ export type AutoOptimizeInput = {
   statCap: number;
   /** H.I.Fボーナス（固定・パラボ%。無ければ最大＝+100/+10%） */
   hifBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
+  /** 初: チャレンジPアイテムの固定値・パラボ%（hatsuLegend のときだけ足す。無ければ0） */
+  hatsuBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
   tag: NiaTag;
   /** タイプ→審査基準ランク（NIAのオーディション式に使用） */
   ranks: TypeRanks;
@@ -1836,10 +1838,19 @@ export class OptimizeEngine {
     const basePct = {} as Record<TypeKey, number>;
     const baseStats = {} as Record<TypeKey, number>;
     // H.I.Fボーナス（既定は全タイプ固定+100・パラボ+10%。設定で下げられる）はHIFシナリオ限定
+    // 初はチャレンジPアイテムの固定値・パラボ%（計算ページと同じ。2026-11-16）
     const hifFixedOf = (t: TypeKey) =>
-      input.scenario === "hif" ? (input.hifBonus?.fixed[t] ?? 100) : 0;
+      input.scenario === "hif"
+        ? (input.hifBonus?.fixed[t] ?? 100)
+        : input.scenario === "hatsuLegend"
+          ? (input.hatsuBonus?.fixed[t] ?? 0)
+          : 0;
     const hifPctOf = (t: TypeKey) =>
-      input.scenario === "hif" ? (input.hifBonus?.pct[t] ?? 10) : 0;
+      input.scenario === "hif"
+        ? (input.hifBonus?.pct[t] ?? 10)
+        : input.scenario === "hatsuLegend"
+          ? (input.hatsuBonus?.pct[t] ?? 0)
+          : 0;
     for (const type of TYPE_KEYS) {
       basePct[type] =
         memPct[type] + (input.pStats?.parabo[type] ?? 0) + hifPctOf(type);

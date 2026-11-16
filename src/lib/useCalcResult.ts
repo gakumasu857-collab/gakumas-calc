@@ -73,6 +73,7 @@ import { supplyPFromChoices } from "@/data/scheduleCalendar";
 import { P_SALE_POINTS } from "@/data/abilityCounts";
 import { useNiaSchedule } from "./useNiaSchedule";
 import { niaChallengeTotal } from "@/data/niaChallenge";
+import { hatsuChallengeFor } from "./hatsuChallengeSetup";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
 import { useScenario } from "./useScenario";
@@ -172,6 +173,9 @@ export function useCalcResult() {
     let niaVotesBase = { sales: 0, auditions: 0, finale: 0, base: 0 };
     // N.I.A: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる）
     const niaChallengePct = niaChallengeTotal(settings.niaChallenge);
+    // 初: チャレンジPアイテム（レッスン上限の合計・パラボ%・固定値）
+    const hatsuChallenge = hatsuChallengeFor(settings);
+    const hatsuState = { ...hatsuSchedule, capBonus: hatsuChallenge.capBonus };
     let niaAuditionBase: Record<TypeKey, number>[] = [];
     let ctx;
     // レッスン由来のPポイント合計と、踏んだレッスン1回ごとのPポイント（P率の母数）。
@@ -193,7 +197,7 @@ export function useCalcResult() {
       });
       ctx = buildNiaScoreContext(niaSchedule, manual, eventOverride, niaTag, typeRanks, niaChallengePct);
     } else if (scenario === "hatsuLegend") {
-      const hatsu = computeHatsuGains(hatsuSchedule);
+      const hatsu = computeHatsuGains(hatsuState);
       bd = hatsu.breakdown;
       schedGains = hatsu.gains;
       lessonP = hatsu.pPoints;
@@ -202,7 +206,7 @@ export function useCalcResult() {
         if (pick?.main)
           lessonPList.push({ p: lesson.p, main: pick.main, sp: pick.sp, honsen: false });
       });
-      ctx = buildHatsuScoreContext(hatsuSchedule, manual, eventOverride);
+      ctx = buildHatsuScoreContext(hatsuState, manual, eventOverride);
     } else {
       const sched = computeScheduleGains(schedule, settings.affection);
       bd = sched.breakdown;
@@ -276,9 +280,12 @@ export function useCalcResult() {
     // ---- タイプごとの集計 ----
     // パラボは全ソース（メモリー＋Pアイドル＋サポカ）を合算してから1回で変換する
     // （カードごとに個別変換すると切り捨てが多く発生して実際より低く出る）
-    // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定
-    const hifFixedOf = (t: TypeKey) => (scenario === "hif" ? hifBonus.fixed[t] : 0);
-    const hifPctOf = (t: TypeKey) => (scenario === "hif" ? hifBonus.pct[t] : 0);
+    // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定。
+    // 初はチャレンジPアイテムの固定値（ボイスレコーダーなど +15×5）とパラボ%（教科書 +8.5%）をここに足す（2026-11-16）
+    const hifFixedOf = (t: TypeKey) =>
+      scenario === "hif" ? hifBonus.fixed[t] : scenario === "hatsuLegend" ? hatsuChallenge.fixed[t] : 0;
+    const hifPctOf = (t: TypeKey) =>
+      scenario === "hif" ? hifBonus.pct[t] : scenario === "hatsuLegend" ? hatsuChallenge.pct[t] : 0;
     const basePct = {} as Record<TypeKey, number>;
     for (const type of TYPE_KEYS) {
       basePct[type] = memPct[type] + (pStats?.parabo[type] ?? 0) + hifPctOf(type);
@@ -657,6 +664,8 @@ export function useCalcResult() {
       niaAuditionBase,
       /** N.I.A: チャレンジPアイテムの獲得ボーナス合計% */
       niaChallengePct,
+      /** 初: 計算に使うチャレンジPアイテム（おまかせ・プラン違いは決めたもの）。他シナリオでも中身はある */
+      hatsuChallenge,
     };
   }, [
     settings,

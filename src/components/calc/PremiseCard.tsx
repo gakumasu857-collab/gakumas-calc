@@ -306,7 +306,7 @@ function ScenarioScoreCard({
   r: CalcResult;
   /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
   onOpenDetail: () => void;
-  /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.Aのとき） */
+  /** チャレンジPアイテムのモーダルを開く（N.I.A＝獲得ボーナス、初＝3枠のアイテム） */
   onOpenNiaChallenge: () => void;
 }) {
   const { calc } = r;
@@ -387,8 +387,25 @@ function ScenarioScoreCard({
           </div>
         </Field>
       </div>
+      <HatsuChallengeRow r={r} onOpen={onOpenNiaChallenge} />
       <DetailRow r={r} onOpen={onOpenDetail} />
     </SettingSub>
+  );
+}
+
+/** 初のチャレンジPアイテム（既定はおまかせ＝3枠とも高難易度）の要約と「調整」 */
+function HatsuChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
+  const c = r.hatsuChallenge;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+      <span className="font-bold text-slate-700">チャレンジPアイテム</span>
+      <span>
+        {c.items.map((i) => i.id).join("＋")}＝<b className="text-slate-800">レッスン上限+{c.capBonus}</b>
+      </span>
+      <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
+        調整
+      </button>
+    </div>
   );
 }
 

@@ -10,6 +10,7 @@ import FormationPlanCard from "@/components/calc/FormationPlanCard";
 import DetailSettingsModal from "@/components/calc/DetailSettingsModal";
 import { useExamGuard } from "@/components/calc/ExamPolicyModal";
 import NiaChallengeModal from "@/components/calc/NiaChallengeModal";
+import HatsuChallengeModal from "@/components/calc/HatsuChallengeModal";
 import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PIdolTrainingModal from "@/components/calc/PIdolTrainingModal";
@@ -835,8 +836,13 @@ export default function CalcPage() {
       )}
       {/* 詳細設定（親愛度・H.I.Fボーナス） */}
       {detailOpen && <DetailSettingsModal r={r} onClose={() => setDetailOpen(false)} />}
-      {/* チャレンジPアイテムの獲得ボーナス（N.I.A） */}
-      {niaChallengeOpen && <NiaChallengeModal r={r} onClose={() => setNiaChallengeOpen(false)} />}
+      {/* チャレンジPアイテム（N.I.A＝獲得ボーナス、初＝3枠のアイテム） */}
+      {niaChallengeOpen &&
+        (r.scenario === "hatsuLegend" ? (
+          <HatsuChallengeModal r={r} onClose={() => setNiaChallengeOpen(false)} />
+        ) : (
+          <NiaChallengeModal r={r} onClose={() => setNiaChallengeOpen(false)} />
+        ))}
 
       {/* パラボ%→固定値の変換表 */}
       {paraboOpen && (

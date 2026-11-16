@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { niaChallengeTotal } from "@/data/niaChallenge";
+import { hatsuChallengeFor } from "./hatsuChallengeSetup";
 import { IDOL_RANKS } from "./pIdol";
 import type { NiaTag } from "@/data/scenarios";
 import { buildHatsuScoreContext, buildNiaScoreContext } from "./scenarioGains";
@@ -41,9 +42,14 @@ export function useScenarioScoreContext(
         niaChallengeTotal(settings.niaChallenge),
       );
     }
-    if (scenario === "hatsuLegend") return buildHatsuScoreContext(hatsuSchedule, manualCount, eventCounts);
+    if (scenario === "hatsuLegend")
+      return buildHatsuScoreContext(
+        { ...hatsuSchedule, capBonus: hatsuChallengeFor(settings).capBonus },
+        manualCount,
+        eventCounts,
+      );
     return buildSheetScoreContext(schedule, manualCount, eventCounts);
-  }, [scenario, schedule, niaSchedule, hatsuSchedule, settings.idol, settings.niaChallenge, manualCount, eventCounts]);
+  }, [scenario, schedule, niaSchedule, hatsuSchedule, settings, manualCount, eventCounts]);
 
   return { ctx, scenario };
 }

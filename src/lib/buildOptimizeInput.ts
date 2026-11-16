@@ -67,7 +67,9 @@ export function buildAutoOptimizeInput(
     },
     nia: r.niaSchedule,
     niaChallengePct: niaChallengeTotal(r.calc.settings.niaChallenge),
-    hatsu: r.hatsuSchedule,
+    // 初: チャレンジPアイテムのレッスン上限の合計と、固定値・パラボ%（計算ページと同じ）
+    hatsu: { ...r.hatsuSchedule, capBonus: r.hatsuChallenge.capBonus },
+    hatsuBonus: { fixed: r.hatsuChallenge.fixed, pct: r.hatsuChallenge.pct },
     memories: r.memoryStore.slotMemories.map((m) => m ?? undefined),
     pStats: r.pStats,
     plan: r.plan,

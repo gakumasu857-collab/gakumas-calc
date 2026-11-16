@@ -16,6 +16,7 @@ import type { AbilityName } from "@/data/constants";
 import { CLASSES, EXAMS, examStarCapScore, LESSONS } from "@/data/schedule";
 import { hifBonusValues } from "@/data/hifBonus";
 import { niaChallengeTotal, normalizeNiaChallenge } from "@/data/niaChallenge";
+import { hatsuChallengeFor } from "./hatsuChallengeSetup";
 import { SCENARIO_CAPS, type ScenarioKey } from "@/data/scenarios";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import {
@@ -102,6 +103,12 @@ export function buildInput(): AutoOptimizeInput {
     ),
   );
   const hif = loadHifState();
+  // 初のチャレンジPアイテム（計算ページの設定。無ければおまかせ）
+  const hatsuChallenge = hatsuChallengeFor({
+    idol: settings.idol,
+    pIdol: settings.pIdol,
+    hatsuChallenge: loadJson<{ hatsuChallenge?: unknown }>("gakumas:calcSettings:v1", {}).hatsuChallenge,
+  });
 
   // メモリー（v2: 4枠の中身。無ければ旧形式のID配列、それも無ければメインパラボ60×4）
   const library = loadJson<Memory[]>("gakumas:memories:v1", []);
@@ -194,6 +201,7 @@ export function buildInput(): AutoOptimizeInput {
       finalScores: { vocal: 0, dance: 0, visual: 0 },
     },
     hatsu: {
+      capBonus: hatsuChallenge.capBonus,
       lessons: [],
       classTypes: [],
       midRank: 1,
@@ -206,6 +214,7 @@ export function buildInput(): AutoOptimizeInput {
     plan: pMaster?.plan ?? null,
     statCap: scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario],
     hifBonus,
+    hatsuBonus: { fixed: hatsuChallenge.fixed, pct: hatsuChallenge.pct },
     niaChallengePct,
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),

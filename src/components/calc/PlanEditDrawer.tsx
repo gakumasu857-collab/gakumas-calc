@@ -809,8 +809,9 @@ function HatsuEditor({ r }: { r: CalcResult }) {
           head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP", "点数"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
-            const cap = hatsuLessonScoreCap(i, pick.sp);
-            const g = hatsuLessonGains(i, pick.sp, pick.score);
+            // レッスン上限はチャレンジPアイテムの合計で変わる（設定欄の「チャレンジPアイテム」）
+            const cap = hatsuLessonScoreCap(i, pick.sp, r.hatsuChallenge.capBonus);
+            const g = hatsuLessonGains(i, pick.sp, pick.score, r.hatsuChallenge.capBonus);
             const mainValue = g.main;
             // クリアラインを超えた分は踏んでいないタイプにも入る
             const offValue = pick.main ? g.other : 0;
@@ -1325,7 +1326,7 @@ function HatsuNumbers() {
         </tbody>
       </table>
       <p className="mb-4 text-xs text-slate-500">
-        ※ パーフェクト時は踏んだタイプ以外にも「パフェ他タイプ」の値が入る。パフェ値はチャレンジPアイテムでレッスン上限を最大(+90)にした時の数値。
+        ※ パーフェクト時は踏んだタイプ以外にも「パフェ他タイプ」の値が入る。パフェ値はチャレンジPアイテムでレッスン上限を最大(+90)にした時の数値。上限の合計が少ないときは、その差だけパフェ値が下がる（設定欄の「チャレンジPアイテム」で選んだ分で計算します）。
       </p>
       <h3 className="mb-1 text-xs font-bold text-slate-700">授業（選んだ1タイプ）</h3>
       <table className="mb-4 w-full border-collapse text-xs tabular-nums">

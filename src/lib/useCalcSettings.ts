@@ -7,6 +7,7 @@ import type { Memory, SlotMemory } from "./memoryTypes";
 import { AFFECTION_DEFAULT, normalizeAffection } from "@/data/affection";
 import { hifBonusMax, normalizeHifBonus, type HifBonusLevels } from "@/data/hifBonus";
 import { NIA_CHALLENGE_MAX, normalizeNiaChallenge, type NiaChallenge } from "@/data/niaChallenge";
+import { HATSU_CHALLENGE_DEFAULT, normalizeHatsuChallenge, type HatsuChallenge } from "@/data/hatsuChallenge";
 import type { ScheduleChoices } from "@/data/scheduleCalendar";
 import type { EventCountOverride } from "./sheetScore";
 import type { PIdolOwnership } from "./useOwnedPIdols";
@@ -97,6 +98,8 @@ export type CalcSettings = {
   hifBonus: HifBonusLevels;
   /** N.I.AのチャレンジPアイテム3枠の獲得ボーナス%（N.I.A限定。既定は各枠の最大＝15/20/20） */
   niaChallenge: NiaChallenge;
+  /** 初レジェンドのチャレンジPアイテム3枠（アイテム名。null＝おまかせ。初限定。data/hatsuChallenge.ts） */
+  hatsuChallenge: HatsuChallenge;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
   round2: number;
@@ -123,6 +126,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   affection: AFFECTION_DEFAULT,
   hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
+  hatsuChallenge: [...HATSU_CHALLENGE_DEFAULT] as HatsuChallenge,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,
@@ -243,6 +247,7 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     affection: normalizeAffection(stored.affection),
     hifBonus: normalizeHifBonus(stored.hifBonus),
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
+    hatsuChallenge: normalizeHatsuChallenge(stored.hatsuChallenge),
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
     statOrder: normalizeStatOrder(stored.statOrder),
     // 真偽値以外（壊れた値・旧データ）は既定に戻す

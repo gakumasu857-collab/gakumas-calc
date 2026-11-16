@@ -46,7 +46,11 @@ for (const c of CASES) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const input: any = hif
     ? buildInput()
-    : { ...buildInput(), nia: loadNiaState(), hatsu: loadHatsuState() };
+    : (() => {
+        const base = buildInput();
+        // 初はチャレンジPアイテムのレッスン上限の合計を引き継ぐ（設定なし＝おまかせ）
+        return { ...base, nia: loadNiaState(), hatsu: { ...loadHatsuState(), capBonus: base.hatsu.capBonus } };
+      })();
   const res = runFullOptimize(hif ? input : { ...input, examPolicy: "single" })!;
   const plan = optimizeSteppingForSlots(input, res.slots)!;
   console.log(
