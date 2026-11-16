@@ -57,10 +57,13 @@ export const P_IDOL_MASTERS: PIdolMaster[] = typed.masters.map((m) => ({
 /**
  * アイドルの並び（スプシ idleTypes の行の順。そこに無いアイドルは後ろに、出てきた順）。
  * 所持状況・データベース・アイドル選びはこの順に並べる（オーナー指定 2026-11-09「アイドル順にして」）。
+ * Pアイドルのカードが1枚も無いアイドル（idleTypes にだけ足したばかり。例: 2026-11-16 の氷渡香名江）は出さない
+ * （選んでも何も選べない欄になるため。pidleName に行が入れば自動で出る）。
  */
+const IDOLS_WITH_CARDS = new Set(P_IDOL_MASTERS.map((m) => m.idol));
 export const P_IDOL_IDOLS: string[] = [
   ...new Set([...Object.keys(typed.idolRanks), ...P_IDOL_MASTERS.map((m) => m.idol)]),
-];
+].filter((idol) => IDOLS_WITH_CARDS.has(idol));
 /**
  * 表示用の並び: アイドル順、同じアイドルの中はスプシの id 順。
  * P_IDOL_MASTERS 自体の順（id 順）は「保存のあとに増えた新しいPアイドル」の判定（fillNewPIdols）に使うので変えない。

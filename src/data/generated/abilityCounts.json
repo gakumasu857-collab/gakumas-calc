@@ -1186,7 +1186,7 @@
     "0-16": null,
     "0-18": "supply",
     "0-21": "supply",
-    "0-25": "date"
+    "0-25": "meeting"
    },
    {
     "0-3": "supply",
@@ -1197,7 +1197,7 @@
     "0-16": null,
     "0-18": "supply",
     "0-21": "supply",
-    "0-25": "date"
+    "0-25": "meeting"
    },
    {
     "0-3": "date",
@@ -1219,7 +1219,7 @@
     "0-16": "lecture",
     "0-18": "supply",
     "0-21": "supply",
-    "0-25": "date"
+    "0-25": "meeting"
    },
    {
     "0-3": "supply",
@@ -1252,7 +1252,7 @@
     "0-16": "lecture",
     "0-18": "supply",
     "0-21": "supply",
-    "0-25": "date"
+    "0-25": "meeting"
    },
    {
     "0-3": "supply",
