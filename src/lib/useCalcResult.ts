@@ -174,8 +174,8 @@ export function useCalcResult() {
     // N.I.A: チャレンジPアイテムの獲得ボーナス合計%（オーディションの素点に掛かる）
     const niaChallengePct = niaChallengeTotal(settings.niaChallenge);
     // 初: チャレンジPアイテム（レッスン上限の合計・パラボ%・固定値）
-    const hatsuChallenge = hatsuChallengeFor(settings);
-    const hatsuState = { ...hatsuSchedule, capBonus: hatsuChallenge.capBonus };
+    // レッスン上限の合計（おまかせの1枠目のタイプは踏み方が決まってから下でサブのタイプに）
+    const hatsuState = { ...hatsuSchedule, capBonus: hatsuChallengeFor(settings).capBonus };
     let niaAuditionBase: Record<TypeKey, number>[] = [];
     let ctx;
     // レッスン由来のPポイント合計と、踏んだレッスン1回ごとのPポイント（P率の母数）。
@@ -232,6 +232,8 @@ export function useCalcResult() {
     // ---- メモリー（メモリーページのスロット4枚） ----
     // パラボ追従メモリーは「パラボ母数が大きい上位2タイプに%・残りに固定値」で展開
     const paraboAssign = paraboAssignFromGains(ctx.gains);
+    // 初: チャレンジPアイテム。おまかせの1枠目はサブのタイプ（パラボの母数がいちばん小さいタイプ）に付ける
+    const hatsuChallenge = hatsuChallengeFor(settings, paraboAssign.sub);
     const mem = calcMemoryTotals(
       memoryStore.slotMemories.map((memory) =>
         memory ? resolveParaboMemory(memory, paraboAssign) : undefined,

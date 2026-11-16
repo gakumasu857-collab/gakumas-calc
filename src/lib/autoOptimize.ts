@@ -205,8 +205,11 @@ export type AutoOptimizeInput = {
   statCap: number;
   /** H.I.Fボーナス（固定・パラボ%。無ければ最大＝+100/+10%） */
   hifBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
-  /** 初: チャレンジPアイテムの固定値・パラボ%（hatsuLegend のときだけ足す。無ければ0） */
-  hatsuBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number> };
+  /**
+   * 初: チャレンジPアイテムの固定値・パラボ%（hatsuLegend のときだけ足す。無ければ0）。
+   * autoSubFlat＝おまかせの1枠目の固定値（+15×5）。踏み方ごとにサブのタイプ（パラボの母数がいちばん小さいタイプ）へ足す
+   */
+  hatsuBonus?: { fixed: Record<TypeKey, number>; pct: Record<TypeKey, number>; autoSubFlat?: number };
   tag: NiaTag;
   /** タイプ→審査基準ランク（NIAのオーディション式に使用） */
   ranks: TypeRanks;
@@ -1843,7 +1846,7 @@ export class OptimizeEngine {
       input.scenario === "hif"
         ? (input.hifBonus?.fixed[t] ?? 100)
         : input.scenario === "hatsuLegend"
-          ? (input.hatsuBonus?.fixed[t] ?? 0)
+          ? (input.hatsuBonus?.fixed[t] ?? 0) + (t === assign.sub ? (input.hatsuBonus?.autoSubFlat ?? 0) : 0)
           : 0;
     const hifPctOf = (t: TypeKey) =>
       input.scenario === "hif"

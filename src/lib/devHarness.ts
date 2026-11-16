@@ -214,7 +214,11 @@ export function buildInput(): AutoOptimizeInput {
     plan: pMaster?.plan ?? null,
     statCap: scenario === "hif" ? hifBonus.statCap : SCENARIO_CAPS[scenario],
     hifBonus,
-    hatsuBonus: { fixed: hatsuChallenge.fixed, pct: hatsuChallenge.pct },
+    hatsuBonus: {
+      fixed: hatsuChallenge.fixedExceptAuto,
+      pct: hatsuChallenge.pct,
+      autoSubFlat: hatsuChallenge.autoFlat,
+    },
     niaChallengePct,
     tag: IDOL_RANKS[settings.idol]?.tag === "特化" ? "skew" : "flat",
     ranks: typeRanksOf(settings.idol),

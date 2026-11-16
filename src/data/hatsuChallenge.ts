@@ -123,42 +123,54 @@ export type HatsuChallengeResolved = {
   picked: HatsuChallenge;
   /** レッスン上限の合計 */
   capBonus: number;
-  /** タイプごとのパラボ%・固定値 */
+  /** タイプごとのパラボ%・固定値（おまかせの1枠目は autoType に付けた値込み） */
   pct: Record<TypeKey, number>;
   fixed: Record<TypeKey, number>;
+  /** おまかせの1枠目を除いた固定値と、おまかせの1枠目の固定値（探索は踏み方ごとにサブのタイプへ付け直すため分けて持つ） */
+  fixedExceptAuto: Record<TypeKey, number>;
+  autoFlat: number;
 };
 
 /**
  * 選択を計算に使える形にする。
- * - おまかせ（null）: 1枠目は審査基準がいちばん高いタイプの【高難易度】（+15×5）、2・3枠目はプランの最初の【高難易度】
- *   （どれも上限+30＝今までの計算と同じ合計+90）
+ * - おまかせ（null）: 1枠目は autoType（踏み方のサブのタイプ＝パラボの母数がいちばん小さいタイプ）の【高難易度】（+15×5）、
+ *   2・3枠目はプランの最初の【高難易度】（どれも上限+30＝今までの計算と同じ合計+90。オーナー指定 2026-11-16）
  * - 2・3枠目でPアイドルのプランに無いアイテムを選んでいた（Pアイドルを変えた）ときは、同じ上限のプランのアイテムに読み替える
  */
 export function resolveHatsuChallenge(
   picked: HatsuChallenge,
-  opts: { plan: HatsuPlan; topType: TypeKey },
+  opts: { plan: HatsuPlan; autoType: TypeKey },
 ): HatsuChallengeResolved {
   const pick = (slot: 1 | 2 | 3): HatsuChallengeItem => {
     const choices = hatsuChallengeChoices(slot, opts.plan);
     const chosen = picked[slot - 1] ? ITEM_BY_ID.get(picked[slot - 1]!) : undefined;
     if (chosen && choices.includes(chosen)) return chosen;
     if (chosen) return choices.find((c) => c.capBonus === chosen.capBonus) ?? choices[0];
-    if (slot === 1) return choices.find((c) => c.flat?.type === opts.topType) ?? choices[0];
+    if (slot === 1) return choices.find((c) => c.flat?.type === opts.autoType) ?? choices[0];
     return choices.find((c) => c.hard) ?? choices[0];
   };
   const items = [pick(1), pick(2), pick(3)] as HatsuChallengeResolved["items"];
   const pct: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
   const fixed: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-  for (const i of items) {
+  const fixedExceptAuto: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+  const slot1Auto = picked[0] === null;
+  let autoFlat = 0;
+  items.forEach((i, idx) => {
     if (i.pct) pct[i.pct.type] += i.pct.value;
-    if (i.flat) fixed[i.flat.type] += i.flat.value;
-  }
+    if (i.flat) {
+      fixed[i.flat.type] += i.flat.value;
+      if (idx === 0 && slot1Auto) autoFlat += i.flat.value;
+      else fixedExceptAuto[i.flat.type] += i.flat.value;
+    }
+  });
   return {
     items,
     picked,
     capBonus: items.reduce((s, i) => s + i.capBonus, 0),
     pct,
     fixed,
+    fixedExceptAuto,
+    autoFlat,
   };
 }
 

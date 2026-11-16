@@ -69,7 +69,12 @@ export function buildAutoOptimizeInput(
     niaChallengePct: niaChallengeTotal(r.calc.settings.niaChallenge),
     // 初: チャレンジPアイテムのレッスン上限の合計と、固定値・パラボ%（計算ページと同じ）
     hatsu: { ...r.hatsuSchedule, capBonus: r.hatsuChallenge.capBonus },
-    hatsuBonus: { fixed: r.hatsuChallenge.fixed, pct: r.hatsuChallenge.pct },
+    // おまかせの1枠目（+15×5）は探索の踏み方ごとにサブのタイプへ付け直すので、固定値から分けて渡す
+    hatsuBonus: {
+      fixed: r.hatsuChallenge.fixedExceptAuto,
+      pct: r.hatsuChallenge.pct,
+      autoSubFlat: r.hatsuChallenge.autoFlat,
+    },
     memories: r.memoryStore.slotMemories.map((m) => m ?? undefined),
     pStats: r.pStats,
     plan: r.plan,

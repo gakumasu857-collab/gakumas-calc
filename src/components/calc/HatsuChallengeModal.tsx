@@ -24,7 +24,7 @@ export default function HatsuChallengeModal({
   const picked = normalizeHatsuChallenge(r.calc.settings.hatsuChallenge);
   const resolved = r.hatsuChallenge;
   const plan = hatsuPlanOf(r.pMaster?.plan);
-  const setSlot = (slot: number, id: string) => {
+  const setSlot = (slot: number, id: string | null) => {
     const next = [...picked] as HatsuChallenge;
     next[slot] = id;
     r.calc.update({ hatsuChallenge: next });
@@ -37,6 +37,7 @@ export default function HatsuChallengeModal({
         （ライバルのスコア・パラメータ上昇量増加・好調や集中などの効果は入れません）。
         ボイスレコーダーなどの「+15」は、プロデュース中5回とも発動する前提です。
         2枠目・3枠目は{plan ? `Pアイドルのプラン（${plan}）` : "Pアイドルのプラン"}のアイテムです。
+        1枠目を「おまかせ」にしておくと、踏み方のサブのタイプ（パラボの効果がいちばん小さいタイプ）の高難易度が自動で入ります（探索で踏み方が変わっても付け替わります）。
       </p>
       {([1, 2, 3] as const).map((slot) => {
         const choices = hatsuChallengeChoices(slot, plan);
@@ -47,12 +48,30 @@ export default function HatsuChallengeModal({
             <div className="flex flex-wrap items-baseline gap-x-2">
               <span className="text-sm font-bold text-slate-900">{slot}枠目</span>
               <span className="text-xs text-slate-500">
-                {current.id}（{hatsuChallengeEffectText(current)}）{auto ? "・おまかせ" : ""}
+                {current.id}（{hatsuChallengeEffectText(current)}）{auto ? (slot === 1 ? "・おまかせ（サブのタイプ）" : "・おまかせ") : ""}
               </span>
             </div>
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {/* 1枠目だけ「おまかせ」（踏み方のサブのタイプの高難易度。踏み方で付け替わる） */}
+              {slot === 1 && (
+                <button
+                  type="button"
+                  onClick={() => setSlot(0, null)}
+                  className={`col-span-full flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition ${
+                    auto
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="font-bold">おまかせ（サブのタイプに自動で）</span>
+                  <span className={`shrink-0 text-[11px] ${auto ? "text-blue-100" : "text-slate-500"}`}>
+                    レッスン上限+30・サブのタイプ+15×5回
+                  </span>
+                </button>
+              )}
               {choices.map((c) => {
-                const on = c.id === current.id;
+                // おまかせ中の1枠目は「おまかせ」のほうを光らせる（同じアイテムを押すと固定になる）
+                const on = c.id === current.id && !(slot === 1 && auto);
                 return (
                   <button
                     key={c.id}
@@ -88,7 +107,7 @@ export default function HatsuChallengeModal({
           type="button"
           onClick={() => r.calc.update({ hatsuChallenge: [...HATSU_CHALLENGE_DEFAULT] as HatsuChallenge })}
           className={BTN_SECONDARY}
-          title="1枠目は審査基準がいちばん高いタイプの高難易度、2・3枠目はプランの高難易度"
+          title="1枠目は踏み方のサブのタイプの高難易度（踏み方を変えると付け替わる）、2・3枠目はプランの高難易度"
         >
           おまかせに戻す
         </button>
