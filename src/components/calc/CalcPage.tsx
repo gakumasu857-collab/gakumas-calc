@@ -590,6 +590,7 @@ export default function CalcPage() {
       onFormationOnly={() => guardPIdol(applyIdealFormation)}
       onPlanOnly={() => examGuard.ask("plan", runPlanOnly)}
       onConditions={() => setTheoryOpen(true)}
+      conditionCount={conditionChips.length}
     />
   );
 
@@ -632,6 +633,7 @@ export default function CalcPage() {
           onOpenIdolTraining={() => setTrainingOpen(true)}
           onOpenDetail={() => setDetailOpen(true)}
           onOpenNiaChallenge={() => setNiaChallengeOpen(true)}
+          everRun={everRun}
         />
         </div>
 

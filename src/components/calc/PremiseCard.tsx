@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ChevronDown, Pencil } from "lucide-react";
-import { affectionLabel, affectionSummary } from "@/data/affection";
+import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { affectionLabel } from "@/data/affection";
 import { FINAL_ROUNDS, finalRoundStar, finalRoundStarCapScore } from "@/data/schedule";
 import {
   hatsuExamCapScore,
@@ -52,6 +52,8 @@ const TYPE_SHORT_JP: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visua
  * - 所持状況はほかと同じ形の欄（プルダウンで既定＝全完凸／保存してある所持状況を切り替え、
  *   一番下から所持状況ページへ）。一度も決めていなければ黄色
  * 1〜4がそろうと、すぐ下の探索ボタンが押せる（所持状況は無くても探索できる）。
+ * 一度探索したあとは、そろっていれば1行の要約にたためる（既定はたたむ。開閉はブラウザに覚える。2026-11-17 の画面整理）。
+ * 要約の各項目を押すと、その項目の選択画面が開く（プロデュース・所持状況・点数は欄を開く）。
  */
 export default function PremiseCard({
   r,
@@ -62,6 +64,7 @@ export default function PremiseCard({
   onOpenIdolTraining,
   onOpenDetail,
   onOpenNiaChallenge,
+  everRun,
 }: {
   r: CalcResult;
   onOpenScenario: () => void;
@@ -75,6 +78,8 @@ export default function PremiseCard({
   onOpenDetail: () => void;
   /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.Aのとき） */
   onOpenNiaChallenge: () => void;
+  /** 一度でも探索したか（したあとだけ、たためる） */
+  everRun: boolean;
 }) {
   const { settings } = r.calc;
   const memoryCount = r.memoryStore.count;
@@ -90,6 +95,19 @@ export default function PremiseCard({
     // 汎用メモリーのままで、まだ欄を開いていなければ黄色（そのままでも探索はできる。一度開けば白）
     memory: memoryCount > 0 && (!r.memoryStore.isGeneric || memoryVisited),
   };
+  // たたんだ要約（シナリオ・アイドル・プロデュースがそろっていて、一度探索したあと）
+  const canFold = everRun && done.scenario && done.idol && done.set;
+  const [foldPref, setFoldPref] = useState<boolean>(readFolded);
+  const folded = canFold && foldPref;
+  const setFolded = (v: boolean) => {
+    setFoldPref(v);
+    writeFolded(v);
+  };
+  const currentOwned = owned.saves.find((s) => s.id === owned.activeId);
+  const ownershipLabel =
+    owned.activeId === BUILTIN_ID ? "全サポカ完凸" : (currentOwned?.name ?? "自分の所持状況");
+  const scoreLabel =
+    r.scenario === "hif" ? "本戦の点数" : r.scenario === "niaMaster" ? "最終オーディション" : "試験スコア";
 
   return (
     <section className="overflow-hidden rounded-xl border-2 border-blue-600 bg-white shadow-sm">
@@ -102,9 +120,49 @@ export default function PremiseCard({
             className="[&>button]:text-blue-200 [&>button:hover]:text-white"
           />
         </h2>
+        {canFold && (
+          <button
+            type="button"
+            onClick={() => setFolded(!folded)}
+            className="ml-auto flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold text-blue-100 transition hover:bg-blue-500 hover:text-white"
+          >
+            {folded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            {folded ? "開く" : "たたむ"}
+          </button>
+        )}
       </div>
 
-      <div className="p-4">
+      {folded && (
+        <div className="flex flex-wrap items-center gap-1.5 p-3">
+          <SummaryChip onClick={onOpenScenario} title="育成シナリオを変える">
+            <span className={`h-3 w-3 shrink-0 rounded ${SCENARIO_COLOR[r.scenario]}`} />
+            {SCENARIO_LABELS[r.scenario]}
+          </SummaryChip>
+          <SummaryChip onClick={onOpenIdol} title="アイドル・Pアイドルを変える">
+            {settings.idol} / {r.pMaster?.cardName}
+          </SummaryChip>
+          <SummaryChip onClick={onOpenIdolTraining} title="特訓・才能開花を変える" warn={!own}>
+            {own ? `特訓${own.kunren}・開花${own.kaika}` : "未所持"}
+          </SummaryChip>
+          <SummaryChip onClick={() => setFolded(false)} title="プロデュースを変える">
+            {r.selectedSet?.name}
+          </SummaryChip>
+          <SummaryChip onClick={onOpenMemory} title="メモリーを変える">
+            {r.memoryStore.isGeneric ? "汎用メモリー" : `メモリー${memoryCount}枚`}
+          </SummaryChip>
+          <SummaryChip onClick={() => setFolded(false)} title="所持状況を変える">
+            {ownershipLabel}
+          </SummaryChip>
+          <SummaryChip onClick={() => setFolded(false)} title={`${scoreLabel}を変える`}>
+            {scoreLabel}
+          </SummaryChip>
+          <SummaryChip onClick={onOpenDetail} title="親愛度・ボーナスを変える">
+            親愛度 {affectionLabel(settings.affection)}
+          </SummaryChip>
+        </div>
+      )}
+
+      <div className={folded ? "hidden" : "p-4"}>
         <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
           <PremiseField no={1} label="育成シナリオ" done={done.scenario} onClick={onOpenScenario}>
             {r.scenarioStore.chosen ? (
@@ -155,13 +213,6 @@ export default function PremiseCard({
             hint={GLOSSARY.memory}
             done={done.memory}
             onClick={onOpenMemory}
-            note={
-              r.memoryStore.isGeneric ? (
-                <>
-                  今は<b>汎用メモリー60点</b>が入っています。変えたいときは上の欄をクリック。
-                </>
-              ) : undefined
-            }
           >
             {memoryCount === 0 ? (
               <Unset />
@@ -199,6 +250,49 @@ export default function PremiseCard({
         />
       </div>
     </section>
+  );
+}
+
+/** 設定欄をたたんでいるか（ブラウザに覚える。既定はたたむ） */
+const FOLD_KEY = "gakumas:calc:premiseFolded:v1";
+function readFolded(): boolean {
+  try {
+    return localStorage.getItem(FOLD_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function writeFolded(v: boolean) {
+  try {
+    localStorage.setItem(FOLD_KEY, v ? "1" : "0");
+  } catch {
+    // 保存できなくても表示は変える
+  }
+}
+
+/** たたんだ設定欄の1項目（押すとその項目を変えられる） */
+function SummaryChip({
+  onClick,
+  title,
+  warn = false,
+  children,
+}: {
+  onClick: () => void;
+  title: string;
+  warn?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`flex max-w-full items-center gap-1.5 truncate rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:border-blue-400 hover:bg-blue-50 ${
+        warn ? "border-red-300 text-red-600" : "border-slate-300 text-slate-700"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -329,11 +423,15 @@ function ScenarioScoreCard({
                   max={FINAL_ROUNDS[i].maxScore}
                   className="w-32"
                 />
-                <span className="text-xs text-slate-500">
-                  → 評価値 {r.roundValues[i].toLocaleString()} / ★
-                  {finalRoundStar(i, value, settings.affection)}
+                <span
+                  className="text-xs text-slate-500"
+                  title={`評価値 ${r.roundValues[i].toLocaleString()}`}
+                >
+                  ★{finalRoundStar(i, value, settings.affection)}
                   {value >= finalRoundStarCapScore(i) && (
-                    <span className="ml-1 text-slate-400">（★上限）</span>
+                    <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[10px] font-bold text-emerald-700">
+                      ★上限
+                    </span>
                   )}
                 </span>
               </div>
@@ -419,14 +517,12 @@ function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
       <span className="font-bold text-slate-700">詳細設定</span>
       <span>
         親愛度 <b className="text-slate-800">{affectionLabel(settings.affection)}</b>
-        <span className="ml-1 text-slate-400">（{affectionSummary(settings.affection)}）</span>
       </span>
       {r.scenario === "hif" && (
-        <span>
-          ／ H.I.Fボーナス{" "}
-          {max
-            ? "全部最大"
-            : `固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）／初期P Lv${b.levels.startPSenbatsu}・${b.levels.startPHonsen}（+${b.startP.senbatsu}・+${b.startP.honsen}）`}
+        <span
+          title={`固定Lv Vo${b.levels.fixed.vocal}・Da${b.levels.fixed.dance}・Vi${b.levels.fixed.visual}／パラボLv Vo${b.levels.pct.vocal}・Da${b.levels.pct.dance}・Vi${b.levels.pct.visual}／SP率 Lv${b.levels.spRate}／本戦上限 Lv${b.levels.finalCap}（${b.statCap}）／初期P Lv${b.levels.startPSenbatsu}・${b.levels.startPHonsen}（+${b.startP.senbatsu}・+${b.startP.honsen}）`}
+        >
+          ／ H.I.Fボーナス <b className="text-slate-800">{max ? "全部最大" : "一部変更"}</b>
         </span>
       )}
       <button type="button" onClick={onOpen} className={BTN_SECONDARY}>
@@ -469,7 +565,7 @@ function NiaFinalScoreRows({ r }: { r: CalcResult }) {
         </span>
         {nia.finalStats && (
           <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-700">
-            ステ入力中（素点は「レッスン等の踏み方」タブで）
+            ステ入力中（素点は「微調整」の「レッスン・営業」タブで）
           </span>
         )}
       </div>

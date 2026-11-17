@@ -144,9 +144,14 @@ function ExamBars({
                     .map(({ t, share }) => `${TYPE_SHORT[t]} ${Math.round(share * 100)}%`)
                     .join("・") || "—"}
             </span>
-            <span className="text-slate-400">
-              {manual?.[i] ? "（ステ入力）" : `（${total.toLocaleString()}）`}
-            </span>
+            {/* 合計スコアは数字を減らすため title だけ（2026-11-17） */}
+            {manual?.[i] ? (
+              <span className="text-slate-400">（ステ入力）</span>
+            ) : (
+              <span className="sr-only" title={`スコア ${total.toLocaleString()}`}>
+                スコア {total.toLocaleString()}
+              </span>
+            )}
           </div>
         );
       })}

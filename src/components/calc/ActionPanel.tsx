@@ -118,12 +118,15 @@ export default function ActionPanel({
   onFormationOnly,
   onPlanOnly,
   onConditions,
+  conditionCount,
 }: RunHandlers & {
   missingInputs: string[];
   /** 前提がそろっていて、まだ一度も探索を押していない */
   showArrow: boolean;
   status: RunStatus | null;
   onConditions: () => void;
+  /** 今効いている条件の数（条件設定のボタンに出す） */
+  conditionCount: number;
 }) {
   const delta =
     status && status.before != null && status.after != null
@@ -157,6 +160,14 @@ export default function ActionPanel({
           <Settings size={14} />
           {/* 幅の狭い画面では主役ボタンの文字を切らないよう、アイコンだけにする（説明は title） */}
           <span className="hidden sm:inline">条件設定</span>
+          {conditionCount > 0 && (
+            <span
+              title={`条件 ${conditionCount}件`}
+              className="rounded-full bg-blue-600 px-1.5 text-[10px] font-bold leading-4 text-white"
+            >
+              {conditionCount}
+            </span>
+          )}
         </button>
       </div>
       {!ready && (
@@ -166,18 +177,29 @@ export default function ActionPanel({
       )}
 
       {/* 直近の探索の内訳 */}
-      {status && (
+      {/* 何通り・何秒かは title だけ（数字を減らす）。評価値の変化・変更なし・注意があるときだけ出す */}
+      {status &&
+        (status.message ||
+          (status.before != null && status.after != null) ||
+          status.kept ||
+          (status.notes?.length ?? 0) > 0) && (
         <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
           {status.message ? (
             <p className="font-semibold text-slate-700">{status.message}</p>
-          ) : (
-            <p className="tabular-nums">
-              前回の探索:{" "}
-              {status.evaluated !== undefined && <b>{status.evaluated.toLocaleString()}通り</b>}
-              {status.elapsedMs !== undefined && `・${(status.elapsedMs / 1000).toFixed(1)}秒`}
+          ) : !(status.before != null && status.after != null) && !status.kept ? null : (
+            <p
+              className="tabular-nums"
+              title={[
+                status.evaluated !== undefined ? `${status.evaluated.toLocaleString()}通り` : "",
+                status.elapsedMs !== undefined ? `${(status.elapsedMs / 1000).toFixed(1)}秒` : "",
+              ]
+                .filter(Boolean)
+                .join("・")}
+            >
+              探索の結果
               {status.before != null && status.after != null && (
                 <>
-                  {" ／ "}
+                  {"： "}
                   {status.before.toLocaleString()} → {status.after.toLocaleString()}
                   {delta !== null && (
                     <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
