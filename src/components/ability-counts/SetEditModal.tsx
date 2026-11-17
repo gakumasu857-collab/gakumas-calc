@@ -194,8 +194,7 @@ export default function SetEditModal({
       {mode === "run" && !noteHidden && (
         <div className="mb-2 flex shrink-0 items-start gap-3">
           <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-600">
-            サポカで上がるステータスは、<b>サポカのアビリティが何回発動するか</b>
-            で決まります（例: 差し入れのときに上がるサポカは、差し入れの回数ぶん上がります）。ここで、その回数を実際の育成に合わせて変えられます。
+            サポカで上がるステは、<b>アビリティが何回発動するか</b>で決まります（差し入れで上がるサポカなら、差し入れの回数ぶん）。実際の育成に合わせて回数を変えてください。
           </p>
           {/* 説明の文章（この段落と下の青い枠の文）だけしまえる。ボタンは残る。説明の右上に置く */}
           <NoteToggle hidden={false} onClick={toggleNote} />
@@ -206,7 +205,7 @@ export default function SetEditModal({
         <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
           {!noteHidden && (
             <span>
-              <b>今の評価値に適応されている回数</b>です。ここでの変更を次回以降の探索に適用する場合は「上書き保存」
+              <b>今の評価値に使っている回数</b>です。次の探索からもこの回数にしたいときは「上書き保存」
             </span>
           )}
           <span className="flex items-center gap-2">
@@ -236,15 +235,15 @@ export default function SetEditModal({
           {/* 上書き保存に入るのは素の回数だけ（緑＝サポカのイベントによる上乗せは入らない） */}
           {!noteHidden && (
             <span className="w-full text-[11px] leading-relaxed text-slate-600">
-              上書き保存されるのは<b>プロデュースの回数だけ</b>です。
-              <b className="text-emerald-700">緑の数字（サポカのイベントによる上乗せ）</b>
-              は含まずに保存します。
+              保存されるのは<b>プロデュースの回数だけ</b>で、
+              <b className="text-emerald-700">緑の数字（サポカのイベントで増える分）</b>
+              は入りません。
             </span>
           )}
         </div>
       ) : (
         <div className="mb-3 shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
-          <b>このプロデュース（セット）のデフォルトの回数</b>です。サポカ編成を決めたあとの、この育成だけの調整は計算ページの「微調整」の「発動回数」タブで（そこで変えても、「上書き保存」を押さない限りここは変わりません）。
+          <b>このプロデュースの基本の回数</b>です。この育成だけ変えたいときは、計算ページの「微調整」→「発動回数」で（そこで「上書き保存」を押さない限り、ここは変わりません）。
         </div>
       )}
       {/* ユーザーセットは名前・プランを変更できる */}

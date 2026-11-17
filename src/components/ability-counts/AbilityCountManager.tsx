@@ -27,6 +27,7 @@ import { useSelectedSupports } from "@/lib/useSelectedSupports";
 import Modal from "@/components/Modal";
 import ScheduleCalendarView from "@/components/ScheduleCalendarView";
 import { isChoiceAbilityKey } from "@/data/scheduleCalendar";
+import Hint from "@/components/Hint";
 import ScheduleChoiceGrid from "./ScheduleChoiceGrid";
 import SetEditModal from "./SetEditModal";
 
@@ -125,20 +126,14 @@ export default function AbilityCountManager() {
 
   return (
     <div>
-      {/* 「プロデュース」がアビリティ発動回数のことだと分かるように、軽く1行だけ添える */}
-      <p className="mb-2 text-xs leading-relaxed text-slate-600">
-        プロデュース＝サポカのアビリティが<b>何回発動する想定か</b>（アビリティ発動回数）の設定です。ここで決めた回数を探索と評価値の計算に使います。編成を決めたあとの、この育成だけの回数は計算ページの「微調整」の「発動回数」タブで変えられます。
+      {/* 説明は1行＋ⓘに（2026-11-17、文字を減らす整理。黄色いマス・元◯の説明＝オーナー要望 2026-09-18 は ⓘ の中） */}
+      <p className="mb-2 flex flex-wrap items-center gap-1 text-xs text-slate-600">
+        サポカのアビリティが何回発動するかを、プロデュースごとに決めておくページです。探索はこの回数で編成を組みます。
+        <Hint text="この育成だけ回数を変えたいときは、計算ページの「微調整」→「発動回数」で変えます。最初から入っている回数を変えたマスは黄色くなり、左下に「元◯」（変える前の回数）が出ます。マスを押して「元◯に戻す」で戻せます。スケジュールで決まる回数はカードで選び直し、「自動」の回数は元になる回数を戻すと戻ります。" />
       </p>
       {/* ここで決める回数の注意（前イベ・後イベの発動分は計算ページで編成に合わせて自動で上乗せされる） */}
-      <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700">
-        ⚠ ここの回数には、サポカの前イベ・後イベによる発動分は含めないでください（前イベ・後イベは計算ページで編成に合わせて自動で上乗せされます）。
-      </p>
-      {/* 最初の回数（配布時の値）がどこで見えるかの説明。オーナー要望 2026-09-18 */}
-      <p className="mb-3 text-xs leading-relaxed text-slate-600">
-        最初から入っているプロデュースの回数を変えると、そのマスが
-        <b className="mx-0.5 rounded bg-amber-50 px-1 text-amber-900">黄色</b>
-        になり、左下に<b>元◯</b>（変えるまでの回数）が出ます。数を直接変えるマスは、押すと「元◯に戻す」で戻せます
-        （スケジュールで決まる回数はカードで選び直し、「自動」の回数は元になる回数を戻すと戻ります）。
+      <p className="mb-3 text-xs font-bold text-red-600">
+        ⚠ 前イベ・後イベで増える分は入れないでください。計算ページで編成に合わせて足されます。
       </p>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p>

@@ -266,27 +266,30 @@ export default function OwnershipPage() {
             </Link>
           </span>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+        <p
+          className="mt-2 text-[11px] leading-relaxed text-slate-500"
+          title={active?.savedAt ? `最終保存 ${active.savedAt}` : undefined}
+        >
           {isPortalSlotActive() && active.id === readLink()?.slotId ? (
           <>
             <b className="text-slate-700">「{active.name}」</b>
-            を使っています（{readLink()?.playerName} さん）。ここで変えた所持状況はポータルにも自動で保存され、開くたびにポータルの最新を読み込みます。
+            を使っています（{readLink()?.playerName} さん）。ポータルと自動で同じ内容になります。
           </>
         ) : isBuiltinActive ? (
             <>
-              今は<b className="text-slate-700">全サポカ完凸</b>です。カードの凸や特訓を変えると
+              今は<b className="text-slate-700">全サポカ完凸</b>です。凸や特訓を変えると
               <b className="text-slate-700">「{DEFAULT_OWN_NAME}」</b>
-              が自動で作られ、以後の変更はそこに保存されます。
+              ができて、そこに保存されます。
             </>
           ) : active.saveId ? (
             <>
               セーブデータ用の<b className="text-slate-700">「{active.name}」</b>
-              を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
+              を使っています。変えたら自動で保存されます。
             </>
           ) : (
             <>
               <b className="text-slate-700">「{active.name}」</b>
-              を使っています。変更はここに自動で保存されます（最終 {active.savedAt}）。
+              を使っています。変えたら自動で保存されます。
             </>
           )}
         </p>
