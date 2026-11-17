@@ -205,7 +205,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
 `calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はその場の説明）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.Fは本戦ラウンド点数、N.I.Aはファン投票数・チャレンジPアイテムの「調整」→ `calc/NiaChallengeModal.tsx`、初は試験スコア。一番下に全シナリオ共通の「詳細設定」→ `calc/DetailSettingsModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と条件設定を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳。診断ログは /debug へ移した。PC・スマホ共通）、
-`calc/FormationPlanCard.tsx`（「微調整」: タブ＝サポカ編成（6枚＋踏み方チップ）｜踏み方（`PlanEditDrawer` を inline で）｜発動回数（`AbilityCountDrawer` を inline で）｜イベント（前イベ・後イベ・ステイベ）。2026-11-17 の画面整理で左端の縦タブと黄色い帯をここへまとめた。開始時のステ・SP率・実現確率は同じファイルの `DetailNumbers` で、`StatsCard` の「くわしい数字」の中に出す）、
+`calc/FormationPlanCard.tsx`（「微調整」: タブ＝サポカ編成（6枚＋踏み方チップ）｜レッスン・授業（N.I.Aはレッスン・営業。`PlanEditDrawer` を inline で。2026-11-18 からレッスンと授業／営業を `Timeline` で日付順に1本に並べ、行ごとに「レッスン（青）・授業／営業（橙）」の札、試験の枠は紫の札。タイプのボタンは Vo/Da/Vi と小さく上昇量、サブは行の中のボタン）｜発動回数（`AbilityCountDrawer` を inline で）｜イベント（前イベ・後イベ・ステイベ）。2026-11-17 の画面整理で左端の縦タブと黄色い帯をここへまとめた。開始時のステ・SP率・実現確率は同じファイルの `DetailNumbers` で、`StatsCard` の「くわしい数字」の中に出す）、
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合、N.I.Aのオーディションは 1次・2次・最終の上がるステ（素点）と投票数。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印。ふだんは3タイプ＋合計＋スター性（N.I.Aは投票数）だけで、「くわしい数字」を開くと内訳の表・開始時のステ・SP率・実現確率・Pポイント・体力。開閉は `gakumas:calc:statsBreakdown:v2` に記憶、初回は閉じる）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
@@ -246,7 +246,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `EventControls.tsx` | 前イベ「取得」トグル、強化／削除の A/M 割り振り、任意スキル獲得の分類ピッカー、後イベ M/A/✕ ボタン、ステイベ 〇/✕（計算ページとサポカ設定ページで共用） |
 | `ScoreDetailModal.tsx` | サポカ 1 枚の点数内訳モーダル |
 | `globals.css` | 全体のスタイル。**スマホ（幅 640px 未満）だけ、大きめの文字を一段小さくする**（Tailwind v4 の `--text-sm`〜`--text-4xl` を上書き。`text-xs` と `text-[11px]` などの直接指定＝いちばん小さい段は変えない） |
-| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜「自動編成機能の設定」プルダウン（所持状況・プロデュース設定・サポカ設定。createPortal で body 直付け）｜点数表・データベース｜ヘルプ、モーダル（`fill` で高さを画面の85%に固定し、中身が自分でスクロールする出し方。プロデュース設定モーダルで使う。中身に最小の高さを持たせ、低い画面（スマホ・横向き）ではモーダル全体がスクロールする）、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`。授業・営業は同じ紫、レッスン・☆レッスンは同じ青で、アイコンと名前で見分ける、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
+| `NavBar.tsx` / `Modal.tsx` / `NumberField.tsx` / `ScheduleCalendarView.tsx` / `scheduleCards.tsx` | 共通部品（ナビ＝計算｜所持状況・プロデュース・サポカ設定｜点数表・データベース｜ヘルプ。2026-11-18 にプルダウンのまとまりをやめてページ名を横並びに。md 未満は「計算」と「メニュー」（createPortal で全ページを説明つき）、モーダル（`fill` で高さを画面の85%に固定し、中身が自分でスクロールする出し方。プロデュース設定モーダルで使う。中身に最小の高さを持たせ、低い画面（スマホ・横向き）ではモーダル全体がスクロールする）、数値入力、スケジュール（正方形カードを並べた表示。カード1枚の見た目と色は `scheduleCards.tsx` の `ScheduleCard`。授業・営業は同じ紫、レッスン・☆レッスンは同じ青で、アイコンと名前で見分ける、週ごとに1つ選ぶ画面は `ability-counts/ScheduleChoiceGrid.tsx`）） |
 
 ---
 

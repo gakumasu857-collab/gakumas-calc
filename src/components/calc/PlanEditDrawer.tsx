@@ -1,5 +1,5 @@
 /**
- * 計算ページの「微調整」の「踏み方」タブに置く（inline）、レッスン・授業（営業）・選抜エディタ。
+ * 計算ページの「微調整」の「レッスン・授業」タブに置く（inline）、レッスン・授業（営業）・選抜エディタ。
  * レッスンページと同じストアを共有していて、どちらで編集しても同期する。
  * シナリオごとに内容が変わる:
  * - H.I.F: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
@@ -92,7 +92,7 @@ const TYPE_STYLE: Record<TypeKey, { on: string; off: string; head: string; chip:
 type CalcResult = ReturnType<typeof useCalcResult>;
 
 /**
- * 踏み方エディタ。計算ページの「微調整」の「踏み方」タブにその場で描く（inline）
+ * 踏み方エディタ。計算ページの「微調整」の「レッスン・授業」タブにその場で描く（inline）
  * （open / onClose は親が持つ。以前の左端縦タブは廃止）。
  */
 export default function PlanEditDrawer({
@@ -104,7 +104,7 @@ export default function PlanEditDrawer({
   r: CalcResult;
   open: boolean;
   onClose: () => void;
-  /** true＝モーダルにせず、その場に描く（計算ページの「微調整」の「踏み方」タブ） */
+  /** true＝モーダルにせず、その場に描く（計算ページの「微調整」の「レッスン・授業」タブ） */
   inline?: boolean;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
@@ -137,7 +137,7 @@ export default function PlanEditDrawer({
               className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles size={13} />
-              {optBusy ? "計算中…" : "今のサポカ編成のまま、踏み方だけ探索"}
+              {optBusy ? "計算中…" : "サポカはそのまま、ここだけ探索"}
             </button>
             {!optimizeReady && (
               <span className="text-xs font-semibold text-amber-600">
@@ -240,14 +240,15 @@ function HifEditor({ r }: { r: CalcResult }) {
           onClick={() => schedule.resetLessonsAndClasses()}
         />
       </div>
-      <div className="flex flex-wrap gap-x-8 gap-y-4">
-        <MiniTable
-          head={["日程", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP"]}
-          rows={LESSONS.map((lesson, i) => {
+      <Timeline
+        rows={[
+          ...LESSONS.map((lesson, i) => {
             const pick = schedule.lessons[i];
             const spIndex = pick.sp ? 1 : 0;
-            return [
-              lesson.label,
+            return {
+              label: lesson.label,
+              kind: "lesson" as const,
+              cells: [
               ...TYPE_KEYS.map((type) => (
                 <span key={type} className="relative inline-block">
                   <MiniTypeButton
@@ -264,38 +265,37 @@ function HifEditor({ r }: { r: CalcResult }) {
                       else schedule.setLessonMain(i, type);
                     }}
                   />
-                  {/* サブバッジ: クリックで残り2タイプを交互に切替 */}
-                  {pick.main === type && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const others = TYPE_KEYS.filter((t) => t !== type);
-                        const next =
-                          others[(others.indexOf(pick.sub) + 1) % others.length];
-                        schedule.setLessonSub(i, next);
-                      }}
-                      title={`サブレッスン: ${TYPE_LABELS[pick.sub]}（出現率${Math.round(subAppearProb(type, pick.sub, r.typeRanks) * 100)}%・クリックで切替）`}
-                      className={`absolute -bottom-1 -right-1.5 z-10 flex h-4 min-w-6 items-center justify-center rounded px-0.5 text-[9px] font-bold ring-2 ring-white ${TYPE_STYLE[pick.sub].on}`}
-                    >
-                      {lesson.sub[spIndex]}
-                    </button>
-                  )}
                 </span>
               )),
+              /* サブ: 押すと残り2タイプを交互に切り替え（2026-11-18 にボタンの角の小さな印から、ここへ出した） */
+              pick.main ? (
+                <button
+                  key="sub"
+                  type="button"
+                  onClick={() => {
+                    const others = TYPE_KEYS.filter((t) => t !== pick.main);
+                    schedule.setLessonSub(i, others[(others.indexOf(pick.sub) + 1) % others.length]);
+                  }}
+                  title={`サブレッスン（出現率${Math.round(subAppearProb(pick.main, pick.sub, r.typeRanks) * 100)}%・押すと切り替え）`}
+                  className={`flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-bold ${TYPE_STYLE[pick.sub].chip}`}
+                >
+                  サブ {TYPE_SHORT[pick.sub]} +{lesson.sub[spIndex]}
+                </button>
+              ) : (
+                <span key="sub" className="w-[4.5rem] text-[11px] text-slate-400">踏まない</span>
+              ),
               <MiniSpToggle
                 key="sp"
                 on={pick.sp}
                 onToggle={() => schedule.toggleLessonSp(i)}
               />,
-            ];
-          })}
-        />
-        <MiniTable
-          head={["授業", ...TYPE_KEYS.map((t) => TYPE_LABELS[t])]}
-          rows={CLASSES.map((cls, i) => [
-            cls.label,
-            ...TYPE_KEYS.map((type) => (
+              ],
+            };
+          }),
+          ...CLASSES.map((cls, i) => ({
+            label: cls.label,
+            kind: "class" as const,
+            cells: TYPE_KEYS.map((type) => (
               <MiniTypeButton
                 key={type}
                 type={type}
@@ -311,12 +311,12 @@ function HifEditor({ r }: { r: CalcResult }) {
                 }
               />
             )),
-          ])}
-        />
-      </div>
+          })),
+        ]}
+      />
 
       {/* 選抜（タイプ別スコア、または上昇ステを直接入力。選抜ごとに切り替え） */}
-      <Section title="選抜">
+      <Section title="選抜試験" tone="exam">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
           スコアを入れると分配式で上昇ステを出します。実際の上昇量が分かっているときは「ステ」に切り替えて、
           ゲームのログに出る上昇幅（パラボ込み）をそのまま入力。今の編成のパラボで元のステに逆算します。
@@ -558,14 +558,15 @@ function NiaEditor({ r }: { r: CalcResult }) {
           onClick={() => nia.resetLessonsAndSales()}
         />
       </div>
-      <div className="flex flex-wrap gap-x-8 gap-y-4">
-        <MiniTable
-          head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP"]}
-          rows={NIA_LESSONS.map((lesson, i) => {
+      <Timeline
+        rows={[
+          ...NIA_LESSONS.map((lesson, i) => {
             const pick = nia.lessons[i];
             const value = lesson.value[pick.sp ? 1 : 0];
-            return [
-              lesson.label,
+            return {
+              label: lesson.label,
+              kind: "lesson" as const,
+              cells: [
               ...TYPE_KEYS.map((type) => (
                 <MiniTypeButton
                   key={type}
@@ -587,15 +588,15 @@ function NiaEditor({ r }: { r: CalcResult }) {
                 on={pick.sp}
                 onToggle={() => nia.toggleLessonSp(i)}
               />,
-            ];
-          })}
-        />
-        <MiniTable
-          head={["営業", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "営業先", "成功度"]}
-          rows={NIA_SALES.map((sale, i) => {
+              ],
+            };
+          }),
+          ...NIA_SALES.map((sale, i) => {
             const pick = nia.sales[i];
-            return [
-              sale.label,
+            return {
+              label: sale.label,
+              kind: "sale" as const,
+              cells: [
               ...TYPE_KEYS.map((type) => (
                 <MiniTypeButton
                   key={type}
@@ -624,10 +625,11 @@ function NiaEditor({ r }: { r: CalcResult }) {
                 onClass="border-amber-400 bg-amber-100 text-amber-700"
                 onToggle={() => nia.setSale(i, { great: !pick.great })}
               />,
-            ];
-          })}
-        />
-      </div>
+              ],
+            };
+          }),
+        ]}
+      />
       {/* 営業先で「Pポイント営業」を踏む回数（プロデュースの回数。この育成だけの値を変える） */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
         <b className="text-slate-700">Pポイント営業を踏む回数</b>
@@ -653,7 +655,7 @@ function NiaEditor({ r }: { r: CalcResult }) {
       </div>
 
       {/* オーディション（1次・2次は素点、最終はスコアか素点。素点はパラボ込みのステ（ログの値）からも逆算） */}
-      <Section title="オーディション（1次・2次はステを入力 / 最終はスコアかステ）">
+      <Section title="オーディション（1次・2次はステを入力 / 最終はスコアかステ）" tone="exam">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
           「パラボ込みの上昇ステ」にゲームのログの値をそのまま入れると、今の編成のパラボ%と
           チャレンジPアイテムの獲得ボーナス（準備で調整。今は合計+{challengePct}%）で元の素点に逆算します。
@@ -808,10 +810,9 @@ function HatsuEditor({ r }: { r: CalcResult }) {
         初のレッスンは、レッスン中に出した点数がそのまま踏んだタイプの素ステになります（上限まで出せばパーフェクト）。
         クリアライン（数値表の「クリア」）を超えた分は残り2タイプにも同じだけ入ります。どちらもパラボが掛かります。
       </p>
-      <div className="flex flex-wrap gap-x-8 gap-y-4">
-        <MiniTable
-          head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP", "点数"]}
-          rows={HATSU_LESSONS.map((lesson, i) => {
+      <Timeline
+        rows={[
+          ...HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
             // レッスン上限はチャレンジPアイテムの合計で変わる（準備の「チャレンジPアイテム」）
             const cap = hatsuLessonScoreCap(i, pick.sp, r.hatsuChallenge.capBonus);
@@ -819,8 +820,10 @@ function HatsuEditor({ r }: { r: CalcResult }) {
             const mainValue = g.main;
             // クリアラインを超えた分は踏んでいないタイプにも入る
             const offValue = pick.main ? g.other : 0;
-            return [
-              lesson.label,
+            return {
+              label: lesson.label,
+              kind: "lesson" as const,
+              cells: [
               ...TYPE_KEYS.map((type) => (
                 <MiniTypeButton
                   key={type}
@@ -858,14 +861,13 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                   onToggle={() => hatsu.toggleLessonPerfect(i)}
                 />
               </span>,
-            ];
-          })}
-        />
-        <MiniTable
-          head={["授業", ...TYPE_KEYS.map((t) => TYPE_LABELS[t])]}
-          rows={HATSU_CLASSES.map((cls, i) => [
-            cls.label,
-            ...TYPE_KEYS.map((type) => (
+              ],
+            };
+          }),
+          ...HATSU_CLASSES.map((cls, i) => ({
+            label: cls.label,
+            kind: "class" as const,
+            cells: TYPE_KEYS.map((type) => (
               <MiniTypeButton
                 key={type}
                 type={type}
@@ -879,12 +881,12 @@ function HatsuEditor({ r }: { r: CalcResult }) {
                 }
               />
             )),
-          ])}
-        />
-      </div>
+          })),
+        ]}
+      />
 
       {/* 試験（順位＋スコア） */}
-      <Section title="中間・最終試験">
+      <Section title="中間・最終試験" tone="exam">
         <div className="flex flex-col divide-y divide-slate-200">
           {HATSU_EXAMS.map((exam, i) => {
             const isMid = i === 0;
@@ -1438,58 +1440,68 @@ function BulkRow({
 function Section({
   title,
   children,
+  tone,
 }: {
   title: string;
   children: React.ReactNode;
+  /** exam＝試験（紫の札。レッスン・授業の一覧と色をそろえる） */
+  tone?: "exam";
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 p-3">
-      <h3 className="mb-1 text-xs font-bold text-slate-700">{title}</h3>
+    <section className={`rounded-lg border p-3 ${tone === "exam" ? "border-violet-200" : "border-slate-200"}`}>
+      <h3 className="mb-1 flex items-center gap-2 text-xs font-bold text-slate-700">
+        {tone === "exam" && <KindBadge kind="exam" />}
+        {title}
+      </h3>
       {children}
     </section>
   );
 }
 
-/** ヘッダー＋行（先頭列はラベル・残りはボタン）を並べる小さい表 */
-function MiniTable({
-  head,
+type RowKind = "lesson" | "class" | "sale" | "exam";
+const KIND_LABEL: Record<RowKind, string> = { lesson: "レッスン", class: "授業", sale: "営業", exam: "試験" };
+const KIND_CLASS: Record<RowKind, string> = {
+  lesson: "bg-sky-500 text-white",
+  class: "bg-amber-500 text-white",
+  sale: "bg-amber-500 text-white",
+  exam: "bg-violet-500 text-white",
+};
+
+/** 何の週かの札（レッスン＝青・授業／営業＝橙・試験＝紫） */
+function KindBadge({ kind }: { kind: RowKind }) {
+  return (
+    <span className={`inline-block w-16 shrink-0 rounded px-1 py-0.5 text-center text-[11px] font-bold ${KIND_CLASS[kind]}`}>
+      {KIND_LABEL[kind]}
+    </span>
+  );
+}
+
+/** 「選抜3日目」「本戦2日目」「12週目」を日付順に並べるための数 */
+function dayOrder(label: string): number {
+  const m = label.match(/(本戦)?(\d+)/);
+  if (!m) return 0;
+  return (m[1] ? 1000 : 0) + Number(m[2]);
+}
+
+/**
+ * レッスン・授業（営業）を日付順に1本で並べる（2026-11-18。以前はレッスンと授業が別の表で、
+ * どれが何か分かりにくかった）。各行は 日付｜何の週かの札｜タイプのボタン など。
+ */
+function Timeline({
   rows,
 }: {
-  head: string[];
-  rows: React.ReactNode[][];
+  rows: { label: string; kind: RowKind; cells: React.ReactNode[] }[];
 }) {
+  const sorted = [...rows].sort((a, b) => dayOrder(a.label) - dayOrder(b.label));
   return (
-    <div className="overflow-x-auto">
-      <table className="w-auto text-xs">
-        <thead>
-          <tr className="border-b border-slate-300 text-left font-semibold text-slate-500">
-            {head.map((h, i) => (
-              <th
-                key={i}
-                className={`px-1.5 py-1 font-semibold ${
-                  i === 0 ? "pr-3 text-left" : "text-center"
-                } ${TYPE_KEYS.some((t) => TYPE_LABELS[t] === h) ? TYPE_STYLE[TYPE_KEYS.find((t) => TYPE_LABELS[t] === h)!].head : ""}`}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-200">
-          {rows.map((cells, i) => (
-            <tr key={i}>
-              {cells.map((cell, j) => (
-                <td
-                  key={j}
-                  className={`px-1.5 py-1 ${j === 0 ? "whitespace-nowrap pr-3 font-medium text-slate-700" : "text-center"}`}
-                >
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col divide-y divide-slate-100 rounded-lg border border-slate-200">
+      {sorted.map((row, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1.5">
+          <span className="w-20 shrink-0 text-xs tabular-nums text-slate-500">{row.label}</span>
+          <KindBadge kind={row.kind} />
+          <span className="flex flex-wrap items-center gap-1.5">{row.cells}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1513,11 +1525,12 @@ function MiniTypeButton({
       type="button"
       onClick={onClick}
       title={title ?? TYPE_LABELS[type]}
-      className={`h-8 w-10 rounded-md text-xs font-bold tabular-nums transition ${
+      className={`flex h-9 w-11 flex-col items-center justify-center rounded-md text-xs font-bold leading-none tabular-nums transition ${
         selected ? TYPE_STYLE[type].on : TYPE_STYLE[type].off
       }`}
     >
-      {value}
+      {TYPE_SHORT[type]}
+      {value > 0 && <span className="mt-0.5 text-[9px] font-semibold opacity-90">+{value}</span>}
     </button>
   );
 }

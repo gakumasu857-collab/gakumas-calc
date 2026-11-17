@@ -85,7 +85,7 @@ function RunButtons({
                 }}
               />
               <MenuItem
-                title="今のサポカ編成のまま、踏み方だけ"
+                title="今のサポカのまま、レッスン・授業だけ"
                 desc="6枚は変えずにレッスン・授業（営業）・選抜の配分を最適化"
                 onClick={() => {
                   setMenuOpen(false);

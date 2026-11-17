@@ -61,7 +61,7 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
             </Step>
             <Step no={3} title="実際の育成に合わせて微調整">
               下の「微調整」のタブ
-              <TabChip icon={<CalendarCheck size={11} />} label="踏み方" />
+              <TabChip icon={<CalendarCheck size={11} />} label="レッスン・授業" />
               <TabChip icon={<ListOrdered size={11} />} label="発動回数" />
               で、アビリティの発動回数やレッスンの踏み方を自分の育成に寄せられます。
             </Step>

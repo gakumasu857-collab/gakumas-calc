@@ -65,7 +65,7 @@ export default function FormationPlanCard({
   const rentalCount = r.members.filter((m) => m?.rental).length;
   const set = r.selectedSet;
   const countAdjusted = set ? r.ability.runAdjustCount(set) : 0;
-  const planLabel = r.scenario === "niaMaster" ? "レッスン・営業" : "踏み方";
+  const planLabel = r.scenario === "niaMaster" ? "レッスン・営業" : "レッスン・授業";
   const tabs: { key: AdjustTab; label: string; icon: React.ReactNode; badge?: string; title?: string }[] = [
     { key: "formation", label: "サポカ編成", icon: <LayoutGrid size={13} /> },
     { key: "plan", label: planLabel, icon: <CalendarCheck size={13} /> },
@@ -169,7 +169,7 @@ export default function FormationPlanCard({
               />
             ))}
           </div>
-          {/* 踏み方の要約（押すと「踏み方」のタブへ） */}
+          {/* 踏み方の要約（押すと「レッスン・授業」のタブへ） */}
           <button
             type="button"
             onClick={() => pick("plan")}
