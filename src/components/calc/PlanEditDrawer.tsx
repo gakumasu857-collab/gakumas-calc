@@ -92,7 +92,7 @@ const TYPE_STYLE: Record<TypeKey, { on: string; off: string; head: string; chip:
 type CalcResult = ReturnType<typeof useCalcResult>;
 
 /**
- * 踏み方エディタ（モーダル）。計算ページの「サポカ編成と踏み方」の「レッスン等の踏み方」から開く
+ * 踏み方エディタ。計算ページの「微調整」の「踏み方」タブにその場で描く（inline）
  * （open / onClose は親が持つ。以前の左端縦タブは廃止）。
  */
 export default function PlanEditDrawer({

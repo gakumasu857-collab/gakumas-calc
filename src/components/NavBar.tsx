@@ -10,8 +10,10 @@ import { Link, useLocation } from "react-router-dom";
  * 表の2つと計算はそのまま）。ブランド名クリックでホームへ戻る。右端はヘルプ（枠で囲ったボタン）。
  * メニューは nav が横スクロール（overflow）なので、切れないよう body 直付け（createPortal）で描く。
  */
-const SETTINGS_PAGES: { href: string; label: string; note: string }[] = [
+const SETTINGS_PAGES: { href: string; label: string; note: string; sub?: boolean }[] = [
   { href: "/support", label: "所持状況", note: "持っているサポカの凸・Pアイドルの特訓と才能開花" },
+  // 所持状況の入力方法のひとつ（所持状況ページのボタンからしか行けず見つけにくかったので、ここにも出す。2026-11-17）
+  { href: "/card-import", label: "画面キャプチャで所持入力（β）", note: "ゲーム画面から凸を読み取る", sub: true },
   { href: "/ability-counts", label: "プロデュース設定", note: "アビリティ発動回数のデフォルト" },
   { href: "/card-settings", label: "サポカ設定", note: "前イベ回数の上限、固定・BAN・レンタルNG" },
 ];
@@ -21,7 +23,7 @@ const TABLE_PAGES: { href: string; label: string }[] = [
 ];
 
 const TAB_CLASS = (active: boolean) =>
-  `shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+  `shrink-0 rounded-lg px-2 py-1.5 text-sm font-medium transition sm:px-2.5 ${
     active
       ? "bg-blue-600 text-white"
       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -53,7 +55,7 @@ export default function NavBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center gap-x-3 px-4 py-2">
+      <div className="mx-auto flex max-w-7xl items-center gap-x-2 px-3 py-2 sm:gap-x-3 sm:px-4">
         <Link
           to="/"
           title="ホーム（ツール一覧）へ戻る"
@@ -68,7 +70,7 @@ export default function NavBar() {
             計算
           </Link>
           {/* グループの区切り（細い線だけ） */}
-          <span className="mx-1 h-5 w-px shrink-0 bg-slate-300" />
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-300 sm:mx-1" />
           <button
             ref={btnRef}
             type="button"
@@ -78,11 +80,13 @@ export default function NavBar() {
             title="探索（自動編成）が参照する設定: 所持状況・プロデュース設定・サポカ設定"
             className={`${TAB_CLASS(inSettings || open)} flex items-center gap-1`}
           >
-            <Settings2 size={14} />
-            自動編成機能の設定
+            <Settings2 size={14} className="hidden sm:block" />
+            {/* スマホでは短く（点数表・データベースまで1行に収める） */}
+            <span className="sm:hidden">設定</span>
+            <span className="hidden sm:inline">自動編成機能の設定</span>
             <ChevronDown size={14} className={`transition ${open ? "rotate-180" : ""}`} />
           </button>
-          <span className="mx-1 h-5 w-px shrink-0 bg-slate-300" />
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-300 sm:mx-1" />
           {TABLE_PAGES.map((tab) => (
             <Link key={tab.href} to={tab.href} className={TAB_CLASS(pathname === tab.href)}>
               {tab.label}
@@ -124,11 +128,11 @@ export default function NavBar() {
                     to={p.href}
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className={`flex flex-col rounded-lg px-2.5 py-1.5 transition ${
+                    className={`flex flex-col rounded-lg py-1.5 pr-2.5 transition ${p.sub ? "pl-6" : "pl-2.5"} ${
                       active ? "bg-blue-600 text-white" : "text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    <span className="text-sm font-bold">{p.label}</span>
+                    <span className={p.sub ? "text-xs font-bold" : "text-sm font-bold"}>{p.label}</span>
                     <span className={`text-[11px] ${active ? "text-blue-100" : "text-slate-500"}`}>
                       {p.note}
                     </span>
