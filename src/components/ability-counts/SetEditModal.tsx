@@ -144,10 +144,8 @@ export default function SetEditModal({
   const [category, setCategory] = useState<CategoryKey>(
     initialCategory ?? ABILITY_CATEGORIES[0].key,
   );
-  // 編成フィルターは渡されたときだけ表示（計算ページからはデフォルトON）
-  const [onlyFormation, setOnlyFormation] = useState(
-    formationKeys !== undefined,
-  );
+  // 編成フィルターは渡されたときだけ表示。最初は外しておく（全部のアビリティを見せる。オーナー要望 2026-11-18）
+  const [onlyFormation, setOnlyFormation] = useState(false);
   // 編成サポカの前イベ・後イベによる上乗せ回数（緑表示）を反映するか
   const [withEvents, setWithEvents] = useState(true);
   // スケジュール表（何週/日に何があるか）のモーダル

@@ -100,6 +100,12 @@ export default function AbilityCounter({
             />
           ))}
       </div>
+      {/* 編成サポカのイベントで増えた分（緑の数字の内訳）。オーナー要望 2026-11-18 */}
+      {extraCount > 0 && (
+        <p className="mt-0.5 text-center text-[11px] font-semibold tabular-nums text-emerald-600">
+          {count} ＋ イベントで {extraCount}
+        </p>
+      )}
       {readOnly && readOnlyNote && (
         <p className="mt-1 text-center text-[10px] leading-tight text-slate-400">
           {readOnlyNote}
