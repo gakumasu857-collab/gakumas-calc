@@ -263,7 +263,7 @@ export function resolveTriggerCount(
  * 前イベ（Pアイテム/スキル）の、上限を付ける前の自動回数。
  * min(最大発動回数, 参照回数キーの回数)（Pアイテム!E列 MIN(...) の移植）。
  * 参照回数キーの解決は resolveTriggerCount を参照。サポカ設定ページの「回数」欄の「/N」はこの値
- * （今のプロデュース設定で出る回数。欄はこれより増やせない）。
+ * （今のプロデュースで出る回数。欄はこれより増やせない）。
  */
 export function preEventBaseActivations(
   card: SupportCardData,

@@ -647,7 +647,7 @@ function NiaEditor({ r }: { r: CalcResult }) {
         </span>
         <span className="w-full text-[11px] leading-relaxed text-slate-400 sm:w-auto">
           営業先でPポイント営業を選ぶと1回につきPポイント+{P_SALE_POINTS}。プロデュースごとの回数で、ここで変えた値はこの育成だけに効きます
-          （デフォルトは「プロデュース設定」の「スケジュール」で変えられます）。
+          （デフォルトは「プロデュース」の「スケジュール」で変えられます）。
           {!r.selectedSet && "プロデュースを選ぶと入力できます。"}
         </span>
       </div>
@@ -656,7 +656,7 @@ function NiaEditor({ r }: { r: CalcResult }) {
       <Section title="オーディション（1次・2次はステを入力 / 最終はスコアかステ）">
         <p className="mb-1 text-[11px] leading-relaxed text-slate-500">
           「パラボ込みの上昇ステ」にゲームのログの値をそのまま入れると、今の編成のパラボ%と
-          チャレンジPアイテムの獲得ボーナス（設定欄で調整。今は合計+{challengePct}%）で元の素点に逆算します。
+          チャレンジPアイテムの獲得ボーナス（準備で調整。今は合計+{challengePct}%）で元の素点に逆算します。
           素点を直接打ち込んでもOK。最終は「スコア」（流行順位別の式で換算）と「ステ」を切り替えられます。
         </p>
         <div className="flex flex-col divide-y divide-slate-200">
@@ -813,7 +813,7 @@ function HatsuEditor({ r }: { r: CalcResult }) {
           head={["レッスン", ...TYPE_KEYS.map((t) => TYPE_LABELS[t]), "SP", "点数"]}
           rows={HATSU_LESSONS.map((lesson, i) => {
             const pick = hatsu.lessons[i];
-            // レッスン上限はチャレンジPアイテムの合計で変わる（設定欄の「チャレンジPアイテム」）
+            // レッスン上限はチャレンジPアイテムの合計で変わる（準備の「チャレンジPアイテム」）
             const cap = hatsuLessonScoreCap(i, pick.sp, r.hatsuChallenge.capBonus);
             const g = hatsuLessonGains(i, pick.sp, pick.score, r.hatsuChallenge.capBonus);
             const mainValue = g.main;
@@ -1293,7 +1293,7 @@ function NiaNumbers() {
           最終オーディションはスコアからステ素点（流行順位別の式）と投票数を自動導出（「ステ」に切り替えて素点を直接入れることもできる）。
         </p>
         <p className="mt-1">
-          オーディションの素点にはチャレンジPアイテムの獲得ボーナス（3枠の合計%。設定欄の「チャレンジPアイテム」で調整）が掛かり、その上にパラボが掛かる
+          オーディションの素点にはチャレンジPアイテムの獲得ボーナス（3枠の合計%。準備の「チャレンジPアイテム」で調整）が掛かり、その上にパラボが掛かる
           （素点 → 素点＋切り捨て(素点×獲得ボーナス) → パラボ）。
         </p>
       </div>
@@ -1330,7 +1330,7 @@ function HatsuNumbers() {
         </tbody>
       </table>
       <p className="mb-4 text-xs text-slate-500">
-        ※ パーフェクト時は踏んだタイプ以外にも「パフェ他タイプ」の値が入る。パフェ値はチャレンジPアイテムでレッスン上限を最大(+90)にした時の数値。上限の合計が少ないときは、その差だけパフェ値が下がる（設定欄の「チャレンジPアイテム」で選んだ分で計算します）。
+        ※ パーフェクト時は踏んだタイプ以外にも「パフェ他タイプ」の値が入る。パフェ値はチャレンジPアイテムでレッスン上限を最大(+90)にした時の数値。上限の合計が少ないときは、その差だけパフェ値が下がる（準備の「チャレンジPアイテム」で選んだ分で計算します）。
       </p>
       <h3 className="mb-1 text-xs font-bold text-slate-700">授業（選んだ1タイプ）</h3>
       <table className="mb-4 w-full border-collapse text-xs tabular-nums">

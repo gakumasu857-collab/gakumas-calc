@@ -178,7 +178,7 @@ export default function CalcPage() {
   const [paraboOpen, setParaboOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
-  /** メモリーの欄を一度でも開いたか（開くと、汎用メモリーのままでも設定欄の黄色が消える） */
+  /** メモリーの欄を一度でも開いたか（開くと、汎用メモリーのままでも準備の黄色が消える） */
   const [memoryVisited, setMemoryVisited] = useState<boolean>(readMemoryVisited);
   const openMemory = () => {
     if (!memoryVisited) {
@@ -189,11 +189,11 @@ export default function CalcPage() {
   };
   /** 「微調整」のタブ（サポカ編成｜踏み方｜発動回数｜イベント） */
   const [adjustTab, setAdjustTab] = useState<AdjustTab>("formation");
-  /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
+  /** 特訓・才能開花のモーダル（「準備」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
-  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダル（設定欄の「調整」から） */
+  /** 親愛度・ボーナス（親愛度・H.I.Fボーナス）のモーダル（準備の「調整」から） */
   const [detailOpen, setDetailOpen] = useState(false);
-  /** チャレンジPアイテムの獲得ボーナスのモーダル（設定欄のファン投票数の下から。N.I.A） */
+  /** チャレンジPアイテムの獲得ボーナスのモーダル（準備のファン投票数の下から。N.I.A） */
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
   /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
   const [pIdolWarn, setPIdolWarn] = useState<(() => void) | null>(null);
@@ -252,7 +252,7 @@ export default function CalcPage() {
 
   /**
    * 理想編成を計算して選択サポカへ一括設定。
-   * 条件設定（取得回数・編成割合・SP・最低/最高ステ・試験補助・ステージアイテム）は
+   * 探索の条件（取得回数・編成割合・SP・最低/最高ステ・試験補助・ステージアイテム）は
    * 全自動最適化（理論評価値）と同じものを引き継ぐ。
    */
   const applyIdealFormation = () => {
@@ -350,7 +350,7 @@ export default function CalcPage() {
   const hasEventOverrides = (ids: readonly string[]) =>
     ids.some((id) => hasSearchOwnedEventOverride(r.events.get(id)));
   /**
-   * 今の編成（選択サポカ）が現在の条件設定（固定・BAN・レンタルNG・プラン・ステージ用の除外・
+   * 今の編成（選択サポカ）が現在の探索の条件（固定・BAN・レンタルNG・プラン・ステージ用の除外・
    * SP率持ち・タイプ割合・最低/最高ステ）を満たしているか。
    * 満たしているのに探索結果が今の評価値を下回る場合は、結果を反映せず現状維持する
    * （設定を厳しくした直後などは今の編成が条件外なので、下がっても置き換える）。
@@ -421,7 +421,7 @@ export default function CalcPage() {
         const notes: string[] = [];
         if (issues.length > 0)
           notes.push(
-            `条件設定のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
+            `探索の条件のうち「${issues.join("・")}」は、今の所持サポカでは満たせませんでした（条件をゆるめるか、BAN・固定で調整してください）`,
           );
         // 今の編成が条件を満たしていて、探索結果がそれを下回るなら反映しない。
         // 手で前イベ・後イベを変えていたときは、比べた前提（全部発動）に合わせて全部発動に戻す
@@ -479,7 +479,7 @@ export default function CalcPage() {
         }
         if (before !== null && !beforeOk && res.rating < before) {
           notes.push(
-            "押す前より評価値が下がっていますが、元の編成は条件設定に合っていなかったため置き換えました",
+            "押す前より評価値が下がっていますが、元の編成は探索の条件に合っていなかったため置き換えました",
           );
         }
         setLastRun({
@@ -556,7 +556,7 @@ export default function CalcPage() {
   });
   const eventOverrideCount = eventOverrideNames.length;
 
-  /** 主役ボタン（所持状況は「設定欄」の欄で見せているので、確認は挟まない） */
+  /** 主役ボタン（所持状況は「準備」の欄で見せているので、確認は挟まない） */
   /** 選んでいるPアイドルが所持状況で未所持なら、探索の前に注意を出す（直すか、そのまま進むか） */
   const guardPIdol = (run: () => void) => {
     if (r.pMaster && !r.ownership) setPIdolWarn(() => run);
@@ -622,7 +622,7 @@ export default function CalcPage() {
 
       {/* ===== 入力（デスクトップでは左列）。スマホでは列を解体（contents）して order で並べ、評価値を編成より上に出す ===== */}
       <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
-        {/* 設定欄＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。1〜4がそろうと探索できる */}
+        {/* 準備＝育成の前提（シナリオ・Pアイドル（特訓・開花）・プロデュース・メモリー・所持状況・本戦点数）。1〜4がそろうと探索できる */}
         <div className="order-1 min-w-0">
         <PremiseCard
           r={r}
@@ -637,7 +637,7 @@ export default function CalcPage() {
         />
         </div>
 
-        {/* 操作（求める▾・条件設定・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
+        {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         <div className="order-2 min-w-0">{actionPanel}</div>
 
         {/* 微調整（サポカ編成｜踏み方｜発動回数｜イベント のタブ） */}
@@ -703,7 +703,7 @@ export default function CalcPage() {
                       {produceRank(r.rating)}
                     </span>
                   </div>
-                  {/* 条件設定をしているときは、今の編成での達成状況を出す */}
+                  {/* 探索の条件をしているときは、今の編成での達成状況を出す */}
                   {conditionChips.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1">
                       {conditionChips.map((c) => (
@@ -817,7 +817,7 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 条件設定モーダル */}
+      {/* 探索の条件モーダル */}
       {theoryOpen && (
         <TheorySettingsModal
           settings={settings}
@@ -836,11 +836,11 @@ export default function CalcPage() {
         />
       )}
 
-      {/* 特訓・才能開花（「設定欄」のアイドル欄から） */}
+      {/* 特訓・才能開花（「準備」のアイドル欄から） */}
       {trainingOpen && r.pMaster && (
         <PIdolTrainingModal r={r} onClose={() => setTrainingOpen(false)} />
       )}
-      {/* 詳細設定（親愛度・H.I.Fボーナス） */}
+      {/* 親愛度・ボーナス（親愛度・H.I.Fボーナス） */}
       {detailOpen && <DetailSettingsModal r={r} onClose={() => setDetailOpen(false)} />}
       {/* チャレンジPアイテム（N.I.A＝獲得ボーナス、初＝3枠のアイテム） */}
       {niaChallengeOpen &&

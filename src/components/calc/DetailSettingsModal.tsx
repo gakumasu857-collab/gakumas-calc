@@ -60,7 +60,7 @@ function LevelButtons({
 }
 
 /**
- * 詳細設定（設定欄の「調整」から）。
+ * 親愛度・ボーナス（準備の「調整」から）。
  * - 親愛度: 全シナリオ共通。スター性ボーナス・初期Pポイント（STEP3）・最大体力に効く
  * - H.I.Fボーナス: H.I.Fのときだけ。固定値・パラボ・SP率・本戦のステ上限・初期Pポイント
  * どちらも既定は最大（親愛度37＝一番星／H.I.Fボーナス全部最大）。
@@ -91,7 +91,7 @@ export default function DetailSettingsModal({
   const td = "border border-slate-200 px-2 py-1 text-center";
 
   return (
-    <Modal title="詳細設定" onClose={onClose} widthClass="max-w-lg">
+    <Modal title="親愛度・ボーナス" onClose={onClose} widthClass="max-w-lg">
       {/* ===== 親愛度（全シナリオ） ===== */}
       <h3 className="text-sm font-bold text-slate-900">親愛度</h3>
       <p className={`mb-2 ${NOTE}`}>

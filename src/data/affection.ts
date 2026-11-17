@@ -72,7 +72,7 @@ export function affectionLabel(level: number): string {
   return lv <= AFFECTION_MIN ? "20以下" : `Lv${lv}`;
 }
 
-/** 設定欄の要約（例「スター性+50%・初期P+30・最大体力+2」） */
+/** 準備の要約（例「スター性+50%・初期P+30・最大体力+2」） */
 export function affectionSummary(level: number): string {
   const star = Math.round(affectionStarBonus(level) * 100);
   const p = affectionStepP(level);

@@ -43,7 +43,7 @@ const LABEL = "text-sm font-bold text-slate-800";
 const TYPE_SHORT_JP: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
 
 /**
- * 「設定欄」（育成の前提）カード。
+ * 「準備」（育成の前提）カード。
  * 青い見出し帯＋番号つきの5つの欄（シナリオ・アイドル・プロデュース・メモリー・所持状況）
  * ＋シナリオ別の本戦の点数。未設定の欄は黄色、設定済みは番号が青。
  * メモリーは、汎用メモリー（最初から入っているもの）のままで、まだ欄を一度も開いていなければ黄色
@@ -74,7 +74,7 @@ export default function PremiseCard({
   memoryVisited: boolean;
   /** 特訓・才能開花のモーダルを開く（Pアイドルを選んだあと） */
   onOpenIdolTraining: () => void;
-  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
+  /** 親愛度・ボーナス（親愛度・H.I.Fボーナス）のモーダルを開く */
   onOpenDetail: () => void;
   /** チャレンジPアイテムの獲得ボーナスのモーダルを開く（N.I.Aのとき） */
   onOpenNiaChallenge: () => void;
@@ -114,7 +114,7 @@ export default function PremiseCard({
       {/* 見出し帯 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-600 px-4 py-2.5 text-white">
         <h2 className="flex items-center gap-1 text-base font-bold">
-          設定欄
+          準備
           <Hint
             text={GLOSSARY.premise}
             className="[&>button]:text-blue-200 [&>button:hover]:text-white"
@@ -253,7 +253,7 @@ export default function PremiseCard({
   );
 }
 
-/** 設定欄をたたんでいるか（ブラウザに覚える。既定はたたむ） */
+/** 準備をたたんでいるか（ブラウザに覚える。既定はたたむ） */
 const FOLD_KEY = "gakumas:calc:premiseFolded:v1";
 function readFolded(): boolean {
   try {
@@ -270,7 +270,7 @@ function writeFolded(v: boolean) {
   }
 }
 
-/** たたんだ設定欄の1項目（押すとその項目を変えられる） */
+/** たたんだ準備の1項目（押すとその項目を変えられる） */
 function SummaryChip({
   onClick,
   title,
@@ -398,7 +398,7 @@ function ScenarioScoreCard({
   onOpenNiaChallenge,
 }: {
   r: CalcResult;
-  /** 詳細設定（親愛度・H.I.Fボーナス）のモーダルを開く */
+  /** 親愛度・ボーナス（親愛度・H.I.Fボーナス）のモーダルを開く */
   onOpenDetail: () => void;
   /** チャレンジPアイテムのモーダルを開く（N.I.A＝獲得ボーナス、初＝3枠のアイテム） */
   onOpenNiaChallenge: () => void;
@@ -507,14 +507,14 @@ function HatsuChallengeRow({ r, onOpen }: { r: CalcResult; onOpen: () => void })
   );
 }
 
-/** 詳細設定（親愛度・H.I.Fボーナス。既定は最大）の要約と「調整」 */
+/** 親愛度・ボーナス（親愛度・H.I.Fボーナス。既定は最大）の要約と「調整」 */
 function DetailRow({ r, onOpen }: { r: CalcResult; onOpen: () => void }) {
   const { settings } = r.calc;
   const b = hifBonusValues(settings.hifBonus);
   const max = isHifBonusMax(settings.hifBonus);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200 pt-2 text-xs text-slate-600">
-      <span className="font-bold text-slate-700">詳細設定</span>
+      <span className="font-bold text-slate-700">親愛度・ボーナス</span>
       <span>
         親愛度 <b className="text-slate-800">{affectionLabel(settings.affection)}</b>
       </span>

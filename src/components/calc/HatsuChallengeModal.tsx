@@ -11,7 +11,7 @@ import {
 import type { useCalcResult } from "@/lib/useCalcResult";
 
 /**
- * 初レジェンドのチャレンジPアイテムを枠ごとに1つ選ぶモーダル（設定欄の「試験スコア・順位」の下の「調整」から）。
+ * 初レジェンドのチャレンジPアイテムを枠ごとに1つ選ぶモーダル（準備の「試験スコア・順位」の下の「調整」から）。
  * 計算に入るのはステータス（教科書のパラボ%・ボイスレコーダーなどの+15×5）とレッスン上限だけ。2026-11-16
  */
 export default function HatsuChallengeModal({

@@ -202,7 +202,7 @@ export function useMemoryStore() {
   );
   /** 中身が入っている枠の数 */
   const count = slots.filter((s) => s !== null).length;
-  /** 4枠とも汎用メモリー（汎用メモリー60点のテンプレ）のままか（設定欄の「今は汎用メモリー」の表記用） */
+  /** 4枠とも汎用メモリー（汎用メモリー60点のテンプレ）のままか（準備の「今は汎用メモリー」の表記用） */
   const isGeneric = slots.every((s) => !!s && !!s.roleSpec && s.sourceId === GENERIC_MEMORY_ID);
   /** 今の4枠を入れたセット（無ければ null）と、そこから枠を変えたか（「上書き保存」を出す条件） */
   const activeSet = useMemo(

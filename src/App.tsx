@@ -23,7 +23,7 @@ const PAGES: { path: string; title: string; element: React.ReactNode }[] = [
   },
   {
     path: "/ability-counts",
-    title: "プロデュース設定",
+    title: "プロデュース",
     element: <AbilityCountManager />,
   },
   {

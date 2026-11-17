@@ -53,7 +53,7 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
         <div className="min-h-0 overflow-y-auto px-6 py-5">
           <p className="text-xs font-bold tracking-wide text-slate-500">使い方はかんたん 3ステップ</p>
           <ol className="mt-3 flex flex-col gap-3">
-            <Step no={1} title="設定欄を上から埋める">
+            <Step no={1} title="準備の欄を上から埋める">
               育成シナリオ・Pアイドル・プロデュース（サポカのアビリティの発動回数）を選びます。黄色い欄が未選択です。メモリーは最初から汎用のものが入っています。
             </Step>
             <Step no={2} title="青いボタンを押して探索">
@@ -96,7 +96,7 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** 番号つきのステップ（設定欄の番号バッジと同じ見た目） */
+/** 番号つきのステップ（準備の番号バッジと同じ見た目） */
 function Step({ no, title, children }: { no: number; title: string; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">

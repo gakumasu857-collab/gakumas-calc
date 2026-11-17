@@ -18,7 +18,7 @@ import { useScenario } from "./useScenario";
  * 2026-11-11 まで点数表とサポカ設定ページは H.I.F の作り方（buildSheetScoreContext）だけだったので、
  * N.I.A・初を選んでいてもレッスン回数は H.I.F の踏み方、試験・オーディション終了などの固定回数は H.I.F の値だった
  * （オーナー「計算ページでシナリオ変えても点数表の発動回数が HIF のまま」）。
- * 作り方は計算ページ（useCalcResult）と同じ。回数は呼び出し側が渡す（点数表はプロデュース設定の回数）。
+ * 作り方は計算ページ（useCalcResult）と同じ。回数は呼び出し側が渡す（点数表はプロデュースの回数）。
  */
 export function useScenarioScoreContext(
   manualCount: (label: string) => number | undefined,

@@ -43,7 +43,7 @@ const USER_SETS_KEY = "gakumas:abilityUserSets:v1";
 const SELECTED_SET_KEY = "gakumas:abilitySelectedSet:v1";
 /**
  * 計算ページでの「この育成だけ」の回数調整（セットID→アビリティ→回数）。
- * プロデュース設定ページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
+ * プロデュースのページのデフォルト（overrides）は変えず、計算ページではこちらを優先する。
  */
 const ADJUST_KEY = "gakumas:calc:countAdjust:v1";
 /**
@@ -80,7 +80,7 @@ function dropUnknownKeys(stored: Overrides): Overrides {
 
 /**
  * ユーザーがUIで追加したセット（回数はすべてoverridesに入る）。planなしは名前から推定。
- * saveId 付きは計算ページのセーブデータから作られたもの（プロデュース設定ページでは既定で隠す）。
+ * saveId 付きは計算ページのセーブデータから作られたもの（プロデュースのページでは既定で隠す）。
  */
 type UserSet = { id: string; name: string; plan?: string; saveId?: string };
 
@@ -137,7 +137,7 @@ function loadJson<T>(key: string, fallback: T): T {
 
 /**
  * @param scenarioArg 表示中のシナリオ。スケジュールの選択で決まる回数はシナリオごとに変わるので、
- *   シナリオを持っている画面（計算ページ・プロデュース設定ページ）は必ず渡す。
+ *   シナリオを持っている画面（計算ページ・プロデュースのページ）は必ず渡す。
  *   省略すると自前のストアから読むが、その実体は別画面での切り替えに追従しない。
  */
 export function useAbilityCounts(scenarioArg?: ScenarioKey) {
@@ -272,7 +272,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
   );
 
   /**
-   * その回数を「最初の回数」に戻す（プロデュース設定ページの「元◯に戻す」）。
+   * その回数を「最初の回数」に戻す（プロデュースのページの「元◯に戻す」）。
    * 差分を消すだけでよい（消せばテンプレの値に戻る）。連動する回数（ドリンク獲得）も一緒に戻す
    * （片方だけ戻すと、戻すボタンしか押していないのに元より減ってしまうため）。
    */
@@ -289,7 +289,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     });
   }, []);
 
-  /** 今の回数が「最初の回数」と違うか（プロデュース設定ページの「変更」の印） */
+  /** 今の回数が「最初の回数」と違うか（プロデュースのページの「変更」の印） */
   const isChangedFromTemplate = useCallback(
     (set: AbilityCountSet, key: AbilityName): boolean => {
       const base = templateCount(set, key);
@@ -340,7 +340,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
 
   /**
    * 計算ページで使う「この育成での回数」。この育成だけの調整（adjust）があればそれ、
-   * なければセットのデフォルト（プロデュース設定ページの値）。
+   * なければセットのデフォルト（プロデュースのページの値）。
    * スケジュールの選択で決まる分は、この育成での選択から導き出す。
    */
   const getRunCount = useCallback(
@@ -355,7 +355,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
     [adjust, getCount, scenario, getRunChoices],
   );
 
-  /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュース設定ページの値は変えない */
+  /** この育成での回数を変える（デフォルトと同じ値なら調整を消す）。プロデュースのページの値は変えない */
   const setRunCount = useCallback(
     (set: AbilityCountSet, key: AbilityName, value: number) => {
       const changes = linkedChanges(key, value, (k) => getRunCount(set, k));
@@ -747,7 +747,7 @@ export function useAbilityCounts(scenarioArg?: ScenarioKey) {
 
   /** ユーザーがUIで追加したセットか（削除可能か） */
   const isUserSet = (setId: string) => setId.startsWith("uset-");
-  /** 計算ページのセーブデータから作られたセットか（プロデュース設定ページでは既定で隠す） */
+  /** 計算ページのセーブデータから作られたセットか（プロデュースのページでは既定で隠す） */
   const saveIdOf = (setId: string): string | undefined =>
     userSets.find((s) => s.id === setId)?.saveId;
 

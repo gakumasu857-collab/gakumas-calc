@@ -4,7 +4,7 @@ import { SCENARIO_CALENDARS, supplyLabel, supplyPOf } from "@/data/scheduleCalen
 
 /**
  * シナリオの育成スケジュール（何日/週に何があるか）を正方形のカードで並べる表示。
- * 数値表・発動回数モーダル・プロデュース設定ページから開ける共通ビュー（押せない）。
+ * 数値表・発動回数モーダル・プロデュースのページから開ける共通ビュー（押せない）。
  * 週ごとに選ぶ画面は ability-counts/ScheduleChoiceGrid.tsx。
  */
 export default function ScheduleCalendarView({

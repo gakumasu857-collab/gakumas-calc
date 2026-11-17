@@ -101,8 +101,8 @@ function RunButtons({
 }
 
 /**
- * 操作パネル（「設定欄」のすぐ下＝設定を入れたらそのまま押す。PC・スマホ共通）。
- * 主役ボタン＋▾と「条件設定」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す
+ * 操作パネル（「準備」のすぐ下＝設定を入れたらそのまま押す。PC・スマホ共通）。
+ * 主役ボタン＋▾と「探索の条件」を同じ行に。前提がそろって初めて押すまでは、動く矢印で押す場所を示す
  * （所持状況が未入力なら「全完凸の想定で探索できる」ことと入力先を一緒に案内する）。
  * 下に所持状況の注記と、直近の探索の内訳（何通り・何秒・前後の評価値）。
  * 診断ログ（JSONのコピー）はデバッグページ（/debug）にある。
@@ -125,7 +125,7 @@ export default function ActionPanel({
   showArrow: boolean;
   status: RunStatus | null;
   onConditions: () => void;
-  /** 今効いている条件の数（条件設定のボタンに出す） */
+  /** 今効いている条件の数（探索の条件のボタンに出す） */
   conditionCount: number;
 }) {
   const delta =
@@ -155,11 +155,11 @@ export default function ActionPanel({
           type="button"
           onClick={onConditions}
           className={`${BTN_SECONDARY} shrink-0`}
-          title="条件設定（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN・最低/最高ステなど）"
+          title="探索の条件（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN・最低/最高ステなど）"
         >
           <Settings size={14} />
           {/* 幅の狭い画面では主役ボタンの文字を切らないよう、アイコンだけにする（説明は title） */}
-          <span className="hidden sm:inline">条件設定</span>
+          <span className="hidden sm:inline">探索の条件</span>
           {conditionCount > 0 && (
             <span
               title={`条件 ${conditionCount}件`}
@@ -172,7 +172,7 @@ export default function ActionPanel({
       </div>
       {!ready && (
         <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
-          上の「設定欄」で {missingInputs.join("・")} を選択してください
+          上の「準備」で {missingInputs.join("・")} を選択してください
         </p>
       )}
 

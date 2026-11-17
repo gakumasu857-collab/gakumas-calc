@@ -129,7 +129,7 @@ export default function CalcHelpModal({
                   <T>2000</T>
                 </>
               }
-              notes={["各項小数点以下を切り捨て。本戦の点数は設定欄の本戦ラウンド点数から。"]}
+              notes={["各項小数点以下を切り捨て。本戦の点数は準備の本戦ラウンド点数から。"]}
             />
             <Formula
               title="合計スター性"
@@ -149,7 +149,7 @@ export default function CalcHelpModal({
                 "レッスン: 数値表の★列（SPと非SPで異なり、小数は切り捨て）。",
                 "選抜: 合計スコアによってスター性が決まります（計算式は下。小数は切り捨て）。",
                 "本戦: R1・R2それぞれ、ラウンドの点数によって決まります（上限 素の値でR1 120・R2 150。計算式は下）。",
-                `親愛度でスター性が増えます（今は ${affectionLabel(affection)} ＝ +${Math.round(affectionStarBonus(affection) * 100)}%）。ワッペン・レッスン・選抜・本戦それぞれに掛けて切り捨てます。設定欄の「詳細設定」で変えられます。`,
+                `親愛度でスター性が増えます（今は ${affectionLabel(affection)} ＝ +${Math.round(affectionStarBonus(affection) * 100)}%）。ワッペン・レッスン・選抜・本戦それぞれに掛けて切り捨てます。準備の「親愛度・ボーナス」で変えられます。`,
               ]}
             />
             <Formula

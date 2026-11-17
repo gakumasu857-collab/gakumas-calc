@@ -10,7 +10,7 @@ import { BUILTIN_ALL4, BUILTIN_ID, useOwnedSaves } from "@/lib/useOwnedSaves";
 type Pos = { left: number; top: number; width: number; maxHeight: number; up: boolean };
 
 /**
- * 設定欄の「所持状況」の欄。使う所持状況（既定＝全サポカ完凸／保存してある所持状況）を切り替える。
+ * 準備の「所持状況」の欄。使う所持状況（既定＝全サポカ完凸／保存してある所持状況）を切り替える。
  * 見た目はほかの欄と同じ（プロデュースの欄と同じ作り。一覧はポータルで画面直付け）。
  * 切り替えは所持状況ページの「使う所持状況」と同じ動き（使用中を替えてから、その内容を所持ストアへ読み込む）。
  * 一覧の一番下から所持状況ページ（入力・編集）へ行ける。

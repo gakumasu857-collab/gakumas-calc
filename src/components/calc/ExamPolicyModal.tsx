@@ -25,7 +25,7 @@ const TYPE_CHIP: Record<TypeKey, string> = {
  * （useSchedule の examTouched＝変える前の配分の控え examBaseline がある）は、探索の前に「探索で決め直す」か
  * 「このまま固定して探索する」かを選んでもらう。確認は最初だけでよいので「次回以降表示しない」を付けてあり、
  * チェックして選ぶと確認が OFF になって、選んだほうが「確認を挟まないときの扱い」（examKeepManual）に入る。
- * あとは「条件設定」で変える。
+ * あとは「探索の条件」で変える。
  *
  * ask(scope, run): 確認が要らなければすぐ run(方針) を呼ぶ。要るときはモーダルを出し、選んだ方針で run を呼ぶ。
  * modal は呼び出し側で描画する（踏み方エディタの中でも使うので、それぞれの画面に置く）。
@@ -44,7 +44,7 @@ export function useExamGuard(r: CalcResult) {
     // 手で変えていなければ、いつも探索が決める
     if (!r.schedule.examTouched) return run(searchPolicy);
     if (settings.examConfirm) setPending({ scope, run });
-    // 確認を挟まない設定: 「条件設定」で選んだ扱いに従う
+    // 確認を挟まない設定: 「探索の条件」で選んだ扱いに従う
     else run(settings.examKeepManual ? "fixed" : searchPolicy);
   };
 
@@ -149,7 +149,7 @@ function ExamPolicyModal({
           </span>
         </button>
       </div>
-      {/* 確認は最初だけでよい: チェックして選ぶと、次からは選んだほうで探索する（「条件設定」で変えられる） */}
+      {/* 確認は最初だけでよい: チェックして選ぶと、次からは選んだほうで探索する（「探索の条件」で変えられる） */}
       <label className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-slate-600">
         <input
           type="checkbox"
@@ -160,7 +160,7 @@ function ExamPolicyModal({
         <span>
           次回以降表示しない
           <span className="block text-[11px] text-slate-400">
-            「条件設定」→「選抜の点数配分設定をそのままにするかどうかの確認を挟む」で変えられます。
+            「探索の条件」→「選抜の点数配分設定をそのままにするかどうかの確認を挟む」で変えられます。
           </span>
         </span>
       </label>

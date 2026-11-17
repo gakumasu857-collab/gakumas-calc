@@ -11,7 +11,7 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 
 /**
  * N.I.AのチャレンジPアイテムの「獲得ボーナス」を枠ごとに選ぶモーダル
- * （設定欄のファン投票数の下の「調整」から）。アイテム名ではなく%で選ぶ。既定は各枠の最大。
+ * （準備のファン投票数の下の「調整」から）。アイテム名ではなく%で選ぶ。既定は各枠の最大。
  */
 export default function NiaChallengeModal({
   r,

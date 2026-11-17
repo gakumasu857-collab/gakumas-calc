@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 
 /**
  * プロデュース計算機のナビ（メインは /calc）。
- * 計算｜自動編成機能の設定（プルダウン: 所持状況・プロデュース設定・サポカ設定）｜点数表・データベース｜ヘルプ。
+ * 計算｜自動編成機能の設定（プルダウン: 所持状況・プロデュース・サポカ設定）｜点数表・データベース｜ヘルプ。
  * 「自動編成機能の設定」は探索（自動編成）が参照する設定ページ3つをまとめたもの（2026-09-16、オーナー指示。
  * 表の2つと計算はそのまま）。ブランド名クリックでホームへ戻る。右端はヘルプ（枠で囲ったボタン）。
  * メニューは nav が横スクロール（overflow）なので、切れないよう body 直付け（createPortal）で描く。
@@ -14,7 +14,7 @@ const SETTINGS_PAGES: { href: string; label: string; note: string; sub?: boolean
   { href: "/support", label: "所持状況", note: "持っているサポカの凸・Pアイドルの特訓と才能開花" },
   // 所持状況の入力方法のひとつ（所持状況ページのボタンからしか行けず見つけにくかったので、ここにも出す。2026-11-17）
   { href: "/card-import", label: "画面キャプチャで所持入力（β）", note: "ゲーム画面から凸を読み取る", sub: true },
-  { href: "/ability-counts", label: "プロデュース設定", note: "アビリティ発動回数のデフォルト" },
+  { href: "/ability-counts", label: "プロデュース", note: "アビリティ発動回数のデフォルト" },
   { href: "/card-settings", label: "サポカ設定", note: "前イベ回数の上限、固定・BAN・レンタルNG" },
 ];
 const TABLE_PAGES: { href: string; label: string }[] = [
@@ -77,7 +77,7 @@ export default function NavBar() {
             onClick={toggle}
             aria-haspopup="menu"
             aria-expanded={open}
-            title="探索（自動編成）が参照する設定: 所持状況・プロデュース設定・サポカ設定"
+            title="探索（自動編成）が参照する設定: 所持状況・プロデュース・サポカ設定"
             className={`${TAB_CLASS(inSettings || open)} flex items-center gap-1`}
           >
             <Settings2 size={14} className="hidden sm:block" />

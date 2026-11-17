@@ -43,7 +43,7 @@ const writeNoteHidden = (hidden: boolean) => {
 type Props = {
   set: AbilityCountSet;
   /**
-   * default: プロデュース設定ページ（このセットのデフォルトの回数を編集）
+   * default: プロデュースのページ（このセットのデフォルトの回数を編集）
    * run: 計算ページ（この育成だけの回数。デフォルトは変えない）
    */
   mode?: "default" | "run";
@@ -198,7 +198,7 @@ export default function SetEditModal({
           <NoteToggle hidden={false} onClick={toggleNote} />
         </div>
       )}
-      {/* デフォルト（プロデュース設定ページ）と、この育成での回数（計算ページ）の違いを明示する */}
+      {/* デフォルト（プロデュースのページ）と、この育成での回数（計算ページ）の違いを明示する */}
       {mode === "run" ? (
         <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
           {!noteHidden && (

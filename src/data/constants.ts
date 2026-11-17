@@ -267,7 +267,7 @@ for (const entry of AUTO_ENTRIES) {
 // 自動で登録した「(N回まで)」だけの系統も、括弧なしの名前をいちばん N の大きいものへ
 linkBareLabels(AUTO_ABILITIES.map((a) => [a.key, a.label]));
 
-/** 自動で登録したアビリティのうち、回数として参照されるもの（プロデュース設定の「その他」に出す候補） */
+/** 自動で登録したアビリティのうち、回数として参照されるもの（プロデュースの「その他」に出す候補） */
 export const AUTO_COUNT_ABILITY_KEYS: readonly AutoAbilityKey[] = AUTO_ABILITIES.filter(
   (a) => a.count,
 ).map((a) => a.key);
