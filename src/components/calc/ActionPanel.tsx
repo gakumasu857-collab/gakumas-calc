@@ -155,7 +155,7 @@ export default function ActionPanel({
           type="button"
           onClick={onConditions}
           className={`${BTN_SECONDARY} shrink-0`}
-          title="探索の条件（SP率持ちの枚数・タイプ割合・試験補助・ステージ用BAN・最低/最高ステなど）"
+          title="探索の条件（レッスンで多く踏むタイプ・ステを寄せるタイプ・試験補助のサポカ・SP率アップ持ちの枚数など）"
         >
           <Settings size={14} />
           {/* 幅の狭い画面では主役ボタンの文字を切らないよう、アイコンだけにする（説明は title） */}
