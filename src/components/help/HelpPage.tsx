@@ -321,18 +321,18 @@ export default function HelpPage() {
         ページの構成
       </h2>
       <p className={`mb-3 ${P}`}>
-        メインは計算ページです。ほかのページは「自動編成機能の設定」（探索が参照する設定）と「見るだけの表」の2種類で、上のナビも左からこの順（計算｜自動編成機能の設定｜点数表・データベース｜ヘルプ）に並んでいます。
-        ナビの「自動編成機能の設定」を押すと、所持状況・プロデュース・サポカ設定の3つが出ます。
+        メインは計算ページです。ほかのページは、計算ページの「準備」で選ぶものを作るページと、見るだけの表の2種類です。
+        上のナビも左からこの順（計算｜所持状況・プロデュース・サポカ設定｜点数表・データベース｜ヘルプ）に並んでいます。スマホでは「メニュー」から開きます。
       </p>
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr]">
         <div className={`${CARD} border-blue-300 bg-blue-50/40`}>
           <p className="text-sm font-bold text-slate-900">計算</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            設定・探索・調整・評価値。主に使う場所。
+            準備・探索・微調整・評価値。主に使う場所。
           </p>
         </div>
         <div className={CARD}>
-          <p className="text-sm font-bold text-slate-900">自動編成機能の設定</p>
+          <p className="text-sm font-bold text-slate-900">準備で選ぶものを作る</p>
           <ul className="mt-1 list-disc pl-4 text-xs leading-relaxed text-slate-600">
             <li>
               <Link to="/support" className="font-semibold text-blue-700 underline">
@@ -344,7 +344,7 @@ export default function HelpPage() {
               <Link to="/ability-counts" className="font-semibold text-blue-700 underline">
                 プロデュース
               </Link>
-              : サポカのアビリティ発動回数を設定できます。計算ページ準備のプロデュースで選択可能。
+              : サポカのアビリティ発動回数を設定できます。計算ページの「準備」のプロデュースで選びます。
             </li>
             <li>
               <Link to="/card-settings" className="font-semibold text-blue-700 underline">

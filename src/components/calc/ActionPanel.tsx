@@ -134,7 +134,7 @@ export default function ActionPanel({
       : null;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-3">
+    <section id="step-search" className="scroll-mt-16 rounded-xl border border-slate-200 bg-white p-3">
       {showArrow && (
         <p className="mb-2 flex items-start gap-1.5 text-sm font-bold text-blue-700">
           <ArrowDown size={18} className="mt-0.5 shrink-0 animate-bounce" />

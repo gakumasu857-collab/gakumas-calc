@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, ChevronDown, Pencil } from "lucide-react";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import type { useCalcResult } from "@/lib/useCalcResult";
 
@@ -145,6 +146,15 @@ export default function SetPickerField({ r }: { r: CalcResult }) {
                   ? `Pアイドルのプラン「${plan}」で使えるものだけ表示しています`
                   : "アイドルを選ぶと、そのプランで使えるものだけになります"}
               </p>
+              {/* 中身を作るページへ（所持状況の欄と同じ形。2026-11-18） */}
+              <Link
+                to="/ability-counts"
+                onClick={close}
+                className="mt-1 flex items-center gap-1.5 rounded-md border-t border-slate-100 px-2 pb-1.5 pt-2 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                <Pencil size={13} />
+                回数を見る・作る（プロデュースのページ）
+              </Link>
             </div>
           </>,
           document.body,

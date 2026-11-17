@@ -598,7 +598,11 @@ export default function CalcPage() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
-        <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
+          {/* 今どこまで進んだか（押すとその段へ）。2026-11-18 */}
+          <StepNav ready={optimizeReady} ran={everRun} />
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -921,6 +925,39 @@ export default function CalcPage() {
       )}
 
     </div>
+  );
+}
+
+/** 計算ページの段（① 準備 → ② 探す → ③ 微調整）。終わった段に✓、今の段を青で */
+function StepNav({ ready, ran }: { ready: boolean; ran: boolean }) {
+  const steps = [
+    { id: "step-prep", label: "① 準備", done: ready },
+    { id: "step-search", label: "② 探す", done: ran },
+    { id: "step-adjust", label: "③ 微調整", done: false },
+  ];
+  const currentIdx = !ready ? 0 : !ran ? 1 : 2;
+  return (
+    <nav className="flex flex-wrap items-center gap-1 text-xs">
+      {steps.map((s, i) => (
+        <span key={s.id} className="flex items-center gap-1">
+          {i > 0 && <span className="text-slate-300">›</span>}
+          <button
+            type="button"
+            onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className={`rounded-full border px-2.5 py-0.5 font-bold transition ${
+              i === currentIdx
+                ? "border-blue-600 bg-blue-600 text-white"
+                : s.done
+                  ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50"
+            }`}
+          >
+            {s.label}
+            {s.done && i !== currentIdx && " ✓"}
+          </button>
+        </span>
+      ))}
+    </nav>
   );
 }
 

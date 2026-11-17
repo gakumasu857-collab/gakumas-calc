@@ -91,6 +91,8 @@ export default function FormationPlanCard({
 
   return (
     <Card
+      id="step-adjust"
+      className="scroll-mt-16"
       title="微調整"
       hint={<Hint text={GLOSSARY.formationPlan} />}
       action={

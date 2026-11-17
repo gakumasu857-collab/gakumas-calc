@@ -110,7 +110,7 @@ export default function PremiseCard({
     r.scenario === "hif" ? "本戦の点数" : r.scenario === "niaMaster" ? "最終オーディション" : "試験スコア";
 
   return (
-    <section className="overflow-hidden rounded-xl border-2 border-blue-600 bg-white shadow-sm">
+    <section id="step-prep" className="scroll-mt-16 overflow-hidden rounded-xl border-2 border-blue-600 bg-white shadow-sm">
       {/* 見出し帯 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-600 px-4 py-2.5 text-white">
         <h2 className="flex items-center gap-1 text-base font-bold">
