@@ -11,7 +11,7 @@ import { TYPE_KEYS, TYPE_LABELS, type TypeKey } from "@/lib/useCalcSettings";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
-type SegmentKey = "start" | "lesson" | "exam" | "class" | "support" | "parabo";
+type SegmentKey = "start" | "lesson" | "exam" | "class" | "item" | "support" | "parabo";
 type Segment = { key: SegmentKey; label: string; short: string; color: string };
 
 /** ステの内訳（積み上げバーの区分と色）。選抜・授業の呼び名はシナリオで変わる */
@@ -29,6 +29,10 @@ function segmentsOf(scenario: CalcResult["scenario"]): Segment[] {
     { key: "lesson", label: "レッスン", short: "レッスン", color: "bg-sky-300" },
     { key: "exam", label: exam.label, short: exam.short, color: "bg-violet-300" },
     { key: "class", label: cls, short: cls, color: "bg-amber-300" },
+    // 初のチャレンジPアイテム（ボイスレコーダーなどの+15×5）。初だけ
+    ...(scenario === "hatsuLegend"
+      ? [{ key: "item" as const, label: "チャレンジPアイテム", short: "Pアイテム", color: "bg-orange-300" }]
+      : []),
     { key: "support", label: "サポカ", short: "サポカ", color: "bg-emerald-300" },
     { key: "parabo", label: "パラボ変換", short: "パラボ", color: "bg-pink-300" },
   ];
@@ -97,6 +101,7 @@ export default function StatsCard({
       lesson: p.lessonGain,
       exam: p.examGain,
       class: p.classGain,
+      item: p.itemGain,
       support: detail.support - supportInitial,
       parabo: detail.conv,
     };
@@ -285,7 +290,7 @@ export default function StatsCard({
             合計スター性: <b className="text-violet-600">{r.totalStar}</b>
           </p>
         )}
-        {/* N.I.A: ファン投票数の合計と評価値換算（内訳は設定欄にも） */}
+        {/* N.I.A: ファン投票数の合計と評価値換算（内訳は準備にも） */}
         {r.scenario === "niaMaster" && (
           <p className="flex flex-wrap items-center gap-x-1">
             ファン投票数:{" "}

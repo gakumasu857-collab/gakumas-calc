@@ -2400,10 +2400,15 @@ export class OptimizeEngine {
     }
     // 固定カードは必ず候補に含める。ただし使用制限（プラン）が合わないカードは
     // 編成できないので除外する（固定してもプラン違いは反映しない）
+    // 持っていない固定カードはレンタルの候補へ（2026-11-18: 持っている側の候補にだけ入れていて、
+    // 持っていない固定カードが候補から静かに消え、どの探索でも編成に入らなかった。オーナー指摘「小悪魔になっちゃえが入ってこない」）。
+    // 持っていなくてレンタルNGの固定カードは入れようがないので、必ず入れる対象からも外す
     for (const id of this.input.flags.pinned) {
       const card = DB_BY_ID.get(id);
       if (card && !planAllows(card.plan, this.input.plan)) continue;
-      ids.add(id);
+      if (this.input.getLevel(id) >= 0) ids.add(id);
+      else if (this.input.flags.rentalNg?.has(id)) continue;
+      else rentalIds.add(id);
       this.pinnedEnforced.add(id);
     }
     this.shortlistIds = ids;

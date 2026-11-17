@@ -103,6 +103,8 @@ export type PerTypeResult = {
   idolConv: number;
   lessonGain: number;
   examGain: number;
+  /** 初のチャレンジPアイテムの上昇（+15×5。開始時には入れない。他シナリオは0） */
+  itemGain: number;
   supportPoints: number;
   current: number;
   capped: number;
@@ -285,8 +287,9 @@ export function useCalcResult() {
     // （カードごとに個別変換すると切り捨てが多く発生して実際より低く出る）
     // HIFボーナス（全タイプ+100・パラボ+10%）はHIFシナリオ限定。
     // 初はチャレンジPアイテムの固定値（ボイスレコーダーなど +15×5）とパラボ%（教科書 +8.5%）をここに足す（2026-11-16）
-    const hifFixedOf = (t: TypeKey) =>
-      scenario === "hif" ? hifBonus.fixed[t] : scenario === "hatsuLegend" ? hatsuChallenge.fixed[t] : 0;
+    // 初のチャレンジPアイテムの固定値（+15×5）は開始時ではなく育成中の上昇なので、ここではなく itemGain に入れる（2026-11-18）
+    const hifFixedOf = (t: TypeKey) => (scenario === "hif" ? hifBonus.fixed[t] : 0);
+    const itemGainOf = (t: TypeKey) => (scenario === "hatsuLegend" ? hatsuChallenge.fixed[t] : 0);
     const hifPctOf = (t: TypeKey) =>
       scenario === "hif" ? hifBonus.pct[t] : scenario === "hatsuLegend" ? hatsuChallenge.pct[t] : 0;
     const basePct = {} as Record<TypeKey, number>;
@@ -317,10 +320,12 @@ export function useCalcResult() {
       const memConv = memFixed[type] + convert(type, memPct[type]);
       const idolConv = convert(type, idolPct);
       // パラボ以外の固定分
+      const itemGain = itemGainOf(type);
       baseNoConv[type] =
         bd.classes[type] +
         memFixed[type] +
         idolFixed +
+        itemGain +
         bd.lessons[type] +
         bd.exams[type];
       const current = baseNoConv[type] + adj[type].support + adj[type].conv;
@@ -334,6 +339,7 @@ export function useCalcResult() {
         idolConv,
         lessonGain: bd.lessons[type],
         examGain: bd.exams[type],
+        itemGain,
         supportPoints,
         current,
         capped: Math.min(caps[type], current),

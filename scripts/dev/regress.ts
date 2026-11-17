@@ -63,3 +63,22 @@ for (const c of CASES) {
   );
   if (res.hif) console.log("  選抜:", JSON.stringify(res.hif.examScores));
 }
+
+// 固定したカードを持っていないときも（レンタルで）必ず入るか（2026-11-18 に入らない不具合があった）
+{
+  store.clear();
+  localStorage.setItem("gakumas:scenario:v1", "hif");
+  localStorage.setItem("gakumas:abilitySelectedSet:v1", "set:センス花ロボ(黄)");
+  localStorage.setItem("gakumas:calcSettings:v1", JSON.stringify({ idol: "花海咲季", pIdol: "学園生活" }));
+  const pin = SUPPORT_CARD_DB.find((c) => c.name.startsWith("小悪魔"));
+  if (pin) {
+    const lv: Record<string, number> = {};
+    for (const c of SUPPORT_CARD_DB) lv[c.id] = 4;
+    lv[pin.id] = -1;
+    localStorage.setItem("gakumas:ownedLevels:v1", JSON.stringify(lv));
+    localStorage.setItem("gakumas:cardFlags:v1", JSON.stringify({ [pin.id]: { pin: true } }));
+    const res = runFullOptimize(buildInput())!;
+    const ok = res.slots.some((s) => s.id === pin.id && s.rental);
+    console.log(`固定（未所持→レンタル）: ${ok ? "OK 入った" : "★NG 入らない"}`);
+  }
+}

@@ -46,10 +46,17 @@ const AUTO_DERIVED_CAPS: { key: AbilityName; base: AbilityName; cap: number }[] 
   },
 );
 
-/** プロデュース設定に行を出す、自動で登録したアビリティ（回数として参照され、元の回数の頭打ちでないもの） */
-function autoListedKeys(): AbilityName[] {
+/**
+ * プロデュース設定に行を出す、自動で登録したアビリティ（回数として参照され、元の回数の頭打ちでないもの）。
+ * 名前に「スキル獲得」を含むものはスキル獲得系、それ以外はその他に入れる（オーナー指定 2026-11-18）
+ */
+function autoListedKeys(group: "acquire" | "other"): AbilityName[] {
   const derived = new Set(AUTO_DERIVED_CAPS.map((c) => c.key));
-  return AUTO_COUNT_ABILITY_KEYS.filter((k) => !derived.has(k));
+  return AUTO_COUNT_ABILITY_KEYS.filter((k) => {
+    if (derived.has(k)) return false;
+    const acquire = normalizeAbilityLabel(ABILITY_NAMES[k]).includes("スキル獲得");
+    return group === "acquire" ? acquire : !acquire;
+  });
 }
 
 /** 4つの分類とそこに属するアビリティ（表示順のまま） */
@@ -63,6 +70,8 @@ export const ABILITY_CATEGORIES = [
       "M_skill_ac",
       "positive_skill_ac",
       "positive_8plus_ut4", // 好調8枚以上(4回まで)
+      "focus_8plus_ut4", // 集中8枚以上スキル獲得(4回まで)（2026-11-18 その他から移動）
+      "charm_8plus_ut4", // 好印象8枚以上スキル獲得(4回まで)（同）
       "focus_skill_ac",
       "charm_skill_ac",
       "vitality_skill_ac",
@@ -73,6 +82,8 @@ export const ABILITY_CATEGORIES = [
       "burst_skill_ac",
       "barrier_skill_ac",
       "SSR_skill_ac",
+      // スプシに出てきた新しいスキル獲得系（自動で登録）
+      ...autoListedKeys("acquire"),
     ],
   },
   {
@@ -83,7 +94,7 @@ export const ABILITY_CATEGORIES = [
       "A_skill_enhance",
       "M_skill_enhance",
       "skill_del",
-      "skill_del_ut4",
+      // 「スキル削除(4回まで)」はスキル削除の回数の頭打ちなので行を出さない（裏で計算。オーナー指定 2026-11-18）
       "A_skill_del_ut3",
       "M_skill_del_ut3",
       "change_ut3",
@@ -115,14 +126,12 @@ export const ABILITY_CATEGORIES = [
     abilities: [
       "drink_exchange",
       "drink_get",
-      "drink_get_ut10", // ドリンク獲得(10回まで)
+      // 「ドリンク獲得(10回まで)」もドリンク獲得の回数の頭打ちなので行を出さない（裏で計算。2026-11-18）
       "custom_ut6", // カスタマイズ(6回まで)。カスタマイズ(3回まで)はこの回数の頭打ち（2026-10-14）
       "SP_lesson_20s_ut4",
-      "charm_8plus_ut4",
-      "focus_8plus_ut4", // 集中8枚以上スキル獲得(4回まで)
       "p_item_get_ut6",
       // スプシに出てきた新しいアビリティ（自動で登録。元の回数の頭打ちで決まるものは除く）
-      ...autoListedKeys(),
+      ...autoListedKeys("other"),
     ],
   },
 ] as const satisfies readonly {
