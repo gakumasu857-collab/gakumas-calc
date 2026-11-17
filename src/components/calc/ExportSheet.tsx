@@ -80,11 +80,80 @@ async function toDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/** 保存・共有のファイル名 */
+function sheetFileName(): string {
+  const stamp = new Date().toLocaleDateString("ja-JP").replace(/\//g, "-");
+  return `gakumas-calc-${stamp}.png`;
+}
+
+/** 出力専用ビューを画面外に描画して PNG（Blob）にする。保存・コピー・共有で共通 */
+async function renderSheetBlob(r: CalcResult, pinned: ReadonlySet<string>): Promise<Blob> {
+  const dataUrl = await renderSheetDataUrl(r, pinned);
+  return await (await fetch(dataUrl)).blob();
+}
+
 /** 出力専用ビューを画面外に描画してPNGでダウンロードする */
 export async function exportSheetImage(
   r: CalcResult,
   pinned: ReadonlySet<string>,
 ): Promise<void> {
+  const dataUrl = await renderSheetDataUrl(r, pinned);
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = sheetFileName();
+  a.click();
+}
+
+/**
+ * 画像をクリップボードにコピーする（X・LINE・Discord などにそのまま貼れる。ファイルは残らない。2026-11-18 オーナー要望）。
+ * Safari はクリック中に clipboard.write を呼ぶ必要があるので、画像はまだ作っていない（Promise の）まま渡す。
+ * コピーできないブラウザでは例外を投げる（呼び出し側で「保存」を案内する）
+ */
+export async function copySheetImage(r: CalcResult, pinned: ReadonlySet<string>): Promise<void> {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    throw new Error("clipboard-unsupported");
+  }
+  await navigator.clipboard.write([new ClipboardItem({ "image/png": renderSheetBlob(r, pinned) })]);
+}
+
+/** 共有メニュー（主にスマホ）で画像を送れるか */
+export function canShareSheetImage(): boolean {
+  try {
+    const probe = new File([new Blob([""], { type: "image/png" })], "probe.png", { type: "image/png" });
+    return typeof navigator.share === "function" && !!navigator.canShare?.({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/** 共有メニューを開いて画像を送る（ひとことの文も付ける）。キャンセルは何もしない */
+export async function shareSheetImage(r: CalcResult, pinned: ReadonlySet<string>): Promise<void> {
+  const blob = await renderSheetBlob(r, pinned);
+  const file = new File([blob], sheetFileName(), { type: "image/png" });
+  try {
+    await navigator.share({ files: [file], text: sheetSummaryText(r) });
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") return; // 閉じただけ
+    throw e;
+  }
+}
+
+/** 共有するときのひとこと（シナリオ・アイドル・評価値・ステ。画像に全部載っているので短く） */
+export function sheetSummaryText(r: CalcResult): string {
+  const s = r.calc.settings;
+  const stats = TYPE_KEYS.map((t) => `${TYPE_JA[t]}${fmt(r.perType[t].capped)}`).join(" ");
+  return [
+    `${SCENARIO_LABELS[r.scenario]}｜${s.idol}${s.pIdol ? `「${s.pIdol}」` : ""}`,
+    `評価値 ${r.rating !== null && r.rating !== undefined ? fmt(r.rating) : "—"}（${stats}）`,
+    "ほぺマス https://gkapps.hoppepan.com",
+  ].join("\n");
+}
+
+/** 出力専用ビューを画面外に描画して PNG の dataURL にする */
+async function renderSheetDataUrl(
+  r: CalcResult,
+  pinned: ReadonlySet<string>,
+): Promise<string> {
   const host = document.createElement("div");
   host.style.position = "fixed";
   host.style.left = "-99999px";
@@ -112,15 +181,10 @@ export async function exportSheetImage(
   try {
     const el = host.firstElementChild as HTMLElement;
     // dataURL化に失敗した画像が残った場合の保険として bypassingCache も維持
-    const dataUrl = await domToPng(el, {
+    return await domToPng(el, {
       scale: 2,
       fetch: { bypassingCache: true },
     });
-    const a = document.createElement("a");
-    const stamp = new Date().toLocaleDateString("ja-JP").replace(/\//g, "-");
-    a.href = dataUrl;
-    a.download = `gakumas-calc-${stamp}.png`;
-    a.click();
   } finally {
     root.unmount();
     host.remove();

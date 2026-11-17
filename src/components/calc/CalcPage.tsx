@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
+import { Copy, HelpCircle, ImageDown, Save, Settings, Share2 } from "lucide-react";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -39,7 +39,12 @@ import { allocateEventsForSlots, runFullOptimize, type ExamPolicy } from "@/lib/
 import { buildConditionInput } from "@/lib/diagLog";
 import { examsAllSingle } from "@/lib/optimize/stepping";
 import { imageUrl } from "@/lib/config";
-import { exportSheetImage } from "@/components/calc/ExportSheet";
+import {
+  canShareSheetImage,
+  copySheetImage,
+  exportSheetImage,
+  shareSheetImage,
+} from "@/components/calc/ExportSheet";
 import {
   effectiveMaxStats,
   examStyleTags,
@@ -175,6 +180,8 @@ export default function CalcPage() {
   const [theoryOpen, setTheoryOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  /** 画像のコピー・共有の結果のひとこと（数秒で消える） */
+  const [exportNote, setExportNote] = useState<string | null>(null);
   const [paraboOpen, setParaboOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
@@ -739,26 +746,66 @@ export default function CalcPage() {
                       maxLength={20}
                       className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
                     />
-                    <button
-                      type="button"
-                      disabled={exportBusy || outOfPlan}
-                      onClick={() => {
+                    {/* 画像をコピー（貼り付けてすぐ共有。ファイルは残らない）・共有（スマホの共有メニュー）・保存（2026-11-18） */}
+                    {(() => {
+                      const run = (job: () => Promise<void>, done: string) => {
                         if (exportBusy || outOfPlan) return;
                         setExportBusy(true);
-                        void exportSheetImage(r, flags.pinned).finally(() =>
-                          setExportBusy(false),
-                        );
-                      }}
-                      title={
-                        outOfPlan
-                          ? "プラン外のサポカが入っているので画像に出力できません"
-                          : "今の計算（評価値・ステ・サポカ・レッスン・アビリティ発動回数など）を1枚の画像にして保存します"
-                      }
-                      className={`${BTN_SECONDARY} disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      <ImageDown size={13} />
-                      {exportBusy ? "出力中…" : "画像に出力"}
-                    </button>
+                        setExportNote(null);
+                        job()
+                          .then(() => setExportNote(done))
+                          .catch(() =>
+                            setExportNote("このブラウザではできませんでした。「保存」を使ってください"),
+                          )
+                          .finally(() => {
+                            setExportBusy(false);
+                            window.setTimeout(() => setExportNote(null), 3500);
+                          });
+                      };
+                      const tip = outOfPlan
+                        ? "プラン外のサポカが入っているので画像にできません"
+                        : undefined;
+                      const cls = `${BTN_SECONDARY} disabled:cursor-not-allowed disabled:opacity-50`;
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            disabled={exportBusy || outOfPlan}
+                            onClick={() => run(() => copySheetImage(r, flags.pinned), "画像をコピーしました。貼り付けて共有できます")}
+                            title={tip ?? "今の計算を1枚の画像にしてコピーします（X・LINE・Discord などにそのまま貼れます）"}
+                            className={cls}
+                          >
+                            <Copy size={13} />
+                            {exportBusy ? "作成中…" : "画像をコピー"}
+                          </button>
+                          {canShareSheetImage() && (
+                            <button
+                              type="button"
+                              disabled={exportBusy || outOfPlan}
+                              onClick={() => run(() => shareSheetImage(r, flags.pinned), "")}
+                              title={tip ?? "共有メニューを開いて画像を送ります"}
+                              className={cls}
+                            >
+                              <Share2 size={13} />
+                              共有
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={exportBusy || outOfPlan}
+                            onClick={() => run(() => exportSheetImage(r, flags.pinned), "")}
+                            title={tip ?? "今の計算（評価値・ステ・サポカ・レッスン・アビリティ発動回数など）を1枚の画像にして保存します"}
+                            className={cls}
+                          >
+                            <ImageDown size={13} />
+                            保存
+                          </button>
+                        </>
+                      );
+                    })()}
+                    {exportNote && (
+                      <span className="w-full text-center text-[11px] font-semibold text-emerald-700">{exportNote}</span>
+                    )}
                     {outOfPlan && (
                       <span className="w-full text-center text-[11px] font-semibold text-red-600">
                         プラン外のサポカが入っているので画像に出力できません
