@@ -1442,11 +1442,11 @@ function Section({
 }: {
   title: string;
   children: React.ReactNode;
-  /** exam＝試験（紫の札。レッスン・授業の表の札と色をそろえる） */
+  /** exam＝試験（オレンジの札。レッスン・授業の表の札と色をそろえる） */
   tone?: "exam";
 }) {
   return (
-    <section className={`rounded-lg border p-3 ${tone === "exam" ? "border-violet-200" : "border-slate-200"}`}>
+    <section className={`rounded-lg border p-3 ${tone === "exam" ? "border-orange-200" : "border-slate-200"}`}>
       <h3 className="mb-1 flex items-center gap-2 text-xs font-bold text-slate-700">
         {tone === "exam" && <KindBadge kind="exam" />}
         {title}
@@ -1460,12 +1460,12 @@ type RowKind = "lesson" | "class" | "sale" | "exam";
 const KIND_LABEL: Record<RowKind, string> = { lesson: "レッスン", class: "授業", sale: "営業", exam: "試験" };
 const KIND_CLASS: Record<RowKind, string> = {
   lesson: "bg-sky-500 text-white",
-  class: "bg-amber-500 text-white",
-  sale: "bg-amber-500 text-white",
-  exam: "bg-violet-500 text-white",
+  class: "bg-violet-500 text-white",
+  sale: "bg-violet-500 text-white",
+  exam: "bg-orange-500 text-white",
 };
 
-/** 表の見出しの札（レッスン＝青・授業／営業＝橙・試験＝紫。2026-11-18） */
+/** 表の見出しの札（レッスン＝青・授業／営業＝紫・試験＝オレンジ。オーナー指定 2026-11-18） */
 function KindBadge({ kind }: { kind: RowKind }) {
   return (
     <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-bold ${KIND_CLASS[kind]}`}>
