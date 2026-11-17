@@ -218,6 +218,36 @@ export function adoptSaveSnapshot(
 }
 
 /**
+ * ハイ元クロスポータル連携用の所持状況を作る（id が無い・消えていれば新しく）か、中身を置き換える。
+ * 使用中にして id を返す（portalLink.ts から。ポータルの内容で手元を合わせるとき）。
+ */
+export function writePortalSlot(
+  id: string | null,
+  name: string,
+  levels: Record<string, number>,
+  pIdols: Record<string, PIdolOwnership>,
+): string {
+  const list = load();
+  const existing = id ? list.find((s) => s.id === id) : undefined;
+  let recId: string;
+  if (existing) {
+    store(
+      list.map((s) =>
+        s.id === existing.id
+          ? { ...s, levels, pIdols, savedAt: today(), cardCount: SUPPORT_CARD_DB.length, pIdolCount: P_IDOL_MASTERS.length }
+          : s,
+      ),
+    );
+    recId = existing.id;
+  } else {
+    recId = insert({ name: uniqueName(name, list), levels, pIdols }, list).id;
+  }
+  writeActiveSlotId(recId);
+  notifyStoreChange();
+  return recId;
+}
+
+/**
  * 所持ストア（サポカ凸／Pアイドル）の保存effectから呼ぶ。使っている所持状況が既定でなければ、
  * その中身を今の状態で更新する（中身が同じなら何もしない）。通知は呼び出し元の保存effectが出す。
  */

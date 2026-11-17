@@ -2,6 +2,7 @@
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { migrateCardIdKeys } from "./idMigration";
 import { useSaveNotifier } from "./storeSync";
+import { portalChanged } from "./portalLink";
 import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
 /**
@@ -58,6 +59,7 @@ export function useOwnedLevels() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(levels));
       // 使っている所持状況（既定以外）へも随時保存（「上書き保存」は要らない）
       autoSaveToActiveSlot({ levels });
+      portalChanged(); // ハイ元クロスポータルと連携中なら、変わった分をポータルへも送る
       notifySave();
     } catch {
       // 容量超過などは無視

@@ -11,6 +11,7 @@ import {
   importPIdolCsv,
   importSupportCsv,
 } from "@/lib/ownershipCsv";
+import { readLink, unlink } from "@/lib/portalLink";
 import type { useOwnedLevels } from "@/lib/useOwnedLevels";
 import type { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import {
@@ -62,6 +63,14 @@ export default function OwnedSaveBar({
   const [newName, setNewName] = useState(target.name);
   const own = store.saves.filter((s) => !s.saveId);
   const linked = store.saves.filter((s) => s.saveId);
+
+  const portalLink = readLink();
+  const doUnlink = () => {
+    if (!window.confirm("ハイ元クロスポータルとの連携を解除しますか？「ハイ元クロスポータル」の所持状況は、このブラウザの中にふつうの所持状況として残ります。")) return;
+    unlink()
+      .then(() => onDone("連携を解除しました。ポータルへの保存はもう行いません"))
+      .catch(() => onDone("連携を解除しました"));
+  };
 
   const chooseTarget = (id: string) => {
     setTargetId(id);
@@ -227,6 +236,21 @@ export default function OwnedSaveBar({
           </button>
         </div>
       </section>
+
+      {/* ハイ元クロスポータルと連携している人だけ */}
+      {portalLink && (
+        <section className={SECTION}>
+          <span className={HEAD}>ハイ元クロスポータルと連携中（{portalLink.playerName} さん）</span>
+          <span className="text-[11px] text-slate-500">
+            「{"ハイ元クロスポータル"}」を使っている間は、変更がポータルにも保存され、開くたびにポータルの最新を読み込みます。
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={doUnlink} className={`${BTN} hover:bg-red-50 hover:text-red-600`}>
+              連携を解除
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* 3. CSV */}
       <section className={SECTION}>

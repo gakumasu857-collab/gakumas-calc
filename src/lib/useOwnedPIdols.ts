@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { migratePIdolKeys } from "./idMigration";
 import { P_IDOL_MASTERS } from "./pIdol";
 import { useSaveNotifier } from "./storeSync";
+import { portalChanged } from "./portalLink";
 import { autoSaveToActiveSlot, ensureEditableSlot } from "./useOwnedSaves";
 
 /**
@@ -65,6 +66,7 @@ export function useOwnedPIdols() {
       localStorage.setItem(COUNT_KEY, String(P_IDOL_MASTERS.length));
       // 使っている所持状況（既定以外）へも随時保存
       autoSaveToActiveSlot({ pIdols: map });
+      portalChanged(); // ハイ元クロスポータルと連携中なら、変わった分をポータルへも送る
       notifySave();
     } catch {
       // 容量超過などは無視

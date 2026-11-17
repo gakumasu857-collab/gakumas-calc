@@ -10,7 +10,17 @@ import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
 import { P_IDOL_MASTERS } from "@/lib/pIdol";
 import { markOwnershipVisited } from "@/lib/ownershipAck";
 import { importPIdolCsv, importSupportCsv } from "@/lib/ownershipCsv";
-import { clearPortalHash, hasPortalHash, readPortalHash } from "@/lib/portalImport";
+import { clearPortalHash, hasPortalHash, readPortalHash, type PortalPayload } from "@/lib/portalImport";
+import {
+  isPortalSlotActive,
+  PORTAL_SLOT_NAME,
+  readLink,
+  refreshFromPortal,
+  startLink,
+  subscribePortal,
+  takeNotice,
+} from "@/lib/portalLink";
+import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { useOwnedLevels } from "@/lib/useOwnedLevels";
 import { useOwnedPIdols } from "@/lib/useOwnedPIdols";
 import {
@@ -57,40 +67,66 @@ export default function OwnershipPage() {
     adoptCustomizedAsOwn();
   }, []);
 
-  // ハイ元クロスポータルの「ほぺマスで開く」から来たとき（/support#halogen=…）は、その所持状況を読み込む
+  // ---------- ハイ元クロスポータル ----------
+  // ポータルの「ほぺマスで開く」から来たとき（/support#halogen=…）だけ、連携の案内を出す（ふつうの利用者には何も出ない）
+  const [portalOffer, setPortalOffer] = useState<PortalPayload | null>(null);
+  const [linking, setLinking] = useState(false);
+  /** ポータルの最新に合わせて、所持ストアに読み込む（連携中のときだけ） */
+  const loadFromPortal = async (message: string) => {
+    const r = await refreshFromPortal();
+    if (!r) return;
+    levels.replaceAll(r.levels, SUPPORT_CARD_DB.length);
+    pIdols.replaceAll(r.pIdols, P_IDOL_MASTERS.length);
+    notify(message);
+  };
   const portalHandled = useRef(false);
   useEffect(() => {
-    if (portalHandled.current || !hasPortalHash()) return;
-    portalHandled.current = true;
-    readPortalHash()
-      .then((p) => {
-        clearPortalHash();
-        if (!p) return;
-        const target =
-          saves.activeId === BUILTIN_ID
-            ? `「${DEFAULT_OWN_NAME}」（自動で作られます）`
-            : `「${saves.saves.find((s) => s.id === saves.activeId)?.name ?? DEFAULT_OWN_NAME}」`;
-        const ok = window.confirm(
-          `ハイ元クロスポータル${p.from ? `の ${p.from} さん` : ""}の所持状況を、${target}に読み込みます。
-
-` +
-            "ポータルにあるカードは、今の内容がポータルの内容で上書きされます（ポータルに無いカードはそのままです）。よろしいですか？",
-        );
-        if (!ok) return;
-        const sup = p.sup ? importSupportCsv(p.sup, levels.applyLevels) : { applied: 0, unmatched: [] };
-        const idol = p.idol ? importPIdolCsv(p.idol, pIdols.applyOwnership) : { applied: 0, unmatched: [] };
-        const miss = [...sup.unmatched, ...idol.unmatched];
-        notify(
-          `ポータルから読み込みました（サポカ ${sup.applied}枚・Pアイドル ${idol.applied}枚）` +
-            (miss.length ? `。こちらに無いカード ${miss.length}枚は飛ばしました: ${miss.slice(0, 3).join(" / ")}${miss.length > 3 ? " …" : ""}` : ""),
-        );
-      })
-      .catch(() => {
-        clearPortalHash();
-        notify("ポータルからのデータを読み込めませんでした。ポータルでもう一度「ほぺマスで開く」を押してください");
-      });
+    // ログインから戻ったときなどの一言
+    const n = takeNotice();
+    if (n) notify(n.message);
+    // ポータルへの保存に失敗したときだけ一言出す（成功は静かに）
+    const off = subscribePortal((d) => !d.ok && notify(d.message));
+    if (!portalHandled.current && hasPortalHash()) {
+      portalHandled.current = true;
+      readPortalHash()
+        .then((p) => {
+          clearPortalHash();
+          if (!p) return;
+          if (readLink()) {
+            // もう連携している：ポータルの最新を読むだけ（「ハイ元クロスポータル」に切り替わる）
+            manualSwitch.current = true;
+            loadFromPortal("ハイ元クロスポータルと連携中です。ポータルの最新を読み込みました").catch(() =>
+              notify("ポータルの最新を読み込めませんでした。通信を確かめて、もう一度お試しください"),
+            );
+          } else setPortalOffer(p);
+        })
+        .catch(() => {
+          clearPortalHash();
+          notify("ポータルからのデータを読み込めませんでした。ポータルでもう一度「ほぺマスで開く」を押してください");
+        });
+    }
+    return off;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** 今回だけ読み込む（連携しない。今使っている所持状況へ） */
+  const importOnce = (p: PortalPayload) => {
+    setPortalOffer(null);
+    const sup = p.sup ? importSupportCsv(p.sup, levels.applyLevels) : { applied: 0, unmatched: [] };
+    const idol = p.idol ? importPIdolCsv(p.idol, pIdols.applyOwnership) : { applied: 0, unmatched: [] };
+    const miss = [...sup.unmatched, ...idol.unmatched];
+    notify(
+      `ポータルから読み込みました（サポカ ${sup.applied}枚・Pアイドル ${idol.applied}枚）` +
+        (miss.length ? `。こちらに無いカード ${miss.length}枚は飛ばしました: ${miss.slice(0, 3).join(" / ")}${miss.length > 3 ? " …" : ""}` : ""),
+    );
+  };
+  const doLink = () => {
+    setLinking(true);
+    startLink().catch(() => {
+      setLinking(false);
+      notify("ログインの画面を開けませんでした。もう一度お試しください");
+    });
+  };
 
   const active =
     saves.activeId === BUILTIN_ID
@@ -136,6 +172,12 @@ export default function OwnershipPage() {
     saves.setActiveSlot(id);
     levels.replaceAll(target.levels, target.cardCount);
     if (target.pIdols) pIdols.replaceAll(target.pIdols, target.pIdolCount);
+    if (readLink()?.slotId === id) {
+      loadFromPortal(`「${target.name}」に切り替えて、ポータルの最新を読み込みました`).catch(() =>
+        notify(`「${target.name}」に切り替えました（ポータルの最新は読み込めませんでした）`),
+      );
+      return;
+    }
     notify(
       id === BUILTIN_ID
         ? `「全サポカ完凸」に切り替えました（凸を変えると「${DEFAULT_OWN_NAME}」が自動で作られます）`
@@ -225,7 +267,12 @@ export default function OwnershipPage() {
           </span>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          {isBuiltinActive ? (
+          {isPortalSlotActive() && active.id === readLink()?.slotId ? (
+          <>
+            <b className="text-slate-700">「{active.name}」</b>
+            を使っています（{readLink()?.playerName} さん）。ここで変えた所持状況はポータルにも自動で保存され、開くたびにポータルの最新を読み込みます。
+          </>
+        ) : isBuiltinActive ? (
             <>
               今は<b className="text-slate-700">全サポカ完凸</b>です。カードの凸や特訓を変えると
               <b className="text-slate-700">「{DEFAULT_OWN_NAME}」</b>
@@ -244,6 +291,28 @@ export default function OwnershipPage() {
           )}
         </p>
       </section>
+      {portalOffer && (
+        <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-slate-700">
+          <p className="font-bold">
+            ハイ元クロスポータルから開きました{portalOffer.from ? `（${portalOffer.from} さんの所持状況）` : ""}
+          </p>
+          <p className="leading-relaxed">
+            連携すると、ここで変えた所持状況がポータルにも保存され、開くたびにポータルの最新が入ります（Discord でログインします）。
+            所持状況に「{PORTAL_SLOT_NAME}」ができて、ほかの所持状況はそのまま残ります。
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={linking} onClick={doLink} className="rounded-lg bg-blue-600 px-3 py-1.5 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50">
+              {linking ? "ログインへ移動しています…" : "ポータルと連携する（おすすめ）"}
+            </button>
+            <button type="button" onClick={() => importOnce(portalOffer)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-100">
+              今回だけ読み込む
+            </button>
+            <button type="button" onClick={() => setPortalOffer(null)} className="rounded-lg px-3 py-1.5 font-medium text-slate-500 transition hover:bg-slate-100">
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
       {message && (
         <p className="-mt-2 flex items-center gap-1 text-xs font-bold text-emerald-700">
           <Check size={13} />
