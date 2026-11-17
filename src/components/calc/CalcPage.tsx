@@ -288,6 +288,9 @@ export default function CalcPage() {
           examStyleTags: examStyleTags(r.selectedSet?.plan ?? null),
           // ステの高さの順（指定があれば必須条件）
           statOrder: settings.statOrder,
+          // 探索の条件②③（ステを寄せるタイプ・試験補助のサポカの枚数）
+          focusTypes: settings.focusTypes,
+          examCardCount: settings.examCardCount,
           // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
           ...(settings.typeRatio.enabled
             ? typeConstraintFromRatio({
@@ -392,7 +395,13 @@ export default function CalcPage() {
     // 試験補助強めON中は探索の目的関数が「評価値＋補助加点」になり、最適編成の
     // 表示評価値が下がるのはむしろ正常なので、劣化ガードは効かせない。
     // 取得回数の制限ON中も、結果は制限を反映した評価値（今の評価値より低くて当然）なので効かせない。
-    const guardOn = canShowRating && !settings.examAssist && !settings.eventBudget.enabled;
+    // ステを寄せるタイプ（探索の条件②）を選んでいるときも、評価値が下がるのは正常なので効かせない
+    // （今の編成は探索の候補に入っているので、選んだタイプの合計で見て悪くなることはない）
+    const guardOn =
+      canShowRating &&
+      !settings.examAssist &&
+      !settings.eventBudget.enabled &&
+      settings.focusTypes.length === 0;
     // 前イベ・後イベを手で変えているカードがあるときは、画面の評価値（手動の値込み）ではなく、
     // 探索と同じ前提（全部発動）で出した今の編成の評価値と比べる（探索結果の currentRating を使う）
     const curIds = r.selected.slots.flatMap((s) => (s ? [s.id] : []));

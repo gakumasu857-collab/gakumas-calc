@@ -1,4 +1,4 @@
-import { statOrderShortfall } from "./formation";
+import { lessonPairOk, statOrderShortfall } from "./formation";
 /**
  * 今の編成が「探索の必須条件」を満たしているかの判定と、評価値の下に出す条件チップ。
  *
@@ -51,7 +51,15 @@ export type ConditionInput = {
   examSingle?: boolean | "kept" | null;
   /** 「3タイプとも〇ラインを必ず超える」がオンのときの〇ライン（タイプ別）。オフ・省略は null */
   okLines?: Record<TypeKey, number> | null;
+  /** 今の踏み方のタイプ別のレッスン回数（探索の条件①の判定用） */
+  lessonCounts?: Record<TypeKey, number> | null;
 };
+
+/** 試験補助のサポカ（スプシの「強さ」が4以上）の枚数 */
+function examCardCountOf(members: SelectedMember[]): number {
+  return members.filter((m) => (DB_BY_ID.get(m.id)?.strongest ?? 0) >= 4).length;
+}
+const PAIR_JA: Record<string, string> = { VoDa: "Vo・Da", VoVi: "Vo・Vi", DaVi: "Da・Vi" };
 
 /** 編成に入れられる固定カード（プランが合い、所持かレンタル可）のID */
 function usablePinned(input: ConditionInput): string[] {
@@ -124,6 +132,14 @@ export function formationIssues(input: ConditionInput): string[] {
     const min = settings.minStats[t];
     if (min > 0 && stat < min) issues.push(`${TYPE_JA[t]}が最低ステ未達`);
   }
+  // 探索の条件①: レッスンで多く踏む2タイプ
+  if (settings.lessonPair !== "auto" && input.lessonCounts && !lessonPairOk(input.lessonCounts, settings.lessonPair)) {
+    issues.push(`レッスンで多く踏む2タイプが${PAIR_JA[settings.lessonPair]}になっていない`);
+  }
+  // 探索の条件③: 試験補助のサポカの枚数
+  if (settings.examCardCount > 0 && examCardCountOf(input.members) < settings.examCardCount) {
+    issues.push(`試験補助のサポカ（強さ4以上）が${settings.examCardCount}枚に足りない`);
+  }
   // 〇ライン（必ず超える設定のとき）。上限より高い線は上限で見る
   if (input.okLines) {
     const ok = input.okLines;
@@ -177,7 +193,25 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
             : rentals[0].name,
     });
   }
-  if (settings.spTop.first > 0 || settings.spTop.second > 0) {
+  if (settings.lessonPair !== "auto") {
+    out.push({
+      label: `レッスン ${PAIR_JA[settings.lessonPair]}`,
+      ok: !input.lessonCounts || lessonPairOk(input.lessonCounts, settings.lessonPair),
+      detail:
+        input.lessonCounts && !lessonPairOk(input.lessonCounts, settings.lessonPair)
+          ? `今は Vo${input.lessonCounts.vocal}・Da${input.lessonCounts.dance}・Vi${input.lessonCounts.visual}回`
+          : undefined,
+    });
+  }
+  if (settings.examCardCount > 0) {
+    const n = examCardCountOf(members);
+    out.push({
+      label: `試験補助 ${settings.examCardCount}枚`,
+      ok: n >= settings.examCardCount,
+      detail: n < settings.examCardCount ? `今は${n}枚` : undefined,
+    });
+  }
+  if (settings.spTop.first > 0 || settings.spTop.second > 0 || settings.spTop.third > 0) {
     let short = 0;
     for (const t of TYPE_KEYS) {
       short += Math.max(

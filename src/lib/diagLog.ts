@@ -10,6 +10,7 @@ import { formationIssues, type ConditionInput } from "./formationConditions";
 import { examsAllSingle } from "./optimize/stepping";
 import type { SelectedMember, useCalcResult } from "./useCalcResult";
 import type { CalcSettings } from "./useCalcSettings";
+import type { TypeKey } from "./useCalcSettings";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
@@ -37,7 +38,21 @@ export function buildConditionInput(
     // （どちらを採るかの確認で「今の点数配分のまま探索する」を選べる設定なので、条件違反にはしない）
     examSingle: examSingleState(r, settings),
     okLines: settings.okLineRequired ? r.okLines : null,
+    lessonCounts: lessonCountsOf(r),
   };
+}
+
+/** 今の踏み方のタイプ別のレッスンのメイン踏み回数（探索の条件①の判定用） */
+function lessonCountsOf(r: CalcResult): Record<TypeKey, number> {
+  const picks: { main: TypeKey | null }[] =
+    r.scenario === "niaMaster"
+      ? r.niaSchedule.lessons
+      : r.scenario === "hatsuLegend"
+        ? r.hatsuSchedule.lessons
+        : r.schedule.lessons;
+  const count: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+  for (const p of picks) if (p.main) count[p.main]++;
+  return count;
 }
 
 /**

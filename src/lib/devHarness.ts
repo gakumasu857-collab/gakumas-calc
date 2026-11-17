@@ -244,13 +244,16 @@ export function buildInput(): AutoOptimizeInput {
       const order = (Object.keys(counts) as TypeKey[]).sort(
         (a, b) => counts[b] - counts[a] || ranks[a] - ranks[b],
       );
+      const want = [settings.spTop.first, settings.spTop.second, settings.spTop.third ?? 0];
       const out: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-      out[order[0]] = settings.spTop.first;
-      out[order[1]] = settings.spTop.second;
+      order.forEach((t, i) => (out[t] = counts[t] > 0 ? want[i] : 0));
       return out;
     })(),
     // 上位タイプのSP率持ち条件は候補の踏み方ごとに解決する（アプリと同じ）
-    spTop: { first: settings.spTop.first, second: settings.spTop.second },
+    spTop: { first: settings.spTop.first, second: settings.spTop.second, third: settings.spTop.third ?? 0 },
+    lessonPair: settings.lessonPair && settings.lessonPair !== "auto" ? settings.lessonPair : null,
+    focusTypes: settings.focusTypes ?? [],
+    examCardCount: settings.examCardCount ?? 0,
     statOrder: settings.statOrder ?? null,
     // 今の編成（アプリは選択サポカ。ベンチは gakumas:selectedSupports:v1 があれば）
     currentSlots: (() => {

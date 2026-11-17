@@ -280,8 +280,12 @@ function ExportSheet({
               (t) => settings.maxStats[t] > 0 && settings.maxStats[t] < r.statCap,
             ).map((t) => `${short[t]}${settings.maxStats[t]}`);
             if (maxs.length) parts.push(`最高ステ ${maxs.join(" ")}`);
-            if (settings.spTop.first > 0 || settings.spTop.second > 0) {
-              parts.push(`SP率持ち 上位${settings.spTop.first}枚・2位${settings.spTop.second}枚`);
+            if (settings.lessonPair !== "auto") parts.push(`レッスン ${settings.lessonPair}`);
+            if (settings.focusTypes.length > 0)
+              parts.push(`寄せる ${settings.focusTypes.map((t) => short[t]).join("・")}`);
+            if (settings.examCardCount > 0) parts.push(`試験補助 ${settings.examCardCount}枚`);
+            if (settings.spTop.first > 0 || settings.spTop.second > 0 || settings.spTop.third > 0) {
+              parts.push(`SP率持ち 1番目${settings.spTop.first}枚・2番目${settings.spTop.second}枚・3番目${settings.spTop.third}枚`);
             }
             if (settings.statOrder) {
               parts.push(`ステの順 ${settings.statOrder.map((t) => short[t]).join("＞")}`);

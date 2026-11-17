@@ -60,6 +60,11 @@ import {
   typeConstraintFromRatio,
   minStatBonus,
   typeRatioShortfall,
+  EXAM_CARD_STRENGTH,
+  lessonPairOk,
+  examCardShortfall,
+  FOCUS_WEIGHT,
+  focusSum,
   RATIO_PENALTY,
   SP_PENALTY,
   minStatShortfall,
@@ -225,7 +230,13 @@ export type AutoOptimizeInput = {
    * 「レッスンを多く踏む上位タイプにSP率持ちN枚」の条件。
    * 上位タイプは候補の踏み方から決めるので、今の踏み方に引きずられない
    */
-  spTop?: { first: number; second: number };
+  spTop?: { first: number; second: number; third?: number };
+  /** 探索の条件①: レッスンで多く踏む2タイプ（VoDa／VoVi／DaVi）。指定すると必須条件。省略・null＝おまかせ */
+  lessonPair?: "VoDa" | "VoVi" | "DaVi" | null;
+  /** 探索の条件②: ステを寄せるタイプ（選んだタイプの合計を最優先。空・省略＝合計ステ優先） */
+  focusTypes?: TypeKey[];
+  /** 探索の条件③: 試験補助のサポカ（強さ4以上）の最低枚数（必須条件） */
+  examCardCount?: number;
   /** 今の編成（候補として含める。条件を満たす限り結果がこれより悪くならない） */
   currentSlots?: SelectedSlot[];
   /**
@@ -397,6 +408,8 @@ type Ectx = {
   starStat: number;
   /** この踏み方でのSP率持ち最低枚数（spTop を踏み方の上位タイプに割り当てたもの） */
   spMin: SpMinCondition;
+  /** レッスンで多く踏む2タイプの指定（探索の条件①）に合わない踏み方なら1 */
+  pairPenalty: number;
 };
 
 /**
@@ -632,7 +645,7 @@ export function runFullOptimize(
   } = finalEngine.preciseObjective(best.slots, ectx, true);
   const rating = finalEngine.fullRating(best.stepping, cappedSum, members);
   // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
-  const finalIssues = finalEngine.conditionIssues(members, finalStats, ectx.spMin);
+  const finalIssues = finalEngine.conditionIssues(members, finalStats, ectx.spMin, best.stepping);
 
   return {
     ...engine.toSteppingResult(best.stepping),
@@ -658,7 +671,7 @@ export function runFullOptimize(
             // 採用軸は仕上げ後の評価値（＝反映される値）、他は本探索時点の値
             rating: chosen ? rating : engine.fullRating(c.stepping, cappedSum, mem),
             chosen,
-            issues: chosen ? finalIssues : engine.conditionIssues(mem, stats, ectx.spMin),
+            issues: chosen ? finalIssues : engine.conditionIssues(mem, stats, ectx.spMin, c.stepping),
           };
         })
         .sort((a, b) => b.rating - a.rating);
@@ -798,6 +811,8 @@ export class OptimizeEngine {
   private okTargets: Record<TypeKey, number>;
   /** 審査基準1位のタイプ（〇ラインを満たした余りを寄せる先） */
   private topType: TypeKey;
+  /** ステを寄せるタイプ（探索の条件②。null＝合計ステ優先） */
+  private focus: TypeKey[] | null;
   /** ステージ用BANで編成に入れてはいけないカード（固定は除く。設定OFFなら空） */
   private stageExcluded: ReadonlySet<string>;
   /** サポカ編成のタイプ割合条件（合計6=固定、6未満=最低枚数）。必須条件として全段階で守る */
@@ -836,6 +851,7 @@ export class OptimizeEngine {
     this.maxTargets = effectiveMaxStats(input.statCap, input.maxStats);
     this.okTargets = okLineTargets(input.scenario, input.tag, input.ranks);
     this.topType = TYPE_KEYS.find((t) => input.ranks[t] === 1) ?? "vocal";
+    this.focus = input.focusTypes && input.focusTypes.length > 0 ? [...input.focusTypes] : null;
     this.stageExcluded = new Set(
       input.noStageItems
         ? SUPPORT_CARD_DB.filter((c) =>
@@ -1662,7 +1678,7 @@ export class OptimizeEngine {
       slotIdx.forEach((idx, k) => (classTypes[idx] = types[k]));
       return { ...s, classTypes } as Stepping;
     };
-    type Key = [number, number, number, number, number, number, number];
+    type Key = number[];
     const better = (a: Key, b: Key) => {
       for (let i = 0; i < a.length; i++) {
         if (a[i] !== b[i]) return a[i] > b[i];
@@ -1685,6 +1701,8 @@ export class OptimizeEngine {
           -statOrderShortfall(stats, this.input.statOrder),
           // 最低ステも条件。閾値ルールを優先して条件を割ると「満たせなかった条件」になる
           -minStatShortfall(stats, this.minStatCond),
+          // ステを寄せるタイプ（探索の条件②）は合計より優先
+          focusSum(stats, this.focus),
           Math.round(cappedSum - maxStatSearchPenalty(stats, this.maxTargets)),
           // 〇ライン（最後の試験）: 超えたタイプの数 → 近さ → 余りは審査基準1位、次に2位へ
           this.okProgress(stats).met,
@@ -1876,15 +1894,16 @@ export class OptimizeEngine {
    */
   spMinFor(s: Stepping): SpMinCondition {
     const top = this.input.spTop;
-    if (!top || (top.first <= 0 && top.second <= 0)) return this.input.spMin;
+    if (!top || (top.first <= 0 && top.second <= 0 && (top.third ?? 0) <= 0)) return this.input.spMin;
     const counts: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const l of s.lessons) if (l.main) counts[l.main]++;
     const order = [...TYPE_KEYS].sort(
       (a, b) => counts[b] - counts[a] || this.input.ranks[a] - this.input.ranks[b],
     );
+    // 1回も踏まないタイプは SP率持ちが要らない（オーナー指定 2026-11-18）
+    const want = [top.first, top.second, top.third ?? 0];
     const out: SpMinCondition = { vocal: 0, dance: 0, visual: 0 };
-    out[order[0]] = top.first;
-    out[order[1]] = top.second;
+    order.forEach((t, i) => (out[t] = counts[t] > 0 ? want[i] : 0));
     return out;
   }
 
@@ -2000,6 +2019,7 @@ export class OptimizeEngine {
       baseStats,
       starStat,
       spMin: this.spMinFor(s),
+      pairPenalty: lessonPairOk(this.lessonCounts(s), input.lessonPair) ? 0 : 1,
     };
   }
 
@@ -2089,7 +2109,13 @@ export class OptimizeEngine {
       (!forReport && this.input.examAssist
         ? examAssistSum(members, this.input.examStyleTags)
         : 0) +
-      minStatBonus(stats, this.minStatCond) -
+      minStatBonus(stats, this.minStatCond) +
+      // 探索の条件②: ステを寄せるタイプの合計を最優先（〇ラインより優先）
+      focusSum(stats, this.focus) * FOCUS_WEIGHT -
+      // 探索の条件③: 試験補助のサポカの枚数（必須条件）
+      examCardShortfall(members, this.input.examCardCount ?? 0) * RATIO_PENALTY -
+      // 探索の条件①: レッスンで多く踏む2タイプ（必須条件）
+      ectx.pairPenalty * RATIO_PENALTY -
       spConditionShortfall(members, ectx.spMin) * SP_PENALTY -
       // サポカ編成のタイプ割合は必須条件（違反した候補はどの段階でも勝たせない）
       typeRatioShortfall(members, this.ratioCons) * RATIO_PENALTY -
@@ -2364,6 +2390,7 @@ export class OptimizeEngine {
         3,
         this.input.spTop?.first ?? 0,
         this.input.spTop?.second ?? 0,
+        this.input.spTop?.third ?? 0,
         ...TYPE_KEYS.map((t) => this.input.spMin[t] ?? 0),
       );
       for (const type of TYPE_KEYS) {
@@ -2398,6 +2425,20 @@ export class OptimizeEngine {
         .sort((a, b) => b.points - a.points)
         .slice(0, 2)
         .forEach((c) => ids.add(c.id));
+      // 試験補助のサポカ（強さ4以上）を N 枚入れる条件ぶんは、点数上位の試験補助のサポカを必ず候補に入れる
+      const examNeed = this.input.examCardCount ?? 0;
+      if (examNeed > 0) {
+        owned
+          .filter((c) => c.examStrength >= EXAM_CARD_STRENGTH)
+          .sort((a, b) => b.points - a.points)
+          .slice(0, examNeed + 4)
+          .forEach((c) => ids.add(c.id));
+        rentals
+          .filter((c) => c.examStrength >= EXAM_CARD_STRENGTH)
+          .sort((a, b) => b.points - a.points)
+          .slice(0, 3)
+          .forEach((c) => rentalIds.add(c.id));
+      }
     }
     // 固定カードは必ず候補に含める。ただし使用制限（プラン）が合わないカードは
     // 編成できないので除外する（固定してもプラン違いは反映しない）
@@ -2648,9 +2689,15 @@ export class OptimizeEngine {
     const soloExtra = this.extraScore
       ? (c: ScoredCard) => this.extraScore!([c])
       : () => 0;
+    // ステを寄せるタイプ（探索の条件②）があれば、寄せないタイプのカードは低く見る（アシストは寄せるタイプの数の割合）
+    const focusSet = this.focus ? new Set(this.focus) : null;
+    const focusFactor = (c: ScoredCard) =>
+      !focusSet ? 1 : c.assist ? Math.max(0.05, focusSet.size / 3) : focusSet.has(c.type) ? 1 : 0.05;
     const baseValue = pool.map(
-      (c) => c.points + c.itemBonus + assistExtra(c) + soloExtra(c),
+      (c) => (c.points + c.itemBonus) * focusFactor(c) + assistExtra(c) + soloExtra(c),
     );
+    // 試験補助のサポカの枚数（探索の条件③）: 足りないうちは試験補助のサポカを大きく見る
+    const needExam = this.input.examCardCount ?? 0;
 
     type Node = {
       picks: number[];
@@ -2662,6 +2709,8 @@ export class OptimizeEngine {
       /** 選択済みの配布回数の累積（回数キー→合計） */
       give: Record<string, number>;
       typeCount: Record<TypeKey, number>;
+      /** 試験補助のサポカ（強さ4以上）の枚数 */
+      examCount: number;
     };
     const mkRoot = (): Node => ({
       picks: [],
@@ -2671,6 +2720,7 @@ export class OptimizeEngine {
       recv: {},
       give: {},
       typeCount: { vocal: 0, dance: 0, visual: 0 },
+      examCount: 0,
     });
     const addTo = (node: Node, idx: number): Node => {
       const c = pool[idx];
@@ -2692,6 +2742,8 @@ export class OptimizeEngine {
       }
       const typeCount = { ...node.typeCount };
       if (!c.assist) typeCount[c.type]++;
+      const isExam = c.examStrength >= EXAM_CARD_STRENGTH;
+      if (isExam && node.examCount < needExam) inc += 1_000_000;
       return {
         picks: [...node.picks, idx],
         ids: new Set(node.ids).add(c.id),
@@ -2700,6 +2752,7 @@ export class OptimizeEngine {
         recv,
         give,
         typeCount,
+        examCount: node.examCount + (isExam ? 1 : 0),
       };
     };
 
@@ -2877,6 +2930,13 @@ export class OptimizeEngine {
    * 踏み方の軸 = レッスンのメイン踏みが多い2タイプ（同数なら審査基準の高い方）。
    * 例: Da5/Vi2/Vo1 → DaVi。表示は TYPE_KEYS 順（VoDa/VoVi/DaVi）
    */
+  /** 踏み方のタイプ別のレッスンのメイン踏み回数 */
+  lessonCounts(stepping: Stepping): Record<TypeKey, number> {
+    const count: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
+    for (const l of stepping.lessons) if (l.main) count[l.main]++;
+    return count;
+  }
+
   axisOf(stepping: Stepping): string {
     const count: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     for (const l of stepping.lessons) if (l.main) count[l.main]++;
@@ -3091,6 +3151,8 @@ export class OptimizeEngine {
       // 割合の合計が6以上=固定/按分、6未満=最低枚数（残り枠は自由）
       ...this.ratioCons,
       minStat: this.minStatCond,
+      focusTypes: input.focusTypes,
+      examCardCount: input.examCardCount,
     });
   }
 
@@ -3105,10 +3167,15 @@ export class OptimizeEngine {
     members: ScoredCard[],
     stats: Record<TypeKey, number>,
     spMin: SpMinCondition = this.input.spMin,
+    stepping?: Stepping,
   ): string[] {
     const issues: string[] = [];
     const short = spConditionShortfall(members, spMin);
     if (short > 0) issues.push(`SP率持ちが${short}枚不足`);
+    const exShort = examCardShortfall(members, this.input.examCardCount ?? 0);
+    if (exShort > 0) issues.push(`試験補助のサポカが${exShort}枚不足`);
+    if (stepping && !lessonPairOk(this.lessonCounts(stepping), this.input.lessonPair))
+      issues.push(`レッスンで多く踏む2タイプが${this.input.lessonPair}になっていない`);
     const label: Record<TypeKey, string> = { vocal: "Vo", dance: "Da", visual: "Vi" };
     if (this.minStatCond) {
       for (const t of this.minStatCond.priority) {

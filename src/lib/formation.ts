@@ -91,6 +91,8 @@ export type ScoredCard = {
    * （recommendPlans）が現在の育成スタイルに合うときだけ加点する。
    */
   examAssistRating: number;
+  /** スプシの「強さ」（アイテムの試験での強さ。空欄＝0）。4以上を「試験補助のサポカ」と数える（探索の条件③） */
+  examStrength: number;
   /** アイテムのおすすめ育成スタイル（recommend_plan列。共通=どのスタイルでも有効） */
   recommendPlans: string[];
   /** 前イベ・後イベが編成全体に与える発動回数の上乗せ（回数キー→回数。前後の合算） */
@@ -243,6 +245,7 @@ function scoreCard(
     spTypes,
     examAssist,
     examAssistRating,
+    examStrength: Math.max(0, card.strongest ?? 0),
     recommendPlans: card.recommendPlans,
     eventContrib,
     preContrib: contrib.pre,
@@ -455,6 +458,44 @@ export function typeRatioShortfall(
 
 /** タイプ割合条件の違反1枚あたりのペナルティ（SP条件より大きい＝必ず守る） */
 export const RATIO_PENALTY = 4_000_000_000;
+
+/**
+ * レッスンで多く踏む2タイプの指定（探索の条件①）を満たすか。選んだ2タイプをどちらも1回以上踏み、
+ * 残りのタイプはそのどちらよりも多くは踏まない（同数まではよい）。
+ * 「Vo を8回・Vi は0回」は Vo・Vi ではない扱い（2026-11-18）
+ */
+export function lessonPairOk(counts: Record<TypeKey, number>, pair: string | null | undefined): boolean {
+  if (!pair) return true;
+  const map: Record<string, [TypeKey, TypeKey]> = {
+    VoDa: ["vocal", "dance"],
+    VoVi: ["vocal", "visual"],
+    DaVi: ["dance", "visual"],
+  };
+  const two = map[pair];
+  if (!two) return true;
+  const third = TYPE_LIST.find((t) => !two.includes(t))!;
+  return two.every((t) => counts[t] >= 1 && counts[t] >= counts[third]);
+}
+
+/** 試験補助のサポカと数える「強さ」の下限（オーナー指定 2026-11-18「4以上の強さを持つサポカ」） */
+export const EXAM_CARD_STRENGTH = 4;
+/** 試験補助のサポカ（強さ4以上）が need 枚に足りない枚数 */
+export function examCardShortfall(members: readonly { examStrength: number }[], need: number): number {
+  if (need <= 0) return 0;
+  const n = members.filter((m) => m.examStrength >= EXAM_CARD_STRENGTH).length;
+  return Math.max(0, need - n);
+}
+
+/**
+ * ステを寄せるタイプ（探索の条件②）の重み。選んだタイプの合計ステ1点を、合計ステ1000点より重く見る
+ * （必須条件の RATIO_PENALTY よりはずっと軽い）
+ */
+export const FOCUS_WEIGHT = 1000;
+/** 選んだタイプの合計ステ（上限適用後） */
+export function focusSum(stats: Record<TypeKey, number>, focus: readonly TypeKey[] | null | undefined): number {
+  if (!focus || focus.length === 0) return 0;
+  return focus.reduce((s, t) => s + stats[t], 0);
+}
 
 /** シード探索でタイプごとに残すレンタル候補数（山登りでは全候補を見る） */
 const PRUNE_RENTAL = 8;
@@ -833,6 +874,10 @@ export type FindBestOptions = {
   maxTargets?: Record<TypeKey, number>;
   /** ステの高さの順（高い→低い）。指定があれば必須条件として扱う */
   statOrder?: TypeKey[] | null;
+  /** ステを寄せるタイプ（探索の条件②。選んだタイプの合計を最優先） */
+  focusTypes?: TypeKey[];
+  /** 試験補助のサポカ（強さ4以上）の最低枚数（探索の条件③。必須条件） */
+  examCardCount?: number;
   /**
    * パラボを全ソース合算%で変換する土台（計算ページの表示と同じ式で選ぶ）。
    * 渡すと base 引数の代わりにこれを使う。省略時は base ＋ カードの点数（パラボは1枚ずつの期待値）
@@ -1263,7 +1308,11 @@ export function findBestFormation(
       (opts?.extraScore?.(members) ?? 0) +
       // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
       (opts?.examAssist ? examAssistSum(members, opts?.examStyleTags) : 0) +
-      minStatBonus(capped, opts?.minStat) -
+      minStatBonus(capped, opts?.minStat) +
+      // ステを寄せるタイプ（選んだタイプの合計を最優先）
+      focusSum(capped, opts?.focusTypes) * FOCUS_WEIGHT -
+      // 試験補助のサポカの枚数は必須条件
+      examCardShortfall(members, opts?.examCardCount ?? 0) * RATIO_PENALTY -
       spConditionShortfall(members, spMin) * SP_PENALTY -
       // タイプ割合は必須条件（シードと山登りは構成を守るが、固定カードや
       // アシストの扱いで崩れた候補が勝たないよう目的関数でも弾く）
@@ -1287,9 +1336,17 @@ export function findBestFormation(
   // （固定済みカードと同名のレンタルは重複になるため除外）。
   // 試験補助を強めるときはシードの上位取りにも examAssist を効かせる
   // （山登りだけでは点数下位の補助カードへ届きにくいため）。
-  const seedValue = opts?.examAssist
-    ? (c: ScoredCard) => c.points + examAssistValueOf(c, opts?.examStyleTags)
-    : undefined;
+  // ステを寄せるタイプ・試験補助のサポカの枚数があるときもシードの上位取りに効かせる
+  // （寄せないタイプのカードは低く、試験補助のサポカは高く見て、山登りの出発点に入れる）
+  const focusSet = opts?.focusTypes?.length ? new Set(opts.focusTypes) : null;
+  const needExam = opts?.examCardCount ?? 0;
+  const seedValue =
+    opts?.examAssist || focusSet || needExam > 0
+      ? (c: ScoredCard) =>
+          (opts?.examAssist ? c.points + examAssistValueOf(c, opts?.examStyleTags) : c.points) *
+            (focusSet && !c.assist && !focusSet.has(c.type) ? 0.05 : 1) +
+          (needExam > 0 && c.examStrength >= EXAM_CARD_STRENGTH ? 10_000 : 0)
+      : undefined;
   const usableRentals = rentals.filter((c) => !ownedPinnedIds.has(c.id));
   const rentalPools = groupByType(usableRentals, seedValue);
   const rentalSeeds: (ScoredCard | null)[] = pinnedRental

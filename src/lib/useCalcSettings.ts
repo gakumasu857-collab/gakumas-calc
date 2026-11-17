@@ -38,8 +38,23 @@ export type CalcSettings = {
   idol: string;
   /** Pアイドル名（例: Love&Joy） */
   pIdol: string;
-  /** レッスンを多く踏む上位2タイプへのSPレッスン率アップ持ち最低枚数（1位/2位） */
-  spTop: { first: number; second: number };
+  /**
+   * レッスンを多く踏む順（1・2・3番目のタイプ）へのSPレッスン率アップ持ち最低枚数。
+   * 1回も踏まないタイプは0枚扱い（2026-11-18 に3番目を追加）
+   */
+  spTop: { first: number; second: number; third: number };
+  /**
+   * 探索の条件①: レッスンで多く踏む2タイプ（auto＝おまかせ）。指定すると、レッスンのメイン踏みが多い2タイプが
+   * これになる踏み方だけを選ぶ（ステの高さではなく踏む回数で決める。オーナー指定 2026-11-18）
+   */
+  lessonPair: "auto" | "VoDa" | "VoVi" | "DaVi";
+  /**
+   * 探索の条件②: ステを寄せるタイプ（空＝合計ステ優先）。選んだタイプの合計ステを最優先にし、ほかのタイプは無視する
+   * （〇ラインより優先。〇ラインは「必ず超える」がオンのときだけ守る）
+   */
+  focusTypes: TypeKey[];
+  /** 探索の条件③: 試験補助のサポカ（スプシの「強さ」が4以上）を何枚以上入れるか（0＝条件なし） */
+  examCardCount: number;
   /**
    * 全自動最適化の条件: 前イベの取得枚数（カード1枚=1）・後イベの発動回数の上限
    * （enabled=false なら制限なし）
@@ -113,7 +128,10 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   // アイドル・Pアイドルは未選択で始める（計算ページの「準備」で選んでもらう）
   idol: "",
   pIdol: "",
-  spTop: { first: 0, second: 0 },
+  spTop: { first: 0, second: 0, third: 0 },
+  lessonPair: "auto",
+  focusTypes: [],
+  examCardCount: 0,
   eventBudget: { enabled: false, pre: 6, post: 6 },
   typeRatio: { enabled: false, vocal: 1, dance: 1, visual: 1 },
   examAssist: false,
@@ -240,20 +258,28 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     ...stored,
     idol,
     spTop: { ...DEFAULT_SETTINGS.spTop, ...(stored.spTop ?? {}) },
+    lessonPair: (["VoDa", "VoVi", "DaVi"] as const).includes(stored.lessonPair as "VoDa")
+      ? (stored.lessonPair as CalcSettings["lessonPair"])
+      : "auto",
+    focusTypes: Array.isArray(stored.focusTypes)
+      ? TYPE_KEYS.filter((t) => (stored.focusTypes as unknown[]).includes(t))
+      : [],
+    examCardCount:
+      typeof stored.examCardCount === "number" ? Math.max(0, Math.min(6, Math.floor(stored.examCardCount))) : 0,
     eventBudget: normalizeEventBudget(stored.eventBudget),
-    typeRatio: {
-      ...DEFAULT_SETTINGS.typeRatio,
-      ...(stored.typeRatio ?? {}),
-    },
-    minStats: { ...DEFAULT_SETTINGS.minStats, ...(stored.minStats ?? {}) },
-    maxStats: { ...DEFAULT_SETTINGS.maxStats, ...(stored.maxStats ?? {}) },
+    // 2026-11-18 に画面から外した条件（タイプ割合・最低ステ・最高ステ・ステの順・試験補助を強める）は、
+    // 前に入れた値が見えないまま効かないよう、読むときに既定（条件なし）に戻す（オーナー「これ以外の設定はいらない」）
+    typeRatio: { ...DEFAULT_SETTINGS.typeRatio },
+    minStats: { ...DEFAULT_SETTINGS.minStats },
+    maxStats: { ...DEFAULT_SETTINGS.maxStats },
+    examAssist: false,
     affection: normalizeAffection(stored.affection),
     hifBonus: normalizeHifBonus(stored.hifBonus),
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
     hatsuChallenge: normalizeHatsuChallenge(stored.hatsuChallenge),
     okLineRequired: stored.okLineRequired === true,
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
-    statOrder: normalizeStatOrder(stored.statOrder),
+    statOrder: null, // 画面から外した条件（上のコメント）
     // 真偽値以外（壊れた値・旧データ）は既定に戻す
     examConfirm:
       typeof stored.examConfirm === "boolean" ? stored.examConfirm : DEFAULT_SETTINGS.examConfirm,

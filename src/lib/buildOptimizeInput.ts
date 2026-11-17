@@ -35,9 +35,10 @@ export function resolveSpMin(
   const order = [...TYPE_KEYS].sort(
     (a, b) => counts[b] - counts[a] || r.typeRanks[a] - r.typeRanks[b],
   );
+  // 1・2・3番目に多く踏むタイプへ。1回も踏まないタイプは SP率持ちが要らない（2026-11-18）
+  const want = [settings.spTop.first, settings.spTop.second, settings.spTop.third];
   const out: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
-  out[order[0]] = settings.spTop.first;
-  out[order[1]] = settings.spTop.second;
+  order.forEach((t, i) => (out[t] = counts[t] > 0 ? want[i] : 0));
   return out;
 }
 
@@ -90,7 +91,11 @@ export function buildAutoOptimizeInput(
     flags,
     spMin: resolveSpMin(r, settings),
     // 上位タイプのSP率持ち枚数条件は、候補の踏み方ごとに上位タイプを取り直して判定する
-    spTop: { first: settings.spTop.first, second: settings.spTop.second },
+    spTop: { first: settings.spTop.first, second: settings.spTop.second, third: settings.spTop.third },
+    // 探索の条件①〜③（2026-11-18）
+    lessonPair: settings.lessonPair === "auto" ? null : settings.lessonPair,
+    focusTypes: settings.focusTypes,
+    examCardCount: settings.examCardCount,
     // 今の編成（探索の候補に含めて、押すたびに悪化しないようにする）
     currentSlots: r.selected.slots.filter(
       (s): s is NonNullable<typeof s> => s !== null,
