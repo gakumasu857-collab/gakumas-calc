@@ -169,11 +169,13 @@ export default function StatsCard({
                 >
                   〇{okLine.toLocaleString()}{okMet ? "✓" : ""}
                 </span>
-                {(open || over) && (
-                  <span className="w-16 text-right text-xs text-slate-400" title={`上限 ${cap.toLocaleString()} まで`}>
-                    {over ? `+${Math.round(p.current - cap).toLocaleString()}超` : `あと ${Math.round(cap - p.current).toLocaleString()}`}
-                  </span>
-                )}
+                {/* 「あと◯」は開いたときだけ見せるが、場所はいつも取っておく（開け閉めで数字が横にずれないように） */}
+                <span
+                  className={`w-16 text-right text-xs text-slate-400 ${open || over ? "" : "invisible"}`}
+                  title={`上限 ${cap.toLocaleString()} まで`}
+                >
+                  {over ? `+${Math.round(p.current - cap).toLocaleString()}超` : `あと ${Math.round(cap - p.current).toLocaleString()}`}
+                </span>
               </div>
               {/* 内訳バー（クリックで内訳の数字を開閉） */}
               <button
@@ -234,7 +236,7 @@ export default function StatsCard({
           <span className="ml-auto text-2xl font-bold text-blue-600">
             {Math.round(r.cappedSum).toLocaleString()}
           </span>
-          {open && <span className="w-16" />}
+          <span className="w-16" />
         </div>
         {open ? (
           /* 内訳の数字（区分ごと）。色の点は上のバーと対応 */

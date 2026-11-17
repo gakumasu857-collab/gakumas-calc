@@ -96,14 +96,19 @@ export default function FormationPlanCard({
       title="調整"
       hint={<Hint text={GLOSSARY.formationPlan} />}
       action={
-        tab === "formation" ? (
-          <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
-            全て外す
-          </button>
-        ) : undefined
+        <button
+          type="button"
+          onClick={onClearAll}
+          tabIndex={tab === "formation" ? 0 : -1}
+          aria-hidden={tab !== "formation"}
+          className={`${BTN_SECONDARY} ${tab === "formation" ? "" : "invisible"}`}
+        >
+          全て外す
+        </button>
       }
     >
-      {/* タブ（スマホでは横にスクロール） */}
+      {/* タブ（スマホでは横にスクロール）。押したときに位置や幅が変わらないように、件数や案内は重ねて出す（2026-11-18） */}
+      <div className="relative">
       <div
         role="tablist"
         className={`-mx-1 mb-3 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 px-1 ${
@@ -118,7 +123,7 @@ export default function FormationPlanCard({
             aria-selected={tab === t.key}
             onClick={() => pick(t.key)}
             title={t.title}
-            className={`-mb-px flex shrink-0 grow items-center justify-center gap-1 border-b-2 px-2 py-2 text-sm font-bold transition sm:grow-0 sm:px-3 ${
+            className={`relative -mb-px flex shrink-0 grow items-center justify-center gap-1 border-b-2 px-2 pb-2 pt-2.5 text-sm font-bold transition sm:grow-0 sm:px-3 ${
               tab === t.key
                 ? "border-blue-600 text-blue-700"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -127,7 +132,7 @@ export default function FormationPlanCard({
             <span className="hidden sm:inline-flex">{t.icon}</span>
             {t.label}
             {t.badge && (
-              <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-white">
+              <span className="absolute right-0 top-0 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-3.5 text-white">
                 {t.badge}
               </span>
             )}
@@ -135,7 +140,7 @@ export default function FormationPlanCard({
         ))}
       </div>
       {highlight && (
-        <p className="-mt-1 mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-700">
+        <div className="absolute left-0 top-full z-10 -mt-2 flex max-w-full flex-wrap items-center gap-2 rounded-lg border-2 border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-700 shadow-lg">
           タブを切り替えると、実際の育成に合わせて直せます（評価値がその場で変わります）
           <button
             type="button"
@@ -144,9 +149,11 @@ export default function FormationPlanCard({
           >
             わかった
           </button>
-        </p>
+        </div>
       )}
+      </div>
 
+      <div className="min-h-[22rem]">
       {tab === "formation" && (
         <>
           {rentalCount >= 2 && (
@@ -197,6 +204,7 @@ export default function FormationPlanCard({
         ) : (
           <p className="text-sm text-slate-500">サポカを選ぶと、ここで前イベ・後イベ・ステイベの発動を変えられます。</p>
         ))}
+      </div>
     </Card>
   );
 }

@@ -30,6 +30,12 @@ body {
   height: 100%;
 }
 
+/* スクロールバーの場所をいつも取っておく（タブを替えてページの高さが変わったときに、
+   スクロールバーが出たり消えたりして画面全体が横にずれないように。2026-11-18） */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

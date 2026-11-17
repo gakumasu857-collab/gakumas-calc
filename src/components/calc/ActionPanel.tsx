@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDown, ChevronDown, Settings, Sparkles } from "lucide-react";
+import { ArrowUp, ChevronDown, Settings, Sparkles } from "lucide-react";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/components/ui";
 
 /** 直近の探索の状況（1行で出す。結果そのものは編成・踏み方・評価値に出る） */
@@ -133,14 +133,11 @@ export default function ActionPanel({
       ? status.after - status.before
       : null;
 
+  const hasResult =
+    !!status &&
+    !!(status.message || (status.before != null && status.after != null) || status.kept);
   return (
     <section id="step-search" className="scroll-mt-16 rounded-xl border border-slate-200 bg-white p-3">
-      {showArrow && (
-        <p className="mb-2 flex items-start gap-1.5 text-sm font-bold text-blue-700">
-          <ArrowDown size={18} className="mt-0.5 shrink-0 animate-bounce" />
-          <span>あなたの手持ちに合ったサポカ編成と踏み方を求めます</span>
-        </p>
-      )}
       <div className="flex items-stretch gap-2">
         <RunButtons
           busy={busy}
@@ -154,75 +151,76 @@ export default function ActionPanel({
         <button
           type="button"
           onClick={onConditions}
-          className={`${BTN_SECONDARY} shrink-0`}
+          className={`${BTN_SECONDARY} relative shrink-0`}
           title="探索の条件（レッスンで多く踏むタイプ・ステを寄せるタイプ・試験補助のサポカ・SP率アップ持ちの枚数など）"
         >
           <Settings size={14} />
           {/* 幅の狭い画面では主役ボタンの文字を切らないよう、アイコンだけにする（説明は title） */}
           <span className="hidden sm:inline">探索の条件</span>
+          {/* 条件の数はボタンの角に重ねる（数が出てもボタンの幅を変えない） */}
           {conditionCount > 0 && (
             <span
               title={`条件 ${conditionCount}件`}
-              className="rounded-full bg-blue-600 px-1.5 text-[10px] font-bold leading-4 text-white"
+              className="absolute -right-1.5 -top-1.5 rounded-full bg-blue-600 px-1.5 text-[10px] font-bold leading-4 text-white ring-2 ring-white"
             >
               {conditionCount}
             </span>
           )}
         </button>
       </div>
-      {!ready && (
-        <p className="mt-1.5 text-[11px] font-semibold text-amber-600">
-          上の「準備」で {missingInputs.join("・")} を選択してください
-        </p>
-      )}
 
-      {/* 直近の探索の内訳 */}
-      {/* 何通り・何秒かは title だけ（数字を減らす）。評価値の変化・変更なし・注意があるときだけ出す */}
-      {status &&
-        (status.message ||
-          (status.before != null && status.after != null) ||
-          status.kept ||
-          (status.notes?.length ?? 0) > 0) && (
-        <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-600">
-          {status.message ? (
-            <p className="font-semibold text-slate-700">{status.message}</p>
-          ) : !(status.before != null && status.after != null) && !status.kept ? null : (
-            <p
-              className="tabular-nums"
-              title={[
-                status.evaluated !== undefined ? `${status.evaluated.toLocaleString()}通り` : "",
-                status.elapsedMs !== undefined ? `${(status.elapsedMs / 1000).toFixed(1)}秒` : "",
-              ]
-                .filter(Boolean)
-                .join("・")}
-            >
-              探索の結果
-              {status.before != null && status.after != null && (
-                <>
-                  {"： "}
-                  {status.before.toLocaleString()} → {status.after.toLocaleString()}
-                  {delta !== null && (
-                    <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
-                      （{delta >= 0 ? "+" : ""}
-                      {delta.toLocaleString()}）
-                    </span>
-                  )}
-                </>
-              )}
-              {status.kept && (
-                <span className="ml-1 font-semibold text-slate-700">
-                  現在の評価値を下回ったため変更なし
-                </span>
-              )}
-            </p>
-          )}
-          {status.notes?.map((n) => (
-            <p key={n} className="text-amber-700">
-              ・{n}
-            </p>
-          ))}
-        </div>
-      )}
+      {/* ボタンの下の1つの場所に、そのとき大事な1つだけを出す（高さはいつも同じにして、押したあとに下がずれないように。2026-11-18）:
+          未選択の欄 → 初めての人への案内 → 直近の探索の結果。何通り・何秒かは title だけ */}
+      <div className="mt-1.5 flex min-h-9 flex-col justify-center gap-0.5 px-1 text-[11px] text-slate-600">
+        {!ready ? (
+          <p className="font-semibold text-amber-600">上の「準備」で {missingInputs.join("・")} を選択してください</p>
+        ) : showArrow ? (
+          <p className="flex items-center gap-1 font-bold text-blue-700">
+            <ArrowUp size={14} className="shrink-0 animate-bounce" />
+            あなたの手持ちに合ったサポカ編成と踏み方を求めます
+          </p>
+        ) : hasResult && status ? (
+          <>
+            {status.message ? (
+              <p className="font-semibold text-slate-700">{status.message}</p>
+            ) : (
+              <p
+                className="tabular-nums"
+                title={[
+                  status.evaluated !== undefined ? `${status.evaluated.toLocaleString()}通り` : "",
+                  status.elapsedMs !== undefined ? `${(status.elapsedMs / 1000).toFixed(1)}秒` : "",
+                ]
+                  .filter(Boolean)
+                  .join("・")}
+              >
+                探索の結果
+                {status.before != null && status.after != null && (
+                  <>
+                    {"： "}
+                    {status.before.toLocaleString()} → {status.after.toLocaleString()}
+                    {delta !== null && (
+                      <span className={delta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                        （{delta >= 0 ? "+" : ""}
+                        {delta.toLocaleString()}）
+                      </span>
+                    )}
+                  </>
+                )}
+                {status.kept && (
+                  <span className="ml-1 font-semibold text-slate-700">
+                    現在の評価値を下回ったため変更なし
+                  </span>
+                )}
+              </p>
+            )}
+            {status.notes?.map((n) => (
+              <p key={n} className="text-amber-700">
+                ・{n}
+              </p>
+            ))}
+          </>
+        ) : null}
+      </div>
     </section>
   );
 }

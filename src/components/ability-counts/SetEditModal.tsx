@@ -213,16 +213,24 @@ export default function SetEditModal({
                 disabled={adjustedCount === 0}
                 onClick={onCommitAdjust}
                 title="ここで変えた回数（黄色い枠）をこのプロデュースのデフォルトにします（前イベ・後イベの上乗せ分は含めません）"
-                className="rounded-md bg-blue-600 px-2.5 py-1 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="relative rounded-md bg-blue-600 px-2.5 py-1 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                上書き保存{adjustedCount > 0 ? `（${adjustedCount}件）` : ""}
+                上書き保存
+                {/* 件数は角に重ねる（数が出てもボタンの幅を変えない） */}
+                {adjustedCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 rounded-full bg-amber-500 px-1 text-[9px] leading-3.5 text-white ring-2 ring-white">
+                    {adjustedCount}
+                  </span>
+                )}
               </button>
             )}
-            {adjustedCount > 0 && onResetAdjust && (
+            {/* 「戻す」はいつも同じ場所に置き、変えていないときは見えなくするだけ（押す場所がずれないように） */}
+            {onResetAdjust && (
               <button
                 type="button"
                 onClick={onResetAdjust}
-                className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100"
+                disabled={adjustedCount === 0}
+                className={`rounded-md border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-100 ${adjustedCount > 0 ? "" : "invisible"}`}
               >
                 すべてデフォルトに戻す
               </button>

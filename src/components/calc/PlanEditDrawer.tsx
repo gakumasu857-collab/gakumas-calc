@@ -156,9 +156,8 @@ export default function PlanEditDrawer({
               </button>
             )}
           </div>
-          {optMsg && (
-            <p className="mb-2 text-xs font-semibold text-blue-600">{optMsg}</p>
-          )}
+          {/* 結果の一言はボタンの行の下に、いつも同じ高さで（出たり消えたりで下がずれないように） */}
+          <p className="-mt-2 mb-2 min-h-4 text-xs font-semibold text-blue-600">{optMsg}</p>
           {/* モーダルを開いたままでも最終ステ・評価値を追えるライブサマリー
               （その場に描くときは、PCでは右の列に評価値が見えているので出さない） */}
           <div className={`${inline ? "lg:hidden" : ""} mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm tabular-nums`}>
@@ -1582,7 +1581,7 @@ function MiniToggle({
     <button
       type="button"
       onClick={onToggle}
-      className={`h-7 rounded-md border px-1.5 text-[10px] font-bold transition ${
+      className={`h-7 min-w-[4.5rem] rounded-md border px-1.5 text-[10px] font-bold transition ${
         on ? onClass : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
