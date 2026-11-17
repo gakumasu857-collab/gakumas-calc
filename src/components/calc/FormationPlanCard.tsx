@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, SlidersHorizontal, Table2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarCheck, LayoutGrid, ListOrdered, SlidersHorizontal, Table2 } from "lucide-react";
+import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import { Card } from "@/components/calc/CalcCard";
 import { currentPlanSummary, formatProb, PlanChips } from "@/components/calc/PlanChips";
+import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import SupportSlot from "@/components/calc/SupportSlot";
 import Hint from "@/components/Hint";
 import { BTN_SECONDARY, TYPE_SHORT } from "@/components/ui";
@@ -12,6 +14,9 @@ import { TYPE_KEYS } from "@/lib/useCalcSettings";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
+/** 「微調整」のタブ */
+export type AdjustTab = "formation" | "plan" | "counts" | "events";
+
 const TYPE_TEXT = {
   vocal: "text-red-600",
   dance: "text-blue-600",
@@ -19,200 +24,255 @@ const TYPE_TEXT = {
 } as const;
 
 /**
- * 「サポカ編成と踏み方」: サポカ6枚・レッスン（メイン＋サブ・SP）・授業／営業・選抜配分・
- * 開始時のステータス・SP率を1つのカードで一度に見せる。探索を押すとここが書き換わり、
- * 手で変えると評価値がその場で変わる（その旨を1行で書いておく）。
- * 前イベ・後イベ・ステイベの調整（children）は目立つボタンの下に畳んでおく。
+ * 計算ページの「微調整」（探索の結果を実際の育成に合わせて直す場所）。2026-11-17 の画面整理で、
+ * 以前の左端の縦タブ（プロデュース設定・レッスン等の踏み方）と黄色い帯（前イベ・後イベ・ステイベ）を
+ * このカードのタブにまとめた: サポカ編成｜踏み方｜発動回数｜イベント。どれも「この育成だけ」で、
+ * 変えると右の評価値がその場で動く（PCでは右の列が見えたまま）。
+ * 開始時のステ・SP率・実現確率は「育成後のステータス」の「くわしい数字」へ移した（DetailNumbers）。
  */
 export default function FormationPlanCard({
   r,
   flags,
+  tab,
+  onTab,
+  highlight,
+  onDismissHighlight,
   eventOverrideCount,
   eventOverrideTitle,
   onOpenSlot,
   onDetail,
-  onEditPlan,
   onClearAll,
-  onOpenParabo,
   children,
 }: {
   r: CalcResult;
   flags: CardFlagSets;
-  /** 前イベ・後イベ・ステイベを手で変えているカード数（ボタンのバッジ） */
+  tab: AdjustTab;
+  onTab: (tab: AdjustTab) => void;
+  /** 初めて探索したあとの案内（タブを光らせる） */
+  highlight: boolean;
+  onDismissHighlight: () => void;
+  /** 前イベ・後イベ・ステイベを手で変えているカード数（タブのバッジ） */
   eventOverrideCount: number;
   /** バッジのツールチップ（どのカードを変えているか） */
   eventOverrideTitle?: string;
   onOpenSlot: (index: number) => void;
   onDetail: (member: SelectedMember) => void;
-  onEditPlan: () => void;
   onClearAll: () => void;
-  /** パラボ変換表を開く（開始時のステータスの行から） */
-  onOpenParabo: () => void;
+  /** イベントのタブの中身（前イベ・後イベ・ステイベの表） */
   children: React.ReactNode;
 }) {
-  const [eventsOpen, setEventsOpen] = useState(false);
-  const { calc } = r;
-  const { settings } = calc;
   const plan = currentPlanSummary(r);
   const rentalCount = r.members.filter((m) => m?.rental).length;
+  const set = r.selectedSet;
+  const countAdjusted = set ? r.ability.runAdjustCount(set) : 0;
+  const planLabel = r.scenario === "niaMaster" ? "レッスン・営業" : "踏み方";
+  const tabs: { key: AdjustTab; label: string; icon: React.ReactNode; badge?: string; title?: string }[] = [
+    { key: "formation", label: "サポカ編成", icon: <LayoutGrid size={13} /> },
+    { key: "plan", label: planLabel, icon: <CalendarCheck size={13} /> },
+    {
+      key: "counts",
+      label: "発動回数",
+      icon: <ListOrdered size={13} />,
+      badge: countAdjusted > 0 ? `${countAdjusted}` : undefined,
+      title: "サポカのアビリティが何回発動するか（この育成だけ）",
+    },
+    {
+      key: "events",
+      label: "イベント",
+      icon: <SlidersHorizontal size={13} />,
+      badge: eventOverrideCount > 0 ? `${eventOverrideCount}` : undefined,
+      title: eventOverrideTitle ?? "前イベ・後イベ・ステイベの発動（この育成だけ）",
+    },
+  ];
+  const pick = (key: AdjustTab) => {
+    onDismissHighlight();
+    onTab(key);
+  };
 
   return (
     <Card
-      title="サポカ編成と踏み方"
-      hint={
-        <Hint text={GLOSSARY.formationPlan} />
-      }
+      title="微調整"
+      hint={<Hint text={GLOSSARY.formationPlan} />}
       action={
-        <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
-          全て外す
-        </button>
+        tab === "formation" ? (
+          <button type="button" onClick={onClearAll} className={BTN_SECONDARY}>
+            全て外す
+          </button>
+        ) : undefined
       }
     >
-      {rentalCount >= 2 && (
-        <p className="mb-2 text-xs font-semibold text-amber-600">
-          ⚠ レンタルが{rentalCount}枚選ばれています。レンタルサポカは1育成につき1枚です。
-        </p>
-      )}
-      {/* サポカ6枚 */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {r.selected.slots.map((_, i) => (
-          <SupportSlot
-            key={i}
-            member={r.members[i]}
-            plan={r.plan}
-            flags={flags}
-            onOpen={() => onOpenSlot(i)}
-            onDetail={() => {
-              const m = r.members[i];
-              if (m) onDetail(m);
-            }}
-          />
-        ))}
-      </div>
-
-      {/* 踏み方（クリックで編集） */}
-      <button
-        type="button"
-        onClick={onEditPlan}
-        title="クリックでレッスン等の踏み方を編集"
-        className="mt-1.5 block w-full rounded-lg border border-transparent px-1.5 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50"
+      {/* タブ（スマホでは横にスクロール） */}
+      <div
+        role="tablist"
+        className={`-mx-1 mb-3 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 px-1 ${
+          highlight ? "rounded-t-lg ring-4 ring-amber-300 animate-pulse" : ""
+        }`}
       >
-        <PlanChips plan={plan} />
-      </button>
-
-      {/* 開始時のステータスとSPレッスン率（1つの枠に2行。数字は大きめ） */}
-      <div className="mt-2 divide-y divide-slate-200 rounded-lg bg-slate-50 text-sm text-slate-600">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-          <span className="w-full font-bold text-slate-700 sm:w-36">開始時のステータス</span>
-          {/* スマホでは3列のグリッド（Visual が2行目に落ちない）、PCでは横並び */}
-          <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:gap-x-4">
-            {/* スマホは1列が狭いので「Vo 123」の下に「+52.5%」を置く（1行だと隣の列に重なる）。PCは1行 */}
-            {TYPE_KEYS.map((type) => (
-              <span
-                key={type}
-                className="flex flex-col leading-tight tabular-nums sm:block sm:whitespace-nowrap sm:leading-normal"
-              >
-                <span className="whitespace-nowrap">
-                  <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-                  <b className="text-base text-slate-900">{Math.round(r.perType[type].startFixed)}</b>
-                </span>
-                <span className="whitespace-nowrap text-xs text-slate-500 sm:text-sm">
-                  {" "}
-                  +{r.perType[type].startPct}%
-                </span>
-              </span>
-            ))}
-          </div>
-          <span className="text-xs text-slate-500">
-            審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
-          </span>
+        {tabs.map((t) => (
           <button
+            key={t.key}
             type="button"
-            onClick={onOpenParabo}
-            title="パラボが今の踏み方で実質いくつのステになるかの変換表を開きます"
-            className={`${BTN_SECONDARY} ml-auto`}
-          >
-            <Table2 size={12} />
-            パラボ変換表
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
-          <span className="flex w-full items-center gap-1 font-bold text-slate-700 sm:w-36">
-            SPレッスン率上昇
-            <Hint text={GLOSSARY.spRate} />
-          </span>
-          <div className="grid w-full grid-cols-3 gap-x-2 sm:flex sm:w-auto sm:gap-x-4">
-            {TYPE_KEYS.map((type) => (
-              <span key={type} className="whitespace-nowrap tabular-nums">
-                <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
-                <b className="text-base text-slate-900">
-                  +{(r.spLesson.shown[type] * 100).toFixed(1)}%
-                </b>
-              </span>
-            ))}
-          </div>
-          <label className="flex items-center gap-1 text-xs text-slate-500">
-            表記外推定SP率
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={settings.baseSpRate[r.scenario]}
-              onChange={(e) =>
-                calc.update({
-                  baseSpRate: {
-                    ...settings.baseSpRate,
-                    [r.scenario]: Math.max(0, Number(e.target.value) || 0),
-                  },
-                })
-              }
-              className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs text-slate-700"
-            />
-            %
-          </label>
-          <span className="ml-auto flex flex-wrap items-center gap-x-1.5 text-sm tabular-nums text-slate-600">
-            <span className="font-bold text-slate-700">実現確率</span>
-            {r.scenario === "hif" ? (
-              <>
-                選抜 <b className="text-lg text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
-                <b className="text-lg text-blue-700">{formatProb(r.spLesson.probHon)}</b>
-              </>
-            ) : (
-              <b className="text-lg text-blue-700">{formatProb(r.spLesson.prob)}</b>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* 前イベ・後イベ・ステイベの調整（畳んであるが目立たせる） */}
-      {r.members.some((m) => m !== null) && (
-        <>
-          <button
-            type="button"
-            onClick={() => setEventsOpen((v) => !v)}
-            className={`mt-3 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-bold transition ${
-              eventsOpen
-                ? "border-blue-300 bg-blue-50 text-blue-800"
-                : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => pick(t.key)}
+            title={t.title}
+            className={`-mb-px flex shrink-0 grow items-center justify-center gap-1 border-b-2 px-2 py-2 text-sm font-bold transition sm:grow-0 sm:px-3 ${
+              tab === t.key
+                ? "border-blue-600 text-blue-700"
+                : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <SlidersHorizontal size={14} />
-            前イベ・後イベ・ステイベの発動を調整（評価値に反映）
-            {eventOverrideCount > 0 && (
-              <span
-                title={eventOverrideTitle}
-                className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
-              >
-                {eventOverrideCount}枚変更中
+            <span className="hidden sm:inline-flex">{t.icon}</span>
+            {t.label}
+            {t.badge && (
+              <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-white">
+                {t.badge}
               </span>
             )}
-            <span className="ml-auto">
-              {eventsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </span>
           </button>
-          {eventsOpen && children}
+        ))}
+      </div>
+      {highlight && (
+        <p className="-mt-1 mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-700">
+          タブを切り替えると、実際の育成に合わせて直せます（評価値がその場で変わります）
+          <button
+            type="button"
+            onClick={onDismissHighlight}
+            className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600 hover:bg-slate-200"
+          >
+            わかった
+          </button>
+        </p>
+      )}
+
+      {tab === "formation" && (
+        <>
+          {rentalCount >= 2 && (
+            <p className="mb-2 text-xs font-semibold text-amber-600">
+              ⚠ レンタルが{rentalCount}枚選ばれています。レンタルサポカは1育成につき1枚です。
+            </p>
+          )}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {r.selected.slots.map((_, i) => (
+              <SupportSlot
+                key={i}
+                member={r.members[i]}
+                plan={r.plan}
+                flags={flags}
+                onOpen={() => onOpenSlot(i)}
+                onDetail={() => {
+                  const m = r.members[i];
+                  if (m) onDetail(m);
+                }}
+              />
+            ))}
+          </div>
+          {/* 踏み方の要約（押すと「踏み方」のタブへ） */}
+          <button
+            type="button"
+            onClick={() => pick("plan")}
+            title={`クリックで「${planLabel}」のタブへ`}
+            className="mt-1.5 block w-full rounded-lg border border-transparent px-1.5 py-1.5 text-left transition hover:border-slate-200 hover:bg-slate-50"
+          >
+            <PlanChips plan={plan} />
+          </button>
         </>
       )}
+      {tab === "plan" && <PlanEditDrawer r={r} open onClose={() => pick("formation")} inline />}
+      {tab === "counts" && <AbilityCountDrawer r={r} open onClose={() => pick("formation")} inline />}
+      {tab === "events" &&
+        (r.members.some((m) => m !== null) ? (
+          <>
+            {children}
+            <p className="mt-2 text-xs text-slate-500">
+              ここはこの育成だけの設定です。どの育成でも共通の設定（前イベの回数の上限など）は
+              <Link to="/card-settings" className="mx-0.5 font-semibold text-blue-600 underline">
+                サポカ設定
+              </Link>
+              で。
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">サポカを選ぶと、ここで前イベ・後イベ・ステイベの発動を変えられます。</p>
+        ))}
     </Card>
+  );
+}
+
+/**
+ * 「くわしい数字」の中身のうち、開始時のステータスとSPレッスン率（以前は「サポカ編成と踏み方」の下にあった）。
+ * 右の列（育成後のステータス）は幅が狭いので縦に積む。
+ */
+export function DetailNumbers({ r, onOpenParabo }: { r: CalcResult; onOpenParabo: () => void }) {
+  const { calc } = r;
+  const { settings } = calc;
+  const row = "flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-2";
+  return (
+    <div className="divide-y divide-slate-200 rounded-lg bg-slate-50 text-xs text-slate-600">
+      <div className={row}>
+        <span className="w-full font-bold text-slate-700">開始時のステータス</span>
+        {TYPE_KEYS.map((type) => (
+          <span key={type} className="whitespace-nowrap tabular-nums">
+            <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+            <b className="text-sm text-slate-900">{Math.round(r.perType[type].startFixed)}</b>{" "}
+            <span className="text-slate-500">+{r.perType[type].startPct}%</span>
+          </span>
+        ))}
+        <span className="text-slate-500">
+          審査基準 {TYPE_KEYS.map((t) => `${TYPE_SHORT[t]}${r.ranks?.[t] ?? "—"}`).join("/")}
+        </span>
+        <button
+          type="button"
+          onClick={onOpenParabo}
+          title="パラボが今の踏み方で実質いくつのステになるかの変換表を開きます"
+          className={`${BTN_SECONDARY} ml-auto`}
+        >
+          <Table2 size={12} />
+          パラボ変換表
+        </button>
+      </div>
+      <div className={row}>
+        <span className="flex w-full items-center gap-1 font-bold text-slate-700">
+          SPレッスン率上昇
+          <Hint text={GLOSSARY.spRate} />
+        </span>
+        {TYPE_KEYS.map((type) => (
+          <span key={type} className="whitespace-nowrap tabular-nums">
+            <span className={`font-bold ${TYPE_TEXT[type]}`}>{TYPE_SHORT[type]}</span>{" "}
+            <b className="text-sm text-slate-900">+{(r.spLesson.shown[type] * 100).toFixed(1)}%</b>
+          </span>
+        ))}
+        <label className="flex items-center gap-1 text-slate-500">
+          表記外推定SP率
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={settings.baseSpRate[r.scenario]}
+            onChange={(e) =>
+              calc.update({
+                baseSpRate: {
+                  ...settings.baseSpRate,
+                  [r.scenario]: Math.max(0, Number(e.target.value) || 0),
+                },
+              })
+            }
+            className="w-12 rounded border border-slate-300 bg-white px-1 py-0.5 text-right text-xs text-slate-700"
+          />
+          %
+        </label>
+        <span className="flex w-full flex-wrap items-center gap-x-1.5 tabular-nums">
+          <span className="font-bold text-slate-700">実現確率</span>
+          {r.scenario === "hif" ? (
+            <>
+              選抜 <b className="text-sm text-blue-700">{formatProb(r.spLesson.probSen)}</b> ／ 本戦{" "}
+              <b className="text-sm text-blue-700">{formatProb(r.spLesson.probHon)}</b>
+            </>
+          ) : (
+            <b className="text-sm text-blue-700">{formatProb(r.spLesson.prob)}</b>
+          )}
+        </span>
+      </div>
+    </div>
   );
 }

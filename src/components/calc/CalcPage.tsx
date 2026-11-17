@@ -3,10 +3,9 @@ import { HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
-import AbilityCountDrawer from "@/components/calc/AbilityCountDrawer";
 import ActionPanel, { type RunStatus } from "@/components/calc/ActionPanel";
 import CalcHelpModal from "@/components/calc/CalcHelpModal";
-import FormationPlanCard from "@/components/calc/FormationPlanCard";
+import FormationPlanCard, { type AdjustTab } from "@/components/calc/FormationPlanCard";
 import DetailSettingsModal from "@/components/calc/DetailSettingsModal";
 import { useExamGuard } from "@/components/calc/ExamPolicyModal";
 import NiaChallengeModal from "@/components/calc/NiaChallengeModal";
@@ -15,8 +14,6 @@ import MemoryPickerModal from "@/components/calc/MemoryPickerModal";
 import ParaboTableModal from "@/components/calc/ParaboTableModal";
 import PIdolTrainingModal from "@/components/calc/PIdolTrainingModal";
 import PIdolUnownedModal from "@/components/calc/PIdolUnownedModal";
-import SideTabs from "@/components/calc/SideTabs";
-import PlanEditDrawer from "@/components/calc/PlanEditDrawer";
 import PremiseCard from "@/components/calc/PremiseCard";
 import SaveDataPanel from "@/components/calc/SaveDataPanel";
 import {
@@ -190,8 +187,8 @@ export default function CalcPage() {
     }
     setMemoryOpen(true);
   };
-  const [planOpen, setPlanOpen] = useState(false);
-  const [countsOpen, setCountsOpen] = useState(false);
+  /** 「微調整」のタブ（サポカ編成｜踏み方｜発動回数｜イベント） */
+  const [adjustTab, setAdjustTab] = useState<AdjustTab>("formation");
   /** 特訓・才能開花のモーダル（「設定欄」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
   /** 詳細設定（親愛度・H.I.Fボーナス）のモーダル（設定欄の「調整」から） */
@@ -200,7 +197,7 @@ export default function CalcPage() {
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
   /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
   const [pIdolWarn, setPIdolWarn] = useState<(() => void) | null>(null);
-  /** 左端タブの案内（初めて探索したあと、タブを押すか「わかった」まで） */
+  /** 「微調整」のタブの案内（初めて探索したあと、タブを押すか「わかった」まで。以前の左端タブの案内と同じ記憶） */
   const [sideHint, setSideHint] = useState<boolean>(() => readEverRun() && !readSideSeen());
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
@@ -222,7 +219,7 @@ export default function CalcPage() {
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
-    // 初めての探索のあとに左端タブ（踏み方・プロデュース）を案内する
+    // 初めての探索のあとに「微調整」のタブ（踏み方・発動回数など）を案内する
     if (!readSideSeen()) setSideHint(true);
   };
   const dismissSideHint = () => {
@@ -597,7 +594,7 @@ export default function CalcPage() {
   );
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 pl-9 sm:pl-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:pl-6 2xl:pl-0">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       {/* 見出し行: タイトル／セーブデータ／ヘルプ */}
       <div className="-mb-1 flex flex-wrap items-center justify-between gap-2 lg:col-span-2 lg:order-first">
         <h1 className="text-xl font-bold text-slate-900">計算ページ</h1>
@@ -641,20 +638,22 @@ export default function CalcPage() {
         {/* 操作（求める▾・条件設定・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         <div className="order-2 min-w-0">{actionPanel}</div>
 
-        {/* サポカ編成と踏み方（一度に見える） */}
+        {/* 微調整（サポカ編成｜踏み方｜発動回数｜イベント のタブ） */}
         <div className="order-5 min-w-0">
         <FormationPlanCard
           r={r}
           flags={flags}
+          tab={adjustTab}
+          onTab={setAdjustTab}
+          highlight={sideHint}
+          onDismissHighlight={dismissSideHint}
           eventOverrideCount={eventOverrideCount}
           eventOverrideTitle={
             eventOverrideCount > 0 ? `変更中のカード: ${eventOverrideNames.join("・")}` : undefined
           }
           onOpenSlot={(i) => setPickerSlot(i)}
           onDetail={(m) => setDetail(m)}
-          onEditPlan={() => setPlanOpen(true)}
           onClearAll={() => selected.clearAll()}
-          onOpenParabo={() => setParaboOpen(true)}
         >
           {/* 選択中カードの前イベ・後イベ・ステイベ（サポカ設定とは独立した計算ページ専用） */}
           <EventCountEditor r={r} />
@@ -759,7 +758,12 @@ export default function CalcPage() {
 
         {/* 育成後のステータス（内訳バーつき） */}
         <div className="order-6">
-          <StatsCard r={r} minStats={settings.minStats} maxStats={settings.maxStats} />
+          <StatsCard
+            r={r}
+            minStats={settings.minStats}
+            maxStats={settings.maxStats}
+            onOpenParabo={() => setParaboOpen(true)}
+          />
         </div>
       </div>
 
@@ -895,18 +899,6 @@ export default function CalcPage() {
         </Modal>
       )}
 
-      {/* 左端のタブ（上＝プロデュース（アビリティ発動回数）・下＝レッスン等の踏み方）。初めて探索したあとは吹き出しで案内 */}
-      <SideTabs
-        onOpenCounts={() => setCountsOpen(true)}
-        onOpenPlan={() => setPlanOpen(true)}
-        countsTitle={
-          r.selectedSet
-            ? `プロデュース「${r.selectedSet.name}」のアビリティ発動回数を調整`
-            : "プロデュースを選ぶとここから調整できます"
-        }
-        highlight={sideHint}
-        onDismissHighlight={dismissSideHint}
-      />
       {/* 探索の前の確認: 選抜の点数配分を手で変えている（H.I.F） */}
       {examGuard.modal}
       {/* 探索の前の注意: 選んでいるPアイドルが未所持 */}
@@ -926,9 +918,6 @@ export default function CalcPage() {
         />
       )}
 
-      {/* プロデュース（アビリティ発動回数）・踏み方のエディタ（左端のタブか踏み方チップから開く） */}
-      <AbilityCountDrawer r={r} open={countsOpen} onClose={() => setCountsOpen(false)} />
-      <PlanEditDrawer r={r} open={planOpen} onClose={() => setPlanOpen(false)} />
     </div>
   );
 }
@@ -1075,9 +1064,6 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
           })}
         </tbody>
       </table>
-      <p className="px-2 pt-1 text-[10px] text-slate-400">
-        計算ページ専用（サポカ設定ページとは別保存）。
-      </p>
     </div>
   );
 }

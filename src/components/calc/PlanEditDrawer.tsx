@@ -1,5 +1,5 @@
 /**
- * 計算ページの左端タブ「レッスン等の踏み方」（か踏み方チップ）から開く、レッスン・授業（営業）・選抜エディタ。
+ * 計算ページの「微調整」の「踏み方」タブに置く（inline）、レッスン・授業（営業）・選抜エディタ。
  * レッスンページと同じストアを共有していて、どちらで編集しても同期する。
  * シナリオごとに内容が変わる:
  * - H.I.F: 公開レッスン（メイン＋サブ＋SP）・授業・選抜スコア
@@ -99,10 +99,13 @@ export default function PlanEditDrawer({
   r,
   open,
   onClose,
+  inline = false,
 }: {
   r: CalcResult;
   open: boolean;
   onClose: () => void;
+  /** true＝モーダルにせず、その場に描く（計算ページの「微調整」の「踏み方」タブ） */
+  inline?: boolean;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { run: optimizePlan, busy: optBusy, msg: optMsg } = useOptimizePlan(r);
@@ -120,8 +123,8 @@ export default function PlanEditDrawer({
 
   return (
     <>
-      {open && (
-        <Modal title={title} onClose={onClose} widthClass="max-w-4xl">
+      {(open || inline) && (
+        <Modal title={title} onClose={onClose} widthClass="max-w-4xl" inline={inline}>
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -134,7 +137,7 @@ export default function PlanEditDrawer({
               className="flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles size={13} />
-              {optBusy ? "計算中…" : "今のサポカ編成で踏み方を最適化"}
+              {optBusy ? "計算中…" : "今のサポカ編成のまま、踏み方だけ探索"}
             </button>
             {!optimizeReady && (
               <span className="text-xs font-semibold text-amber-600">
@@ -149,15 +152,16 @@ export default function PlanEditDrawer({
                 className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
               >
                 <Info size={13} />
-                数値表・計算式
+                計算式・数値表
               </button>
             )}
           </div>
           {optMsg && (
             <p className="mb-2 text-xs font-semibold text-blue-600">{optMsg}</p>
           )}
-          {/* モーダルを開いたままでも最終ステ・評価値を追えるライブサマリー */}
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm tabular-nums">
+          {/* モーダルを開いたままでも最終ステ・評価値を追えるライブサマリー
+              （その場に描くときは、PCでは右の列に評価値が見えているので出さない） */}
+          <div className={`${inline ? "lg:hidden" : ""} mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm tabular-nums`}>
             <span className="w-full text-xs font-bold text-slate-500 sm:w-auto">
               最終ステータス
             </span>
@@ -950,7 +954,7 @@ function HelpModal({
   affection: number;
 }) {
   return (
-    <Modal title="数値表・計算式" onClose={onClose} widthClass="max-w-3xl">
+    <Modal title="計算式・数値表" onClose={onClose} widthClass="max-w-3xl">
       <NumbersTables scenario={scenario} affection={affection} />
     </Modal>
   );

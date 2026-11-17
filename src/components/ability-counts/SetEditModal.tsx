@@ -88,6 +88,8 @@ type Props = {
   choiceAdjustedRowIds?: ReadonlySet<string>;
   /** 出し方（計算ページからは左の引き出し） */
   side?: "center" | "left";
+  /** true＝モーダルにせず、その場に描く（計算ページの「微調整」の「発動回数」タブ） */
+  inline?: boolean;
 };
 
 /** 説明の文章をしまう／見るボタン（しまった状態は覚えておく。ボタンは残る） */
@@ -137,6 +139,7 @@ export default function SetEditModal({
   choiceNote,
   choiceAdjustedRowIds,
   side,
+  inline = false,
 }: Props) {
   const [category, setCategory] = useState<CategoryKey>(
     initialCategory ?? ABILITY_CATEGORIES[0].key,
@@ -184,6 +187,7 @@ export default function SetEditModal({
       widthClass={side === "left" ? "max-w-3xl" : "max-w-4xl"}
       side={side}
       fill
+      inline={inline}
     >
       {/* 計算ページから開いたとき: なぜ回数が並んでいるのかを先に言う
           （「ステータスはここから変えられます」で開くと差し入れ・ドリンク交換などが出てくるため） */}
@@ -240,7 +244,7 @@ export default function SetEditModal({
         </div>
       ) : (
         <div className="mb-3 shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
-          <b>このプロデュース（セット）のデフォルトの回数</b>です。サポカ編成を決めたあとの、この育成だけの調整は計算ページ左端の「プロデュース」タブで（そこで変えても、「上書き保存」を押さない限りここは変わりません）。
+          <b>このプロデュース（セット）のデフォルトの回数</b>です。サポカ編成を決めたあとの、この育成だけの調整は計算ページの「微調整」の「発動回数」タブで（そこで変えても、「上書き保存」を押さない限りここは変わりません）。
         </div>
       )}
       {/* ユーザーセットは名前・プランを変更できる */}

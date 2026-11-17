@@ -10,7 +10,7 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
- * 計算ページ左端の「プロデュース」タブから開く、アビリティ発動回数のエディタ。
+ * 計算ページの「微調整」の「発動回数」タブに置く、アビリティ発動回数のエディタ（inline＝その場に描く）。
  * プロデュース設定ページ（/ability-counts）と同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
  * プロデュース設定ページのデフォルトは変えない（useAbilityCounts の adjust レイヤー。「上書き保存」でデフォルトに書ける）。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。
@@ -19,10 +19,12 @@ export default function AbilityCountDrawer({
   r,
   open,
   onClose,
+  inline = false,
 }: {
   r: ReturnType<typeof useCalcResult>;
   open: boolean;
   onClose: () => void;
+  inline?: boolean;
 }) {
   const set = r.selectedSet;
 
@@ -93,9 +95,10 @@ export default function AbilityCountDrawer({
                 : undefined
             }
             onClose={() => onClose()}
+            inline={inline}
           />
         ) : (
-          <Modal title="プロデュース（アビリティ発動回数）" onClose={() => onClose()}>
+          <Modal title="プロデュース（アビリティ発動回数）" onClose={() => onClose()} inline={inline}>
             <p className="text-sm text-slate-600">
               プロデュースが未選択です。「設定欄」のプロデュースで選ぶか、
               <Link to="/ability-counts" className="text-blue-600 underline">

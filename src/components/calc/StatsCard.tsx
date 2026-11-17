@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/calc/CalcCard";
+import { DetailNumbers } from "@/components/calc/FormationPlanCard";
 import Hint from "@/components/Hint";
 import { BTN_GHOST, TYPE_CHIP, TYPE_SHORT } from "@/components/ui";
 import { GLOSSARY } from "@/lib/glossary";
@@ -39,13 +40,16 @@ const TYPE_TEXT: Record<TypeKey, string> = {
   visual: "text-yellow-600",
 };
 
-/** 「内訳の数字」を開いているか（ブラウザに覚える。初回は開いた状態） */
-const OPEN_KEY = "gakumas:calc:statsBreakdown:v1";
+/**
+ * 「くわしい数字」を開いているか（ブラウザに覚える。初回は閉じた状態）。
+ * 2026-11-17 の画面整理で「内訳の数字」から改名し、開始時のステ・SP率・Pポイントなどもここへ入れた（キーも v2 に）
+ */
+const OPEN_KEY = "gakumas:calc:statsBreakdown:v2";
 const readOpen = (): boolean => {
   try {
-    return localStorage.getItem(OPEN_KEY) !== "0";
+    return localStorage.getItem(OPEN_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 };
 const writeOpen = (open: boolean) => {
@@ -57,19 +61,22 @@ const writeOpen = (open: boolean) => {
 };
 
 /**
- * 育成後のステータス。数字の下に「何で伸びたか」の細い積み上げバー（上限までの割合）を出し、
- * 「内訳の数字」（開始時・レッスン・選抜・授業・サポカ・パラボ変換）は表で見られる
- * （見出しのボタンかバーのクリックで開閉。開閉はブラウザに覚える）。
+ * 育成後のステータス。数字の下に「何で伸びたか」の細い積み上げバー（上限までの割合）を出す。
+ * ふだんは3タイプと合計（とシナリオの主な数）だけ。「くわしい数字」を開くと、内訳の表・開始時のステ・SP率・
+ * 実現確率・Pポイント・体力が出る（見出しのボタンかバーのクリックで開閉。開閉はブラウザに覚える）。
  * 最低／最高ステの条件を設定しているときは、その位置に印を付ける。
  */
 export default function StatsCard({
   r,
   minStats,
   maxStats,
+  onOpenParabo,
 }: {
   r: CalcResult;
   minStats: Record<TypeKey, number>;
   maxStats: Record<TypeKey, number>;
+  /** パラボ変換表を開く（くわしい数字の中から） */
+  onOpenParabo: () => void;
 }) {
   const cap = r.statCap;
   const segments = segmentsOf(r.scenario);
@@ -125,10 +132,10 @@ export default function StatsCard({
           type="button"
           onClick={toggle}
           className={BTN_GHOST}
-          title="開始時・レッスン・選抜・授業・サポカ・パラボ変換ごとの数字を表示／非表示"
+          title="内訳・開始時のステータス・SP率・Pポイント・体力を表示／非表示"
         >
           {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          内訳の数字
+          くわしい数字
         </button>
       }
     >
@@ -157,15 +164,17 @@ export default function StatsCard({
                 >
                   〇{okLine.toLocaleString()}{okMet ? "✓" : ""}
                 </span>
-                <span className="w-16 text-right text-xs text-slate-400">
-                  {over ? `+${Math.round(p.current - cap).toLocaleString()}超` : `あと ${Math.round(cap - p.current).toLocaleString()}`}
-                </span>
+                {(open || over) && (
+                  <span className="w-16 text-right text-xs text-slate-400" title={`上限 ${cap.toLocaleString()} まで`}>
+                    {over ? `+${Math.round(p.current - cap).toLocaleString()}超` : `あと ${Math.round(cap - p.current).toLocaleString()}`}
+                  </span>
+                )}
               </div>
               {/* 内訳バー（クリックで内訳の数字を開閉） */}
               <button
                 type="button"
                 onClick={toggle}
-                title="クリックで内訳の数字を表示／非表示"
+                title="クリックでくわしい数字を表示／非表示"
                 className="relative mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-slate-100 p-0"
               >
                 <span className="flex h-full w-full">
@@ -220,7 +229,7 @@ export default function StatsCard({
           <span className="ml-auto text-2xl font-bold text-blue-600">
             {Math.round(r.cappedSum).toLocaleString()}
           </span>
-          <span className="w-16" />
+          {open && <span className="w-16" />}
         </div>
         {open ? (
           /* 内訳の数字（区分ごと）。色の点は上のバーと対応 */
@@ -261,20 +270,15 @@ export default function StatsCard({
               </div>
             )}
           </div>
-        ) : (
-          /* 凡例（内訳を閉じているとき） */
-          <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[10px] text-slate-500">
-            {segments.map((seg) => (
-              <span key={seg.key} className="flex items-center gap-1">
-                <span className={`inline-block h-2 w-2 rounded-sm ${seg.color}`} />
-                {seg.label}
-              </span>
-            ))}
-            {markerLegend}
-          </div>
-        )}
+        ) : null}
       </div>
-      {/* スター性・Pポイント・体力は1項目1行 */}
+      {/* 開始時のステータス・SP率・実現確率（くわしい数字を開いたときだけ） */}
+      {open && (
+        <div className="mt-2">
+          <DetailNumbers r={r} onOpenParabo={onOpenParabo} />
+        </div>
+      )}
+      {/* スター性・ファン投票数は評価値に入るのでいつも出す。Pポイント・体力はくわしい数字の中 */}
       <div className="mt-2 flex flex-col gap-0.5 border-t border-slate-100 pt-1.5 text-sm text-slate-500">
         {r.scenario === "hif" && (
           <p>
@@ -286,16 +290,20 @@ export default function StatsCard({
           <p className="flex flex-wrap items-center gap-x-1">
             ファン投票数:{" "}
             <b className="text-violet-600">{(r.scenarioValues.totalVotes ?? 0).toLocaleString()}</b>
-            <span className="text-xs text-slate-400">
-              （営業 {(r.scenarioValues.votesSales ?? 0).toLocaleString()}・1次2次{" "}
-              {(r.scenarioValues.votesAuditions ?? 0).toLocaleString()}・最終{" "}
-              {(r.scenarioValues.votesFinale ?? 0).toLocaleString()}・札{" "}
-              {(r.scenarioValues.votesFuda ?? 0).toLocaleString()}）
-            </span>
+            {open && (
+              <span className="text-xs text-slate-400">
+                （営業 {(r.scenarioValues.votesSales ?? 0).toLocaleString()}・1次2次{" "}
+                {(r.scenarioValues.votesAuditions ?? 0).toLocaleString()}・最終{" "}
+                {(r.scenarioValues.votesFinale ?? 0).toLocaleString()}・札{" "}
+                {(r.scenarioValues.votesFuda ?? 0).toLocaleString()}）
+              </span>
+            )}
             → 評価値換算{" "}
             <b className="text-blue-600">{(r.scenarioValues.fanValue ?? 0).toLocaleString()}</b>
           </p>
         )}
+        {open && (
+          <>
         {/* サポカ由来のPポイントだけ（固定P・前イベP・P率換算・タイプSPレッスンP率） */}
         <p className="flex flex-wrap items-center gap-x-1">
           Pポイント（サポカ分）:{" "}
@@ -320,6 +328,8 @@ export default function StatsCard({
         <p>
           体力: <b className="text-emerald-700">{Math.round(r.resources.hpTotal)}</b>
         </p>
+          </>
+        )}
       </div>
     </Card>
   );

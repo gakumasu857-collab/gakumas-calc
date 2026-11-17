@@ -60,9 +60,9 @@ export default function WelcomeModal({ onClose }: { onClose: () => void }) {
               評価値が最も高くなるサポカ6枚の編成と、レッスン等の踏み方を自動で探します。
             </Step>
             <Step no={3} title="実際の育成に合わせて微調整">
-              画面の左端のタブ
-              <TabChip icon={<ListOrdered size={11} />} label="プロデュース設定" />
-              <TabChip icon={<CalendarCheck size={11} />} label="レッスン等の踏み方" />
+              下の「微調整」のタブ
+              <TabChip icon={<CalendarCheck size={11} />} label="踏み方" />
+              <TabChip icon={<ListOrdered size={11} />} label="発動回数" />
               で、アビリティの発動回数やレッスンの踏み方を自分の育成に寄せられます。
             </Step>
           </ol>
@@ -111,7 +111,7 @@ function Step({ no, title, children }: { no: number; title: string; children: Re
   );
 }
 
-/** 左端のタブの見本（ヘルプの見本と同じ小さなチップ） */
+/** 「微調整」のタブの見本（ヘルプの見本と同じ小さなチップ） */
 function TabChip({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <span className="mx-0.5 inline-flex items-center gap-0.5 rounded bg-slate-100 px-1 py-0.5 align-middle text-[11px] font-bold text-slate-700">

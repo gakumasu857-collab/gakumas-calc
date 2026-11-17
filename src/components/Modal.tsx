@@ -22,6 +22,11 @@ type Props = {
    * 中身が最小の高さ（中身側の min-h）に収まらない低い画面でだけ全体がスクロールする。
    */
   fill?: boolean;
+  /**
+   * true にするとモーダルにせず、その場（ページの中）に中身だけを描く（見出し・×・背景なし）。
+   * 計算ページの「微調整」のタブの中に、発動回数・踏み方の画面をそのまま置くため。
+   */
+  inline?: boolean;
 };
 
 /** 共通モーダル。背景クリックか×で閉じる。 */
@@ -33,6 +38,7 @@ export default function Modal({
   toolbar,
   side = "center",
   fill = false,
+  inline = false,
 }: Props) {
   const header = (
     <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -50,6 +56,15 @@ export default function Modal({
   const bar = toolbar ? (
     <div className="border-b border-slate-200 bg-white px-4 py-2.5">{toolbar}</div>
   ) : null;
+
+  if (inline) {
+    return (
+      <div className="flex flex-col">
+        {toolbar && <div className="mb-3">{toolbar}</div>}
+        <div className={fill ? "flex flex-col" : ""}>{children}</div>
+      </div>
+    );
+  }
 
   if (side === "left") {
     return (
