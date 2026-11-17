@@ -49,6 +49,8 @@ export type ConditionInput = {
    * null／省略＝この条件は見ない（設定OFF・H.I.F以外・点数配分を固定して探索したとき）
    */
   examSingle?: boolean | "kept" | null;
+  /** 「3タイプとも〇ラインを必ず超える」がオンのときの〇ライン（タイプ別）。オフ・省略は null */
+  okLines?: Record<TypeKey, number> | null;
 };
 
 /** 編成に入れられる固定カード（プランが合い、所持かレンタル可）のID */
@@ -121,6 +123,12 @@ export function formationIssues(input: ConditionInput): string[] {
     const stat = input.capped[t];
     const min = settings.minStats[t];
     if (min > 0 && stat < min) issues.push(`${TYPE_JA[t]}が最低ステ未達`);
+  }
+  // 〇ライン（必ず超える設定のとき）。上限より高い線は上限で見る
+  if (input.okLines) {
+    const ok = input.okLines;
+    const bad = TYPE_KEYS.filter((t) => input.capped[t] < Math.min(ok[t], input.statCap));
+    if (bad.length) issues.push(`${bad.map((t) => TYPE_JA[t]).join("・")}が〇ライン未達`);
   }
   // 最高ステは「他のタイプにまだ空きがあるのに超えた」ときだけ未達（他2タイプが上限なら仕方ない）
   for (const t of maxStatOverTypes(
@@ -206,6 +214,15 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
       label: `ステの順（${settings.statOrder.map((t) => TYPE_JA[t]).join("＞")}）`,
       ok: short === 0,
       detail: short > 0 ? `今は ${now}` : undefined,
+    });
+  }
+  if (input.okLines) {
+    const ok = input.okLines;
+    const bad = TYPE_KEYS.filter((t) => input.capped[t] < Math.min(ok[t], input.statCap));
+    out.push({
+      label: "〇ライン（3タイプとも）",
+      ok: bad.length === 0,
+      detail: bad.length ? bad.map((t) => `${TYPE_JA[t]}${ok[t]}`).join("・") + "に届いていない" : undefined,
     });
   }
   if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {

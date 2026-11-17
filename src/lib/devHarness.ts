@@ -279,7 +279,7 @@ export function buildInput(): AutoOptimizeInput {
     examAssist: settings.examAssist,
     examStyleTags: examStyleTags(set?.plan ?? null),
     noStageItems: settings.noStageItems,
-    minStats: settings.minStats,
+    minStats: settings.minStats, // 〇ラインを必ず超える設定はハーネスでは見ない（アプリは buildOptimizeInput で重ねる）
     maxStats: settings.maxStats,
     round1: settings.round1,
     round2: settings.round2,

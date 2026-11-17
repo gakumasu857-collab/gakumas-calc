@@ -355,6 +355,20 @@ export function TheorySettingsModal({
           )}
         </section>
 
+        {/* 最後の試験の〇ライン（既定は合計ステ優先でできるだけ超える。オンで必ず超える） */}
+        <section className="border-t border-slate-100 pt-3">
+          <label className="flex items-center gap-1.5 font-semibold">
+            <input
+              type="checkbox"
+              checked={settings.okLineRequired}
+              onChange={(e) => onUpdate({ okLineRequired: e.target.checked })}
+              className="accent-blue-600"
+            />
+            3タイプとも〇ラインを必ず超える
+            <Hint text={GLOSSARY.okLine} />
+          </label>
+        </section>
+
         {/* タイプ別の最高ステータス */}
         <section className="border-t border-slate-100 pt-3">
           <p className="flex items-center gap-1 font-semibold">

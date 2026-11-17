@@ -108,7 +108,8 @@ export function buildAutoOptimizeInput(
     examAssist: settings.examAssist,
     examStyleTags: examStyleTags(r.selectedSet?.plan ?? null),
     noStageItems: settings.noStageItems,
-    minStats: settings.minStats,
+    // 「3タイプとも〇ラインを必ず超える」がオンなら〇ラインも最低ステとして渡す
+    minStats: r.minStatsForSearch,
     maxStats: settings.maxStats,
     statOrder: settings.statOrder,
     round1: settings.round1,

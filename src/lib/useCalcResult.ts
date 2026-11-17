@@ -74,6 +74,7 @@ import { P_SALE_POINTS } from "@/data/abilityCounts";
 import { useNiaSchedule } from "./useNiaSchedule";
 import { niaChallengeTotal } from "@/data/niaChallenge";
 import { hatsuChallengeFor } from "./hatsuChallengeSetup";
+import { okLineTargets } from "@/data/okLines";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
 import { useScenario } from "./useScenario";
@@ -668,6 +669,16 @@ export function useCalcResult() {
       niaChallengePct,
       /** 初: 計算に使うチャレンジPアイテム（おまかせ・プラン違いは決めたもの）。他シナリオでも中身はある */
       hatsuChallenge,
+      /** 最後の試験の〇ライン（タイプ別。シナリオ・アイドルの型と審査基準の順で決まる。data/okLines.ts） */
+      okLines: okLineTargets(scenario, niaTag, typeRanks),
+      /**
+       * 探索・条件に使う最低ステ。設定「3タイプとも〇ラインを必ず超える」がオンなら、最低ステと〇ラインの高いほう
+       */
+      minStatsForSearch: settings.okLineRequired
+        ? (Object.fromEntries(
+            TYPE_KEYS.map((t) => [t, Math.max(settings.minStats[t], okLineTargets(scenario, niaTag, typeRanks)[t])]),
+          ) as Record<TypeKey, number>)
+        : settings.minStats,
     };
   }, [
     settings,

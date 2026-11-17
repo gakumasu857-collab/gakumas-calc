@@ -137,6 +137,9 @@ export default function StatsCard({
           const over = p.current > cap;
           const min = minStats[type];
           const max = maxStats[type];
+          // 最後の試験の〇ライン（上限より高い線は出さない）
+          const okLine = r.okLines[type];
+          const okMet = p.current >= Math.min(okLine, cap);
           return (
             <div key={type}>
               <div className="flex items-baseline gap-2 tabular-nums">
@@ -147,6 +150,12 @@ export default function StatsCard({
                   className={`ml-auto text-2xl font-bold ${over ? "text-red-500" : "text-slate-800"}`}
                 >
                   {Math.round(p.current).toLocaleString()}
+                </span>
+                <span
+                  className={`text-[10px] font-semibold ${okMet ? "text-emerald-600" : "text-amber-600"}`}
+                  title={`最後の試験の〇ライン ${okLine.toLocaleString()}（${okMet ? "超えている" : `あと ${Math.round(okLine - p.current).toLocaleString()}`}）`}
+                >
+                  〇{okLine.toLocaleString()}{okMet ? "✓" : ""}
                 </span>
                 <span className="w-16 text-right text-xs text-slate-400">
                   {over ? `+${Math.round(p.current - cap).toLocaleString()}超` : `あと ${Math.round(cap - p.current).toLocaleString()}`}
@@ -179,6 +188,13 @@ export default function StatsCard({
                     style={{ left: `${(cap / scale) * 100}%` }}
                     className="absolute top-0 h-full w-0.5 bg-red-600"
                     title={`上限 ${cap}`}
+                  />
+                )}
+                {okLine > 0 && okLine <= scale && (
+                  <span
+                    style={{ left: `${(okLine / scale) * 100}%` }}
+                    className="absolute top-0 h-full w-0.5 bg-amber-500"
+                    title={`最後の試験の〇ライン ${okLine.toLocaleString()}`}
                   />
                 )}
                 {min > 0 && min <= scale && (

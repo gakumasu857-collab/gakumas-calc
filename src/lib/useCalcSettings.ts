@@ -100,6 +100,8 @@ export type CalcSettings = {
   niaChallenge: NiaChallenge;
   /** 初レジェンドのチャレンジPアイテム3枠（アイテム名。null＝おまかせ。初限定。data/hatsuChallenge.ts） */
   hatsuChallenge: HatsuChallenge;
+  /** 探索の条件: 3タイプとも最後の試験の〇ラインを必ず超える（最低ステの条件として扱う。既定OFF＝合計ステ優先でできるだけ超える） */
+  okLineRequired: boolean;
   /** ラウンド1/2の点数（ボーナス前・手動入力） */
   round1: number;
   round2: number;
@@ -127,6 +129,7 @@ export const DEFAULT_SETTINGS: CalcSettings = {
   hifBonus: hifBonusMax(),
   niaChallenge: [...NIA_CHALLENGE_MAX] as NiaChallenge,
   hatsuChallenge: [...HATSU_CHALLENGE_DEFAULT] as HatsuChallenge,
+  okLineRequired: false,
   // 本戦ラウンドの点数はデフォルトで上限（R1=140万 / R2=240万）
   round1: 1_400_000,
   round2: 2_400_000,
@@ -248,6 +251,7 @@ function normalizeSettings(stored: Partial<CalcSettings>): CalcSettings {
     hifBonus: normalizeHifBonus(stored.hifBonus),
     niaChallenge: normalizeNiaChallenge(stored.niaChallenge),
     hatsuChallenge: normalizeHatsuChallenge(stored.hatsuChallenge),
+    okLineRequired: stored.okLineRequired === true,
     baseSpRate: normalizeBaseSpRate(stored.baseSpRate),
     statOrder: normalizeStatOrder(stored.statOrder),
     // 真偽値以外（壊れた値・旧データ）は既定に戻す

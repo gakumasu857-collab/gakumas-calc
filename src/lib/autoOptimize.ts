@@ -21,6 +21,7 @@
  *    比較は Σmin(上限, ステ)＋NIA札換算 で行い、最終的な評価値は勝者だけ算出する。
  */
 import { AFFECTION_DEFAULT, starWithAffection } from "@/data/affection";
+import { okLineTargets } from "@/data/okLines";
 import {
   CLASSES,
   EXAMS,
@@ -618,7 +619,9 @@ export function runFullOptimize(
 
   // ---- 最終評価値の算出（勝者のみ・計算ページと同じ式） ----
   // 試験補助の加点（examAssist）は探索専用なので、表示する評価値からは外す
-  // 授業を流行タイプの閾値ルール（第1流行2100+→第2流行1400+→第3流行1100+／余りは第1流行）へ寄せる
+  // 授業（N.I.A は営業）を、合計ステが同じ中で最後の試験の〇ラインを超える配分へ寄せる（余りは審査基準1位）
+  // 〇ライン: 合計を下げない手だけで最後の試験の〇ラインに近づけてから、授業を割り当て直す
+  finalEngine.applyOkTiePolish(best);
   finalEngine.applyClassPreference(best);
   const ectx = finalEngine.buildEctx(best.stepping);
   const {
@@ -718,6 +721,7 @@ export function optimizeSteppingForSlots(
     });
   }
   const packed = { stepping: engine.normExams(best.stepping), slots, score: best.score };
+  finalEngine.applyOkTiePolish(packed);
   finalEngine.applyClassPreference(packed);
   best = { stepping: packed.stepping, score: best.score };
   const ectx = finalEngine.buildEctx(best.stepping);
@@ -789,6 +793,10 @@ export class OptimizeEngine {
    * （わざわざ積みに行かない・溢れ込みを選抜の微調整で削りにも行かない）。
    */
   private maxTargets: Record<TypeKey, number>;
+  /** 最後の試験の〇ライン（タイプ別。合計ステが同じときの決め手。data/okLines.ts） */
+  private okTargets: Record<TypeKey, number>;
+  /** 審査基準1位のタイプ（〇ラインを満たした余りを寄せる先） */
+  private topType: TypeKey;
   /** ステージ用BANで編成に入れてはいけないカード（固定は除く。設定OFFなら空） */
   private stageExcluded: ReadonlySet<string>;
   /** サポカ編成のタイプ割合条件（合計6=固定、6未満=最低枚数）。必須条件として全段階で守る */
@@ -825,6 +833,8 @@ export class OptimizeEngine {
       visual: input.statCap,
     };
     this.maxTargets = effectiveMaxStats(input.statCap, input.maxStats);
+    this.okTargets = okLineTargets(input.scenario, input.tag, input.ranks);
+    this.topType = TYPE_KEYS.find((t) => input.ranks[t] === 1) ?? "vocal";
     this.stageExcluded = new Set(
       input.noStageItems
         ? SUPPORT_CARD_DB.filter((c) =>
@@ -1518,9 +1528,108 @@ export class OptimizeEngine {
     return n;
   }
 
+  /** 〇ラインの達成状況（何タイプ超えたか・どこまで近いか）。上限・最高ステで頭打ちにした線で見る */
+  private okProgress(stats: Record<TypeKey, number>): { met: number; frac: number } {
+    let met = 0;
+    let frac = 0;
+    for (const t of TYPE_KEYS) {
+      const line = Math.min(this.okTargets[t], this.maxTargets[t], this.caps[t]);
+      if (line <= 0) {
+        met++;
+        frac += 1;
+        continue;
+      }
+      if (stats[t] >= line) met++;
+      frac += Math.min(1, stats[t] / line);
+    }
+    return { met, frac };
+  }
+
   /**
-   * 授業を「第1流行タイプが2100以上 → 第2流行タイプが1400以上 → 第3流行タイプが1100以上 →
-   * 余りは第1流行へ」の優先度で割り当て直す（評価値を落とさない範囲で）。
+   * 〇ラインの仕上げ（探索のあと、授業の割り当て直しの前）。目的関数（合計ステ＋スター性・札など＋条件）が
+   * 下がらない手だけを使って、最後の試験の〇ラインに近づける（超えたタイプの数 → 近さ → 審査基準1位のタイプを高く）。
+   * 手: レッスン2回の入れ替え・レッスン1回のメインのタイプの変更（H.I.F はサブも合わせる）・選抜1回の点数配分（H.I.F）。
+   * 2026-11-17: 目的関数に小さな加点として混ぜると、探索の道筋が変わって合計の低い答えに行き着くことがあった
+   * （N.I.A・初の回帰で -100 以上）ので、探索の本体には入れず、ここで「合計が同じ手」だけを使う。
+   */
+  applyOkTiePolish(best: { stepping: Stepping; slots: SelectedSlot[]; score: number }): void {
+    const evalOf = (s: Stepping) => {
+      const r = this.preciseObjective(best.slots, this.buildEctx(s));
+      return {
+        obj: r.obj,
+        ok: this.okProgress(r.stats),
+        top: Math.min(r.stats[this.topType], this.maxTargets[this.topType]),
+      };
+    };
+    type E = ReturnType<typeof evalOf>;
+    const okBetter = (a: E, b: E) =>
+      a.ok.met !== b.ok.met
+        ? a.ok.met > b.ok.met
+        : Math.abs(a.ok.frac - b.ok.frac) > 1e-9
+          ? a.ok.frac > b.ok.frac
+          : a.top > b.top;
+    let cur = evalOf(best.stepping);
+    for (let pass = 0; pass < 3; pass++) {
+      let improved = false;
+      for (const trial of this.okNeighbors(best.stepping)) {
+        const e = evalOf(trial);
+        // 目的関数が下がる手は使わない（合計ステが命）。上がる手・同じで〇ラインに近づく手だけ
+        if (e.obj < cur.obj - 1e-9) continue;
+        if (e.obj > cur.obj + 1e-9 || okBetter(e, cur)) {
+          best.stepping = trial;
+          best.score = Math.max(best.score, e.obj);
+          cur = e;
+          improved = true;
+        }
+      }
+      if (!improved) break;
+    }
+  }
+
+  /** 〇ラインの仕上げで試す手（レッスンの入れ替え・タイプの変更、H.I.F の選抜の点数配分） */
+  private *okNeighbors(s: Stepping): Generator<Stepping> {
+    const lessons = s.lessons as { main: TypeKey | null; sub?: TypeKey | null }[];
+    const n = lessons.length;
+    const withLessons = (ls: unknown[]): Stepping => ({ ...s, lessons: ls }) as Stepping;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (JSON.stringify(lessons[i]) === JSON.stringify(lessons[j])) continue;
+        const ls = lessons.slice();
+        ls[i] = lessons[j];
+        ls[j] = lessons[i];
+        yield withLessons(ls);
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      const l = lessons[i];
+      if (!l.main) continue; // 踏まないレッスンはそのまま
+      for (const t of TYPE_KEYS) {
+        if (t === l.main) continue;
+        const ls = lessons.slice();
+        ls[i] =
+          s.kind === "hif"
+            ? { ...l, main: t, sub: l.sub === t ? l.main : l.sub }
+            : { ...l, main: t };
+        yield withLessons(ls);
+      }
+    }
+    if (s.kind === "hif") {
+      for (let i = 0; i < s.examScores.length; i++) {
+        for (const ratio of this.examAxisRatios) {
+          const scores = examScoresFromRatio(i, ratio);
+          if (sameExamScores(scores, s.examScores[i])) continue;
+          yield withExamScores(s, i, scores);
+        }
+      }
+    }
+  }
+
+  /**
+   * 授業（N.I.A は営業）を割り当て直す（評価値を落とさない範囲で）。合計ステが同じ中で
+   * 「3タイプとも最後の試験の〇ラインを超える → 〇ラインに近い → 余りは審査基準1位のタイプへ」の順で選ぶ
+   * （2026-11-17 に、決め打ちの 2100／1400／1100 から〇ラインに置き換え。N.I.A の営業も対象に）。
+   * 以前の説明: 授業を「第1流行タイプが2100以上 → 第2流行タイプが1400以上 → 第3流行タイプが1100以上 →
+   * 余りは第1流行へ」の優先度で割り当て直していた。
    * 授業は固定値（パラボ・上限溢れ以外は配置に依らず合計不変）のため、
    * 全割当（3^授業数）を正確に評価し、条件（ステの順・最低ステ）→ 探索と同じ値（合計から
    * 最高ステの減点を引いたもの）→ 閾値の辞書式で選ぶ。閾値は最高ステで頭打ちにする
@@ -1532,13 +1641,26 @@ export class OptimizeEngine {
     score: number;
   }): void {
     const s = best.stepping;
-    if (s.kind !== "hif" && s.kind !== "hatsu") return;
-    const n = s.classTypes.length;
-    if (n === 0 || n > 6) return; // 3^6=729評価まで（パッケージ時に1回だけ）
+    // 割り当て直す枠: H.I.F・初は授業、N.I.A は踏んでいる営業（未選択の営業はそのまま）
+    const slotIdx: number[] =
+      s.kind === "nia"
+        ? s.sales.flatMap((x, i) => (x.type ? [i] : []))
+        : s.classTypes.map((_, i) => i);
+    const n = slotIdx.length;
+    if (n === 0 || n > 7) return; // 3^7=2187評価まで（パッケージ時に1回だけ）
     const ranks = this.input.ranks;
     const t1 = TYPE_KEYS.find((t) => ranks[t] === 1) ?? "vocal";
     const t2 = TYPE_KEYS.find((t) => ranks[t] === 2) ?? "dance";
-    const t3 = TYPE_KEYS.find((t) => ranks[t] === 3) ?? "visual";
+    const withAssign = (types: TypeKey[]): Stepping => {
+      if (s.kind === "nia") {
+        const sales = s.sales.map((x) => ({ ...x }));
+        slotIdx.forEach((idx, k) => (sales[idx].type = types[k]));
+        return { ...s, sales };
+      }
+      const classTypes = [...s.classTypes];
+      slotIdx.forEach((idx, k) => (classTypes[idx] = types[k]));
+      return { ...s, classTypes } as Stepping;
+    };
     type Key = [number, number, number, number, number, number, number];
     const better = (a: Key, b: Key) => {
       for (let i = 0; i < a.length; i++) {
@@ -1551,7 +1673,7 @@ export class OptimizeEngine {
     const assign = new Array<TypeKey>(n);
     const walk = (i: number): void => {
       if (i === n) {
-        const trial: Stepping = { ...s, classTypes: [...assign] } as Stepping;
+        const trial = withAssign(assign);
         const { cappedSum, stats } = this.preciseObjective(
           best.slots,
           this.buildEctx(trial),
@@ -1563,10 +1685,11 @@ export class OptimizeEngine {
           // 最低ステも条件。閾値ルールを優先して条件を割ると「満たせなかった条件」になる
           -minStatShortfall(stats, this.minStatCond),
           Math.round(cappedSum - maxStatSearchPenalty(stats, this.maxTargets)),
-          Math.min(stats[t1], 2100, this.maxTargets[t1]),
-          Math.min(stats[t2], 1400, this.maxTargets[t2]),
-          Math.min(stats[t3], 1100, this.maxTargets[t3]),
+          // 〇ライン（最後の試験）: 超えたタイプの数 → 近さ → 余りは審査基準1位、次に2位へ
+          this.okProgress(stats).met,
+          Math.round(this.okProgress(stats).frac * 10000),
           Math.min(stats[t1], this.maxTargets[t1]),
+          Math.min(stats[t2], this.maxTargets[t2]),
         ];
         if (!bestKey || better(key, bestKey)) {
           bestKey = key;
@@ -1581,7 +1704,7 @@ export class OptimizeEngine {
     };
     walk(0);
     if (bestAssign) {
-      best.stepping = { ...s, classTypes: bestAssign } as Stepping;
+      best.stepping = withAssign(bestAssign);
     }
   }
 

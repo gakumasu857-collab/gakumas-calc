@@ -299,9 +299,9 @@ export default function CalcPage() {
                 visual: settings.typeRatio.visual,
               })
             : {}),
-          minStat: TYPE_KEYS.some((t) => settings.minStats[t] > 0)
+          minStat: TYPE_KEYS.some((t) => r.minStatsForSearch[t] > 0)
             ? {
-                req: settings.minStats,
+                req: r.minStatsForSearch,
                 priority: [...TYPE_KEYS].sort(
                   (a, b) => r.typeRanks[a] - r.typeRanks[b],
                 ),

@@ -36,6 +36,7 @@ export function buildConditionInput(
     // 点数配分を手で変えているときは、1タイプへの分配よりそちらを優先するので "kept"
     // （どちらを採るかの確認で「今の点数配分のまま探索する」を選べる設定なので、条件違反にはしない）
     examSingle: examSingleState(r, settings),
+    okLines: settings.okLineRequired ? r.okLines : null,
   };
 }
 
