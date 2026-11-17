@@ -565,7 +565,7 @@ function NiaFinalScoreRows({ r }: { r: CalcResult }) {
         </span>
         {nia.finalStats && (
           <span className="rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-700">
-            ステ入力中（素点は「微調整」の「レッスン・営業」タブで）
+            ステ入力中（素点は「調整」の「レッスン・営業」タブで）
           </span>
         )}
       </div>

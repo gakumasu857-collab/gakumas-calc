@@ -14,7 +14,7 @@ import { TYPE_KEYS } from "@/lib/useCalcSettings";
 
 type CalcResult = ReturnType<typeof useCalcResult>;
 
-/** 「微調整」のタブ */
+/** 「調整」のタブ */
 export type AdjustTab = "formation" | "plan" | "counts" | "events";
 
 const TYPE_TEXT = {
@@ -24,7 +24,7 @@ const TYPE_TEXT = {
 } as const;
 
 /**
- * 計算ページの「微調整」（探索の結果を実際の育成に合わせて直す場所）。2026-11-17 の画面整理で、
+ * 計算ページの「調整」（探索の結果を実際の育成に合わせて直す場所）。2026-11-17 の画面整理で、
  * 以前の左端の縦タブ（プロデュース・レッスン等の踏み方）と黄色い帯（前イベ・後イベ・ステイベ）を
  * このカードのタブにまとめた: サポカ編成｜踏み方｜発動回数｜イベント。どれも「この育成だけ」で、
  * 変えると右の評価値がその場で動く（PCでは右の列が見えたまま）。
@@ -93,7 +93,7 @@ export default function FormationPlanCard({
     <Card
       id="step-adjust"
       className="scroll-mt-16"
-      title="微調整"
+      title="調整"
       hint={<Hint text={GLOSSARY.formationPlan} />}
       action={
         tab === "formation" ? (

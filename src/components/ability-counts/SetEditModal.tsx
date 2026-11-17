@@ -88,7 +88,7 @@ type Props = {
   choiceAdjustedRowIds?: ReadonlySet<string>;
   /** 出し方（計算ページからは左の引き出し） */
   side?: "center" | "left";
-  /** true＝モーダルにせず、その場に描く（計算ページの「微調整」の「発動回数」タブ） */
+  /** true＝モーダルにせず、その場に描く（計算ページの「調整」の「発動回数」タブ） */
   inline?: boolean;
 };
 
@@ -241,7 +241,7 @@ export default function SetEditModal({
         </div>
       ) : (
         <div className="mb-3 shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
-          <b>このプロデュースの基本の回数</b>です。この育成だけ変えたいときは、計算ページの「微調整」→「発動回数」で（そこで「上書き保存」を押さない限り、ここは変わりません）。
+          <b>このプロデュースの基本の回数</b>です。この育成だけ変えたいときは、計算ページの「調整」→「発動回数」で（そこで「上書き保存」を押さない限り、ここは変わりません）。
         </div>
       )}
       {/* ユーザーセットは名前・プランを変更できる */}

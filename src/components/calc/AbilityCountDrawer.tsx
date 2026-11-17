@@ -10,7 +10,7 @@ import type { useCalcResult } from "@/lib/useCalcResult";
 const CATALOG_BY_ID = new Map(SUPPORT_CATALOG.map((c) => [c.id, c]));
 
 /**
- * 計算ページの「微調整」の「発動回数」タブに置く、アビリティ発動回数のエディタ（inline＝その場に描く）。
+ * 計算ページの「調整」の「発動回数」タブに置く、アビリティ発動回数のエディタ（inline＝その場に描く）。
  * プロデュースのページ（/ability-counts）と同じモーダル（分類タブの表）だが、ここで変えるのは「この育成での回数」で、
  * プロデュースのページのデフォルトは変えない（useAbilityCounts の adjust レイヤー。「上書き保存」でデフォルトに書ける）。
  * 「選択サポカのアビリティのみ」フィルター付き（デフォルトON）。

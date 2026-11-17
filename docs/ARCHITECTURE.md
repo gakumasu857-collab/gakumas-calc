@@ -205,7 +205,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 
 2026-09-12 の「使い方の見直し」（docs/UX_PROPOSAL.md）で計算ページの部品を分けた:
 `calc/PremiseCard.tsx`（「設定欄」（育成の前提）: 青い見出し帯＋番号つきの5欄（ラベルも値も text-sm・h-10。細かい説明文は置かない。アイドル欄の右に特訓・才能開花のボタン（PIdolTrainingModal）。所持状況は `calc/OwnershipField.tsx`（プルダウン: 既定＝全完凸／保存してある所持状況。切り替えは所持状況ページと同じく使用中を替えてから所持ストアへ読み込む。一番下から所持状況ページへ。選んだ時点で ownershipAck））（シナリオ・アイドル（下に特訓・才能開花の現在値と変更ボタン）・プロデュース（ⓘ はその場の説明）・メモリー・所持状況（既定＝全完凸なら「完凸のままでOK」（ownershipAck）か「自分の所持状況を入力」。決まれば通常表示））＋本戦の点数（H.I.Fは本戦ラウンド点数、N.I.Aはファン投票数・チャレンジPアイテムの「調整」→ `calc/NiaChallengeModal.tsx`、初は試験スコア。一番下に全シナリオ共通の「詳細設定」→ `calc/DetailSettingsModal.tsx`）。初回の所持確認モーダルと「つぎに所持状況」カードは廃止）、`calc/ActionPanel.tsx`（前提の直下の操作パネル: 求める▾と条件設定を同じ行に。前提がそろって初めて押すまで動く矢印（`gakumas:calc:everRun:v1`）、所持状況の注記・前回の探索の内訳。診断ログは /debug へ移した。PC・スマホ共通）、
-`calc/FormationPlanCard.tsx`（「微調整」: タブ＝サポカ編成（6枚＋踏み方チップ）｜レッスン・授業（N.I.Aはレッスン・営業。`PlanEditDrawer` を inline で。2026-11-18 からレッスンと授業／営業を `Timeline` で日付順に1本に並べ、行ごとに「レッスン（青）・授業／営業（橙）」の札、試験の枠は紫の札。タイプのボタンは Vo/Da/Vi と小さく上昇量、サブは行の中のボタン）｜発動回数（`AbilityCountDrawer` を inline で）｜イベント（前イベ・後イベ・ステイベ）。2026-11-17 の画面整理で左端の縦タブと黄色い帯をここへまとめた。開始時のステ・SP率・実現確率は同じファイルの `DetailNumbers` で、`StatsCard` の「くわしい数字」の中に出す）、
+`calc/FormationPlanCard.tsx`（「調整」: タブ＝サポカ編成（6枚＋踏み方チップ）｜レッスン・授業（N.I.Aはレッスン・営業。`PlanEditDrawer` を inline で。レッスンと授業／営業は別々の表のまま（日付順の1本にする案はオーナーが「前ので良かった」で取り消し 2026-11-18）。表の見出しに「レッスン（青）・授業／営業（橙）」の札、試験の枠は紫の札＝`KindBadge`）｜発動回数（`AbilityCountDrawer` を inline で）｜イベント（前イベ・後イベ・ステイベ）。2026-11-17 の画面整理で左端の縦タブと黄色い帯をここへまとめた。開始時のステ・SP率・実現確率は同じファイルの `DetailNumbers` で、`StatsCard` の「くわしい数字」の中に出す）、
 `calc/PlanChips.tsx`（踏み方チップ: レッスンはメイン＋右下のサブバッジ、SPなしは薄い点線、授業／営業は順番、選抜は細い配分バー＋割合、N.I.Aのオーディションは 1次・2次・最終の上がるステ（素点）と投票数。要約 `currentPlanSummary`）、`calc/StatsCard.tsx`（育成後のステータス。内訳の積み上げバーと最低／最高ステの印。ふだんは3タイプ＋合計＋スター性（N.I.Aは投票数）だけで、「くわしい数字」を開くと内訳の表・開始時のステ・SP率・実現確率・Pポイント・体力。開閉は `gakumas:calc:statsBreakdown:v2` に記憶、初回は閉じる）、`calc/SetPickerField.tsx`（プロデュース＝発動回数セットの選択欄。自前の一覧。Pアイドルのプランで使えるもの（`PLAN_FAMILY`: センス→好調・集中、ロジック→好印象・やる気、アノマリー→全力・強気）だけ表示）、
 `calc/SupportSlot.tsx`（サポカ枠。歯車は廃止し、凸・固定・BAN・レンタルNG はサポカ選択画面 `SupportPickerModal` の行で切り替える）、
 `calc/OwnershipConfirmModal.tsx`（初回の探索前、所持状況ページを開いたことがなければ確認）、
@@ -214,7 +214,7 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 `calc/DetailSettingsModal.tsx`（設定欄の一番下「詳細設定」→ 親愛度（全シナリオ）＋ H.I.Fボーナス（H.I.Fのみ）。旧 HifBonusModal）、`ui.ts`（ボタン・チップの共通クラス。色の意味を固定）、
 `src/lib/useOptimizePlan.ts`（「今の編成のまま踏み方だけ」の共通処理）、`src/lib/ownershipAck.ts`（所持状況ページを開いた印・初回確認の了承）。
 所持状況ページ（`ownership/OwnershipPage.tsx`）は「使う所持状況」のプルダウン（既定の全サポカ完凸／自分で作ったもの／セーブデータ用／＋新しく作る）と「管理・CSV」モーダル（`ownership/OwnedSaveBar.tsx`: 新しく作る・名前・複製・削除・CSV）。既定のまま編集すると「自分の所持状況」が自動で作られる（2026-09-13。以前の「保存先スロット（なし＝保存されない）」はやめた）。
-左端の縦タブ（`calc/SideTabs.tsx`）は 2026-11-17 に廃止し、「微調整」のタブ（発動回数・踏み方）になった（以前は上＝「プロデュース」（アビリティ発動回数）・下＝「レッスン等の踏み方」。2026-09-15 に画面名を「発動回数」から「プロデュース」に改名（ページのほうは 2026-09-16 に「プロデュース設定」）。ナビ・ページ見出し・モーダル・セーブの要約・ヘルプも同じ。コード上の名前（ability-counts、useAbilityCounts 等）は据え置き）。計算ページのイベント手動指定（`CALC_EVENT_COUNTS_KEY`）は編成から外れたカードの分を `useEventCounts.pruneTo` で消す（「今の編成での調整」。2026-09-16）。`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
+左端の縦タブ（`calc/SideTabs.tsx`）は 2026-11-17 に廃止し、「調整」のタブ（発動回数・踏み方）になった（以前は上＝「プロデュース」（アビリティ発動回数）・下＝「レッスン等の踏み方」。2026-09-15 に画面名を「発動回数」から「プロデュース」に改名（ページのほうは 2026-09-16 に「プロデュース設定」）。ナビ・ページ見出し・モーダル・セーブの要約・ヘルプも同じ。コード上の名前（ability-counts、useAbilityCounts 等）は据え置き）。計算ページのイベント手動指定（`CALC_EVENT_COUNTS_KEY`）は編成から外れたカードの分を `useEventCounts.pruneTo` で消す（「今の編成での調整」。2026-09-16）。`AbilityCountDrawer` / `PlanEditDrawer` は親から open/onClose を受け取る。
 
 ページの割り当ては `src/App.tsx` の `PAGES` 配列と `Routes` にあります。
 
@@ -223,8 +223,8 @@ Google ドライブの画像フォルダ ── npm run sync:images ──▶ R2
 | `home/HomePage.tsx` | `/` ホーム（ツール入口・免責・保存場所の注意） |
 | `calc/CalcPage.tsx` | `/calc` 計算ページ本体（選択サポカ 6 枠、現在のステ・評価値、理想編成ボタン、全自動最適化ボタン、診断ログ） |
 | `calc/SettingPickers.tsx` | シナリオ・アイドル・Pアイドルの選択モーダルと**「条件設定」モーダル**（2026-09-18 に「探索の条件」から改名し、基本／詳細の2タブをやめて1画面に。6枠の割り振り `TypeSlotAllocator`） |
-| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.Fの選抜と N.I.Aのオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.Aの最終はスコア／ステ切り替え。計算ページでは「微調整」の「踏み方」タブにその場で描く（`inline`。モーダルの `Modal` も `inline` を持つ）。初めて探索したあとは微調整のタブを光らせて案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
-| `calc/AbilityCountDrawer.tsx` | 計算ページの「微調整」の「発動回数」タブに置くアビリティ発動回数のエディタ（`SetEditModal` を inline で）（この育成での回数。「上書き保存」でデフォルトへ） |
+| `calc/PlanEditDrawer.tsx` | 踏み方エディタ（レッスン・授業／営業・選抜／オーディション／試験）と「選択サポカで踏み方を最適化」。H.I.Fの選抜と N.I.Aのオーディションは「パラボ込みのステ（ゲームのログの値）」→素点の逆算入力（`RiseField`／`AuditionStatRows`）、N.I.Aの最終はスコア／ステ切り替え。計算ページでは「調整」の「踏み方」タブにその場で描く（`inline`。モーダルの `Modal` も `inline` を持つ）。初めて探索したあとは調整のタブを光らせて案内し、押すか「わかった」で `gakumas:calc:sideTabsSeen:v1`。探索を押したとき選んでいるPアイドルが未所持なら `calc/PIdolUnownedModal.tsx` で注意 |
+| `calc/AbilityCountDrawer.tsx` | 計算ページの「調整」の「発動回数」タブに置くアビリティ発動回数のエディタ（`SetEditModal` を inline で）（この育成での回数。「上書き保存」でデフォルトへ） |
 | `calc/SupportPickerModal.tsx` | 選択サポカを選ぶモーダル（点数順・絞り込み。各行に「その枠をそのサポカに入れ替えたときの合計ステータスの増減」＝`evaluateTeam`＋`paraboJointOf` で計算ページの合計と同じ式。並びは点数順／増減順。スマホでは1枚を2段にして名前を省略しない。検索欄に自動でカーソルを合わせない。**開いたら今の枠のサポカの行まで送り**（`scrollIntoView`。レンタルで入れているなら「レンタル」の一覧を開く）、**「所持カード」の下に未所持もまとめて出す**（`scoreUnownedCards`＝完凸レンタルとして点数化。選ぶとレンタル扱い。凸を選べばその場で所持になる。2026-09-21）） |
 | `calc/ExamPolicyModal.tsx` | 探索の前の確認（H.I.F）: 選抜の点数配分を手で変えていたら「このまま固定して探索／探索で決め直す」を選ぶ。`useExamGuard(r)` が `ask(scope, run)` と `modal` を返す（計算ページと踏み方エディタの両方で使う） |
 | `calc/SaveDataPanel.tsx` | セーブデータの保存・読み込み・名前変更・削除 |

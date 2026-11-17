@@ -187,7 +187,7 @@ export default function CalcPage() {
     }
     setMemoryOpen(true);
   };
-  /** 「微調整」のタブ（サポカ編成｜踏み方｜発動回数｜イベント） */
+  /** 「調整」のタブ（サポカ編成｜踏み方｜発動回数｜イベント） */
   const [adjustTab, setAdjustTab] = useState<AdjustTab>("formation");
   /** 特訓・才能開花のモーダル（「準備」のアイドル欄から） */
   const [trainingOpen, setTrainingOpen] = useState(false);
@@ -197,7 +197,7 @@ export default function CalcPage() {
   const [niaChallengeOpen, setNiaChallengeOpen] = useState(false);
   /** 探索を押したときのPアイドル未所持の注意（「このまま探索」で実行する処理を持つ） */
   const [pIdolWarn, setPIdolWarn] = useState<(() => void) | null>(null);
-  /** 「微調整」のタブの案内（初めて探索したあと、タブを押すか「わかった」まで。以前の左端タブの案内と同じ記憶） */
+  /** 「調整」のタブの案内（初めて探索したあと、タブを押すか「わかった」まで。以前の左端タブの案内と同じ記憶） */
   const [sideHint, setSideHint] = useState<boolean>(() => readEverRun() && !readSideSeen());
   /** 直近の探索の状況（操作パネルの下に1行で出す） */
   const [lastRun, setLastRun] = useState<RunStatus | null>(null);
@@ -219,7 +219,7 @@ export default function CalcPage() {
     if (everRun) return;
     setEverRun(true);
     writeEverRun();
-    // 初めての探索のあとに「微調整」のタブ（踏み方・発動回数など）を案内する
+    // 初めての探索のあとに「調整」のタブ（踏み方・発動回数など）を案内する
     if (!readSideSeen()) setSideHint(true);
   };
   const dismissSideHint = () => {
@@ -644,7 +644,7 @@ export default function CalcPage() {
         {/* 操作（求める▾・探索の条件・前回の探索）: 前提のすぐ下＝入れたらそのまま押す */}
         <div className="order-2 min-w-0">{actionPanel}</div>
 
-        {/* 微調整（サポカ編成｜踏み方｜発動回数｜イベント のタブ） */}
+        {/* 調整（サポカ編成｜踏み方｜発動回数｜イベント のタブ） */}
         <div className="order-5 min-w-0">
         <FormationPlanCard
           r={r}
@@ -928,12 +928,12 @@ export default function CalcPage() {
   );
 }
 
-/** 計算ページの段（① 準備 → ② 探す → ③ 微調整）。終わった段に✓、今の段を青で */
+/** 計算ページの段（① 準備 → ② 探す → ③ 調整）。終わった段に✓、今の段を青で */
 function StepNav({ ready, ran }: { ready: boolean; ran: boolean }) {
   const steps = [
     { id: "step-prep", label: "① 準備", done: ready },
     { id: "step-search", label: "② 探す", done: ran },
-    { id: "step-adjust", label: "③ 微調整", done: false },
+    { id: "step-adjust", label: "③ 調整", done: false },
   ];
   const currentIdx = !ready ? 0 : !ran ? 1 : 2;
   return (
