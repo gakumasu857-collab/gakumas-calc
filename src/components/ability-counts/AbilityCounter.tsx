@@ -84,6 +84,8 @@ export default function AbilityCounter({
               title={`セット${count}回＋編成サポカのイベントで＋${extraCount}回（上限${max}）`}
             >
               {Math.min(max, count + extraCount)}
+              {/* イベントで増えた分は小さく添えるだけ（2026-11-18 オーナー「主張が激しすぎる」で別の行から移した） */}
+              <span className="ml-0.5 text-[10px] font-semibold">(+{extraCount})</span>
             </span>
           ) : (
             <span className="text-lg font-semibold text-slate-800">{count}</span>
@@ -100,12 +102,6 @@ export default function AbilityCounter({
             />
           ))}
       </div>
-      {/* 編成サポカのイベントで増えた分（緑の数字の内訳）。オーナー要望 2026-11-18 */}
-      {extraCount > 0 && (
-        <p className="mt-0.5 text-center text-[11px] font-semibold tabular-nums text-emerald-600">
-          {count} ＋ イベントで {extraCount}
-        </p>
-      )}
       {readOnly && readOnlyNote && (
         <p className="mt-1 text-center text-[10px] leading-tight text-slate-400">
           {readOnlyNote}
