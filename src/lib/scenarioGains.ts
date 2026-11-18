@@ -184,6 +184,10 @@ export function computeNiaGains(
     pPoints,
     breakdown: { lessons, classes, exams },
     finale,
+    /** 最後の試験（3次オーディション）で上がるステ（獲得ボーナス込み。〇ラインは試験の前で判定するので除く用） */
+    finalExam: Object.fromEntries(
+      TYPE_KEYS.map((t) => [t, niaChallengeApply(finale[t], challengePct)]),
+    ) as Gains,
     votes: {
       sales: salesVotes,
       auditions: auditionVotes,
@@ -227,7 +231,9 @@ export function computeHatsuGains(state: HatsuStateLike) {
   for (const type of TYPE_KEYS) {
     gains[type] = lessons[type] + classes[type] + exams[type];
   }
-  return { gains, pPoints, breakdown: { lessons, classes, exams } };
+  /** 最後の試験（最終試験）の順位報酬（〇ラインは試験の前で判定するので除く用） */
+  const finalExam: Gains = { vocal: finalGain, dance: finalGain, visual: finalGain };
+  return { gains, pPoints, breakdown: { lessons, classes, exams }, finalExam };
 }
 
 /**

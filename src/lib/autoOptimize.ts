@@ -22,6 +22,7 @@
  */
 import { AFFECTION_DEFAULT, starWithAffection } from "@/data/affection";
 import { okLineTargets } from "@/data/okLines";
+import { preFinalContext, preFinalStats, type PreFinalBase } from "./preFinal";
 import {
   CLASSES,
   EXAMS,
@@ -410,6 +411,8 @@ type Ectx = {
   spMin: SpMinCondition;
   /** レッスンで多く踏む2タイプの指定（探索の条件①）に合わない踏み方なら1 */
   pairPenalty: number;
+  /** 最後の試験の前のステを出す土台（〇ラインの判定用。lib/preFinal.ts） */
+  pre: PreFinalBase;
 };
 
 /**
@@ -645,7 +648,13 @@ export function runFullOptimize(
   } = finalEngine.preciseObjective(best.slots, ectx, true);
   const rating = finalEngine.fullRating(best.stepping, cappedSum, members);
   // 採用した結果でも満たせなかった条件（SP率持ち枚数・最低ステ・最高ステ）
-  const finalIssues = finalEngine.conditionIssues(members, finalStats, ectx.spMin, best.stepping);
+  const finalIssues = finalEngine.conditionIssues(
+    members,
+    finalStats,
+    ectx.spMin,
+    best.stepping,
+    finalEngine.okStatsOf(members, ectx),
+  );
 
   return {
     ...engine.toSteppingResult(best.stepping),
@@ -671,7 +680,9 @@ export function runFullOptimize(
             // 採用軸は仕上げ後の評価値（＝反映される値）、他は本探索時点の値
             rating: chosen ? rating : engine.fullRating(c.stepping, cappedSum, mem),
             chosen,
-            issues: chosen ? finalIssues : engine.conditionIssues(mem, stats, ectx.spMin, c.stepping),
+            issues: chosen
+              ? finalIssues
+              : engine.conditionIssues(mem, stats, ectx.spMin, c.stepping, engine.okStatsOf(mem, ectx)),
           };
         })
         .sort((a, b) => b.rating - a.rating);
@@ -1545,7 +1556,12 @@ export class OptimizeEngine {
     return n;
   }
 
-  /** 〇ラインの達成状況（何タイプ超えたか・どこまで近いか）。上限・最高ステで頭打ちにした線で見る */
+  /** 最後の試験が始まる前のステ（〇ライン・最低ステの判定はこれで見る。試験で上がる分・試験終了のアビリティの最後の試験の分を除く） */
+  okStatsOf(members: ScoredCard[], ectx: Ectx): Record<TypeKey, number> {
+    return preFinalStats(members, ectx.pre);
+  }
+
+  /** 〇ラインの達成状況（何タイプ超えたか・どこまで近いか）。上限・最高ステで頭打ちにした線で見る。stats は最後の試験の前のステ */
   private okProgress(stats: Record<TypeKey, number>): { met: number; frac: number } {
     let met = 0;
     let frac = 0;
@@ -1571,10 +1587,11 @@ export class OptimizeEngine {
    */
   applyOkTiePolish(best: { stepping: Stepping; slots: SelectedSlot[]; score: number }): void {
     const evalOf = (s: Stepping) => {
-      const r = this.preciseObjective(best.slots, this.buildEctx(s));
+      const ectx = this.buildEctx(s);
+      const r = this.preciseObjective(best.slots, ectx);
       return {
         obj: r.obj,
-        ok: this.okProgress(r.stats),
+        ok: this.okProgress(this.okStatsOf(r.members, ectx)),
         top: Math.min(r.stats[this.topType], this.maxTargets[this.topType]),
       };
     };
@@ -1691,22 +1708,22 @@ export class OptimizeEngine {
     const walk = (i: number): void => {
       if (i === n) {
         const trial = withAssign(assign);
-        const { cappedSum, stats } = this.preciseObjective(
-          best.slots,
-          this.buildEctx(trial),
-          true,
-        );
+        const trialEctx = this.buildEctx(trial);
+        const { cappedSum, stats, members } = this.preciseObjective(best.slots, trialEctx, true);
+        // 〇ライン・最低ステは最後の試験の前のステで見る
+        const pre = this.okStatsOf(members, trialEctx);
+        const ok = this.okProgress(pre);
         const key: Key = [
           // ステの高さの順（指定があれば最優先。閾値ルールで順が崩れないように）
           -statOrderShortfall(stats, this.input.statOrder),
           // 最低ステも条件。閾値ルールを優先して条件を割ると「満たせなかった条件」になる
-          -minStatShortfall(stats, this.minStatCond),
+          -minStatShortfall(pre, this.minStatCond),
           // ステを寄せるタイプ（探索の条件②）は合計より優先
           focusSum(stats, this.focus),
           Math.round(cappedSum - maxStatSearchPenalty(stats, this.maxTargets)),
           // 〇ライン（最後の試験）: 超えたタイプの数 → 近さ → 余りは審査基準1位、次に2位へ
-          this.okProgress(stats).met,
-          Math.round(this.okProgress(stats).frac * 10000),
+          ok.met,
+          Math.round(ok.frac * 10000),
           Math.min(stats[t1], this.maxTargets[t1]),
           Math.min(stats[t2], this.maxTargets[t2]),
         ];
@@ -1918,6 +1935,8 @@ export class OptimizeEngine {
     let bd: Record<"lessons" | "classes" | "exams", Record<TypeKey, number>>;
     let ctx: SheetScoreContext;
     let starStat = 0;
+    // 最後の試験で上がる固定のステ（〇ラインの判定から除く。H.I.F の本戦はステが上がらない）
+    let finalExam: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     if (s.kind === "hif") {
       const state = {
         lessons: s.lessons,
@@ -1938,6 +1957,7 @@ export class OptimizeEngine {
       };
       const g = computeNiaGains(state, input.tag, input.ranks, input.niaChallengePct ?? 0);
       bd = g.breakdown;
+      finalExam = g.finalExam;
       ctx = buildNiaScoreContext(
         state,
         input.manual,
@@ -1954,6 +1974,7 @@ export class OptimizeEngine {
       };
       const g = computeHatsuGains(state);
       bd = g.breakdown;
+      finalExam = g.finalExam;
       ctx = buildHatsuScoreContext(state, input.manual, input.eventCounts);
     }
 
@@ -2020,6 +2041,17 @@ export class OptimizeEngine {
       starStat,
       spMin: this.spMinFor(s),
       pairPenalty: lessonPairOk(this.lessonCounts(s), input.lessonPair) ? 0 : 1,
+      pre: {
+        ctx: preFinalContext(ctx, input.scenario),
+        baseNoConv: {
+          vocal: baseNoConv.vocal - finalExam.vocal,
+          dance: baseNoConv.dance - finalExam.dance,
+          visual: baseNoConv.visual - finalExam.visual,
+        },
+        basePct,
+        caps: this.caps,
+        budget: input.eventBudget,
+      },
     };
   }
 
@@ -2109,7 +2141,8 @@ export class OptimizeEngine {
       (!forReport && this.input.examAssist
         ? examAssistSum(members, this.input.examStyleTags)
         : 0) +
-      minStatBonus(stats, this.minStatCond) +
+      // 最低ステ（〇ラインを必ず超える）は最後の試験の前のステで見る（2026-11-18）
+      (this.minStatCond ? minStatBonus(this.okStatsOf(members, ectx), this.minStatCond) : 0) +
       // 探索の条件②: ステを寄せるタイプの合計を最優先（〇ラインより優先）
       focusSum(stats, this.focus) * FOCUS_WEIGHT -
       // 探索の条件③: 試験補助のサポカの枚数（必須条件）
@@ -3168,6 +3201,8 @@ export class OptimizeEngine {
     stats: Record<TypeKey, number>,
     spMin: SpMinCondition = this.input.spMin,
     stepping?: Stepping,
+    /** 最低ステ（〇ライン）を見るステ（最後の試験の前のステ。省略は stats） */
+    okStats: Record<TypeKey, number> = stats,
   ): string[] {
     const issues: string[] = [];
     const short = spConditionShortfall(members, spMin);
@@ -3180,7 +3215,7 @@ export class OptimizeEngine {
     if (this.minStatCond) {
       for (const t of this.minStatCond.priority) {
         const req = this.minStatCond.req[t];
-        if (req > 0 && stats[t] < req) issues.push(`最低ステ${label[t]}未達`);
+        if (req > 0 && okStats[t] < req) issues.push(`最低ステ${label[t]}未達`);
       }
     }
     // 最高ステは「他のタイプにまだ空きがあるのに超えた」ときだけ（他2タイプが上限なら仕方ない）

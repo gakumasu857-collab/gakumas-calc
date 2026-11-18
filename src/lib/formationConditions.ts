@@ -51,6 +51,8 @@ export type ConditionInput = {
   examSingle?: boolean | "kept" | null;
   /** 「3タイプとも〇ラインを必ず超える」がオンのときの〇ライン（タイプ別）。オフ・省略は null */
   okLines?: Record<TypeKey, number> | null;
+  /** 最後の試験が始まる前のステ（〇ラインはこれで判定する。省略は capped で見る） */
+  preFinal?: Record<TypeKey, number> | null;
   /** 今の踏み方のタイプ別のレッスン回数（探索の条件①の判定用） */
   lessonCounts?: Record<TypeKey, number> | null;
 };
@@ -143,7 +145,8 @@ export function formationIssues(input: ConditionInput): string[] {
   // 〇ライン（必ず超える設定のとき）。上限より高い線は上限で見る
   if (input.okLines) {
     const ok = input.okLines;
-    const bad = TYPE_KEYS.filter((t) => input.capped[t] < Math.min(ok[t], input.statCap));
+    const pre = input.preFinal ?? input.capped;
+    const bad = TYPE_KEYS.filter((t) => pre[t] < Math.min(ok[t], input.statCap));
     if (bad.length) issues.push(`${bad.map((t) => TYPE_JA[t]).join("・")}が〇ライン未達`);
   }
   // 最高ステは「他のタイプにまだ空きがあるのに超えた」ときだけ未達（他2タイプが上限なら仕方ない）
@@ -252,11 +255,14 @@ export function conditionChips(input: ConditionInput): ConditionStatus[] {
   }
   if (input.okLines) {
     const ok = input.okLines;
-    const bad = TYPE_KEYS.filter((t) => input.capped[t] < Math.min(ok[t], input.statCap));
+    const pre = input.preFinal ?? input.capped;
+    const bad = TYPE_KEYS.filter((t) => pre[t] < Math.min(ok[t], input.statCap));
     out.push({
       label: "〇ライン（3タイプとも）",
       ok: bad.length === 0,
-      detail: bad.length ? bad.map((t) => `${TYPE_JA[t]}${ok[t]}`).join("・") + "に届いていない" : undefined,
+      detail: bad.length
+        ? bad.map((t) => `${TYPE_JA[t]}${ok[t]}`).join("・") + "に試験の前のステが届いていない"
+        : undefined,
     });
   }
   if (TYPE_KEYS.some((t) => settings.minStats[t] > 0)) {

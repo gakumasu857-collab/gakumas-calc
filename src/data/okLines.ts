@@ -12,6 +12,7 @@ import type { TypeKey } from "@/lib/useCalcSettings";
  *    （レッスン・選抜の配分・授業・営業のどれで合わせてもよい）。余ったぶんは審査基準の高いタイプへ
  * 2. 設定「3タイプとも〇ラインを必ず超える」（okLineRequired）をオンにすると、最低ステの条件として扱う
  *    （合計ステが下がっても守る）
+ * 判定に使うのは最後の試験が始まる前のステ（lib/preFinal.ts。試験で上がる分・試験終了のアビリティの最後の試験の分を除く。2026-11-18）
  */
 export const OK_LINES: Record<
   ScenarioKey,

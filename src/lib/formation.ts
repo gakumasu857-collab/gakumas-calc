@@ -287,6 +287,18 @@ export function scoreSelectedCards(
   });
 }
 
+/** 点数化済みのカードを別のコンテキストで点数化し直す（凸・レンタルはそのまま。〇ラインの判定用の「最後の試験の前」など） */
+export function rescoreCards(
+  members: ScoredCard[],
+  ctx: SheetScoreContext,
+  typeRole: Partial<Record<TypeKey, SheetRole>>,
+): ScoredCard[] {
+  return members.map((m) => {
+    const card = DB_BY_ID.get(m.id);
+    return (card && scoreCard(card, m.level, ctx, typeRole, m.rental)) || m;
+  });
+}
+
 /** 所持サポカ全員の点数を計算する（BAN・プラン外・未所持・アシスト・R等は除外） */
 export function scoreOwnedCards(
   getLevel: (id: string) => number,
@@ -867,6 +879,11 @@ export type FindBestOptions = {
   /** タイプ別の最低ステータス条件（審査基準順の優先つき） */
   minStat?: MinStatCondition;
   /**
+   * 最低ステの条件を見るステ（省略＝育成後のステ）。〇ラインは最後の試験の前のステで判定するので、
+   * 計算ページはそれを出す関数を渡す（2026-11-18）
+   */
+  minStatStatsOf?: (members: ScoredCard[], capped: Record<TypeKey, number>) => Record<TypeKey, number>;
+  /**
    * タイプ別の最高ステータス目標（ソフト上限）。超過分の価値を
    * MAX_STAT_EXCESS_WEIGHT まで割り引いて「積みに行かない」ようにする。
    * 評価値そのもの（cap での頭打ち）はシナリオ上限のまま。
@@ -1308,7 +1325,9 @@ export function findBestFormation(
       (opts?.extraScore?.(members) ?? 0) +
       // 試験補助を強める: アイテム評価・ドリンク・SP率の合成値を加点（表示には出ない）
       (opts?.examAssist ? examAssistSum(members, opts?.examStyleTags) : 0) +
-      minStatBonus(capped, opts?.minStat) +
+      (opts?.minStat
+        ? minStatBonus(opts.minStatStatsOf ? opts.minStatStatsOf(members, capped) : capped, opts.minStat)
+        : 0) +
       // ステを寄せるタイプ（選んだタイプの合計を最優先）
       focusSum(capped, opts?.focusTypes) * FOCUS_WEIGHT -
       // 試験補助のサポカの枚数は必須条件

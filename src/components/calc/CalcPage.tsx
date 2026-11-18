@@ -306,6 +306,8 @@ export default function CalcPage() {
                 visual: settings.typeRatio.visual,
               })
             : {}),
+          // 〇ライン（最低ステ）は最後の試験の前のステで見る
+          minStatStatsOf: settings.okLineRequired ? (cards) => r.preFinalStatsOf(cards) : undefined,
           minStat: TYPE_KEYS.some((t) => r.minStatsForSearch[t] > 0)
             ? {
                 req: r.minStatsForSearch,

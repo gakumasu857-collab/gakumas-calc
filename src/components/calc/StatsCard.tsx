@@ -149,9 +149,11 @@ export default function StatsCard({
           const over = p.current > cap;
           const min = minStats[type];
           const max = maxStats[type];
-          // 最後の試験の〇ライン（上限より高い線は出さない）
+          // 最後の試験の〇ライン（上限より高い線は出さない）。判定は最後の試験が始まる前のステで（試験で上がる分・
+          // 試験終了のアビリティの最後の試験の分は入れない。2026-11-18 オーナー指定）
           const okLine = r.okLines[type];
-          const okMet = p.current >= Math.min(okLine, cap);
+          const preFinal = r.preFinal[type];
+          const okMet = preFinal >= Math.min(okLine, cap);
           return (
             <div key={type}>
               <div className="flex items-baseline gap-2 tabular-nums">
@@ -165,7 +167,7 @@ export default function StatsCard({
                 </span>
                 <span
                   className={`text-[10px] font-semibold ${okMet ? "text-emerald-600" : "text-amber-600"}`}
-                  title={`最後の試験の〇ライン ${okLine.toLocaleString()}（${okMet ? "超えている" : `あと ${Math.round(okLine - p.current).toLocaleString()}`}）`}
+                  title={`最後の試験の〇ライン ${okLine.toLocaleString()}。試験の前のステ ${Math.round(preFinal).toLocaleString()} で判定（${okMet ? "超えている" : `あと ${Math.round(Math.min(okLine, cap) - preFinal).toLocaleString()}`}）`}
                 >
                   〇{okLine.toLocaleString()}{okMet ? "✓" : ""}
                 </span>

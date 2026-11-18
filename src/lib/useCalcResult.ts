@@ -75,6 +75,7 @@ import { useNiaSchedule } from "./useNiaSchedule";
 import { niaChallengeTotal } from "@/data/niaChallenge";
 import { hatsuChallengeFor } from "./hatsuChallengeSetup";
 import { okLineTargets } from "@/data/okLines";
+import { preFinalContext, preFinalStats, type PreFinalBase } from "./preFinal";
 import { useOwnedLevels } from "./useOwnedLevels";
 import { useOwnedPIdols } from "./useOwnedPIdols";
 import { useScenario } from "./useScenario";
@@ -180,6 +181,8 @@ export function useCalcResult() {
     // レッスン上限の合計（おまかせの1枠目のタイプは踏み方が決まってから下でサブのタイプに）
     const hatsuState = { ...hatsuSchedule, capBonus: hatsuChallengeFor(settings).capBonus };
     let niaAuditionBase: Record<TypeKey, number>[] = [];
+    // 最後の試験で上がる固定のステ（〇ラインは最後の試験の前で判定するので除く。H.I.F の本戦はステが上がらない）
+    let finalExamGain: Record<TypeKey, number> = { vocal: 0, dance: 0, visual: 0 };
     let ctx;
     // レッスン由来のPポイント合計と、踏んだレッスン1回ごとのPポイント（P率の母数）。
     // P率（レッスン全体・自タイプのSPレッスン）はゲームと同じく獲得のたびに切り捨てるので、
@@ -191,6 +194,7 @@ export function useCalcResult() {
       bd = nia.breakdown;
       schedGains = nia.gains;
       niaVotesBase = nia.votes;
+      finalExamGain = nia.finalExam;
       niaAuditionBase = niaAuditionBaseStats(niaSchedule, niaTag, typeRanks);
       lessonP = nia.pPoints;
       NIA_LESSONS.forEach((lesson, i) => {
@@ -202,6 +206,7 @@ export function useCalcResult() {
     } else if (scenario === "hatsuLegend") {
       const hatsu = computeHatsuGains(hatsuState);
       bd = hatsu.breakdown;
+      finalExamGain = hatsu.finalExam;
       schedGains = hatsu.gains;
       lessonP = hatsu.pPoints;
       HATSU_LESSONS.forEach((lesson, i) => {
@@ -349,6 +354,17 @@ export function useCalcResult() {
     }
 
     // ---- Pポイント・体力の合計（レッスン＋メモリー＋サポカ＋前イベ） ----
+    // ---- 最後の試験の前のステ（〇ラインの判定用。lib/preFinal.ts） ----
+    const preFinalBase: PreFinalBase = {
+      ctx: preFinalContext(ctx, scenario),
+      baseNoConv: Object.fromEntries(
+        TYPE_KEYS.map((t) => [t, baseNoConv[t] - finalExamGain[t]]),
+      ) as Record<TypeKey, number>,
+      basePct,
+      caps,
+    };
+    const preFinal = preFinalStats(activeCards, preFinalBase);
+
     const resources = (() => {
       // HIFのレッスン・サポカ以外の固定取得: 開始時（H.I.Fボーナスの初期Pポイント。STEP3は選抜だけ）と
       // 差し入れ（踏んだ週ごとのPポイント）。
@@ -677,6 +693,10 @@ export function useCalcResult() {
       hatsuChallenge,
       /** 最後の試験の〇ライン（タイプ別。シナリオ・アイドルの型と審査基準の順で決まる。data/okLines.ts） */
       okLines: okLineTargets(scenario, niaTag, typeRanks),
+      /** 最後の試験が始まる前のステ（タイプ別・上限で頭打ち）。〇ラインはこれで判定する（2026-11-18） */
+      preFinal,
+      /** 探索の候補（育成後のコンテキストで点数化したカード）の、最後の試験の前のステ（自動編成の〇ライン判定用） */
+      preFinalStatsOf: (cards: ScoredCard[]) => preFinalStats(cards, preFinalBase),
       /**
        * 探索・条件に使う最低ステ。設定「3タイプとも〇ラインを必ず超える」がオンなら、最低ステと〇ラインの高いほう
        */
