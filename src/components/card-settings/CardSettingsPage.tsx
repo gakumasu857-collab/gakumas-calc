@@ -360,6 +360,7 @@ export default function CardSettingsPage() {
                       override={override}
                       events={events}
                       preCount={preCount}
+                      offCount={Math.min(preCap ?? preBase, preBase)}
                     />
                   </td>
                   {/* 後イベ（回数＋強化はM/Aの割り振り） */}

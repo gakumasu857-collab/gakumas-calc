@@ -83,7 +83,7 @@ async function toDataUrl(url: string): Promise<string | null> {
 /** 保存・共有のファイル名 */
 function sheetFileName(): string {
   const stamp = new Date().toLocaleDateString("ja-JP").replace(/\//g, "-");
-  return `gakumas-calc-${stamp}.png`;
+  return `hopemasu-${stamp}.png`;
 }
 
 /** 出力専用ビューを画面外に描画して PNG（Blob）にする。保存・コピー・共有で共通 */
@@ -114,39 +114,6 @@ export async function copySheetImage(r: CalcResult, pinned: ReadonlySet<string>)
     throw new Error("clipboard-unsupported");
   }
   await navigator.clipboard.write([new ClipboardItem({ "image/png": renderSheetBlob(r, pinned) })]);
-}
-
-/** 共有メニュー（主にスマホ）で画像を送れるか */
-export function canShareSheetImage(): boolean {
-  try {
-    const probe = new File([new Blob([""], { type: "image/png" })], "probe.png", { type: "image/png" });
-    return typeof navigator.share === "function" && !!navigator.canShare?.({ files: [probe] });
-  } catch {
-    return false;
-  }
-}
-
-/** 共有メニューを開いて画像を送る（ひとことの文も付ける）。キャンセルは何もしない */
-export async function shareSheetImage(r: CalcResult, pinned: ReadonlySet<string>): Promise<void> {
-  const blob = await renderSheetBlob(r, pinned);
-  const file = new File([blob], sheetFileName(), { type: "image/png" });
-  try {
-    await navigator.share({ files: [file], text: sheetSummaryText(r) });
-  } catch (e) {
-    if ((e as Error)?.name === "AbortError") return; // 閉じただけ
-    throw e;
-  }
-}
-
-/** 共有するときのひとこと（シナリオ・アイドル・評価値・ステ。画像に全部載っているので短く） */
-export function sheetSummaryText(r: CalcResult): string {
-  const s = r.calc.settings;
-  const stats = TYPE_KEYS.map((t) => `${TYPE_JA[t]}${fmt(r.perType[t].capped)}`).join(" ");
-  return [
-    `${SCENARIO_LABELS[r.scenario]}｜${s.idol}${s.pIdol ? `「${s.pIdol}」` : ""}`,
-    `評価値 ${r.rating !== null && r.rating !== undefined ? fmt(r.rating) : "—"}（${stats}）`,
-    "ほぺマス https://gkapps.hoppepan.com",
-  ].join("\n");
 }
 
 /** 出力専用ビューを画面外に描画して PNG の dataURL にする */

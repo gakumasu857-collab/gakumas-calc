@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { Copy, HelpCircle, ImageDown, Save, Settings, Share2 } from "lucide-react";
+import { Copy, HelpCircle, ImageDown, Save, Settings } from "lucide-react";
 import { setPlanMatches, setVisibleInScenario } from "@/data/abilityCounts";
 import { SUPPORT_CARD_DB } from "@/data/supportCardsDb";
 import { SUPPORT_CATALOG } from "@/data/supportCardCatalog";
@@ -39,12 +39,7 @@ import { allocateEventsForSlots, runFullOptimize, type ExamPolicy } from "@/lib/
 import { buildConditionInput } from "@/lib/diagLog";
 import { examsAllSingle } from "@/lib/optimize/stepping";
 import { imageUrl } from "@/lib/config";
-import {
-  canShareSheetImage,
-  copySheetImage,
-  exportSheetImage,
-  shareSheetImage,
-} from "@/components/calc/ExportSheet";
+import { copySheetImage, exportSheetImage } from "@/components/calc/ExportSheet";
 import {
   effectiveMaxStats,
   examStyleTags,
@@ -748,7 +743,7 @@ export default function CalcPage() {
                       maxLength={20}
                       className="w-40 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
                     />
-                    {/* 画像をコピー（貼り付けてすぐ共有。ファイルは残らない）・共有（スマホの共有メニュー）・保存（2026-11-18） */}
+                    {/* 画像をコピー（貼り付けてすぐ共有。ファイルは残らない）・保存（2026-11-18。共有ボタンはオーナー指定で外した） */}
                     {(() => {
                       const run = (job: () => Promise<void>, done: string) => {
                         if (exportBusy || outOfPlan) return;
@@ -780,18 +775,6 @@ export default function CalcPage() {
                             <Copy size={13} />
                             {exportBusy ? "作成中…" : "画像をコピー"}
                           </button>
-                          {canShareSheetImage() && (
-                            <button
-                              type="button"
-                              disabled={exportBusy || outOfPlan}
-                              onClick={() => run(() => shareSheetImage(r, flags.pinned), "")}
-                              title={tip ?? "共有メニューを開いて画像を送ります"}
-                              className={cls}
-                            >
-                              <Share2 size={13} />
-                              共有
-                            </button>
-                          )}
                           <button
                             type="button"
                             disabled={exportBusy || outOfPlan}
@@ -1150,6 +1133,7 @@ function EventCountEditor({ r }: { r: ReturnType<typeof useCalcResult> }) {
                     override={override}
                     events={r.events}
                     preCount={preCount}
+                    offCount={override?.pre ?? auto}
                   />
                 </td>
                 {/* 後イベ（強化=M/A/✕ボタン、チェンジ等=発動トグル） */}

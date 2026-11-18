@@ -144,18 +144,24 @@ export function AcquireToggle({
 /**
  * 前イベの強化/削除の割り振り。合計のうちM側の枚数をステッパーで決め、残りは自動でA。
  * @param preCount 前イベの発動回数（取得OFFなら0を渡す）
+ * @param offCount 取得OFFのときに薄く出しておく回数（取得したときの回数）。
+ *   取得のON/OFFで欄が「—」に変わると行の高さが変わって画面がずれるので、OFFでも同じ形で薄く出す（2026-11-18）
  */
 export function PreAssign({
   card,
   override,
   events,
   preCount,
+  offCount,
 }: {
   card: SupportCardData;
   override: EventCountOverride | undefined;
   events: EventStoreLike;
   preCount: number;
+  offCount?: number;
 }) {
+  const off = preCount <= 0 && (offCount ?? 0) > 0;
+  if (off) preCount = offCount!;
   const enhPer = Number(card.extras["スキル強化"] ?? 0) || 0;
   const delPer = Number(card.extras["スキル削除"] ?? 0) || 0;
   const enhTotal = hasPreEnhance(card) ? enhPer * preCount : 0;
@@ -166,7 +172,11 @@ export function PreAssign({
   }
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+    <span
+      className={`inline-flex flex-wrap items-center gap-x-3 gap-y-1 ${off ? "pointer-events-none opacity-30" : ""}`}
+      aria-disabled={off || undefined}
+      title={off ? "前イベを取得しないので使いません" : undefined}
+    >
       {enhTotal > 0 && (
         <MSplitStepper
           label="強化"
